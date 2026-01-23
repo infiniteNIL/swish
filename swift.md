@@ -79,3 +79,7 @@ If SwiftData is configured to use CloudKit:
 
 - If installed, make sure SwiftLint returns no warnings or errors before committing.
 
+## Xcode Docs for LLMS
+
+- Apple has made some documentation for LLMs to generate code. They are located at /Applications/Xcode-26.2.0.app/Contents/PlugIns/IDEIntelligenceChat.framework/Versions/A/Resources/AdditionalDocumentation
+
