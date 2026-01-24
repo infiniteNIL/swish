@@ -5,7 +5,7 @@ import Foundation
 func main() {
     let swish = Swish()
 
-    print("Swish Lisp v0.1.0")
+    print("Swish v0.1.0")
     print("Type (exit) to quit.\n")
 
     while true {
