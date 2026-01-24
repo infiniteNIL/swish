@@ -12,11 +12,14 @@ let package = Package(
         .library(name: "SwishKit", targets: ["SwishKit"]),
         .executable(name: "swish", targets: ["swish"])
     ],
+    dependencies: [
+        .package(url: "https://github.com/objecthub/swift-commandlinekit.git", from: "1.0.0")
+    ],
     targets: [
         .target(name: "SwishKit"),
         .executableTarget(
             name: "swish",
-            dependencies: ["SwishKit"]
+            dependencies: ["SwishKit", .product(name: "CommandLineKit", package: "swift-commandlinekit")]
         ),
         .testTarget(
             name: "SwishKitTests",
