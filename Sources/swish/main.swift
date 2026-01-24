@@ -9,7 +9,7 @@ func main() {
     print("Type (exit) to quit.\n")
 
     while true {
-        print("swish> ", terminator: "")
+        print("λ> ", terminator: "")
 
         guard let input = readLine() else {
             print()
