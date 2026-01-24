@@ -12,7 +12,7 @@ func main() {
     var results: [Int: String] = [:]
 
     while true {
-        print("\(inputCount)λ> ", terminator: "")
+        print("λ(\(inputCount))> ", terminator: "")
 
         guard let input = readLine() else {
             print()
