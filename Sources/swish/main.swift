@@ -60,8 +60,9 @@ func main() {
             print()
             break
         } catch LineReaderError.CTRLC {
+            print(defaultCursor, terminator: "")
             print()
-            continue
+            break
         } catch {
             print(defaultCursor, terminator: "")
             print("Error: \(error)")
