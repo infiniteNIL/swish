@@ -9,6 +9,8 @@ func main() {
     print("Type (exit) to quit.\n")
 
     var inputCount = 1
+    var results: [Int: String] = [:]
+
     while true {
         print("\(inputCount)λ> ", terminator: "")
 
@@ -28,8 +30,18 @@ func main() {
             break
         }
 
-        let result = swish.eval(trimmed)
-        print(result + "\n")
+        // Replace *n references with previous results
+        var processed = trimmed
+        let pattern = /\*(\d+)/
+        for match in trimmed.matches(of: pattern) {
+            if let n = Int(match.1), let previousResult = results[n] {
+                processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
+            }
+        }
+
+        let result = swish.eval(processed)
+        results[inputCount] = result
+        print("=> " + result + "\n")
         inputCount += 1
     }
 }

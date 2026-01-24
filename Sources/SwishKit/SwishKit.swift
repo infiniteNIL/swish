@@ -12,6 +12,6 @@ public struct Swish {
     /// - Returns: The string representation of the evaluated result
     public func eval(_ input: String) -> String {
         // TODO: Implement reader, evaluator, and printer
-        "=> \(input)"
+        input
     }
 }
