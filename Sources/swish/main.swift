@@ -8,8 +8,9 @@ func main() {
     print("Swish v0.1.0")
     print("Type (exit) to quit.\n")
 
+    var inputCount = 1
     while true {
-        print("λ> ", terminator: "")
+        print("\(inputCount)λ> ", terminator: "")
 
         guard let input = readLine() else {
             print()
@@ -29,6 +30,7 @@ func main() {
 
         let result = swish.eval(trimmed)
         print(result + "\n")
+        inputCount += 1
     }
 }
 
