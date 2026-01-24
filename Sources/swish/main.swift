@@ -28,7 +28,7 @@ func main() {
         }
 
         let result = swish.eval(trimmed)
-        print(result)
+        print(result + "\n")
     }
 }
 
