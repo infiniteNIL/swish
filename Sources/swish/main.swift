@@ -2,9 +2,17 @@ import SwishKit
 import Foundation
 import CommandLineKit
 
+/// ANSI escape sequences for cursor styling
+private let blinkingBarCursor = "\u{1b}[5 q"
+private let defaultCursor = "\u{1b}[0 q"
+
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
+
+    // Set blinking bar cursor
+    print(blinkingBarCursor, terminator: "")
+    fflush(stdout)
 
     print("Swish v0.1.0")
     print("Type (exit) to quit.\n")
@@ -17,12 +25,14 @@ func main() {
         while true {
             print("λ(\(inputCount))> ", terminator: "")
             guard let input = readLine() else {
+                print(defaultCursor, terminator: "")
                 print()
                 break
             }
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { continue }
             if trimmed == "(exit)" || trimmed == "(quit)" {
+                print(defaultCursor, terminator: "")
                 print("Goodbye!")
                 break
             }
@@ -46,12 +56,14 @@ func main() {
         do {
             input = try ln.readLine(prompt: "λ(\(inputCount))> ", strippingNewline: true)
         } catch LineReaderError.EOF {
+            print(defaultCursor, terminator: "")
             print()
             break
         } catch LineReaderError.CTRLC {
             print()
             continue
         } catch {
+            print(defaultCursor, terminator: "")
             print("Error: \(error)")
             break
         }
@@ -65,6 +77,7 @@ func main() {
         ln.addHistory(input)
 
         if trimmed == "(exit)" || trimmed == "(quit)" {
+            print(defaultCursor, terminator: "")
             print("Goodbye!")
             break
         }
