@@ -11,39 +11,11 @@ private let orange = "\u{1b}[38;2;255;149;0m"      // #FF9500 - Swift logo orang
 private let red = "\u{1b}[38;2;255;59;48m"       // #FF3B30 - Apple system red
 private let reset = "\u{1b}[0m"
 
-/// Check if a result string represents an error
-private func isError(_ result: String) -> Bool {
-    result.hasPrefix("Illegal character") ||
-    result.hasPrefix("Unexpected") ||
-    result.hasPrefix("Error:")
-}
-
-/// Swish logo banner
-private func printBanner() {
-    print("\(orange)🏀 Swish\(reset)")
-}
-
 /// REPL commands
 private let commands: [(name: String, description: String)] = [
     ("help", "Show this help message"),
     ("quit", "Exit the REPL")
 ]
-
-/// Check if input matches a command (prefix matching)
-private func matchCommand(_ input: String, _ command: String) -> Bool {
-    guard input.hasPrefix("/") else { return false }
-    let typed = String(input.dropFirst())
-    return !typed.isEmpty && command.hasPrefix(typed)
-}
-
-/// Print help message
-private func printHelp() {
-    print("Commands:")
-    for cmd in commands {
-        print("  /\(cmd.name) - \(cmd.description)")
-    }
-    print()
-}
 
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
@@ -156,6 +128,34 @@ func main() {
         }
         inputCount += 1
     }
+}
+
+/// Swish logo banner
+private func printBanner() {
+    print("\(orange)🏀 Swish\(reset)")
+}
+
+/// Check if input matches a command (prefix matching)
+private func matchCommand(_ input: String, _ command: String) -> Bool {
+    guard input.hasPrefix("/") else { return false }
+    let typed = String(input.dropFirst())
+    return !typed.isEmpty && command.hasPrefix(typed)
+}
+
+/// Print help message
+private func printHelp() {
+    print("Commands:")
+    for cmd in commands {
+        print("  /\(cmd.name) - \(cmd.description)")
+    }
+    print()
+}
+
+/// Check if a result string represents an error
+private func isError(_ result: String) -> Bool {
+    result.hasPrefix("Illegal character") ||
+    result.hasPrefix("Unexpected") ||
+    result.hasPrefix("Error:")
 }
 
 main()

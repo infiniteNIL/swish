@@ -64,6 +64,20 @@ public class Lexer {
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
     }
 
+    private func skipWhitespace() {
+        while let char = peek(), char.isWhitespace {
+            _ = advance()
+        }
+    }
+
+    private func scanInteger(startLine: Int, startColumn: Int, prefix: String = "") -> Token {
+        var text = prefix
+        while let char = peek(), char.isNumber {
+            text.append(advance())
+        }
+        return Token(type: .integer, text: text, line: startLine, column: startColumn)
+    }
+
     private func peek() -> Character? {
         guard index < source.endIndex else { return nil }
         return source[index]
@@ -80,19 +94,5 @@ public class Lexer {
             column += 1
         }
         return char
-    }
-
-    private func skipWhitespace() {
-        while let char = peek(), char.isWhitespace {
-            _ = advance()
-        }
-    }
-
-    private func scanInteger(startLine: Int, startColumn: Int, prefix: String = "") -> Token {
-        var text = prefix
-        while let char = peek(), char.isNumber {
-            text.append(advance())
-        }
-        return Token(type: .integer, text: text, line: startLine, column: startColumn)
     }
 }
