@@ -15,6 +15,6 @@ struct SwishKitTests {
     func returnsErrorForInvalidInput() {
         let swish = Swish()
         let result = swish.eval("hello")
-        #expect(result.contains("Lexer error"))
+        #expect(result.contains("Illegal character"))
     }
 }

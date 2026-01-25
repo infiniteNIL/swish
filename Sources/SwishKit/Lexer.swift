@@ -13,8 +13,15 @@ public struct Token: Equatable, Sendable {
 }
 
 /// Errors thrown during lexical analysis
-public enum LexerError: Error, Equatable {
+public enum LexerError: Error, Equatable, CustomStringConvertible {
     case illegalCharacter(Character, line: Int, column: Int)
+
+    public var description: String {
+        switch self {
+        case .illegalCharacter(let char, let line, let column):
+            return "Illegal character '\(char)' (line \(line), column \(column))."
+        }
+    }
 }
 
 /// Lexical analyzer for Swish source code

@@ -13,8 +13,8 @@ private let reset = "\u{1b}[0m"
 
 /// Check if a result string represents an error
 private func isError(_ result: String) -> Bool {
-    result.hasPrefix("Lexer error:") ||
-    result.hasPrefix("Parser error:") ||
+    result.hasPrefix("Illegal character") ||
+    result.hasPrefix("Unexpected") ||
     result.hasPrefix("Error:")
 }
 

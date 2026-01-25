@@ -19,10 +19,10 @@ public struct Swish {
             return printString(result)
         }
         catch let error as LexerError {
-            return "Lexer error: \(error)"
+            return error.description
         }
         catch let error as ParserError {
-            return "Parser error: \(error)"
+            return error.description
         }
         catch {
             return "Error: \(error)"

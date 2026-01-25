@@ -4,9 +4,18 @@ public enum Expr: Equatable {
 }
 
 /// Errors thrown during parsing
-public enum ParserError: Error, Equatable {
+public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unexpectedToken(Token)
     case unexpectedEOF
+
+    public var description: String {
+        switch self {
+        case .unexpectedToken(let token):
+            return "Unexpected token '\(token.text)' (line \(token.line), column \(token.column))."
+        case .unexpectedEOF:
+            return "Unexpected end of input."
+        }
+    }
 }
 
 /// Parser for Swish source code
