@@ -18,9 +18,10 @@ public struct Swish {
         guard let lastExpr = exprs.last else {
             throw ParserError.unexpectedEOF
         }
+        let evaluator = Evaluator()
         var result = lastExpr
         for expr in exprs {
-            result = evaluate(expr)
+            result = evaluator.eval(expr)
         }
         return printString(result)
     }
