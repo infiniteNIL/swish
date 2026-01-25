@@ -15,6 +15,28 @@ private func printBanner() {
     print("\(orange)🏀 Swish\(reset)")
 }
 
+/// REPL commands
+private let commands: [(name: String, description: String)] = [
+    ("help", "Show this help message"),
+    ("quit", "Exit the REPL")
+]
+
+/// Check if input matches a command (prefix matching)
+private func matchCommand(_ input: String, _ command: String) -> Bool {
+    guard input.hasPrefix("/") else { return false }
+    let typed = String(input.dropFirst())
+    return !typed.isEmpty && command.hasPrefix(typed)
+}
+
+/// Print help message
+private func printHelp() {
+    print("Commands:")
+    for cmd in commands {
+        print("  /\(cmd.name) - \(cmd.description)")
+    }
+    print()
+}
+
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
@@ -24,7 +46,7 @@ func main() {
     fflush(stdout)
 
     printBanner()
-    print("v0.1.0 — Type /quit to quit.\n")
+    print("v0.1.0 — Type /help for commands.\n")
 
     var inputCount = 1
     var results: [Int: String] = [:]
@@ -40,9 +62,13 @@ func main() {
             }
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { continue }
-            if trimmed == "/quit" || trimmed == "/q" {
+            if matchCommand(trimmed, "quit") {
                 print(defaultCursor, terminator: "")
                 break
+            }
+            if matchCommand(trimmed, "help") {
+                printHelp()
+                continue
             }
             var processed = trimmed
             let pattern = /\*(\d+)/
@@ -88,9 +114,14 @@ func main() {
 
         ln.addHistory(input)
 
-        if trimmed == "/quit" || trimmed == "/q" {
+        if matchCommand(trimmed, "quit") {
             print(defaultCursor, terminator: "")
             break
+        }
+
+        if matchCommand(trimmed, "help") {
+            printHelp()
+            continue
         }
 
         // Replace *n references with previous results
