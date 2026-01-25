@@ -14,7 +14,8 @@ private let reset = "\u{1b}[0m"
 /// REPL commands
 private let commands: [(name: String, description: String)] = [
     ("help", "Show this help message"),
-    ("quit", "Exit the REPL")
+    ("quit", "Exit the REPL"),
+    ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
 /// Swish REPL - Read-Eval-Print Loop
@@ -51,7 +52,7 @@ func main() {
                 continue
             }
             var processed = trimmed
-            let pattern = /\*(\d+)/
+            let pattern = /\/(\d+)/
             for match in trimmed.matches(of: pattern) {
                 if let n = Int(match.1), let previousResult = results[n] {
                     processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
@@ -109,9 +110,9 @@ func main() {
             continue
         }
 
-        // Replace *n references with previous results
+        // Replace /n references with previous results
         var processed = trimmed
-        let pattern = /\*(\d+)/
+        let pattern = /\/(\d+)/
         for match in trimmed.matches(of: pattern) {
             if let n = Int(match.1), let previousResult = results[n] {
                 processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
