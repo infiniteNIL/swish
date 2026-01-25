@@ -17,3 +17,7 @@ See [swift.md](swift.md) for Swift and SwiftUI coding guidelines, including mode
 ## Architecture
 
 *To be documented as the codebase develops.*
+
+## REPL Commands
+
+REPL commands are preceded by `/` (e.g., `/quit`, `/q`). This distinguishes them from Swish expressions.

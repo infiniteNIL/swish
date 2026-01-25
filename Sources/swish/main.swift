@@ -24,7 +24,7 @@ func main() {
     fflush(stdout)
 
     printBanner()
-    print("v0.1.0 — Type (exit) to quit.\n")
+    print("v0.1.0 — Type /quit to quit.\n")
 
     var inputCount = 1
     var results: [Int: String] = [:]
@@ -40,7 +40,7 @@ func main() {
             }
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { continue }
-            if trimmed == "(exit)" || trimmed == "(quit)" {
+            if trimmed == "/quit" || trimmed == "/q" {
                 print(defaultCursor, terminator: "")
                 break
             }
@@ -88,7 +88,7 @@ func main() {
 
         ln.addHistory(input)
 
-        if trimmed == "(exit)" || trimmed == "(quit)" {
+        if trimmed == "/quit" || trimmed == "/q" {
             print(defaultCursor, terminator: "")
             break
         }
