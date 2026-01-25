@@ -6,9 +6,17 @@ import CommandLineKit
 private let blinkingBarCursor = "\u{1b}[5 q"
 private let defaultCursor = "\u{1b}[0 q"
 
-/// ANSI color codes for banner
+/// ANSI color codes
 private let orange = "\u{1b}[38;2;255;149;0m"      // #FF9500 - Swift logo orange
+private let red = "\u{1b}[38;2;255;59;48m"       // #FF3B30 - Apple system red
 private let reset = "\u{1b}[0m"
+
+/// Check if a result string represents an error
+private func isError(_ result: String) -> Bool {
+    result.hasPrefix("Lexer error:") ||
+    result.hasPrefix("Parser error:") ||
+    result.hasPrefix("Error:")
+}
 
 /// Swish logo banner
 private func printBanner() {
@@ -79,7 +87,12 @@ func main() {
             }
             let result = swish.eval(processed)
             results[inputCount] = result
-            print("=> " + result + "\n")
+            if isError(result) {
+                print("=> \(red)\(result)\(reset)\n")
+            }
+            else {
+                print("=> \(result)\n")
+            }
             inputCount += 1
         }
         return
@@ -135,7 +148,12 @@ func main() {
 
         let result = swish.eval(processed)
         results[inputCount] = result
-        print("=> " + result + "\n")
+        if isError(result) {
+            print("=> \(red)\(result)\(reset)\n")
+        }
+        else {
+            print("=> \(result)\n")
+        }
         inputCount += 1
     }
 }
