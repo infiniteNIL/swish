@@ -8,10 +8,24 @@ public struct Swish {
     public init() {}
 
     /// Evaluates a Lisp expression string and returns the result.
-    /// - Parameter input: A string containing a Lisp expression
+    /// - Parameter source: A string containing a Lisp expression
     /// - Returns: The string representation of the evaluated result
-    public func eval(_ input: String) -> String {
-        // TODO: Implement reader, evaluator, and printer
-        input
+    public func eval(_ source: String) -> String {
+        do {
+            let lexer = Lexer(source)
+            let parser = try Parser(lexer)
+            let ast = try parser.parse()
+            let result = SwishKit.eval(ast)
+            return printString(result)
+        }
+        catch let error as LexerError {
+            return "Lexer error: \(error)"
+        }
+        catch let error as ParserError {
+            return "Parser error: \(error)"
+        }
+        catch {
+            return "Error: \(error)"
+        }
     }
 }
