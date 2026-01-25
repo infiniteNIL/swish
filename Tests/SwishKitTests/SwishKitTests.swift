@@ -18,4 +18,31 @@ struct SwishKitTests {
             _ = try swish.eval("hello")
         }
     }
+
+    @Test("Uses Int for small numbers")
+    func usesIntForSmall() throws {
+        let swish = Swish()
+        #expect(try swish.eval("42") == "42")
+    }
+
+    @Test("Handles Int.max")
+    func handlesIntMax() throws {
+        let swish = Swish()
+        let intMax = "9223372036854775807"
+        #expect(try swish.eval(intMax) == intMax)
+    }
+
+    @Test("Promotes to BigInt for large numbers")
+    func promotesToBigInt() throws {
+        let swish = Swish()
+        let huge = "123456789012345678901234567890"
+        #expect(try swish.eval(huge) == huge)
+    }
+
+    @Test("Handles number just above Int.max")
+    func handlesJustAboveIntMax() throws {
+        let swish = Swish()
+        let justAboveMax = "9223372036854775808"
+        #expect(try swish.eval(justAboveMax) == justAboveMax)
+    }
 }

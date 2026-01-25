@@ -1,6 +1,6 @@
 /// AST node types for Swish expressions
 public enum Expr: Equatable {
-    case integer(Int)
+    case integer(Number)
 }
 
 /// Errors thrown during parsing
@@ -31,10 +31,7 @@ public class Parser {
     public func parse() throws -> Expr {
         switch currentToken.type {
         case .integer:
-            guard let value = Int(currentToken.text) else {
-                throw ParserError.unexpectedToken(currentToken)
-            }
-            return .integer(value)
+            return .integer(Number(currentToken.text))
         case .eof:
             throw ParserError.unexpectedEOF
         }

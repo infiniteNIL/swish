@@ -2,6 +2,6 @@
 public func printString(_ expr: Expr) -> String {
     switch expr {
     case .integer(let value):
-        return String(value)
+        return value.description
     }
 }

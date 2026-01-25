@@ -8,7 +8,7 @@ struct ParserTests {
         let lexer = Lexer("42")
         let parser = try Parser(lexer)
         let expr = try parser.parse()
-        #expect(expr == .integer(42))
+        #expect(expr == .integer(.int(42)))
     }
 
     @Test("Parses negative integer")
@@ -16,7 +16,7 @@ struct ParserTests {
         let lexer = Lexer("-17")
         let parser = try Parser(lexer)
         let expr = try parser.parse()
-        #expect(expr == .integer(-17))
+        #expect(expr == .integer(.int(-17)))
     }
 
     @Test("Parses positive integer with plus sign")
@@ -24,7 +24,7 @@ struct ParserTests {
         let lexer = Lexer("+5")
         let parser = try Parser(lexer)
         let expr = try parser.parse()
-        #expect(expr == .integer(5))
+        #expect(expr == .integer(.int(5)))
     }
 
     @Test("Parses zero")
@@ -32,7 +32,7 @@ struct ParserTests {
         let lexer = Lexer("0")
         let parser = try Parser(lexer)
         let expr = try parser.parse()
-        #expect(expr == .integer(0))
+        #expect(expr == .integer(.int(0)))
     }
 
     @Test("Throws unexpectedEOF for empty input")
