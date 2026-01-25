@@ -1,11 +1,11 @@
 /// Token types for the Swish lexer
-public enum TokenType: Equatable {
+public enum TokenType: Equatable, Sendable {
     case integer
     case eof
 }
 
 /// Represents a lexical token with position information
-public struct Token: Equatable {
+public struct Token: Equatable, Sendable {
     public let type: TokenType
     public let text: String
     public let line: Int
