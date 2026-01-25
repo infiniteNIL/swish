@@ -8,7 +8,8 @@ private let defaultCursor = "\u{1b}[0 q"
 
 /// ANSI color codes
 private let orange = "\u{1b}[38;2;255;149;0m"      // #FF9500 - Swift logo orange
-private let red = "\u{1b}[38;2;255;59;48m"       // #FF3B30 - Apple system red
+private let green = "\u{1b}[38;2;52;199;89m"      // #34C759 - Apple system green
+private let red = "\u{1b}[38;2;255;59;48m"        // #FF3B30 - Apple system red
 private let reset = "\u{1b}[0m"
 
 /// REPL commands
@@ -61,7 +62,7 @@ func main() {
             do {
                 let result = try swish.eval(processed)
                 results[inputCount] = result
-                print("=> \(result)\n")
+                print("\(green)=>\(reset) \(result)\n")
             }
             catch {
                 print("=> \(red)\(error)\(reset)\n")
@@ -122,7 +123,7 @@ func main() {
         do {
             let result = try swish.eval(processed)
             results[inputCount] = result
-            print("=> \(result)\n")
+            print("\(green)=>\(reset) \(result)\n")
         }
         catch {
             print("=> \(red)\(error)\(reset)\n")
