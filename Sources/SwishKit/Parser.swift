@@ -28,12 +28,26 @@ public class Parser {
         self.currentToken = try lexer.nextToken()
     }
 
-    public func parse() throws -> Expr {
+    public func parse() throws -> [Expr] {
+        var exprs: [Expr] = []
+        while currentToken.type != .eof {
+            exprs.append(try parseExpr())
+        }
+        return exprs
+    }
+
+    private func parseExpr() throws -> Expr {
         switch currentToken.type {
         case .integer:
-            return .integer(Number(currentToken.text))
+            let expr = Expr.integer(Number(currentToken.text))
+            try advance()
+            return expr
         case .eof:
             throw ParserError.unexpectedEOF
         }
+    }
+
+    private func advance() throws {
+        currentToken = try lexer.nextToken()
     }
 }

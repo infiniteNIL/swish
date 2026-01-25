@@ -14,8 +14,14 @@ public struct Swish {
     public func eval(_ source: String) throws -> String {
         let lexer = Lexer(source)
         let parser = try Parser(lexer)
-        let ast = try parser.parse()
-        let result = SwishKit.eval(ast)
+        let exprs = try parser.parse()
+        guard let lastExpr = exprs.last else {
+            throw ParserError.unexpectedEOF
+        }
+        var result = lastExpr
+        for expr in exprs {
+            result = evaluate(expr)
+        }
         return printString(result)
     }
 }
