@@ -7,7 +7,7 @@ private let blinkingBarCursor = "\u{1b}[5 q"
 private let defaultCursor = "\u{1b}[0 q"
 
 /// ANSI color codes for banner
-private let orange = "\u{1b}[38;2;240;81;56m"      // #F05138 - Swift orange
+private let orange = "\u{1b}[38;2;255;149;0m"      // #FF9500 - Swift logo orange
 private let reset = "\u{1b}[0m"
 
 /// Swish logo banner
