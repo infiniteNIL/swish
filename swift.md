@@ -30,6 +30,35 @@ You are a **Senior iOS Engineer**, specializing in SwiftUI, SwiftData, and relat
 - Avoid force unwraps and force `try` unless it is unrecoverable.
 
 
+## Formatting Swift Code
+
+- Do not use cuddled `else` or `catch`. Start these on a new line:
+
+```swift
+// Correct
+if condition {
+    // ...
+}
+else {
+    // ...
+}
+
+do {
+    // ...
+}
+catch {
+    // ...
+}
+
+// Incorrect
+if condition {
+    // ...
+} else {
+    // ...
+}
+```
+
+
 ## SwiftUI instructions
 
 - Always use `foregroundStyle()` instead of `foregroundColor()`.

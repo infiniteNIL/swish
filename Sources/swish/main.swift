@@ -64,15 +64,18 @@ func main() {
         let input: String
         do {
             input = try ln.readLine(prompt: "λ(\(inputCount))> ", strippingNewline: true)
-        } catch LineReaderError.EOF {
+        }
+        catch LineReaderError.EOF {
             print(defaultCursor, terminator: "")
             print()
             break
-        } catch LineReaderError.CTRLC {
+        }
+        catch LineReaderError.CTRLC {
             print(defaultCursor, terminator: "")
             print()
             break
-        } catch {
+        }
+        catch {
             print(defaultCursor, terminator: "")
             print("Error: \(error)")
             break
