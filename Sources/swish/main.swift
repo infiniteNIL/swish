@@ -42,7 +42,6 @@ func main() {
             if trimmed.isEmpty { continue }
             if trimmed == "(exit)" || trimmed == "(quit)" {
                 print(defaultCursor, terminator: "")
-                print("Goodbye!")
                 break
             }
             var processed = trimmed
@@ -91,7 +90,6 @@ func main() {
 
         if trimmed == "(exit)" || trimmed == "(quit)" {
             print(defaultCursor, terminator: "")
-            print("Goodbye!")
             break
         }
 
