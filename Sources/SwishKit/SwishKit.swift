@@ -23,6 +23,7 @@ public struct Swish {
         for expr in exprs {
             result = evaluator.eval(expr)
         }
-        return printString(result)
+        let printer = Printer()
+        return printer.printString(result)
     }
 }
