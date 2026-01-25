@@ -32,6 +32,7 @@ You are a **Senior iOS Engineer**, specializing in SwiftUI, SwiftData, and relat
 
 ## Formatting Swift Code
 
+- Define functions after they are called, not before.
 - Do not use cuddled `else` or `catch`. Start these on a new line:
 
 ```swift
