@@ -6,6 +6,15 @@ import CommandLineKit
 private let blinkingBarCursor = "\u{1b}[5 q"
 private let defaultCursor = "\u{1b}[0 q"
 
+/// ANSI color codes for banner
+private let orange = "\u{1b}[38;2;240;81;56m"      // #F05138 - Swift orange
+private let reset = "\u{1b}[0m"
+
+/// Swish logo banner
+private func printBanner() {
+    print("\(orange)🏀 Swish\(reset)")
+}
+
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
@@ -14,8 +23,8 @@ func main() {
     print(blinkingBarCursor, terminator: "")
     fflush(stdout)
 
-    print("Swish v0.1.0")
-    print("Type (exit) to quit.\n")
+    printBanner()
+    print("v0.1.0 — Type (exit) to quit.\n")
 
     var inputCount = 1
     var results: [Int: String] = [:]
