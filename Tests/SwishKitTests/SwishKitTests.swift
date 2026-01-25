@@ -4,17 +4,18 @@ import Testing
 @Suite("SwishKit Tests")
 struct SwishKitTests {
     @Test("Evaluates integer through full pipeline")
-    func evaluatesInteger() {
+    func evaluatesInteger() throws {
         let swish = Swish()
-        #expect(swish.eval("42") == "42")
-        #expect(swish.eval("-17") == "-17")
-        #expect(swish.eval("0") == "0")
+        #expect(try swish.eval("42") == "42")
+        #expect(try swish.eval("-17") == "-17")
+        #expect(try swish.eval("0") == "0")
     }
 
-    @Test("Returns error for invalid input")
-    func returnsErrorForInvalidInput() {
+    @Test("Throws error for invalid input")
+    func throwsErrorForInvalidInput() {
         let swish = Swish()
-        let result = swish.eval("hello")
-        #expect(result.contains("Illegal character"))
+        #expect(throws: LexerError.self) {
+            _ = try swish.eval("hello")
+        }
     }
 }

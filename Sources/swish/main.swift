@@ -57,13 +57,13 @@ func main() {
                     processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
                 }
             }
-            let result = swish.eval(processed)
-            results[inputCount] = result
-            if isError(result) {
-                print("=> \(red)\(result)\(reset)\n")
-            }
-            else {
+            do {
+                let result = try swish.eval(processed)
+                results[inputCount] = result
                 print("=> \(result)\n")
+            }
+            catch {
+                print("=> \(red)\(error)\(reset)\n")
             }
             inputCount += 1
         }
@@ -118,13 +118,13 @@ func main() {
             }
         }
 
-        let result = swish.eval(processed)
-        results[inputCount] = result
-        if isError(result) {
-            print("=> \(red)\(result)\(reset)\n")
-        }
-        else {
+        do {
+            let result = try swish.eval(processed)
+            results[inputCount] = result
             print("=> \(result)\n")
+        }
+        catch {
+            print("=> \(red)\(error)\(reset)\n")
         }
         inputCount += 1
     }
@@ -149,13 +149,6 @@ private func printHelp() {
         print("  /\(cmd.name) - \(cmd.description)")
     }
     print()
-}
-
-/// Check if a result string represents an error
-private func isError(_ result: String) -> Bool {
-    result.hasPrefix("Illegal character") ||
-    result.hasPrefix("Unexpected") ||
-    result.hasPrefix("Error:")
 }
 
 main()
