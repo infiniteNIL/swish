@@ -134,7 +134,7 @@ func main() {
 
 /// Swish logo banner
 private func printBanner() {
-    print("\(orange)🏀 Swish\(reset)")
+    print("\(orange))λ( Swish\(reset)")
 }
 
 /// Check if input matches a command (prefix matching)
