@@ -319,4 +319,116 @@ struct LexerTests {
             try lexer.nextToken()
         }
     }
+
+    // MARK: - Binary integer literals
+
+    @Test("Scans basic binary integer")
+    func scanBasicBinary() throws {
+        let lexer = Lexer("0b1010")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0b1010")
+    }
+
+    @Test("Scans binary zero")
+    func scanBinaryZero() throws {
+        let lexer = Lexer("0b0")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0b0")
+    }
+
+    @Test("Scans binary one")
+    func scanBinaryOne() throws {
+        let lexer = Lexer("0b1")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0b1")
+    }
+
+    @Test("Scans negative binary integer")
+    func scanNegativeBinary() throws {
+        let lexer = Lexer("-0b1010")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "-0b1010")
+    }
+
+    @Test("Scans positive binary integer with plus sign")
+    func scanPositiveBinary() throws {
+        let lexer = Lexer("+0b100")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "+0b100")
+    }
+
+    @Test("Scans binary with underscore separators")
+    func scanBinaryWithUnderscores() throws {
+        let lexer = Lexer("0b1111_0000")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0b11110000")
+    }
+
+    @Test("Scans binary with multiple underscore groups")
+    func scanBinaryWithMultipleUnderscores() throws {
+        let lexer = Lexer("0b1_0_1_0")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0b1010")
+    }
+
+    @Test("Throws error for binary with no digits")
+    func binaryNoDigitsThrows() throws {
+        let lexer = Lexer("0b")
+        #expect(throws: LexerError.invalidNumberFormat("0b", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for binary with leading underscore")
+    func binaryLeadingUnderscoreThrows() throws {
+        let lexer = Lexer("0b_1")
+        #expect(throws: LexerError.invalidNumberFormat("0b_", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for binary with trailing underscore")
+    func binaryTrailingUnderscoreThrows() throws {
+        let lexer = Lexer("0b1_")
+        #expect(throws: LexerError.invalidNumberFormat("0b1_", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for binary with consecutive underscores")
+    func binaryConsecutiveUnderscoresThrows() throws {
+        let lexer = Lexer("0b1__0")
+        #expect(throws: LexerError.invalidNumberFormat("0b1__", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for binary with invalid digit")
+    func binaryInvalidDigitThrows() throws {
+        // 0b2 should be lexed as 0b with no valid digits
+        let lexer = Lexer("0b2")
+        #expect(throws: LexerError.invalidNumberFormat("0b", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Uppercase prefix is not recognized as binary")
+    func uppercasePrefixNotBinary() throws {
+        // 0B1010 should be lexed as 0 followed by illegal character B
+        let lexer = Lexer("0B1010")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0")
+
+        #expect(throws: LexerError.illegalCharacter("B", line: 1, column: 2)) {
+            try lexer.nextToken()
+        }
+    }
 }

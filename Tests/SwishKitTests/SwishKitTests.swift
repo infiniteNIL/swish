@@ -51,4 +51,14 @@ struct SwishKitTests {
         #expect(try swish.eval("+0x10") == .integer(16))
         #expect(try swish.eval("0x1_000") == .integer(4096))
     }
+
+    @Test("Evaluates binary integer literals")
+    func evaluatesBinaryInteger() throws {
+        #expect(try swish.eval("0b1010") == .integer(10))
+        #expect(try swish.eval("0b0") == .integer(0))
+        #expect(try swish.eval("0b1") == .integer(1))
+        #expect(try swish.eval("-0b1010") == .integer(-10))
+        #expect(try swish.eval("+0b100") == .integer(4))
+        #expect(try swish.eval("0b1111_0000") == .integer(240))
+    }
 }

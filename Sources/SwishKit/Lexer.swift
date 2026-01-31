@@ -49,6 +49,11 @@ public class Lexer {
             return Token(type: .eof, text: "", line: startLine, column: startColumn)
         }
 
+        // Unsigned binary: 0b...
+        if char == "0", let next = peekAt(1), next == "b" {
+            return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: "")
+        }
+
         // Unsigned hex: 0x...
         if char == "0", let next = peekAt(1), next == "x" {
             return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: "")
@@ -60,6 +65,12 @@ public class Lexer {
 
         if char == "+" || char == "-" {
             let signChar = advance()
+
+            // Check for binary: sign followed by 0b
+            if let next = peek(), next == "0",
+               let afterZero = peekAt(1), afterZero == "b" {
+                return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+            }
 
             // Check for hex: sign followed by 0x
             if let next = peek(), next == "0",
@@ -182,5 +193,47 @@ public class Lexer {
 
     private func isHexDigit(_ char: Character) -> Bool {
         char.isHexDigit
+    }
+
+    private func scanBinaryInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
+        var text = prefix
+        text.append(advance()) // '0'
+        text.append(advance()) // 'b'
+
+        var hasDigits = false
+        var lastWasUnderscore = false
+
+        while let char = peek() {
+            if isBinaryDigit(char) {
+                text.append(advance())
+                hasDigits = true
+                lastWasUnderscore = false
+            }
+            else if char == "_" {
+                if !hasDigits || lastWasUnderscore {
+                    throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                }
+                _ = advance()
+                text.append("_")
+                lastWasUnderscore = true
+            }
+            else {
+                break
+            }
+        }
+
+        if !hasDigits {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+        if lastWasUnderscore {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+
+        let cleanText = text.filter { $0 != "_" }
+        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+    }
+
+    private func isBinaryDigit(_ char: Character) -> Bool {
+        char == "0" || char == "1"
     }
 }

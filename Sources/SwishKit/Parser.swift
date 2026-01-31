@@ -45,7 +45,10 @@ public class Parser {
             let text = currentToken.text
             let value: Int
 
-            if let hexValue = parseHexInteger(text) {
+            if let binaryValue = parseBinaryInteger(text) {
+                value = binaryValue
+            }
+            else if let hexValue = parseHexInteger(text) {
                 value = hexValue
             }
             else if let decValue = Int(text) {
@@ -79,6 +82,26 @@ public class Parser {
 
         let hexPart = String(str.dropFirst(2))
         guard let magnitude = Int(hexPart, radix: 16) else { return nil }
+
+        return negative ? -magnitude : magnitude
+    }
+
+    private func parseBinaryInteger(_ text: String) -> Int? {
+        var str = text
+        var negative = false
+
+        if str.hasPrefix("-") {
+            negative = true
+            str = String(str.dropFirst())
+        }
+        else if str.hasPrefix("+") {
+            str = String(str.dropFirst())
+        }
+
+        guard str.hasPrefix("0b") else { return nil }
+
+        let binaryPart = String(str.dropFirst(2))
+        guard let magnitude = Int(binaryPart, radix: 2) else { return nil }
 
         return negative ? -magnitude : magnitude
     }

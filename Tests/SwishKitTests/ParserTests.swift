@@ -108,4 +108,38 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.integer(10)])
     }
+
+    // MARK: - Binary integer literals
+
+    @Test("Parses binary integer")
+    func parseBinaryInteger() throws {
+        let lexer = Lexer("0b1010")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(10)])
+    }
+
+    @Test("Parses negative binary integer")
+    func parseNegativeBinaryInteger() throws {
+        let lexer = Lexer("-0b1010")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(-10)])
+    }
+
+    @Test("Parses positive binary integer with plus sign")
+    func parsePositiveBinaryInteger() throws {
+        let lexer = Lexer("+0b100")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(4)])
+    }
+
+    @Test("Parses binary zero")
+    func parseBinaryZero() throws {
+        let lexer = Lexer("0b0")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(0)])
+    }
 }
