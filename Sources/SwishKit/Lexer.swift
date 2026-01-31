@@ -49,12 +49,23 @@ public class Lexer {
             return Token(type: .eof, text: "", line: startLine, column: startColumn)
         }
 
+        // Unsigned hex: 0x...
+        if char == "0", let next = peekAt(1), next == "x" {
+            return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: "")
+        }
+
         if char.isNumber {
             return try scanInteger(startLine: startLine, startColumn: startColumn)
         }
 
         if char == "+" || char == "-" {
             let signChar = advance()
+
+            // Check for hex: sign followed by 0x
+            if let next = peek(), next == "0",
+               let afterZero = peekAt(1), afterZero == "x" {
+                return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+            }
 
             if let next = peek(), next.isNumber {
                 return try scanInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
@@ -103,6 +114,44 @@ public class Lexer {
         return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
     }
 
+    private func scanHexInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
+        var text = prefix
+        text.append(advance()) // '0'
+        text.append(advance()) // 'x'
+
+        var hasDigits = false
+        var lastWasUnderscore = false
+
+        while let char = peek() {
+            if isHexDigit(char) {
+                text.append(advance())
+                hasDigits = true
+                lastWasUnderscore = false
+            }
+            else if char == "_" {
+                if !hasDigits || lastWasUnderscore {
+                    throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                }
+                _ = advance()
+                text.append("_")
+                lastWasUnderscore = true
+            }
+            else {
+                break
+            }
+        }
+
+        if !hasDigits {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+        if lastWasUnderscore {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+
+        let cleanText = text.filter { $0 != "_" }
+        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+    }
+
     private func peek() -> Character? {
         guard index < source.endIndex else { return nil }
         return source[index]
@@ -119,5 +168,19 @@ public class Lexer {
             column += 1
         }
         return char
+    }
+
+    private func peekAt(_ offset: Int) -> Character? {
+        var i = index
+        for _ in 0..<offset {
+            guard i < source.endIndex else { return nil }
+            i = source.index(after: i)
+        }
+        guard i < source.endIndex else { return nil }
+        return source[i]
+    }
+
+    private func isHexDigit(_ char: Character) -> Bool {
+        char.isHexDigit
     }
 }

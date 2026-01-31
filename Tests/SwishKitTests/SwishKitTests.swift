@@ -42,4 +42,13 @@ struct SwishKitTests {
         #expect(try swish.eval("1_000_000") == .integer(1_000_000))
         #expect(try swish.eval("-1_000") == .integer(-1000))
     }
+
+    @Test("Evaluates hexadecimal integer literals")
+    func evaluatesHexInteger() throws {
+        #expect(try swish.eval("0xFF") == .integer(255))
+        #expect(try swish.eval("0x0a") == .integer(10))
+        #expect(try swish.eval("-0xFF") == .integer(-255))
+        #expect(try swish.eval("+0x10") == .integer(16))
+        #expect(try swish.eval("0x1_000") == .integer(4096))
+    }
 }

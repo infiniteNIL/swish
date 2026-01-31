@@ -42,15 +42,45 @@ public class Parser {
     private func parseExpr() throws -> Expr {
         switch currentToken.type {
         case .integer:
-            guard let value = Int(currentToken.text) else {
-                throw ParserError.integerOverflow(currentToken.text)
+            let text = currentToken.text
+            let value: Int
+
+            if let hexValue = parseHexInteger(text) {
+                value = hexValue
             }
+            else if let decValue = Int(text) {
+                value = decValue
+            }
+            else {
+                throw ParserError.integerOverflow(text)
+            }
+
             let expr = Expr.integer(value)
             try advance()
             return expr
         case .eof:
             throw ParserError.unexpectedEOF
         }
+    }
+
+    private func parseHexInteger(_ text: String) -> Int? {
+        var str = text
+        var negative = false
+
+        if str.hasPrefix("-") {
+            negative = true
+            str = String(str.dropFirst())
+        }
+        else if str.hasPrefix("+") {
+            str = String(str.dropFirst())
+        }
+
+        guard str.hasPrefix("0x") else { return nil }
+
+        let hexPart = String(str.dropFirst(2))
+        guard let magnitude = Int(hexPart, radix: 16) else { return nil }
+
+        return negative ? -magnitude : magnitude
     }
 
     private func advance() throws {

@@ -66,4 +66,46 @@ struct ParserTests {
             try Parser(lexer)
         }
     }
+
+    // MARK: - Hexadecimal integer literals
+
+    @Test("Parses hex integer")
+    func parseHexInteger() throws {
+        let lexer = Lexer("0xFF")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(255)])
+    }
+
+    @Test("Parses negative hex integer")
+    func parseNegativeHexInteger() throws {
+        let lexer = Lexer("-0x10")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(-16)])
+    }
+
+    @Test("Parses positive hex integer with plus sign")
+    func parsePositiveHexInteger() throws {
+        let lexer = Lexer("+0x10")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(16)])
+    }
+
+    @Test("Parses hex zero")
+    func parseHexZero() throws {
+        let lexer = Lexer("0x0")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(0)])
+    }
+
+    @Test("Parses lowercase hex digits")
+    func parseLowercaseHex() throws {
+        let lexer = Lexer("0x0a")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(10)])
+    }
 }
