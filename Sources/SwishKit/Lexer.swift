@@ -15,11 +15,14 @@ public struct Token: Equatable, Sendable {
 /// Errors thrown during lexical analysis
 public enum LexerError: Error, Equatable, CustomStringConvertible {
     case illegalCharacter(Character, line: Int, column: Int)
+    case invalidNumberFormat(String, line: Int, column: Int)
 
     public var description: String {
         switch self {
         case .illegalCharacter(let char, let line, let column):
             return "Illegal character '\(char)' (line \(line), column \(column))."
+        case .invalidNumberFormat(let text, let line, let column):
+            return "Invalid number format '\(text)' (line \(line), column \(column))."
         }
     }
 }
@@ -47,14 +50,14 @@ public class Lexer {
         }
 
         if char.isNumber {
-            return scanInteger(startLine: startLine, startColumn: startColumn)
+            return try scanInteger(startLine: startLine, startColumn: startColumn)
         }
 
         if char == "+" || char == "-" {
             let signChar = advance()
 
             if let next = peek(), next.isNumber {
-                return scanInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                return try scanInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
             }
             else {
                 throw LexerError.illegalCharacter(signChar, line: startLine, column: startColumn)
@@ -70,12 +73,34 @@ public class Lexer {
         }
     }
 
-    private func scanInteger(startLine: Int, startColumn: Int, prefix: String = "") -> Token {
+    private func scanInteger(startLine: Int, startColumn: Int, prefix: String = "") throws -> Token {
         var text = prefix
-        while let char = peek(), char.isNumber {
-            text.append(advance())
+        var lastWasUnderscore = false
+
+        while let char = peek() {
+            if char.isNumber {
+                text.append(advance())
+                lastWasUnderscore = false
+            }
+            else if char == "_" {
+                if lastWasUnderscore {
+                    throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                }
+                _ = advance()
+                text.append("_")
+                lastWasUnderscore = true
+            }
+            else {
+                break
+            }
         }
-        return Token(type: .integer, text: text, line: startLine, column: startColumn)
+
+        if lastWasUnderscore {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+
+        let cleanText = text.filter { $0 != "_" }
+        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
     }
 
     private func peek() -> Character? {

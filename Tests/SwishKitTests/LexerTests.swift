@@ -150,4 +150,62 @@ struct LexerTests {
         let eofToken = try lexer.nextToken()
         #expect(eofToken.type == .eof)
     }
+
+    // MARK: - Underscore digit separators
+
+    @Test("Scans integer with underscore separators")
+    func scanIntegerWithUnderscores() throws {
+        let lexer = Lexer("1_000")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "1000")
+    }
+
+    @Test("Scans integer with multiple underscore groups")
+    func scanIntegerWithMultipleUnderscoreGroups() throws {
+        let lexer = Lexer("1_000_000")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "1000000")
+    }
+
+    @Test("Scans negative integer with underscores")
+    func scanNegativeIntegerWithUnderscores() throws {
+        let lexer = Lexer("-1_000")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "-1000")
+    }
+
+    @Test("Scans positive integer with underscores")
+    func scanPositiveIntegerWithUnderscores() throws {
+        let lexer = Lexer("+1_000")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "+1000")
+    }
+
+    @Test("Scans integer with arbitrary underscore placement")
+    func scanIntegerWithArbitraryUnderscores() throws {
+        let lexer = Lexer("1_2_3")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "123")
+    }
+
+    @Test("Throws error for trailing underscore")
+    func trailingUnderscoreThrows() throws {
+        let lexer = Lexer("100_")
+        #expect(throws: LexerError.invalidNumberFormat("100_", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for consecutive underscores")
+    func consecutiveUnderscoresThrows() throws {
+        let lexer = Lexer("1__000")
+        #expect(throws: LexerError.invalidNumberFormat("1__", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
 }

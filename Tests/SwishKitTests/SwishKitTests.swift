@@ -39,4 +39,12 @@ struct SwishKitTests {
             _ = try swish.eval("9223372036854775808")
         }
     }
+
+    @Test("Evaluates integer with underscore separators")
+    func evaluatesIntegerWithUnderscores() throws {
+        let swish = Swish()
+        #expect(try swish.eval("1_000") == "1000")
+        #expect(try swish.eval("1_000_000") == "1000000")
+        #expect(try swish.eval("-1_000") == "-1000")
+    }
 }
