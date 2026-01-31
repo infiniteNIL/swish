@@ -22,6 +22,7 @@ private let commands: [(name: String, description: String)] = [
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
+    let printer = Printer(locale: .current)
 
     // Set blinking bar cursor
     print(blinkingBarCursor, terminator: "")
@@ -31,7 +32,7 @@ func main() {
     print("v0.1.0 — Type /help for commands.\n")
 
     var inputCount = 1
-    var results: [Int: String] = [:]
+    var results: [Int: Expr] = [:]
 
     guard let ln = LineReader() else {
         // Fall back to basic readLine if terminal not available
@@ -56,13 +57,13 @@ func main() {
             let pattern = /\/(\d+)/
             for match in trimmed.matches(of: pattern) {
                 if let n = Int(match.1), let previousResult = results[n] {
-                    processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
+                    processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
                 }
             }
             do {
                 let result = try swish.eval(processed)
                 results[inputCount] = result
-                print("\(green)=>\(reset) \(result)\n")
+                print("\(green)=>\(reset) \(printer.printString(result))\n")
             }
             catch {
                 print("=> \(red)\(error)\(reset)\n")
@@ -116,14 +117,14 @@ func main() {
         let pattern = /\/(\d+)/
         for match in trimmed.matches(of: pattern) {
             if let n = Int(match.1), let previousResult = results[n] {
-                processed = processed.replacingOccurrences(of: String(match.0), with: previousResult)
+                processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
             }
         }
 
         do {
             let result = try swish.eval(processed)
             results[inputCount] = result
-            print("\(green)=>\(reset) \(result)\n")
+            print("\(green)=>\(reset) \(printer.printString(result))\n")
         }
         catch {
             print("=> \(red)\(error)\(reset)\n")
@@ -151,6 +152,14 @@ private func printHelp() {
         print("  /\(cmd.name) - \(cmd.description)")
     }
     print()
+}
+
+/// Converts an Expr to source form for substitution (raw value, not formatted)
+private func sourceForm(_ expr: Expr) -> String {
+    switch expr {
+    case .integer(let value):
+        return String(value)
+    }
 }
 
 main()

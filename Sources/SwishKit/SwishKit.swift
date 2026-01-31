@@ -1,5 +1,3 @@
-import Foundation
-
 /// Swish - A Clojure-like Lisp for Swift
 ///
 /// SwishKit provides the core Lisp interpreter functionality
@@ -7,17 +5,13 @@ import Foundation
 
 /// The main entry point for the Swish Lisp interpreter.
 public struct Swish {
-    private let locale: Locale
-
-    public init(locale: Locale = .current) {
-        self.locale = locale
-    }
+    public init() {}
 
     /// Evaluates a Lisp expression string and returns the result.
     /// - Parameter source: A string containing a Lisp expression
-    /// - Returns: The string representation of the evaluated result
+    /// - Returns: The evaluated `Expr` value
     /// - Throws: `LexerError` or `ParserError` if the input is invalid
-    public func eval(_ source: String) throws -> String {
+    public func eval(_ source: String) throws -> Expr {
         let lexer = Lexer(source)
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
@@ -29,7 +23,6 @@ public struct Swish {
         for expr in exprs {
             result = evaluator.eval(expr)
         }
-        let printer = Printer(locale: locale)
-        return printer.printString(result)
+        return result
     }
 }
