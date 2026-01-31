@@ -11,17 +11,17 @@ struct PrinterTests {
 
         @Test("prints positive integer")
         func printsPositiveInteger() {
-            #expect(printer.printString(.integer(.int(42))) == "42")
+            #expect(printer.printString(.integer(42)) == "42")
         }
 
         @Test("prints negative integer")
         func printsNegativeInteger() {
-            #expect(printer.printString(.integer(.int(-17))) == "-17")
+            #expect(printer.printString(.integer(-17)) == "-17")
         }
 
         @Test("prints zero")
         func printsZero() {
-            #expect(printer.printString(.integer(.int(0))) == "0")
+            #expect(printer.printString(.integer(0)) == "0")
         }
     }
 }

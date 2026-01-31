@@ -32,17 +32,11 @@ struct SwishKitTests {
         #expect(try swish.eval(intMax) == intMax)
     }
 
-    @Test("Promotes to BigInt for large numbers")
-    func promotesToBigInt() throws {
+    @Test("Throws error for integer overflow")
+    func throwsErrorForIntegerOverflow() {
         let swish = Swish()
-        let huge = "123456789012345678901234567890"
-        #expect(try swish.eval(huge) == huge)
-    }
-
-    @Test("Handles number just above Int.max")
-    func handlesJustAboveIntMax() throws {
-        let swish = Swish()
-        let justAboveMax = "9223372036854775808"
-        #expect(try swish.eval(justAboveMax) == justAboveMax)
+        #expect(throws: ParserError.self) {
+            _ = try swish.eval("9223372036854775808")
+        }
     }
 }

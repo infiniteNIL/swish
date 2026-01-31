@@ -8,7 +8,7 @@ struct ParserTests {
         let lexer = Lexer("42")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(.int(42))])
+        #expect(exprs == [.integer(42)])
     }
 
     @Test("Parses negative integer")
@@ -16,7 +16,7 @@ struct ParserTests {
         let lexer = Lexer("-17")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(.int(-17))])
+        #expect(exprs == [.integer(-17)])
     }
 
     @Test("Parses positive integer with plus sign")
@@ -24,7 +24,7 @@ struct ParserTests {
         let lexer = Lexer("+5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(.int(5))])
+        #expect(exprs == [.integer(5)])
     }
 
     @Test("Parses zero")
@@ -32,7 +32,7 @@ struct ParserTests {
         let lexer = Lexer("0")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(.int(0))])
+        #expect(exprs == [.integer(0)])
     }
 
     @Test("Parses multiple integers")
@@ -40,7 +40,7 @@ struct ParserTests {
         let lexer = Lexer("1 2 3")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(.int(1)), .integer(.int(2)), .integer(.int(3))])
+        #expect(exprs == [.integer(1), .integer(2), .integer(3)])
     }
 
     @Test("Returns empty array for empty input")

@@ -6,7 +6,7 @@ public class Printer {
     public func printString(_ expr: Expr) -> String {
         switch expr {
         case .integer(let value):
-            return value.description
+            return String(value)
         }
     }
 }

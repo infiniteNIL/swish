@@ -7,19 +7,19 @@ struct EvaluatorTests {
 
     @Test("Integer evaluates to itself")
     func integerSelfEvaluates() {
-        let result = evaluator.eval(.integer(.int(42)))
-        #expect(result == .integer(.int(42)))
+        let result = evaluator.eval(.integer(42))
+        #expect(result == .integer(42))
     }
 
     @Test("Negative integer evaluates to itself")
     func negativeIntegerSelfEvaluates() {
-        let result = evaluator.eval(.integer(.int(-17)))
-        #expect(result == .integer(.int(-17)))
+        let result = evaluator.eval(.integer(-17))
+        #expect(result == .integer(-17))
     }
 
     @Test("Zero evaluates to itself")
     func zeroSelfEvaluates() {
-        let result = evaluator.eval(.integer(.int(0)))
-        #expect(result == .integer(.int(0)))
+        let result = evaluator.eval(.integer(0))
+        #expect(result == .integer(0))
     }
 }

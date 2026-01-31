@@ -1,12 +1,13 @@
 /// AST node types for Swish expressions
 public enum Expr: Equatable {
-    case integer(Number)
+    case integer(Int)
 }
 
 /// Errors thrown during parsing
 public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unexpectedToken(Token)
     case unexpectedEOF
+    case integerOverflow(String)
 
     public var description: String {
         switch self {
@@ -14,6 +15,8 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
             return "Unexpected token '\(token.text)' (line \(token.line), column \(token.column))."
         case .unexpectedEOF:
             return "Unexpected end of input."
+        case .integerOverflow(let text):
+            return "Integer overflow: '\(text)' is too large."
         }
     }
 }
@@ -39,7 +42,10 @@ public class Parser {
     private func parseExpr() throws -> Expr {
         switch currentToken.type {
         case .integer:
-            let expr = Expr.integer(Number(currentToken.text))
+            guard let value = Int(currentToken.text) else {
+                throw ParserError.integerOverflow(currentToken.text)
+            }
+            let expr = Expr.integer(value)
             try advance()
             return expr
         case .eof:
