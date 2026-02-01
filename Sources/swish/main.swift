@@ -53,13 +53,7 @@ func main() {
                 printHelp()
                 continue
             }
-            var processed = trimmed
-            let pattern = /\/(\d+)/
-            for match in trimmed.matches(of: pattern) {
-                if let n = Int(match.1), let previousResult = results[n] {
-                    processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
-                }
-            }
+            let processed = substituteResultReferences(trimmed, results: results)
             do {
                 let result = try swish.eval(processed)
                 results[inputCount] = result
@@ -112,14 +106,8 @@ func main() {
             continue
         }
 
-        // Replace /n references with previous results
-        var processed = trimmed
-        let pattern = /\/(\d+)/
-        for match in trimmed.matches(of: pattern) {
-            if let n = Int(match.1), let previousResult = results[n] {
-                processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
-            }
-        }
+        // Replace /n references with previous results (but not within ratios)
+        let processed = substituteResultReferences(trimmed, results: results)
 
         do {
             let result = try swish.eval(processed)
@@ -161,7 +149,30 @@ private func sourceForm(_ expr: Expr) -> String {
         return String(value)
     case .float(let value):
         return String(value)
+    case .ratio(let ratio):
+        return "\(ratio.numerator)/\(ratio.denominator)"
     }
+}
+
+/// Substitutes /n references with previous results, avoiding ratio literals
+private func substituteResultReferences(_ input: String, results: [Int: Expr]) -> String {
+    var processed = input
+    let pattern = /\/(\d+)/
+    for match in input.matches(of: pattern) {
+        // Skip if preceded by digit or underscore (part of a ratio)
+        let matchStart = match.range.lowerBound
+        if matchStart > input.startIndex {
+            let prevIndex = input.index(before: matchStart)
+            let prevChar = input[prevIndex]
+            if prevChar.isNumber || prevChar == "_" {
+                continue
+            }
+        }
+        if let n = Int(match.1), let previousResult = results[n] {
+            processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
+        }
+    }
+    return processed
 }
 
 main()

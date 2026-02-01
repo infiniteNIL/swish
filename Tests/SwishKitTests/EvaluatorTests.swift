@@ -42,4 +42,18 @@ struct EvaluatorTests {
         let result = evaluator.eval(.float(0.0))
         #expect(result == .float(0.0))
     }
+
+    // MARK: - Ratio literals
+
+    @Test("Ratio evaluates to itself")
+    func ratioSelfEvaluates() {
+        let result = evaluator.eval(.ratio(Ratio(3, 4)))
+        #expect(result == .ratio(Ratio(3, 4)))
+    }
+
+    @Test("Negative ratio evaluates to itself")
+    func negativeRatioSelfEvaluates() {
+        let result = evaluator.eval(.ratio(Ratio(-3, 4)))
+        #expect(result == .ratio(Ratio(-3, 4)))
+    }
 }

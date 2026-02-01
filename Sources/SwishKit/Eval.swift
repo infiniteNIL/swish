@@ -9,6 +9,8 @@ public class Evaluator {
             return expr
         case .float:
             return expr
+        case .ratio:
+            return expr
         }
     }
 }

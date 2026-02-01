@@ -2,6 +2,7 @@
 public enum Expr: Equatable {
     case integer(Int)
     case float(Double)
+    case ratio(Ratio)
 }
 
 /// Errors thrown during parsing
@@ -76,6 +77,31 @@ public class Parser {
             let expr = Expr.float(value)
             try advance()
             return expr
+        case .ratio:
+            let text = currentToken.text
+            let parts = text.split(separator: "/", maxSplits: 1)
+            guard parts.count == 2,
+                  let numerator = Int(parts[0]),
+                  let denominator = Int(parts[1]) else {
+                throw ParserError.integerOverflow(text)
+            }
+
+            // Zero numerator returns integer 0
+            if numerator == 0 {
+                try advance()
+                return .integer(0)
+            }
+
+            let ratio = Ratio(numerator, denominator)
+
+            // If reduced denominator is 1, return integer
+            if ratio.denominator == 1 {
+                try advance()
+                return .integer(ratio.numerator)
+            }
+
+            try advance()
+            return .ratio(ratio)
         case .eof:
             throw ParserError.unexpectedEOF
         }

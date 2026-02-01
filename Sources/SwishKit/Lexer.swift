@@ -2,6 +2,7 @@
 public enum TokenType: Equatable, Sendable {
     case integer
     case float
+    case ratio
     case eof
 }
 
@@ -17,6 +18,7 @@ public struct Token: Equatable, Sendable {
 public enum LexerError: Error, Equatable, CustomStringConvertible {
     case illegalCharacter(Character, line: Int, column: Int)
     case invalidNumberFormat(String, line: Int, column: Int)
+    case invalidRatio(String, line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -24,6 +26,8 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
             return "Illegal character '\(char)' (line \(line), column \(column))."
         case .invalidNumberFormat(let text, let line, let column):
             return "Invalid number format '\(text)' (line \(line), column \(column))."
+        case .invalidRatio(let text, let line, let column):
+            return "Invalid ratio '\(text)': division by zero (line \(line), column \(column))."
         }
     }
 }
@@ -133,6 +137,48 @@ public class Lexer {
 
         if lastWasUnderscore {
             throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+
+        // Check for ratio: / followed by digit
+        if let slash = peek(), slash == "/", let afterSlash = peekAt(1), afterSlash.isNumber {
+            text.append(advance()) // consume '/'
+            lastWasUnderscore = false
+
+            // Scan denominator digits
+            while let char = peek() {
+                if char.isNumber {
+                    text.append(advance())
+                    lastWasUnderscore = false
+                }
+                else if char == "_" {
+                    if lastWasUnderscore {
+                        throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                    }
+                    _ = advance()
+                    text.append("_")
+                    lastWasUnderscore = true
+                }
+                else {
+                    break
+                }
+            }
+
+            if lastWasUnderscore {
+                throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+            }
+
+            let cleanText = text.filter { $0 != "_" }
+
+            // Check for division by zero
+            let parts = cleanText.split(separator: "/", maxSplits: 1)
+            if parts.count == 2 {
+                let denomStr = String(parts[1])
+                if let denom = Int(denomStr), denom == 0 {
+                    throw LexerError.invalidRatio(cleanText, line: startLine, column: startColumn)
+                }
+            }
+
+            return Token(type: .ratio, text: cleanText, line: startLine, column: startColumn)
         }
 
         // Check for fractional part: . followed by digit

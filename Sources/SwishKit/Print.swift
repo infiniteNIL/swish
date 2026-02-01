@@ -24,6 +24,10 @@ public class Printer {
             return integerFormatter.string(from: NSNumber(value: value)) ?? String(value)
         case .float(let value):
             return floatFormatter.string(from: NSNumber(value: value)) ?? String(value)
+        case .ratio(let ratio):
+            let numStr = integerFormatter.string(from: NSNumber(value: ratio.numerator)) ?? String(ratio.numerator)
+            let denomStr = integerFormatter.string(from: NSNumber(value: ratio.denominator)) ?? String(ratio.denominator)
+            return "\(numStr)/\(denomStr)"
         }
     }
 }

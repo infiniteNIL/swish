@@ -75,4 +75,29 @@ struct PrinterTests {
             #expect(printer.printString(.float(0.00001)) == "0.00001")
         }
     }
+
+    @Suite("Ratios")
+    struct Ratios {
+        let printer = Printer(locale: Locale(identifier: "en_US"))
+
+        @Test("prints basic ratio")
+        func printsBasicRatio() {
+            #expect(printer.printString(.ratio(Ratio(3, 4))) == "3/4")
+        }
+
+        @Test("prints negative ratio")
+        func printsNegativeRatio() {
+            #expect(printer.printString(.ratio(Ratio(-3, 4))) == "-3/4")
+        }
+
+        @Test("prints ratio with large numbers")
+        func printsRatioWithLargeNumbers() {
+            #expect(printer.printString(.ratio(Ratio(1000, 3))) == "1,000/3")
+        }
+
+        @Test("prints ratio with large denominator")
+        func printsRatioWithLargeDenominator() {
+            #expect(printer.printString(.ratio(Ratio(1, 1000))) == "1/1,000")
+        }
+    }
 }
