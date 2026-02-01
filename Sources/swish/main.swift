@@ -66,7 +66,7 @@ func main() {
                 print("\(green)=>\(reset) \(printer.printString(result))\n")
             }
             catch {
-                print("=> \(red)\(error)\(reset)\n")
+                print("❌ \(error)\n")
             }
             inputCount += 1
         }
@@ -127,7 +127,7 @@ func main() {
             print("\(green)=>\(reset) \(printer.printString(result))\n")
         }
         catch {
-            print("=> \(red)\(error)\(reset)\n")
+            print("❌ \(error)\n")
         }
         inputCount += 1
     }
