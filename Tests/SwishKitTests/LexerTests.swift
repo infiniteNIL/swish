@@ -890,4 +890,153 @@ struct LexerTests {
         let eofToken = try lexer.nextToken()
         #expect(eofToken.type == .eof)
     }
+
+    // MARK: - String literals
+
+    @Test("Scans basic string")
+    func scanBasicString() throws {
+        let lexer = Lexer("\"hello\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans empty string")
+    func scanEmptyString() throws {
+        let lexer = Lexer("\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "")
+    }
+
+    @Test("Scans string with spaces")
+    func scanStringWithSpaces() throws {
+        let lexer = Lexer("\"hello world\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello world")
+    }
+
+    @Test("Scans string with escaped quote")
+    func scanStringWithEscapedQuote() throws {
+        let lexer = Lexer("\"say \\\"hi\\\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "say \"hi\"")
+    }
+
+    @Test("Scans string with escaped backslash")
+    func scanStringWithEscapedBackslash() throws {
+        let lexer = Lexer("\"a\\\\b\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "a\\b")
+    }
+
+    @Test("Scans string with newline escape")
+    func scanStringWithNewlineEscape() throws {
+        let lexer = Lexer("\"line1\\nline2\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\nline2")
+    }
+
+    @Test("Scans string with tab escape")
+    func scanStringWithTabEscape() throws {
+        let lexer = Lexer("\"col1\\tcol2\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "col1\tcol2")
+    }
+
+    @Test("Scans string with carriage return escape")
+    func scanStringWithCarriageReturnEscape() throws {
+        let lexer = Lexer("\"line1\\rline2\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\rline2")
+    }
+
+    @Test("Scans string with null escape")
+    func scanStringWithNullEscape() throws {
+        let lexer = Lexer("\"a\\0b\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "a\0b")
+    }
+
+    @Test("Scans string with multiple escapes")
+    func scanStringWithMultipleEscapes() throws {
+        let lexer = Lexer("\"\\\"\\\\\\n\\t\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "\"\\\n\t")
+    }
+
+    @Test("Scans multiline string")
+    func scanMultilineString() throws {
+        let lexer = Lexer("\"line1\nline2\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\nline2")
+    }
+
+    @Test("Throws error for unterminated string")
+    func unterminatedStringThrows() throws {
+        let lexer = Lexer("\"hello")
+        #expect(throws: LexerError.unterminatedString(line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for unterminated string at EOF after escape")
+    func unterminatedStringAfterEscapeThrows() throws {
+        let lexer = Lexer("\"hello\\")
+        #expect(throws: LexerError.unterminatedString(line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for invalid escape sequence")
+    func invalidEscapeSequenceThrows() throws {
+        let lexer = Lexer("\"foo\\x\"")
+        #expect(throws: LexerError.invalidEscapeSequence(char: "x", line: 1, column: 6)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Scans multiple strings")
+    func scanMultipleStrings() throws {
+        let lexer = Lexer("\"hello\" \"world\"")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .string)
+        #expect(token1.text == "hello")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .string)
+        #expect(token2.text == "world")
+
+        let eofToken = try lexer.nextToken()
+        #expect(eofToken.type == .eof)
+    }
+
+    @Test("Scans string with numbers")
+    func scanStringWithNumbers() throws {
+        let lexer = Lexer("\"abc123\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "abc123")
+    }
+
+    @Test("String position tracking")
+    func stringPositionTracking() throws {
+        let lexer = Lexer("  \"hello\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+        #expect(token.column == 3)
+    }
 }

@@ -56,4 +56,24 @@ struct EvaluatorTests {
         let result = evaluator.eval(.ratio(Ratio(-3, 4)))
         #expect(result == .ratio(Ratio(-3, 4)))
     }
+
+    // MARK: - String literals
+
+    @Test("String evaluates to itself")
+    func stringSelfEvaluates() {
+        let result = evaluator.eval(.string("hello"))
+        #expect(result == .string("hello"))
+    }
+
+    @Test("Empty string evaluates to itself")
+    func emptyStringSelfEvaluates() {
+        let result = evaluator.eval(.string(""))
+        #expect(result == .string(""))
+    }
+
+    @Test("String with escapes evaluates to itself")
+    func stringWithEscapesSelfEvaluates() {
+        let result = evaluator.eval(.string("hello\nworld"))
+        #expect(result == .string("hello\nworld"))
+    }
 }

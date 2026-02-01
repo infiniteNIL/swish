@@ -23,6 +23,25 @@ public class Printer {
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
+
+        case .string(let value):
+            "\"\(escapeString(value))\""
         }
+    }
+
+    private func escapeString(_ s: String) -> String {
+        var result = ""
+        for char in s {
+            switch char {
+            case "\"": result.append("\\\"")
+            case "\\": result.append("\\\\")
+            case "\n": result.append("\\n")
+            case "\t": result.append("\\t")
+            case "\r": result.append("\\r")
+            case "\0": result.append("\\0")
+            default: result.append(char)
+            }
+        }
+        return result
     }
 }

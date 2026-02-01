@@ -3,6 +3,7 @@ public enum Expr: Equatable {
     case integer(Int)
     case float(Double)
     case ratio(Ratio)
+    case string(String)
 }
 
 /// Errors thrown during parsing
@@ -107,7 +108,12 @@ public class Parser {
 
             try advance()
             return .ratio(ratio)
-            
+
+        case .string:
+            let value = currentToken.text
+            try advance()
+            return .string(value)
+
         case .eof:
             throw ParserError.unexpectedEOF
         }

@@ -358,4 +358,46 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.integer(1), .float(1.5), .ratio(Ratio(1, 2))])
     }
+
+    // MARK: - String literals
+
+    @Test("Parses basic string")
+    func parseBasicString() throws {
+        let lexer = Lexer("\"hello\"")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.string("hello")])
+    }
+
+    @Test("Parses empty string")
+    func parseEmptyString() throws {
+        let lexer = Lexer("\"\"")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.string("")])
+    }
+
+    @Test("Parses string with escapes")
+    func parseStringWithEscapes() throws {
+        let lexer = Lexer("\"hello\\nworld\"")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.string("hello\nworld")])
+    }
+
+    @Test("Parses multiple strings")
+    func parseMultipleStrings() throws {
+        let lexer = Lexer("\"hello\" \"world\"")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.string("hello"), .string("world")])
+    }
+
+    @Test("Parses mixed integers, floats, ratios, and strings")
+    func parseMixedTypes() throws {
+        let lexer = Lexer("1 \"hello\" 1.5 1/2")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(1), .string("hello"), .float(1.5), .ratio(Ratio(1, 2))])
+    }
 }

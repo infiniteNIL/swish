@@ -153,7 +153,27 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .ratio(let ratio):
         "\(ratio.numerator)/\(ratio.denominator)"
+
+    case .string(let value):
+        "\"\(escapeStringForSource(value))\""
     }
+}
+
+/// Escapes special characters in a string for source code representation
+private func escapeStringForSource(_ s: String) -> String {
+    var result = ""
+    for char in s {
+        switch char {
+        case "\"": result.append("\\\"")
+        case "\\": result.append("\\\\")
+        case "\n": result.append("\\n")
+        case "\t": result.append("\\t")
+        case "\r": result.append("\\r")
+        case "\0": result.append("\\0")
+        default: result.append(char)
+        }
+    }
+    return result
 }
 
 /// Substitutes /n references with previous results, avoiding ratio literals

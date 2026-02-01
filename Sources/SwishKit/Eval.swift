@@ -13,6 +13,9 @@ public class Evaluator {
 
         case .ratio:
             expr
+
+        case .string:
+            expr
         }
     }
 }

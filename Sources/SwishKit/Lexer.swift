@@ -3,6 +3,7 @@ public enum TokenType: Equatable, Sendable {
     case integer
     case float
     case ratio
+    case string
     case eof
 }
 
@@ -19,6 +20,8 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case illegalCharacter(Character, line: Int, column: Int)
     case invalidNumberFormat(String, line: Int, column: Int)
     case invalidRatio(String, line: Int, column: Int)
+    case unterminatedString(line: Int, column: Int)
+    case invalidEscapeSequence(char: Character, line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -30,6 +33,12 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
 
         case .invalidRatio(let text, let line, let column):
             "Invalid ratio '\(text)': division by zero (line \(line), column \(column))."
+
+        case .unterminatedString(let line, let column):
+            "Unterminated string (line \(line), column \(column))."
+
+        case .invalidEscapeSequence(let char, let line, let column):
+            "Invalid escape sequence '\\(\(char))' (line \(line), column \(column))."
         }
     }
 }
@@ -102,6 +111,10 @@ public class Lexer {
             else {
                 throw LexerError.illegalCharacter(signChar, line: startLine, column: startColumn)
             }
+        }
+
+        if char == "\"" {
+            return try scanString(startLine: startLine, startColumn: startColumn)
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
@@ -415,5 +428,51 @@ public class Lexer {
 
     private func isOctalDigit(_ char: Character) -> Bool {
         char >= "0" && char <= "7"
+    }
+
+    private var isAtEnd: Bool {
+        index >= source.endIndex
+    }
+
+    private func scanString(startLine: Int, startColumn: Int) throws -> Token {
+        _ = advance()  // consume opening quote
+
+        var value = ""
+
+        while !isAtEnd && peek() != "\"" {
+            if peek() == "\\" {
+                _ = advance()  // consume backslash
+                if isAtEnd {
+                    throw LexerError.unterminatedString(line: startLine, column: startColumn)
+                }
+                switch peek()! {
+                case "\"": value.append("\"")
+                case "\\": value.append("\\")
+                case "n": value.append("\n")
+                case "t": value.append("\t")
+                case "r": value.append("\r")
+                case "0": value.append("\0")
+                default:
+                    throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
+                }
+                _ = advance()
+            }
+            else if peek() == "\n" {
+                // Allow multiline strings - track line/column
+                value.append(peek()!)
+                _ = advance()
+            }
+            else {
+                value.append(peek()!)
+                _ = advance()
+            }
+        }
+
+        if isAtEnd {
+            throw LexerError.unterminatedString(line: startLine, column: startColumn)
+        }
+
+        _ = advance()  // consume closing quote
+        return Token(type: .string, text: value, line: startLine, column: startColumn)
     }
 }
