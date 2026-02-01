@@ -59,6 +59,27 @@ if condition {
 }
 ```
 
+- Place a newline between cases in a switch statement
+
+```swift
+// Correct
+switch condition {
+case ...:
+    // ...
+
+case ...:
+    // ...
+}
+
+// Incorrect
+switch condition {
+case ...:
+    // ...
+case ...:
+    // ...
+}
+```
+
 
 ## SwiftUI instructions
 
