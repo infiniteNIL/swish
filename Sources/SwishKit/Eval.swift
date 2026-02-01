@@ -7,6 +7,8 @@ public class Evaluator {
         switch expr {
         case .integer:
             return expr
+        case .float:
+            return expr
         }
     }
 }

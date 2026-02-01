@@ -1,6 +1,7 @@
 /// Token types for the Swish lexer
 public enum TokenType: Equatable, Sendable {
     case integer
+    case float
     case eof
 }
 
@@ -65,7 +66,7 @@ public class Lexer {
         }
 
         if char.isNumber {
-            return try scanInteger(startLine: startLine, startColumn: startColumn)
+            return try scanDecimalNumber(startLine: startLine, startColumn: startColumn)
         }
 
         if char == "+" || char == "-" {
@@ -90,7 +91,7 @@ public class Lexer {
             }
 
             if let next = peek(), next.isNumber {
-                return try scanInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
             }
             else {
                 throw LexerError.illegalCharacter(signChar, line: startLine, column: startColumn)
@@ -106,10 +107,12 @@ public class Lexer {
         }
     }
 
-    private func scanInteger(startLine: Int, startColumn: Int, prefix: String = "") throws -> Token {
+    private func scanDecimalNumber(startLine: Int, startColumn: Int, prefix: String = "") throws -> Token {
         var text = prefix
         var lastWasUnderscore = false
+        var isFloat = false
 
+        // Scan integer part
         while let char = peek() {
             if char.isNumber {
                 text.append(advance())
@@ -132,8 +135,84 @@ public class Lexer {
             throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
         }
 
+        // Check for fractional part: . followed by digit
+        if let dot = peek(), dot == ".", let afterDot = peekAt(1), afterDot.isNumber {
+            isFloat = true
+            text.append(advance()) // consume '.'
+            lastWasUnderscore = false
+
+            // Scan fractional digits
+            while let char = peek() {
+                if char.isNumber {
+                    text.append(advance())
+                    lastWasUnderscore = false
+                }
+                else if char == "_" {
+                    if lastWasUnderscore {
+                        throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                    }
+                    _ = advance()
+                    text.append("_")
+                    lastWasUnderscore = true
+                }
+                else {
+                    break
+                }
+            }
+
+            if lastWasUnderscore {
+                throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+            }
+        }
+
+        // Check for exponent: e or E
+        if let e = peek(), e == "e" || e == "E" {
+            // Need at least one digit after exponent (with optional sign)
+            var offset = 1
+            if let sign = peekAt(offset), sign == "+" || sign == "-" {
+                offset += 1
+            }
+            if let digitAfter = peekAt(offset), digitAfter.isNumber {
+                isFloat = true
+                text.append(advance()) // consume 'e' or 'E'
+
+                // Consume optional sign
+                if let sign = peek(), sign == "+" || sign == "-" {
+                    text.append(advance())
+                }
+
+                lastWasUnderscore = false
+                var hasExponentDigits = false
+
+                // Scan exponent digits
+                while let char = peek() {
+                    if char.isNumber {
+                        text.append(advance())
+                        hasExponentDigits = true
+                        lastWasUnderscore = false
+                    }
+                    else if char == "_" {
+                        if !hasExponentDigits || lastWasUnderscore {
+                            throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                        }
+                        _ = advance()
+                        text.append("_")
+                        lastWasUnderscore = true
+                    }
+                    else {
+                        break
+                    }
+                }
+
+                if lastWasUnderscore {
+                    throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+                }
+            }
+        }
+
         let cleanText = text.filter { $0 != "_" }
-        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+        let tokenType: TokenType = isFloat ? .float : .integer
+        return Token(type: tokenType, text: cleanText, line: startLine, column: startColumn)
     }
 
     private func scanHexInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
