@@ -1,14 +1,13 @@
-import Foundation
 import Testing
 @testable import SwishKit
 
 @Suite("Printer Tests")
 struct PrinterTests {
-    let printer = Printer(locale: Locale(identifier: "en_US"))
+    let printer = Printer()
 
     @Suite("Integers")
     struct Integers {
-        let printer = Printer(locale: Locale(identifier: "en_US"))
+        let printer = Printer()
 
         @Test("prints positive integer")
         func printsPositiveInteger() {
@@ -25,20 +24,20 @@ struct PrinterTests {
             #expect(printer.printString(.integer(0)) == "0")
         }
 
-        @Test("prints large number with thousand separators")
+        @Test("prints large number")
         func printsLargeNumber() {
-            #expect(printer.printString(.integer(1_000_000)) == "1,000,000")
+            #expect(printer.printString(.integer(1_000_000)) == "1000000")
         }
 
-        @Test("prints negative large number with thousand separators")
+        @Test("prints negative large number")
         func printsNegativeLargeNumber() {
-            #expect(printer.printString(.integer(-1_000_000)) == "-1,000,000")
+            #expect(printer.printString(.integer(-1_000_000)) == "-1000000")
         }
     }
 
     @Suite("Floats")
     struct Floats {
-        let printer = Printer(locale: Locale(identifier: "en_US"))
+        let printer = Printer()
 
         @Test("prints positive float")
         func printsPositiveFloat() {
@@ -60,9 +59,9 @@ struct PrinterTests {
             #expect(printer.printString(.float(42.0)) == "42.0")
         }
 
-        @Test("prints large float with thousand separators")
+        @Test("prints large float")
         func printsLargeFloat() {
-            #expect(printer.printString(.float(1_000_000.5)) == "1,000,000.5")
+            #expect(printer.printString(.float(1_000_000.5)) == "1000000.5")
         }
 
         @Test("prints small float")
@@ -78,7 +77,7 @@ struct PrinterTests {
 
     @Suite("Ratios")
     struct Ratios {
-        let printer = Printer(locale: Locale(identifier: "en_US"))
+        let printer = Printer()
 
         @Test("prints basic ratio")
         func printsBasicRatio() {
@@ -92,12 +91,12 @@ struct PrinterTests {
 
         @Test("prints ratio with large numbers")
         func printsRatioWithLargeNumbers() {
-            #expect(printer.printString(.ratio(Ratio(1000, 3))) == "1,000/3")
+            #expect(printer.printString(.ratio(Ratio(1000, 3))) == "1000/3")
         }
 
         @Test("prints ratio with large denominator")
         func printsRatioWithLargeDenominator() {
-            #expect(printer.printString(.ratio(Ratio(1, 1000))) == "1/1,000")
+            #expect(printer.printString(.ratio(Ratio(1, 1000))) == "1/1000")
         }
     }
 }

@@ -22,7 +22,7 @@ private let commands: [(name: String, description: String)] = [
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
-    let printer = Printer(locale: .current)
+    let printer = Printer()
 
     // Set blinking bar cursor
     print(blinkingBarCursor, terminator: "")
