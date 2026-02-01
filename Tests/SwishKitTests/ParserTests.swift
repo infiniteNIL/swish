@@ -142,4 +142,64 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.integer(0)])
     }
+
+    // MARK: - Octal integer literals
+
+    @Test("Parses octal integer")
+    func parseOctalInteger() throws {
+        let lexer = Lexer("0o700")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(448)]) // 7*64 = 448
+    }
+
+    @Test("Parses negative octal integer")
+    func parseNegativeOctalInteger() throws {
+        let lexer = Lexer("-0o700")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(-448)])
+    }
+
+    @Test("Parses positive octal integer with plus sign")
+    func parsePositiveOctalInteger() throws {
+        let lexer = Lexer("+0o755")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(493)]) // 7*64 + 5*8 + 5 = 493
+    }
+
+    @Test("Parses octal zero")
+    func parseOctalZero() throws {
+        let lexer = Lexer("0o0")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(0)])
+    }
+
+    // MARK: - Decimal integers with leading zeros
+
+    @Test("Parses leading zero as decimal")
+    func parseLeadingZeroAsDecimal() throws {
+        let lexer = Lexer("0700")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(700)])
+    }
+
+    @Test("Parses 08 as decimal")
+    func parse08AsDecimal() throws {
+        let lexer = Lexer("08")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(8)])
+    }
+
+    @Test("Parses 00 as decimal zero")
+    func parse00AsDecimal() throws {
+        let lexer = Lexer("00")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(0)])
+    }
 }

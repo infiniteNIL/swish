@@ -54,6 +54,11 @@ public class Lexer {
             return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: "")
         }
 
+        // Unsigned octal: 0o...
+        if char == "0", let next = peekAt(1), next == "o" {
+            return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: "")
+        }
+
         // Unsigned hex: 0x...
         if char == "0", let next = peekAt(1), next == "x" {
             return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: "")
@@ -70,6 +75,12 @@ public class Lexer {
             if let next = peek(), next == "0",
                let afterZero = peekAt(1), afterZero == "b" {
                 return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+            }
+
+            // Check for octal: sign followed by 0o
+            if let next = peek(), next == "0",
+               let afterZero = peekAt(1), afterZero == "o" {
+                return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
             }
 
             // Check for hex: sign followed by 0x
@@ -235,5 +246,47 @@ public class Lexer {
 
     private func isBinaryDigit(_ char: Character) -> Bool {
         char == "0" || char == "1"
+    }
+
+    private func scanOctalInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
+        var text = prefix
+        text.append(advance()) // '0'
+        text.append(advance()) // 'o'
+
+        var hasDigits = false
+        var lastWasUnderscore = false
+
+        while let char = peek() {
+            if isOctalDigit(char) {
+                text.append(advance())
+                hasDigits = true
+                lastWasUnderscore = false
+            }
+            else if char == "_" {
+                if !hasDigits || lastWasUnderscore {
+                    throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
+                }
+                _ = advance()
+                text.append("_")
+                lastWasUnderscore = true
+            }
+            else {
+                break
+            }
+        }
+
+        if !hasDigits {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+        if lastWasUnderscore {
+            throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+        }
+
+        let cleanText = text.filter { $0 != "_" }
+        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+    }
+
+    private func isOctalDigit(_ char: Character) -> Bool {
+        char >= "0" && char <= "7"
     }
 }

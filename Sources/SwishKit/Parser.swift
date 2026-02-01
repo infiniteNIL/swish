@@ -51,6 +51,9 @@ public class Parser {
             else if let hexValue = parseHexInteger(text) {
                 value = hexValue
             }
+            else if let octalValue = parseOctalInteger(text) {
+                value = octalValue
+            }
             else if let decValue = Int(text) {
                 value = decValue
             }
@@ -102,6 +105,26 @@ public class Parser {
 
         let binaryPart = String(str.dropFirst(2))
         guard let magnitude = Int(binaryPart, radix: 2) else { return nil }
+
+        return negative ? -magnitude : magnitude
+    }
+
+    private func parseOctalInteger(_ text: String) -> Int? {
+        var str = text
+        var negative = false
+
+        if str.hasPrefix("-") {
+            negative = true
+            str = String(str.dropFirst())
+        }
+        else if str.hasPrefix("+") {
+            str = String(str.dropFirst())
+        }
+
+        guard str.hasPrefix("0o") else { return nil }
+
+        let octalPart = String(str.dropFirst(2)) // drop "0o"
+        guard let magnitude = Int(octalPart, radix: 8) else { return nil }
 
         return negative ? -magnitude : magnitude
     }
