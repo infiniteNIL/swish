@@ -6,11 +6,13 @@ public class Evaluator {
     public func eval(_ expr: Expr) -> Expr {
         switch expr {
         case .integer:
-            return expr
+            expr
+
         case .float:
-            return expr
+            expr
+
         case .ratio:
-            return expr
+            expr
         }
     }
 }

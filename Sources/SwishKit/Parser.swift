@@ -15,13 +15,16 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .unexpectedToken(let token):
-            return "Unexpected token '\(token.text)' (line \(token.line), column \(token.column))."
+            "Unexpected token '\(token.text)' (line \(token.line), column \(token.column))."
+
         case .unexpectedEOF:
-            return "Unexpected end of input."
+            "Unexpected end of input."
+
         case .integerOverflow(let text):
-            return "Integer overflow: '\(text)' is too large."
+            "Integer overflow: '\(text)' is too large."
+
         case .invalidFloat(let text):
-            return "Invalid float: '\(text)'."
+            "Invalid float: '\(text)'."
         }
     }
 }
@@ -69,6 +72,7 @@ public class Parser {
             let expr = Expr.integer(value)
             try advance()
             return expr
+
         case .float:
             let text = currentToken.text
             guard let value = Double(text) else {
@@ -77,6 +81,7 @@ public class Parser {
             let expr = Expr.float(value)
             try advance()
             return expr
+
         case .ratio:
             let text = currentToken.text
             let parts = text.split(separator: "/", maxSplits: 1)
@@ -102,6 +107,7 @@ public class Parser {
 
             try advance()
             return .ratio(ratio)
+            
         case .eof:
             throw ParserError.unexpectedEOF
         }

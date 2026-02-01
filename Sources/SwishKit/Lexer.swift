@@ -23,11 +23,13 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     public var description: String {
         switch self {
         case .illegalCharacter(let char, let line, let column):
-            return "Illegal character '\(char)' (line \(line), column \(column))."
+            "Illegal character '\(char)' (line \(line), column \(column))."
+
         case .invalidNumberFormat(let text, let line, let column):
-            return "Invalid number format '\(text)' (line \(line), column \(column))."
+            "Invalid number format '\(text)' (line \(line), column \(column))."
+
         case .invalidRatio(let text, let line, let column):
-            return "Invalid ratio '\(text)': division by zero (line \(line), column \(column))."
+            "Invalid ratio '\(text)': division by zero (line \(line), column \(column))."
         }
     }
 }

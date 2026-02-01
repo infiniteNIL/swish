@@ -16,11 +16,13 @@ public class Printer {
     public func printString(_ expr: Expr) -> String {
         switch expr {
         case .integer(let value):
-            return String(value)
+            String(value)
+
         case .float(let value):
-            return floatFormatter.string(from: NSNumber(value: value)) ?? String(value)
+            floatFormatter.string(from: NSNumber(value: value)) ?? String(value)
+
         case .ratio(let ratio):
-            return "\(ratio.numerator)/\(ratio.denominator)"
+            "\(ratio.numerator)/\(ratio.denominator)"
         }
     }
 }
