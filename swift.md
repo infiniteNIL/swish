@@ -80,6 +80,8 @@ case ...:
 }
 ```
 
+- If a function can be written without an explicit return, do it. Typically, that means if a function just contains a single statement (if, switch, just an expression), then you don't need a return
+
 
 ## SwiftUI instructions
 
