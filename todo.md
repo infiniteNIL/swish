@@ -7,6 +7,7 @@
 - [x] When printing numbers don't format with commas
 - [x] Add support strings
 - [x] Unicode characters in strings
+- [ ] Add support for multiline string literals
 - [ ] Add support for characters
 - [ ] Add support for keywords
 - [ ] Add support for maps
