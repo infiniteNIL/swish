@@ -12,7 +12,8 @@
 - [ ] Add support for arrays
 - [ ] Add support for maps
 - [ ] Add support for sets
-- [ ] Add support for multi-line comments
+- [ ] Add support for comment macro
+- [ ] Add support for #_ reader macro to comment out form
 
 - [x] Add support for integers of different radix
 - [x] Octal numbers have a prefix 0o
