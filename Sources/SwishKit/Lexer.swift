@@ -22,6 +22,7 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case invalidRatio(String, line: Int, column: Int)
     case unterminatedString(line: Int, column: Int)
     case invalidEscapeSequence(char: Character, line: Int, column: Int)
+    case invalidUnicodeEscape(String, line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -39,6 +40,9 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
 
         case .invalidEscapeSequence(let char, let line, let column):
             "Invalid escape sequence '\\(\(char))' (line \(line), column \(column))."
+
+        case .invalidUnicodeEscape(let reason, let line, let column):
+            "Invalid Unicode escape: \(reason) (line \(line), column \(column))."
         }
     }
 }
@@ -452,6 +456,34 @@ public class Lexer {
                 case "t": value.append("\t")
                 case "r": value.append("\r")
                 case "0": value.append("\0")
+                case "u":
+                    guard let next = peekAt(1), next == "{" else {
+                        throw LexerError.invalidUnicodeEscape("expected '{'", line: line, column: column)
+                    }
+                    _ = advance()  // consume 'u'
+                    _ = advance()  // consume '{'
+
+                    var hexDigits = ""
+                    while !isAtEnd && peek() != "}" {
+                        guard let char = peek(), char.isHexDigit else {
+                            throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
+                        }
+                        hexDigits.append(advance())
+                    }
+
+                    guard !isAtEnd else {
+                        throw LexerError.unterminatedString(line: startLine, column: startColumn)
+                    }
+                    guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
+                        throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
+                    }
+                    guard let codePoint = UInt32(hexDigits, radix: 16),
+                          let scalar = Unicode.Scalar(codePoint) else {
+                        throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
+                    }
+
+                    value.append(Character(scalar))
+                    // The shared advance() after the switch will consume '}'
                 default:
                     throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
                 }

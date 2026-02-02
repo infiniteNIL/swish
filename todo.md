@@ -6,7 +6,8 @@
 - [x] Add support for ratios
 - [x] When printing numbers don't format with commas
 - [x] Add support strings
-- [ ] Unicode characters in strings
+- [x] Unicode characters in strings
+- [ ] Add support for characters
 - [ ] Add support for keywords
 - [ ] Add support for maps
 - [x] Refer to previous results with slash instead of *

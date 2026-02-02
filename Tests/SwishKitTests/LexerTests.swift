@@ -1039,4 +1039,118 @@ struct LexerTests {
         #expect(token.text == "hello")
         #expect(token.column == 3)
     }
+
+    // MARK: - Unicode escape sequences
+
+    @Test("Scans string with Unicode escape - Euro sign")
+    func scanStringWithUnicodeEscapeEuro() throws {
+        let lexer = Lexer("\"\\u{20AC}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "€")
+    }
+
+    @Test("Scans string with Unicode escape - letter A")
+    func scanStringWithUnicodeEscapeA() throws {
+        let lexer = Lexer("\"\\u{0041}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "A")
+    }
+
+    @Test("Scans string with Unicode escape - fewer digits")
+    func scanStringWithUnicodeEscapeFewerDigits() throws {
+        let lexer = Lexer("\"\\u{41}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "A")
+    }
+
+    @Test("Scans string with Unicode escape - emoji")
+    func scanStringWithUnicodeEscapeEmoji() throws {
+        let lexer = Lexer("\"\\u{1F600}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "😀")
+    }
+
+    @Test("Scans string with Unicode escape - mixed content")
+    func scanStringWithUnicodeEscapeMixed() throws {
+        let lexer = Lexer("\"Price: \\u{20AC}100\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "Price: €100")
+    }
+
+    @Test("Scans string with multiple Unicode escapes")
+    func scanStringWithMultipleUnicodeEscapes() throws {
+        let lexer = Lexer("\"\\u{41}\\u{42}\\u{43}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "ABC")
+    }
+
+    @Test("Scans string with lowercase hex digits")
+    func scanStringWithUnicodeEscapeLowercaseHex() throws {
+        let lexer = Lexer("\"\\u{20ac}\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "€")
+    }
+
+    @Test("Throws error for Unicode escape missing brace")
+    func unicodeEscapeMissingBraceThrows() throws {
+        let lexer = Lexer("\"\\u\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("expected '{'", line: 1, column: 3)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for Unicode escape with no hex digits")
+    func unicodeEscapeNoDigitsThrows() throws {
+        let lexer = Lexer("\"\\u{}\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: 1, column: 5)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for Unicode escape with invalid hex digit")
+    func unicodeEscapeInvalidHexDigitThrows() throws {
+        let lexer = Lexer("\"\\u{GGGG}\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("invalid hex digit", line: 1, column: 5)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for Unicode escape with too many digits")
+    func unicodeEscapeTooManyDigitsThrows() throws {
+        let lexer = Lexer("\"\\u{1234567}\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: 1, column: 12)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for Unicode escape with surrogate code point")
+    func unicodeEscapeSurrogateThrows() throws {
+        let lexer = Lexer("\"\\u{D800}\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("invalid code point", line: 1, column: 9)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for Unicode escape with code point out of range")
+    func unicodeEscapeOutOfRangeThrows() throws {
+        let lexer = Lexer("\"\\u{110000}\"")
+        #expect(throws: LexerError.invalidUnicodeEscape("invalid code point", line: 1, column: 11)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for unterminated Unicode escape")
+    func unicodeEscapeUnterminatedThrows() throws {
+        let lexer = Lexer("\"\\u{20AC")
+        #expect(throws: LexerError.unterminatedString(line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
 }
