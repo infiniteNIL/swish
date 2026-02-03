@@ -297,6 +297,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .boolean(let value):
         value ? "true" : "false"
+
+    case .nil:
+        "nil"
     }
 }
 

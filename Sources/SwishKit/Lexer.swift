@@ -6,6 +6,7 @@ public enum TokenType: Equatable, Sendable {
     case string
     case character
     case boolean
+    case `nil`
     case eof
 }
 
@@ -824,6 +825,8 @@ public class Lexer {
         switch text {
         case "true", "false":
             return Token(type: .boolean, text: text, line: startLine, column: startColumn)
+        case "nil":
+            return Token(type: .nil, text: text, line: startLine, column: startColumn)
         default:
             throw LexerError.illegalCharacter(text.first!, line: startLine, column: startColumn)
         }

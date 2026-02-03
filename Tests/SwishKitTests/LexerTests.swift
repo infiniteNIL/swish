@@ -1668,4 +1668,42 @@ struct LexerTests {
             try lexer.nextToken()
         }
     }
+
+    // MARK: - Nil literal
+
+    @Test("Scans nil")
+    func scanNil() throws {
+        let lexer = Lexer("nil")
+        let token = try lexer.nextToken()
+        #expect(token.type == .nil)
+        #expect(token.text == "nil")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Nil position tracking")
+    func nilPositionTracking() throws {
+        let lexer = Lexer("  nil")
+        let token = try lexer.nextToken()
+        #expect(token.type == .nil)
+        #expect(token.text == "nil")
+        #expect(token.column == 3)
+    }
+
+    @Test("Scans nil mixed with other tokens")
+    func scanNilMixedWithOtherTokens() throws {
+        let lexer = Lexer("nil 42 true")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .nil)
+        #expect(token1.text == "nil")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .integer)
+        #expect(token2.text == "42")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .boolean)
+        #expect(token3.text == "true")
+    }
 }

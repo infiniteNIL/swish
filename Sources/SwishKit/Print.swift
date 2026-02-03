@@ -32,6 +32,9 @@ public class Printer {
 
         case .boolean(let value):
             value ? "true" : "false"
+
+        case .nil:
+            "nil"
         }
     }
 

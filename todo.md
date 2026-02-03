@@ -1,10 +1,7 @@
 # Todo
 
-- [ ] Add support for characters (\a \A \u{XXXX} \newline, etc.)
 - [ ] Add support for symbols
 - [ ] Add support for keywords
-- [ ] Add support for booleans
-- [ ] Add support for nil
 - [ ] Add support for single-line comments
 - [ ] Add support for commas as whitespace
 - [ ] Add support for lists
@@ -14,6 +11,9 @@
 - [ ] Add support for comment macro
 - [ ] Add support for #_ reader macro to comment out form
 
+- [x] Add support for nil
+- [x] Add support for booleans
+- [x] Add support for characters (\a \A \u{XXXX} \newline, etc.)
 - [x] Add support for multiline string literals
 - [x] Add support for integers of different radix
 - [x] Octal numbers have a prefix 0o

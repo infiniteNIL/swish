@@ -6,6 +6,7 @@ public enum Expr: Equatable {
     case string(String)
     case character(Character)
     case boolean(Bool)
+    case `nil`
 }
 
 /// Errors thrown during parsing
@@ -125,6 +126,10 @@ public class Parser {
             let value = currentToken.text == "true"
             try advance()
             return .boolean(value)
+
+        case .nil:
+            try advance()
+            return .nil
 
         case .eof:
             throw ParserError.unexpectedEOF

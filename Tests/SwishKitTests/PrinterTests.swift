@@ -224,4 +224,14 @@ struct PrinterTests {
             #expect(printer.printString(.boolean(false)) == "false")
         }
     }
+
+    @Suite("Nil")
+    struct Nil {
+        let printer = Printer()
+
+        @Test("prints nil")
+        func printsNil() {
+            #expect(printer.printString(.nil) == "nil")
+        }
+    }
 }

@@ -484,4 +484,22 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.boolean(true), .integer(42), .string("hello"), .boolean(false), .float(1.5)])
     }
+
+    // MARK: - Nil literal
+
+    @Test("Parses nil")
+    func parseNil() throws {
+        let lexer = Lexer("nil")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.nil])
+    }
+
+    @Test("Parses mixed types including nil")
+    func parseMixedTypesWithNil() throws {
+        let lexer = Lexer("nil 42 true nil")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.nil, .integer(42), .boolean(true), .nil])
+    }
 }
