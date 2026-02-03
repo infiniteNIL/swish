@@ -5,6 +5,7 @@ public enum Expr: Equatable {
     case ratio(Ratio)
     case string(String)
     case character(Character)
+    case boolean(Bool)
 }
 
 /// Errors thrown during parsing
@@ -119,6 +120,11 @@ public class Parser {
             let char = currentToken.text.first!
             try advance()
             return .character(char)
+
+        case .boolean:
+            let value = currentToken.text == "true"
+            try advance()
+            return .boolean(value)
 
         case .eof:
             throw ParserError.unexpectedEOF

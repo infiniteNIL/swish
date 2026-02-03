@@ -19,105 +19,6 @@ private let commands: [(name: String, description: String)] = [
     ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
-/// Type of continuation needed for incomplete input
-private enum ContinuationType {
-    case none
-    case regularString      // Join without newline
-    case multilineString    // Join with newline
-}
-
-/// Checks if the input contains an unclosed string literal (regular or multiline).
-/// Returns the type of continuation needed.
-private func continuationNeeded(_ input: String) -> ContinuationType {
-    var i = input.startIndex
-
-    while i < input.endIndex {
-        let char = input[i]
-
-        // Check for string opening: " or """
-        if char == "\"" {
-            let next1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
-            let next2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
-
-            if let n1 = next1, let n2 = next2, n1 < input.endIndex, n2 < input.endIndex,
-               input[n1] == "\"", input[n2] == "\"" {
-                // Found opening """, now look for closing """
-                i = input.index(after: n2)  // Move past opening """
-
-                // Skip optional whitespace and require newline
-                while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
-                    i = input.index(after: i)
-                }
-
-                // If no newline found, this might be invalid but let the lexer handle it
-                if i >= input.endIndex {
-                    return .multilineString  // Unclosed multiline string
-                }
-
-                if input[i] == "\n" {
-                    i = input.index(after: i)  // Move past newline
-                }
-
-                // Now look for closing """
-                var foundClosing = false
-                while i < input.endIndex {
-                    if input[i] == "\"" {
-                        let cn1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
-                        let cn2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
-
-                        if let c1 = cn1, let c2 = cn2, c1 < input.endIndex, c2 < input.endIndex,
-                           input[c1] == "\"", input[c2] == "\"" {
-                            // Found closing """, move past it and continue checking rest of input
-                            i = input.index(after: c2)
-                            foundClosing = true
-                            break
-                        }
-                    }
-                    i = input.index(after: i)
-                }
-
-                // If we didn't find closing """, need more input
-                if !foundClosing {
-                    return .multilineString
-                }
-                continue
-            }
-            else {
-                // Regular string - look for closing quote
-                i = input.index(after: i)
-                var foundClosing = false
-                while i < input.endIndex {
-                    if input[i] == "\\" {
-                        // Skip escaped character
-                        i = input.index(after: i)
-                        if i < input.endIndex {
-                            i = input.index(after: i)
-                        }
-                    }
-                    else if input[i] == "\"" {
-                        // Found closing quote
-                        i = input.index(after: i)
-                        foundClosing = true
-                        break
-                    }
-                    else {
-                        i = input.index(after: i)
-                    }
-                }
-                // If we didn't find closing quote, need more input
-                if !foundClosing {
-                    return .regularString
-                }
-                continue
-            }
-        }
-
-        i = input.index(after: i)
-    }
-
-    return .none
-}
-
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
@@ -256,6 +157,105 @@ func main() {
     }
 }
 
+/// Type of continuation needed for incomplete input
+private enum ContinuationType {
+    case none
+    case regularString      // Join without newline
+    case multilineString    // Join with newline
+}
+
+/// Checks if the input contains an unclosed string literal (regular or multiline).
+/// Returns the type of continuation needed.
+private func continuationNeeded(_ input: String) -> ContinuationType {
+    var i = input.startIndex
+
+    while i < input.endIndex {
+        let char = input[i]
+
+        // Check for string opening: " or """
+        if char == "\"" {
+            let next1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
+            let next2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
+
+            if let n1 = next1, let n2 = next2, n1 < input.endIndex, n2 < input.endIndex,
+               input[n1] == "\"", input[n2] == "\"" {
+                // Found opening """, now look for closing """
+                i = input.index(after: n2)  // Move past opening """
+
+                // Skip optional whitespace and require newline
+                while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
+                    i = input.index(after: i)
+                }
+
+                // If no newline found, this might be invalid but let the lexer handle it
+                if i >= input.endIndex {
+                    return .multilineString  // Unclosed multiline string
+                }
+
+                if input[i] == "\n" {
+                    i = input.index(after: i)  // Move past newline
+                }
+
+                // Now look for closing """
+                var foundClosing = false
+                while i < input.endIndex {
+                    if input[i] == "\"" {
+                        let cn1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
+                        let cn2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
+
+                        if let c1 = cn1, let c2 = cn2, c1 < input.endIndex, c2 < input.endIndex,
+                           input[c1] == "\"", input[c2] == "\"" {
+                            // Found closing """, move past it and continue checking rest of input
+                            i = input.index(after: c2)
+                            foundClosing = true
+                            break
+                        }
+                    }
+                    i = input.index(after: i)
+                }
+
+                // If we didn't find closing """, need more input
+                if !foundClosing {
+                    return .multilineString
+                }
+                continue
+            }
+            else {
+                // Regular string - look for closing quote
+                i = input.index(after: i)
+                var foundClosing = false
+                while i < input.endIndex {
+                    if input[i] == "\\" {
+                        // Skip escaped character
+                        i = input.index(after: i)
+                        if i < input.endIndex {
+                            i = input.index(after: i)
+                        }
+                    }
+                    else if input[i] == "\"" {
+                        // Found closing quote
+                        i = input.index(after: i)
+                        foundClosing = true
+                        break
+                    }
+                    else {
+                        i = input.index(after: i)
+                    }
+                }
+                // If we didn't find closing quote, need more input
+                if !foundClosing {
+                    return .regularString
+                }
+                continue
+            }
+        }
+
+        i = input.index(after: i)
+    }
+
+    return .none
+}
+
 /// Swish logo banner
 private func printBanner() {
     print("\(orange))λ( Swish\(reset)")
@@ -294,6 +294,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .character(let char):
         characterSourceForm(char)
+
+    case .boolean(let value):
+        value ? "true" : "false"
     }
 }
 

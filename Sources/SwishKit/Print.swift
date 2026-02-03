@@ -29,6 +29,9 @@ public class Printer {
 
         case .character(let char):
             printCharacter(char)
+
+        case .boolean(let value):
+            value ? "true" : "false"
         }
     }
 

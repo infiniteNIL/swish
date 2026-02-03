@@ -1588,4 +1588,84 @@ struct LexerTests {
             try lexer.nextToken()
         }
     }
+
+    // MARK: - Boolean literals
+
+    @Test("Scans true")
+    func scanTrue() throws {
+        let lexer = Lexer("true")
+        let token = try lexer.nextToken()
+        #expect(token.type == .boolean)
+        #expect(token.text == "true")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans false")
+    func scanFalse() throws {
+        let lexer = Lexer("false")
+        let token = try lexer.nextToken()
+        #expect(token.type == .boolean)
+        #expect(token.text == "false")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Boolean position tracking")
+    func booleanPositionTracking() throws {
+        let lexer = Lexer("  true")
+        let token = try lexer.nextToken()
+        #expect(token.type == .boolean)
+        #expect(token.text == "true")
+        #expect(token.column == 3)
+    }
+
+    @Test("Scans multiple booleans")
+    func scanMultipleBooleans() throws {
+        let lexer = Lexer("true false true")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .boolean)
+        #expect(token1.text == "true")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .boolean)
+        #expect(token2.text == "false")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .boolean)
+        #expect(token3.text == "true")
+
+        let eofToken = try lexer.nextToken()
+        #expect(eofToken.type == .eof)
+    }
+
+    @Test("Scans booleans mixed with other tokens")
+    func scanBooleansMixedWithOtherTokens() throws {
+        let lexer = Lexer("true 42 \"hello\" false")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .boolean)
+        #expect(token1.text == "true")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .integer)
+        #expect(token2.text == "42")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .string)
+        #expect(token3.text == "hello")
+
+        let token4 = try lexer.nextToken()
+        #expect(token4.type == .boolean)
+        #expect(token4.text == "false")
+    }
+
+    @Test("Throws error for unknown identifier")
+    func unknownIdentifierThrows() throws {
+        let lexer = Lexer("foo")
+        #expect(throws: LexerError.illegalCharacter("f", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
 }

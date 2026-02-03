@@ -5,6 +5,7 @@ public enum TokenType: Equatable, Sendable {
     case ratio
     case string
     case character
+    case boolean
     case eof
 }
 
@@ -144,6 +145,10 @@ public class Lexer {
 
         if char == "\\" {
             return try scanCharacter(startLine: startLine, startColumn: startColumn)
+        }
+
+        if char.isLetter {
+            return try scanIdentifier(startLine: startLine, startColumn: startColumn)
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
@@ -808,5 +813,19 @@ public class Lexer {
         _ = advance()  // consume '}'
 
         return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
+    }
+
+    private func scanIdentifier(startLine: Int, startColumn: Int) throws -> Token {
+        var text = ""
+        while let char = peek(), char.isLetter || char.isNumber {
+            text.append(advance())
+        }
+
+        switch text {
+        case "true", "false":
+            return Token(type: .boolean, text: text, line: startLine, column: startColumn)
+        default:
+            throw LexerError.illegalCharacter(text.first!, line: startLine, column: startColumn)
+        }
     }
 }

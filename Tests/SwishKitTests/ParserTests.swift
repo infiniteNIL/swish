@@ -450,4 +450,38 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.character("a"), .integer(42), .string("hello"), .float(1.5)])
     }
+
+    // MARK: - Boolean literals
+
+    @Test("Parses true")
+    func parseTrue() throws {
+        let lexer = Lexer("true")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.boolean(true)])
+    }
+
+    @Test("Parses false")
+    func parseFalse() throws {
+        let lexer = Lexer("false")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.boolean(false)])
+    }
+
+    @Test("Parses multiple booleans")
+    func parseMultipleBooleans() throws {
+        let lexer = Lexer("true false true")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.boolean(true), .boolean(false), .boolean(true)])
+    }
+
+    @Test("Parses mixed types including booleans")
+    func parseMixedTypesWithBooleans() throws {
+        let lexer = Lexer("true 42 \"hello\" false 1.5")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.boolean(true), .integer(42), .string("hello"), .boolean(false), .float(1.5)])
+    }
 }
