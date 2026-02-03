@@ -291,6 +291,22 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .string(let value):
         "\"\(escapeStringForSource(value))\""
+
+    case .character(let char):
+        characterSourceForm(char)
+    }
+}
+
+/// Converts a Character to source form for substitution
+private func characterSourceForm(_ char: Character) -> String {
+    switch char {
+    case "\n": return "\\newline"
+    case "\t": return "\\tab"
+    case " ": return "\\space"
+    case "\r": return "\\return"
+    case "\u{0008}": return "\\backspace"
+    case "\u{000C}": return "\\formfeed"
+    default: return "\\\(char)"
     }
 }
 

@@ -26,6 +26,21 @@ public class Printer {
 
         case .string(let value):
             "\"\(escapeString(value))\""
+
+        case .character(let char):
+            printCharacter(char)
+        }
+    }
+
+    private func printCharacter(_ char: Character) -> String {
+        switch char {
+        case "\n": return "\\newline"
+        case "\t": return "\\tab"
+        case " ": return "\\space"
+        case "\r": return "\\return"
+        case "\u{0008}": return "\\backspace"
+        case "\u{000C}": return "\\formfeed"
+        default: return "\\\(char)"
         }
     }
 

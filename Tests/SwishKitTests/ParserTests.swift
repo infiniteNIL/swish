@@ -400,4 +400,54 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.integer(1), .string("hello"), .float(1.5), .ratio(Ratio(1, 2))])
     }
+
+    // MARK: - Character literals
+
+    @Test("Parses simple character")
+    func parseSimpleCharacter() throws {
+        let lexer = Lexer("\\a")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("a")])
+    }
+
+    @Test("Parses named character - newline")
+    func parseNamedCharacterNewline() throws {
+        let lexer = Lexer("\\newline")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("\n")])
+    }
+
+    @Test("Parses named character - space")
+    func parseNamedCharacterSpace() throws {
+        let lexer = Lexer("\\space")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character(" ")])
+    }
+
+    @Test("Parses Unicode character")
+    func parseUnicodeCharacter() throws {
+        let lexer = Lexer("\\u{20AC}")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("€")])
+    }
+
+    @Test("Parses multiple characters")
+    func parseMultipleCharacters() throws {
+        let lexer = Lexer("\\a \\b \\c")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("a"), .character("b"), .character("c")])
+    }
+
+    @Test("Parses mixed types including characters")
+    func parseMixedTypesWithCharacters() throws {
+        let lexer = Lexer("\\a 42 \"hello\" 1.5")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("a"), .integer(42), .string("hello"), .float(1.5)])
+    }
 }

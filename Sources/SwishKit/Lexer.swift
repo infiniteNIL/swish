@@ -4,6 +4,7 @@ public enum TokenType: Equatable, Sendable {
     case float
     case ratio
     case string
+    case character
     case eof
 }
 
@@ -26,6 +27,8 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case multilineStringContentOnOpeningLine(line: Int, column: Int)
     case multilineStringInsufficientIndentation(line: Int, column: Int)
     case unterminatedMultilineString(line: Int, column: Int)
+    case invalidCharacterLiteral(String, line: Int, column: Int)
+    case unknownNamedCharacter(String, line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -55,6 +58,12 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
 
         case .unterminatedMultilineString(let line, let column):
             "Unterminated multiline string literal (line \(line), column \(column))."
+
+        case .invalidCharacterLiteral(let reason, let line, let column):
+            "Invalid character literal: \(reason) (line \(line), column \(column))."
+
+        case .unknownNamedCharacter(let name, let line, let column):
+            "Unknown named character '\\(\(name))' (line \(line), column \(column))."
         }
     }
 }
@@ -131,6 +140,10 @@ public class Lexer {
 
         if char == "\"" {
             return try scanString(startLine: startLine, startColumn: startColumn)
+        }
+
+        if char == "\\" {
+            return try scanCharacter(startLine: startLine, startColumn: startColumn)
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
@@ -710,5 +723,90 @@ public class Lexer {
         }
 
         return Token(type: .string, text: result, line: startLine, column: startColumn)
+    }
+
+    private func scanCharacter(startLine: Int, startColumn: Int) throws -> Token {
+        _ = advance()  // consume backslash
+
+        guard let char = peek() else {
+            throw LexerError.invalidCharacterLiteral("unexpected end of input", line: startLine, column: startColumn)
+        }
+
+        // Whitespace after backslash is invalid
+        if char.isWhitespace {
+            throw LexerError.invalidCharacterLiteral("whitespace after backslash (use \\space for space character)", line: startLine, column: startColumn)
+        }
+
+        // Unicode escape: \u{XXXX}
+        if char == "u", let next = peekAt(1), next == "{" {
+            return try scanUnicodeCharacter(startLine: startLine, startColumn: startColumn)
+        }
+
+        // Check for named character or single letter
+        if char.isLetter {
+            var name = ""
+            while let c = peek(), c.isLetter {
+                name.append(advance())
+            }
+
+            // Single letter is just that character
+            if name.count == 1 {
+                return Token(type: .character, text: name, line: startLine, column: startColumn)
+            }
+
+            // Multi-letter must be a named character
+            if let resolved = resolveNamedCharacter(name) {
+                return Token(type: .character, text: String(resolved), line: startLine, column: startColumn)
+            }
+            else {
+                throw LexerError.unknownNamedCharacter(name, line: startLine, column: startColumn)
+            }
+        }
+
+        // Any other single character
+        let singleChar = advance()
+        return Token(type: .character, text: String(singleChar), line: startLine, column: startColumn)
+    }
+
+    private func resolveNamedCharacter(_ name: String) -> Character? {
+        switch name {
+        case "newline": return "\n"
+        case "tab": return "\t"
+        case "space": return " "
+        case "return": return "\r"
+        case "backspace": return "\u{0008}"
+        case "formfeed": return "\u{000C}"
+        default: return nil
+        }
+    }
+
+    private func scanUnicodeCharacter(startLine: Int, startColumn: Int) throws -> Token {
+        _ = advance()  // consume 'u'
+        _ = advance()  // consume '{'
+
+        var hexDigits = ""
+        while !isAtEnd && peek() != "}" {
+            guard let char = peek(), char.isHexDigit else {
+                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
+            }
+            hexDigits.append(advance())
+        }
+
+        guard !isAtEnd else {
+            throw LexerError.invalidCharacterLiteral("unterminated unicode escape", line: startLine, column: startColumn)
+        }
+
+        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
+            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
+        }
+
+        guard let codePoint = UInt32(hexDigits, radix: 16),
+              let scalar = Unicode.Scalar(codePoint) else {
+            throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
+        }
+
+        _ = advance()  // consume '}'
+
+        return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
     }
 }

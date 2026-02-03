@@ -16,6 +16,9 @@ public class Evaluator {
 
         case .string:
             expr
+
+        case .character:
+            expr
         }
     }
 }
