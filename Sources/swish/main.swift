@@ -19,15 +19,15 @@ private let commands: [(name: String, description: String)] = [
     ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
-/// Checks if the input contains an unclosed multiline string literal.
-/// Returns true if we need more input to complete the multiline string.
+/// Checks if the input contains an unclosed string literal (regular or multiline).
+/// Returns true if we need more input to complete the string.
 private func needsMoreInput(_ input: String) -> Bool {
     var i = input.startIndex
 
     while i < input.endIndex {
         let char = input[i]
 
-        // Check for multiline string opening: """
+        // Check for string opening: " or """
         if char == "\"" {
             let next1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
             let next2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
@@ -76,21 +76,30 @@ private func needsMoreInput(_ input: String) -> Bool {
                 continue
             }
             else {
-                // Regular string - skip it
+                // Regular string - look for closing quote
                 i = input.index(after: i)
-                while i < input.endIndex && input[i] != "\"" {
+                var foundClosing = false
+                while i < input.endIndex {
                     if input[i] == "\\" {
+                        // Skip escaped character
                         i = input.index(after: i)
                         if i < input.endIndex {
                             i = input.index(after: i)
                         }
                     }
+                    else if input[i] == "\"" {
+                        // Found closing quote
+                        i = input.index(after: i)
+                        foundClosing = true
+                        break
+                    }
                     else {
                         i = input.index(after: i)
                     }
                 }
-                if i < input.endIndex {
-                    i = input.index(after: i)  // Skip closing quote
+                // If we didn't find closing quote, need more input
+                if !foundClosing {
+                    return true
                 }
                 continue
             }
