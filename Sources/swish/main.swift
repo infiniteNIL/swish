@@ -19,6 +19,89 @@ private let commands: [(name: String, description: String)] = [
     ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
+/// Checks if the input contains an unclosed multiline string literal.
+/// Returns true if we need more input to complete the multiline string.
+private func needsMoreInput(_ input: String) -> Bool {
+    var i = input.startIndex
+
+    while i < input.endIndex {
+        let char = input[i]
+
+        // Check for multiline string opening: """
+        if char == "\"" {
+            let next1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
+            let next2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
+
+            if let n1 = next1, let n2 = next2, n1 < input.endIndex, n2 < input.endIndex,
+               input[n1] == "\"", input[n2] == "\"" {
+                // Found opening """, now look for closing """
+                i = input.index(after: n2)  // Move past opening """
+
+                // Skip optional whitespace and require newline
+                while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
+                    i = input.index(after: i)
+                }
+
+                // If no newline found, this might be invalid but let the lexer handle it
+                if i >= input.endIndex {
+                    return true  // Unclosed multiline string
+                }
+
+                if input[i] == "\n" {
+                    i = input.index(after: i)  // Move past newline
+                }
+
+                // Now look for closing """
+                var foundClosing = false
+                while i < input.endIndex {
+                    if input[i] == "\"" {
+                        let cn1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
+                        let cn2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
+
+                        if let c1 = cn1, let c2 = cn2, c1 < input.endIndex, c2 < input.endIndex,
+                           input[c1] == "\"", input[c2] == "\"" {
+                            // Found closing """, move past it and continue checking rest of input
+                            i = input.index(after: c2)
+                            foundClosing = true
+                            break
+                        }
+                    }
+                    i = input.index(after: i)
+                }
+
+                // If we didn't find closing """, need more input
+                if !foundClosing {
+                    return true
+                }
+                continue
+            }
+            else {
+                // Regular string - skip it
+                i = input.index(after: i)
+                while i < input.endIndex && input[i] != "\"" {
+                    if input[i] == "\\" {
+                        i = input.index(after: i)
+                        if i < input.endIndex {
+                            i = input.index(after: i)
+                        }
+                    }
+                    else {
+                        i = input.index(after: i)
+                    }
+                }
+                if i < input.endIndex {
+                    i = input.index(after: i)  // Skip closing quote
+                }
+                continue
+            }
+        }
+
+        i = input.index(after: i)
+    }
+
+    return false
+}
+
 /// Swish REPL - Read-Eval-Print Loop
 func main() {
     let swish = Swish()
@@ -37,12 +120,24 @@ func main() {
     guard let ln = LineReader() else {
         // Fall back to basic readLine if terminal not available
         while true {
-            print("λ(\(inputCount))> ", terminator: "")
-            guard let input = readLine() else {
+            let mainPrompt = "λ(\(inputCount))> "
+            let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
+            print(mainPrompt, terminator: "")
+            guard var input = readLine() else {
                 print(defaultCursor, terminator: "")
                 print()
                 break
             }
+
+            // Handle multiline input
+            while needsMoreInput(input) {
+                print(continuationPrompt, terminator: "")
+                guard let continuation = readLine() else {
+                    break
+                }
+                input += "\n" + continuation
+            }
+
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             if trimmed.isEmpty { continue }
             if matchCommand(trimmed, "quit") {
@@ -68,9 +163,12 @@ func main() {
     }
 
     while true {
-        let input: String
+        let mainPrompt = "λ(\(inputCount))> "
+        let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
+
+        var input: String
         do {
-            input = try ln.readLine(prompt: "λ(\(inputCount))> ", strippingNewline: true)
+            input = try ln.readLine(prompt: mainPrompt, strippingNewline: true)
         }
         catch LineReaderError.EOF {
             print(defaultCursor, terminator: "")
@@ -86,6 +184,23 @@ func main() {
             print(defaultCursor, terminator: "")
             print("Error: \(error)")
             break
+        }
+
+        // Handle multiline input
+        while needsMoreInput(input) {
+            do {
+                let continuation = try ln.readLine(prompt: continuationPrompt, strippingNewline: true)
+                input += "\n" + continuation
+            }
+            catch LineReaderError.EOF {
+                break
+            }
+            catch LineReaderError.CTRLC {
+                break
+            }
+            catch {
+                break
+            }
         }
 
         let trimmed = input.trimmingCharacters(in: .whitespaces)

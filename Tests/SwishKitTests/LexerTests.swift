@@ -1153,4 +1153,213 @@ struct LexerTests {
             try lexer.nextToken()
         }
     }
+
+    // MARK: - Multiline string literals
+
+    @Test("Scans basic multiline string")
+    func scanBasicMultilineString() throws {
+        let lexer = Lexer("\"\"\"\nhello\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans empty multiline string")
+    func scanEmptyMultilineString() throws {
+        let lexer = Lexer("\"\"\"\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "")
+    }
+
+    @Test("Scans multiline string with multiple lines")
+    func scanMultilineStringWithMultipleLines() throws {
+        let lexer = Lexer("\"\"\"\nline1\nline2\nline3\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\nline2\nline3")
+    }
+
+    @Test("Scans multiline string with indentation stripping")
+    func scanMultilineStringIndentationStripping() throws {
+        let lexer = Lexer("\"\"\"\n    hello\n    \"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+    }
+
+    @Test("Scans multiline string preserving relative indentation")
+    func scanMultilineStringPreservingRelativeIndentation() throws {
+        let lexer = Lexer("\"\"\"\n    line1\n        indented\n    \"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\n    indented")
+    }
+
+    @Test("Scans multiline string with unescaped single quote")
+    func scanMultilineStringWithSingleQuote() throws {
+        let lexer = Lexer("\"\"\"\nSay \"hi\"\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "Say \"hi\"")
+    }
+
+    @Test("Scans multiline string with unescaped double quote")
+    func scanMultilineStringWithDoubleQuote() throws {
+        let lexer = Lexer("\"\"\"\nHe said \"hello\"\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "He said \"hello\"")
+    }
+
+    @Test("Scans multiline string with two consecutive quotes")
+    func scanMultilineStringWithTwoQuotes() throws {
+        let lexer = Lexer("\"\"\"\ntest\"\"end\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "test\"\"end")
+    }
+
+    @Test("Scans multiline string with line continuation")
+    func scanMultilineStringWithLineContinuation() throws {
+        let lexer = Lexer("\"\"\"\nhello \\\nworld\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello world")
+    }
+
+    @Test("Scans multiline string with escape sequences")
+    func scanMultilineStringWithEscapeSequences() throws {
+        let lexer = Lexer("\"\"\"\nhello\\nworld\\ttab\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello\nworld\ttab")
+    }
+
+    @Test("Scans multiline string with Unicode escape")
+    func scanMultilineStringWithUnicodeEscape() throws {
+        let lexer = Lexer("\"\"\"\nPrice: \\u{20AC}100\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "Price: €100")
+    }
+
+    @Test("Scans multiline string with empty lines")
+    func scanMultilineStringWithEmptyLines() throws {
+        let lexer = Lexer("\"\"\"\nline1\n\nline3\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\n\nline3")
+    }
+
+    @Test("Scans multiline string with whitespace-only lines")
+    func scanMultilineStringWithWhitespaceOnlyLines() throws {
+        let lexer = Lexer("\"\"\"\n    line1\n    \n    line3\n    \"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "line1\n\nline3")
+    }
+
+    @Test("Scans multiline string with escaped backslash before newline")
+    func scanMultilineStringEscapedBackslashBeforeNewline() throws {
+        let lexer = Lexer("\"\"\"\npath\\\\\nnext\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "path\\\nnext")
+    }
+
+    @Test("Throws error for content on multiline string opening line")
+    func multilineStringContentOnOpeningLineThrows() throws {
+        let lexer = Lexer("\"\"\"hello\n\"\"\"")
+        #expect(throws: LexerError.multilineStringContentOnOpeningLine(line: 1, column: 4)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for insufficient indentation in multiline string")
+    func multilineStringInsufficientIndentationThrows() throws {
+        let lexer = Lexer("\"\"\"\n    line1\n  short\n    \"\"\"")
+        #expect(throws: LexerError.multilineStringInsufficientIndentation(line: 3, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for unterminated multiline string")
+    func unterminatedMultilineStringThrows() throws {
+        let lexer = Lexer("\"\"\"\nhello")
+        #expect(throws: LexerError.unterminatedMultilineString(line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Throws error for invalid escape in multiline string")
+    func multilineStringInvalidEscapeThrows() throws {
+        let lexer = Lexer("\"\"\"\n\\x\n\"\"\"")
+        #expect(throws: LexerError.invalidEscapeSequence(char: "x", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Multiline string position tracking")
+    func multilineStringPositionTracking() throws {
+        let lexer = Lexer("  \"\"\"\n  hello\n  \"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+        #expect(token.column == 3)
+    }
+
+    @Test("Scans multiline string with tabs in indentation")
+    func scanMultilineStringWithTabIndentation() throws {
+        let lexer = Lexer("\"\"\"\n\thello\n\t\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+    }
+
+    @Test("Scans multiline string allowing whitespace after opening delimiter")
+    func scanMultilineStringWithWhitespaceAfterOpening() throws {
+        let lexer = Lexer("\"\"\"   \nhello\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "hello")
+    }
+
+    @Test("Scans multiline string with all escape types")
+    func scanMultilineStringAllEscapeTypes() throws {
+        let lexer = Lexer("\"\"\"\n\\\"\\\\\\n\\t\\r\\0\n\"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "\"\\\n\t\r\0")
+    }
+
+    @Test("Scans multiline string with mixed content")
+    func scanMultilineStringMixedContent() throws {
+        let lexer = Lexer("\"\"\"\n    func hello() {\n        print(\"Hello\")\n    }\n    \"\"\"")
+        let token = try lexer.nextToken()
+        #expect(token.type == .string)
+        #expect(token.text == "func hello() {\n    print(\"Hello\")\n}")
+    }
+
+    @Test("Throws error for unterminated multiline string with only opening")
+    func unterminatedMultilineStringOnlyOpeningThrows() throws {
+        let lexer = Lexer("\"\"\"")
+        #expect(throws: LexerError.unterminatedMultilineString(line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Scans multiple tokens after multiline string")
+    func scanMultipleTokensAfterMultilineString() throws {
+        let lexer = Lexer("\"\"\"\nhello\n\"\"\" 42")
+        let stringToken = try lexer.nextToken()
+        #expect(stringToken.type == .string)
+        #expect(stringToken.text == "hello")
+
+        let intToken = try lexer.nextToken()
+        #expect(intToken.type == .integer)
+        #expect(intToken.text == "42")
+    }
 }
