@@ -19,9 +19,16 @@ private let commands: [(name: String, description: String)] = [
     ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
+/// Type of continuation needed for incomplete input
+private enum ContinuationType {
+    case none
+    case regularString      // Join without newline
+    case multilineString    // Join with newline
+}
+
 /// Checks if the input contains an unclosed string literal (regular or multiline).
-/// Returns true if we need more input to complete the string.
-private func needsMoreInput(_ input: String) -> Bool {
+/// Returns the type of continuation needed.
+private func continuationNeeded(_ input: String) -> ContinuationType {
     var i = input.startIndex
 
     while i < input.endIndex {
@@ -44,7 +51,7 @@ private func needsMoreInput(_ input: String) -> Bool {
 
                 // If no newline found, this might be invalid but let the lexer handle it
                 if i >= input.endIndex {
-                    return true  // Unclosed multiline string
+                    return .multilineString  // Unclosed multiline string
                 }
 
                 if input[i] == "\n" {
@@ -71,7 +78,7 @@ private func needsMoreInput(_ input: String) -> Bool {
 
                 // If we didn't find closing """, need more input
                 if !foundClosing {
-                    return true
+                    return .multilineString
                 }
                 continue
             }
@@ -99,7 +106,7 @@ private func needsMoreInput(_ input: String) -> Bool {
                 }
                 // If we didn't find closing quote, need more input
                 if !foundClosing {
-                    return true
+                    return .regularString
                 }
                 continue
             }
@@ -108,7 +115,7 @@ private func needsMoreInput(_ input: String) -> Bool {
         i = input.index(after: i)
     }
 
-    return false
+    return .none
 }
 
 /// Swish REPL - Read-Eval-Print Loop
@@ -139,12 +146,14 @@ func main() {
             }
 
             // Handle multiline input
-            while needsMoreInput(input) {
+            var contType = continuationNeeded(input)
+            while contType != .none {
                 print(continuationPrompt, terminator: "")
                 guard let continuation = readLine() else {
                     break
                 }
-                input += "\n" + continuation
+                input += (contType == .multilineString ? "\n" : "") + continuation
+                contType = continuationNeeded(input)
             }
 
             let trimmed = input.trimmingCharacters(in: .whitespaces)
@@ -196,10 +205,12 @@ func main() {
         }
 
         // Handle multiline input
-        while needsMoreInput(input) {
+        var contType = continuationNeeded(input)
+        while contType != .none {
             do {
                 let continuation = try ln.readLine(prompt: continuationPrompt, strippingNewline: true)
-                input += "\n" + continuation
+                input += (contType == .multilineString ? "\n" : "") + continuation
+                contType = continuationNeeded(input)
             }
             catch LineReaderError.EOF {
                 break
