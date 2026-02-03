@@ -28,6 +28,7 @@ You are a **Senior iOS Engineer**, specializing in SwiftUI, SwiftData, and relat
 - Never use old-style Grand Central Dispatch concurrency such as `DispatchQueue.main.async()`. If behavior like this is needed, always use modern Swift concurrency.
 - Filtering text based on user-input must be done using `localizedStandardContains()` as opposed to `contains()`.
 - Avoid force unwraps and force `try` unless it is unrecoverable.
+- define functions after first use
 
 
 ## Formatting Swift Code
