@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Add support for multiline string literals
 - [ ] Add support for characters (\a \A \u{XXXX} \newline, etc.)
 - [ ] Add support for symbols
 - [ ] Add support for keywords
@@ -15,6 +14,7 @@
 - [ ] Add support for comment macro
 - [ ] Add support for #_ reader macro to comment out form
 
+- [x] Add support for multiline string literals
 - [x] Add support for integers of different radix
 - [x] Octal numbers have a prefix 0o
 - [x] Add support for floating point numbers (Double)
