@@ -576,4 +576,70 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.nil, .integer(42), .boolean(true), .nil])
     }
+
+    // MARK: - Keyword literals
+
+    @Test("Parses simple keyword")
+    func parseSimpleKeyword() throws {
+        let lexer = Lexer(":foo")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("foo")])
+    }
+
+    @Test("Parses hyphenated keyword")
+    func parseHyphenatedKeyword() throws {
+        let lexer = Lexer(":foo-bar")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("foo-bar")])
+    }
+
+    @Test("Parses namespaced keyword")
+    func parseNamespacedKeyword() throws {
+        let lexer = Lexer(":user/name")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("user/name")])
+    }
+
+    @Test("Parses :true as keyword")
+    func parseColonTrueAsKeyword() throws {
+        let lexer = Lexer(":true")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("true")])
+    }
+
+    @Test("Parses :false as keyword")
+    func parseColonFalseAsKeyword() throws {
+        let lexer = Lexer(":false")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("false")])
+    }
+
+    @Test("Parses :nil as keyword")
+    func parseColonNilAsKeyword() throws {
+        let lexer = Lexer(":nil")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("nil")])
+    }
+
+    @Test("Parses multiple keywords")
+    func parseMultipleKeywords() throws {
+        let lexer = Lexer(":foo :bar :baz")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("foo"), .keyword("bar"), .keyword("baz")])
+    }
+
+    @Test("Parses mixed types including keywords")
+    func parseMixedTypesWithKeywords() throws {
+        let lexer = Lexer(":foo 42 \"hello\" :bar true")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.keyword("foo"), .integer(42), .string("hello"), .keyword("bar"), .boolean(true)])
+    }
 }

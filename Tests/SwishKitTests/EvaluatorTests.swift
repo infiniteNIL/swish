@@ -102,4 +102,30 @@ struct EvaluatorTests {
         let result = evaluator.eval(.symbol("clojure.core/map"))
         #expect(result == .symbol("clojure.core/map"))
     }
+
+    // MARK: - Keyword literals
+
+    @Test("Keyword evaluates to itself")
+    func keywordSelfEvaluates() {
+        let result = evaluator.eval(.keyword("foo"))
+        #expect(result == .keyword("foo"))
+    }
+
+    @Test("Hyphenated keyword evaluates to itself")
+    func hyphenatedKeywordSelfEvaluates() {
+        let result = evaluator.eval(.keyword("foo-bar"))
+        #expect(result == .keyword("foo-bar"))
+    }
+
+    @Test("Namespaced keyword evaluates to itself")
+    func namespacedKeywordSelfEvaluates() {
+        let result = evaluator.eval(.keyword("user/name"))
+        #expect(result == .keyword("user/name"))
+    }
+
+    @Test(":true keyword evaluates to itself")
+    func trueKeywordSelfEvaluates() {
+        let result = evaluator.eval(.keyword("true"))
+        #expect(result == .keyword("true"))
+    }
 }

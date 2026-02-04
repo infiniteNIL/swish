@@ -38,6 +38,9 @@ public class Printer {
 
         case .symbol(let name):
             name
+
+        case .keyword(let name):
+            ":\(name)"
         }
     }
 

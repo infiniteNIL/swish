@@ -8,6 +8,7 @@ public enum TokenType: Equatable, Sendable {
     case boolean
     case `nil`
     case symbol
+    case keyword
     case eof
 }
 
@@ -32,6 +33,8 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case unterminatedMultilineString(line: Int, column: Int)
     case invalidCharacterLiteral(String, line: Int, column: Int)
     case unknownNamedCharacter(String, line: Int, column: Int)
+    case invalidKeyword(String, line: Int, column: Int)
+    case unsupportedAutoResolvedKeyword(line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -67,6 +70,12 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
 
         case .unknownNamedCharacter(let name, let line, let column):
             "Unknown named character '\\(\(name))' (line \(line), column \(column))."
+
+        case .invalidKeyword(let reason, let line, let column):
+            "Invalid keyword: \(reason) (line \(line), column \(column))."
+
+        case .unsupportedAutoResolvedKeyword(let line, let column):
+            "Auto-resolved keywords (::) are not yet supported (line \(line), column \(column))."
         }
     }
 }
@@ -155,6 +164,10 @@ public class Lexer {
 
         if char == "\\" {
             return try scanCharacter(startLine: startLine, startColumn: startColumn)
+        }
+
+        if char == ":" {
+            return try scanKeyword(startLine: startLine, startColumn: startColumn)
         }
 
         if isSymbolStart(char) {
@@ -893,5 +906,73 @@ public class Lexer {
         default:
             return Token(type: .symbol, text: text, line: startLine, column: startColumn)
         }
+    }
+
+    private func scanKeyword(startLine: Int, startColumn: Int) throws -> Token {
+        _ = advance() // consume leading ':'
+
+        // Check for auto-resolved keyword (::)
+        if let char = peek(), char == ":" {
+            throw LexerError.unsupportedAutoResolvedKeyword(line: startLine, column: startColumn)
+        }
+
+        // Check for valid keyword start
+        guard let char = peek() else {
+            throw LexerError.invalidKeyword("expected name after ':'", line: startLine, column: startColumn)
+        }
+
+        // Keyword name must start with a valid symbol start character
+        if char.isWhitespace {
+            throw LexerError.invalidKeyword("whitespace after ':'", line: startLine, column: startColumn)
+        }
+
+        if char.isNumber {
+            throw LexerError.invalidKeyword("keyword cannot start with a number", line: startLine, column: startColumn)
+        }
+
+        if !isSymbolStart(char) {
+            throw LexerError.invalidKeyword("invalid character '\(char)' after ':'", line: startLine, column: startColumn)
+        }
+
+        // Scan the keyword name using same rules as symbols (but no reserved word checking)
+        var text = ""
+        var hasSlash = false
+
+        while let c = peek() {
+            if isSymbolContinuation(c) {
+                text.append(advance())
+            }
+            else if c == "." {
+                // Dot can appear in the middle of a keyword name
+                if text.isEmpty {
+                    break
+                }
+                if let next = peekAt(1), isSymbolContinuation(next) {
+                    text.append(advance())
+                }
+                else {
+                    break
+                }
+            }
+            else if c == "/" {
+                // Slash can appear once in the middle (namespace separator)
+                if hasSlash || text.isEmpty {
+                    break
+                }
+                if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
+                    text.append(advance())
+                    hasSlash = true
+                }
+                else {
+                    break
+                }
+            }
+            else {
+                break
+            }
+        }
+
+        // Return keyword token (no reserved word checking - :true, :false, :nil are valid keywords)
+        return Token(type: .keyword, text: text, line: startLine, column: startColumn)
     }
 }

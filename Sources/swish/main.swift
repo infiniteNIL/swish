@@ -303,6 +303,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .symbol(let name):
         name
+
+    case .keyword(let name):
+        ":\(name)"
     }
 }
 

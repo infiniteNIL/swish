@@ -28,6 +28,9 @@ public class Evaluator {
 
         case .symbol:
             expr
+
+        case .keyword:
+            expr
         }
     }
 }

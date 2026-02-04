@@ -8,6 +8,7 @@ public enum Expr: Equatable {
     case boolean(Bool)
     case `nil`
     case symbol(String)
+    case keyword(String)
 }
 
 /// Errors thrown during parsing
@@ -136,6 +137,11 @@ public class Parser {
             let name = currentToken.text
             try advance()
             return .symbol(name)
+
+        case .keyword:
+            let name = currentToken.text
+            try advance()
+            return .keyword(name)
 
         case .eof:
             throw ParserError.unexpectedEOF

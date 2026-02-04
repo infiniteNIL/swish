@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] Add support for symbols
-- [ ] Add support for keywords
 - [ ] Add support for single-line comments
 - [ ] Add support for commas as whitespace
 - [ ] Add support for lists
@@ -11,6 +9,8 @@
 - [ ] Add support for comment macro
 - [ ] Add support for #_ reader macro to comment out form
 
+- [x] Add support for keywords
+- [x] Add support for symbols
 - [x] Add support for nil
 - [x] Add support for booleans
 - [x] Add support for characters (\a \A \u{XXXX} \newline, etc.)
