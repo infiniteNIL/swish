@@ -642,4 +642,105 @@ struct ParserTests {
         let exprs = try parser.parse()
         #expect(exprs == [.keyword("foo"), .integer(42), .string("hello"), .keyword("bar"), .boolean(true)])
     }
+
+    // MARK: - List literals
+
+    @Test("Parses empty list")
+    func parseEmptyList() throws {
+        let lexer = Lexer("()")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([])])
+    }
+
+    @Test("Parses list with single element")
+    func parseListWithSingleElement() throws {
+        let lexer = Lexer("(42)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.integer(42)])])
+    }
+
+    @Test("Parses list with multiple integers")
+    func parseListWithMultipleIntegers() throws {
+        let lexer = Lexer("(1 2 3)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.integer(1), .integer(2), .integer(3)])])
+    }
+
+    @Test("Parses list with mixed types")
+    func parseListWithMixedTypes() throws {
+        let lexer = Lexer("(:foo \"bar\" 42)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.keyword("foo"), .string("bar"), .integer(42)])])
+    }
+
+    @Test("Parses nested lists")
+    func parseNestedLists() throws {
+        let lexer = Lexer("(1 (2 3) 4)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)])])
+    }
+
+    @Test("Parses deeply nested lists")
+    func parseDeeplyNestedLists() throws {
+        let lexer = Lexer("(((1)))")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.list([.list([.integer(1)])])])])
+    }
+
+    @Test("Parses multiple lists")
+    func parseMultipleLists() throws {
+        let lexer = Lexer("(1 2) (3 4)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.integer(1), .integer(2)]), .list([.integer(3), .integer(4)])])
+    }
+
+    @Test("Parses list with symbols")
+    func parseListWithSymbols() throws {
+        let lexer = Lexer("(+ 1 2)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.symbol("+"), .integer(1), .integer(2)])])
+    }
+
+    @Test("Parses list mixed with other expressions")
+    func parseListMixedWithOtherExpressions() throws {
+        let lexer = Lexer("42 (1 2) \"hello\"")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.integer(42), .list([.integer(1), .integer(2)]), .string("hello")])
+    }
+
+    @Test("Throws error for unmatched right paren")
+    func unmatchedRightParenThrows() throws {
+        let lexer = Lexer(")")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.unexpectedToken(Token(type: .rightParen, text: ")", line: 1, column: 1))) {
+            try parser.parse()
+        }
+    }
+
+    @Test("Throws error for unterminated list")
+    func unterminatedListThrows() throws {
+        let lexer = Lexer("(1 2")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.unterminatedList(line: 1, column: 1)) {
+            try parser.parse()
+        }
+    }
+
+    @Test("Throws error for unterminated nested list")
+    func unterminatedNestedListThrows() throws {
+        let lexer = Lexer("(1 (2 3)")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.unterminatedList(line: 1, column: 1)) {
+            try parser.parse()
+        }
+    }
 }

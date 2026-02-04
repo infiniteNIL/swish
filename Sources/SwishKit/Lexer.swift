@@ -9,6 +9,8 @@ public enum TokenType: Equatable, Sendable {
     case `nil`
     case symbol
     case keyword
+    case leftParen
+    case rightParen
     case eof
 }
 
@@ -168,6 +170,16 @@ public class Lexer {
 
         if char == ":" {
             return try scanKeyword(startLine: startLine, startColumn: startColumn)
+        }
+
+        if char == "(" {
+            _ = advance()
+            return Token(type: .leftParen, text: "(", line: startLine, column: startColumn)
+        }
+
+        if char == ")" {
+            _ = advance()
+            return Token(type: .rightParen, text: ")", line: startLine, column: startColumn)
         }
 
         if isSymbolStart(char) {

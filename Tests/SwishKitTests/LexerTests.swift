@@ -2058,4 +2058,85 @@ struct LexerTests {
         #expect(token4.type == .keyword)
         #expect(token4.text == "bar")
     }
+
+    // MARK: - Parentheses (list delimiters)
+
+    @Test("Scans left paren")
+    func scanLeftParen() throws {
+        let lexer = Lexer("(")
+        let token = try lexer.nextToken()
+        #expect(token.type == .leftParen)
+        #expect(token.text == "(")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans right paren")
+    func scanRightParen() throws {
+        let lexer = Lexer(")")
+        let token = try lexer.nextToken()
+        #expect(token.type == .rightParen)
+        #expect(token.text == ")")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans empty parens")
+    func scanEmptyParens() throws {
+        let lexer = Lexer("()")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .leftParen)
+        #expect(token1.text == "(")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .rightParen)
+        #expect(token2.text == ")")
+
+        let eofToken = try lexer.nextToken()
+        #expect(eofToken.type == .eof)
+    }
+
+    @Test("Scans parens with content")
+    func scanParensWithContent() throws {
+        let lexer = Lexer("(foo 42)")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .leftParen)
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .symbol)
+        #expect(token2.text == "foo")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .integer)
+        #expect(token3.text == "42")
+
+        let token4 = try lexer.nextToken()
+        #expect(token4.type == .rightParen)
+
+        let eofToken = try lexer.nextToken()
+        #expect(eofToken.type == .eof)
+    }
+
+    @Test("Scans nested parens")
+    func scanNestedParens() throws {
+        let lexer = Lexer("((")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .leftParen)
+        #expect(token1.column == 1)
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .leftParen)
+        #expect(token2.column == 2)
+    }
+
+    @Test("Paren position tracking")
+    func parenPositionTracking() throws {
+        let lexer = Lexer("  (")
+        let token = try lexer.nextToken()
+        #expect(token.type == .leftParen)
+        #expect(token.column == 3)
+    }
 }

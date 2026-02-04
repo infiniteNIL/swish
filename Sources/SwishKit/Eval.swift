@@ -31,6 +31,9 @@ public class Evaluator {
 
         case .keyword:
             expr
+
+        case .list:
+            expr
         }
     }
 }

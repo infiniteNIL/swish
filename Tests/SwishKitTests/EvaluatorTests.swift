@@ -128,4 +128,30 @@ struct EvaluatorTests {
         let result = evaluator.eval(.keyword("true"))
         #expect(result == .keyword("true"))
     }
+
+    // MARK: - List literals
+
+    @Test("Empty list evaluates to itself")
+    func emptyListSelfEvaluates() {
+        let result = evaluator.eval(.list([]))
+        #expect(result == .list([]))
+    }
+
+    @Test("List with integers evaluates to itself")
+    func listWithIntegersSelfEvaluates() {
+        let result = evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
+        #expect(result == .list([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("Nested list evaluates to itself")
+    func nestedListSelfEvaluates() {
+        let result = evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+        #expect(result == .list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+    }
+
+    @Test("List with mixed types evaluates to itself")
+    func listWithMixedTypesSelfEvaluates() {
+        let result = evaluator.eval(.list([.symbol("+"), .integer(1), .integer(2)]))
+        #expect(result == .list([.symbol("+"), .integer(1), .integer(2)]))
+    }
 }

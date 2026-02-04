@@ -1,14 +1,16 @@
 # Todo
 
-- [ ] Add support for single-line comments
-- [ ] Add support for commas as whitespace
-- [ ] Add support for lists
+- [ ] Add def
 - [ ] Add support for arrays
 - [ ] Add support for maps
 - [ ] Add support for sets
-- [ ] Add support for comment macro
+- [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
+- [ ] Add support for comment macro
+- [ ] add proper evaluation of symbols with environments
+- [ ] Add support for function literals
 
+- [x] Add support for lists
 - [x] Add support for keywords
 - [x] Add support for symbols
 - [x] Add support for nil

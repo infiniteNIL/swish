@@ -41,6 +41,9 @@ public class Printer {
 
         case .keyword(let name):
             ":\(name)"
+
+        case .list(let elements):
+            "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
         }
     }
 

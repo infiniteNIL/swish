@@ -9,6 +9,7 @@ public enum Expr: Equatable {
     case `nil`
     case symbol(String)
     case keyword(String)
+    case list([Expr])
 }
 
 /// Errors thrown during parsing
@@ -17,6 +18,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unexpectedEOF
     case integerOverflow(String)
     case invalidFloat(String)
+    case unterminatedList(line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -31,6 +33,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .invalidFloat(let text):
             "Invalid float: '\(text)'."
+
+        case .unterminatedList(let line, let column):
+            "Unterminated list (line \(line), column \(column))."
         }
     }
 }
@@ -143,9 +148,32 @@ public class Parser {
             try advance()
             return .keyword(name)
 
+        case .leftParen:
+            return try parseList()
+
+        case .rightParen:
+            throw ParserError.unexpectedToken(currentToken)
+
         case .eof:
             throw ParserError.unexpectedEOF
         }
+    }
+
+    private func parseList() throws -> Expr {
+        let startToken = currentToken
+        try advance() // consume '('
+
+        var elements: [Expr] = []
+
+        while currentToken.type != .rightParen {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
+            }
+            elements.append(try parseExpr())
+        }
+
+        try advance() // consume ')'
+        return .list(elements)
     }
 
     private func parseHexInteger(_ text: String) -> Int? {

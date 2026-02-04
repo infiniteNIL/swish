@@ -53,7 +53,7 @@ func main() {
                 guard let continuation = readLine() else {
                     break
                 }
-                input += (contType == .multilineString ? "\n" : "") + continuation
+                input += (contType == .multilineString ? "\n" : " ") + continuation
                 contType = continuationNeeded(input)
             }
 
@@ -110,7 +110,7 @@ func main() {
         while contType != .none {
             do {
                 let continuation = try ln.readLine(prompt: continuationPrompt, strippingNewline: true)
-                input += (contType == .multilineString ? "\n" : "") + continuation
+                input += (contType == .multilineString ? "\n" : " ") + continuation
                 contType = continuationNeeded(input)
             }
             catch LineReaderError.EOF {
@@ -162,15 +162,30 @@ private enum ContinuationType {
     case none
     case regularString      // Join without newline
     case multilineString    // Join with newline
+    case list               // Unclosed parentheses
 }
 
-/// Checks if the input contains an unclosed string literal (regular or multiline).
+/// Checks if the input contains an unclosed string literal (regular or multiline) or unclosed list.
 /// Returns the type of continuation needed.
 private func continuationNeeded(_ input: String) -> ContinuationType {
     var i = input.startIndex
+    var parenDepth = 0
 
     while i < input.endIndex {
         let char = input[i]
+
+        // Track parentheses for lists
+        if char == "(" {
+            parenDepth += 1
+            i = input.index(after: i)
+            continue
+        }
+
+        if char == ")" {
+            parenDepth -= 1
+            i = input.index(after: i)
+            continue
+        }
 
         // Check for string opening: " or """
         if char == "\"" {
@@ -253,6 +268,11 @@ private func continuationNeeded(_ input: String) -> ContinuationType {
         i = input.index(after: i)
     }
 
+    // Check for unclosed parentheses
+    if parenDepth > 0 {
+        return .list
+    }
+
     return .none
 }
 
@@ -306,6 +326,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .keyword(let name):
         ":\(name)"
+
+    case .list(let elements):
+        "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
     }
 }
 
