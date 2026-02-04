@@ -76,4 +76,30 @@ struct EvaluatorTests {
         let result = evaluator.eval(.string("hello\nworld"))
         #expect(result == .string("hello\nworld"))
     }
+
+    // MARK: - Symbol literals
+
+    @Test("Symbol evaluates to itself")
+    func symbolSelfEvaluates() {
+        let result = evaluator.eval(.symbol("foo"))
+        #expect(result == .symbol("foo"))
+    }
+
+    @Test("Hyphenated symbol evaluates to itself")
+    func hyphenatedSymbolSelfEvaluates() {
+        let result = evaluator.eval(.symbol("foo-bar"))
+        #expect(result == .symbol("foo-bar"))
+    }
+
+    @Test("+ symbol evaluates to itself")
+    func plusSymbolSelfEvaluates() {
+        let result = evaluator.eval(.symbol("+"))
+        #expect(result == .symbol("+"))
+    }
+
+    @Test("Namespaced symbol evaluates to itself")
+    func namespacedSymbolSelfEvaluates() {
+        let result = evaluator.eval(.symbol("clojure.core/map"))
+        #expect(result == .symbol("clojure.core/map"))
+    }
 }

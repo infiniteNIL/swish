@@ -25,6 +25,9 @@ public class Evaluator {
 
         case .nil:
             expr
+
+        case .symbol:
+            expr
         }
     }
 }

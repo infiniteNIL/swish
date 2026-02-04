@@ -35,6 +35,9 @@ public class Printer {
 
         case .nil:
             "nil"
+
+        case .symbol(let name):
+            name
         }
     }
 

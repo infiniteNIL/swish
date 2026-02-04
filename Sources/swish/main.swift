@@ -300,6 +300,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .nil:
         "nil"
+
+    case .symbol(let name):
+        name
     }
 }
 

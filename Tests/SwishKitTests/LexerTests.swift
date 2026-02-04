@@ -88,34 +88,219 @@ struct LexerTests {
 
     @Test("Throws error for illegal character")
     func illegalCharacterThrows() throws {
-        let lexer = Lexer("abc")
-        #expect(throws: LexerError.illegalCharacter("a", line: 1, column: 1)) {
+        let lexer = Lexer("@")
+        #expect(throws: LexerError.illegalCharacter("@", line: 1, column: 1)) {
             try lexer.nextToken()
         }
     }
 
-    @Test("Throws error for lone plus sign")
-    func lonePlusSignThrows() throws {
+    // MARK: - Symbol literals
+
+    @Test("Scans simple symbol")
+    func scanSimpleSymbol() throws {
+        let lexer = Lexer("foo")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "foo")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans symbol with digits")
+    func scanSymbolWithDigits() throws {
+        let lexer = Lexer("foo123")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "foo123")
+    }
+
+    @Test("Scans hyphenated symbol")
+    func scanHyphenatedSymbol() throws {
+        let lexer = Lexer("foo-bar")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "foo-bar")
+    }
+
+    @Test("Scans symbol starting with hyphen")
+    func scanSymbolStartingWithHyphen() throws {
+        let lexer = Lexer("-bar")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "-bar")
+    }
+
+    @Test("Scans lone plus as symbol")
+    func scanLonePlusAsSymbol() throws {
         let lexer = Lexer("+")
-        #expect(throws: LexerError.illegalCharacter("+", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "+")
     }
 
-    @Test("Throws error for lone minus sign")
-    func loneMinusSignThrows() throws {
+    @Test("Scans lone minus as symbol")
+    func scanLoneMinusAsSymbol() throws {
         let lexer = Lexer("-")
-        #expect(throws: LexerError.illegalCharacter("-", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "-")
     }
 
-    @Test("Throws error for sign followed by non-digit")
-    func signFollowedByNonDigitThrows() throws {
-        let lexer = Lexer("-abc")
-        #expect(throws: LexerError.illegalCharacter("-", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+    @Test("Scans symbol with special start chars")
+    func scanSymbolWithSpecialStartChars() throws {
+        let lexer = Lexer("*foo*")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "*foo*")
+    }
+
+    @Test("Scans question mark symbol")
+    func scanQuestionMarkSymbol() throws {
+        let lexer = Lexer("empty?")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "empty?")
+    }
+
+    @Test("Scans bang symbol")
+    func scanBangSymbol() throws {
+        let lexer = Lexer("swap!")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "swap!")
+    }
+
+    @Test("Scans arrow symbol")
+    func scanArrowSymbol() throws {
+        let lexer = Lexer("->")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "->")
+    }
+
+    @Test("Scans comparison symbols")
+    func scanComparisonSymbols() throws {
+        let lexer = Lexer("<=>")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "<=>")
+    }
+
+    @Test("Scans +foo as symbol")
+    func scanPlusFooAsSymbol() throws {
+        let lexer = Lexer("+foo")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "+foo")
+    }
+
+    @Test("+5 is still an integer")
+    func plusFiveIsStillInteger() throws {
+        let lexer = Lexer("+5")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "+5")
+    }
+
+    @Test("-3 is still an integer")
+    func minusThreeIsStillInteger() throws {
+        let lexer = Lexer("-3")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "-3")
+    }
+
+    @Test("Scans / as symbol")
+    func scanSlashAsSymbol() throws {
+        let lexer = Lexer("/")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "/")
+    }
+
+    @Test("Scans namespaced symbol")
+    func scanNamespacedSymbol() throws {
+        let lexer = Lexer("clojure.core/map")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "clojure.core/map")
+    }
+
+    @Test("Scans dotted symbol")
+    func scanDottedSymbol() throws {
+        let lexer = Lexer("java.util.BitSet")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "java.util.BitSet")
+    }
+
+    @Test("Scans namespaced symbol with hyphen")
+    func scanNamespacedSymbolWithHyphen() throws {
+        let lexer = Lexer("my-ns/my-fn")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "my-ns/my-fn")
+    }
+
+    @Test("true is still a boolean")
+    func trueIsStillBoolean() throws {
+        let lexer = Lexer("true")
+        let token = try lexer.nextToken()
+        #expect(token.type == .boolean)
+        #expect(token.text == "true")
+    }
+
+    @Test("false is still a boolean")
+    func falseIsStillBoolean() throws {
+        let lexer = Lexer("false")
+        let token = try lexer.nextToken()
+        #expect(token.type == .boolean)
+        #expect(token.text == "false")
+    }
+
+    @Test("nil is still nil")
+    func nilIsStillNil() throws {
+        let lexer = Lexer("nil")
+        let token = try lexer.nextToken()
+        #expect(token.type == .nil)
+        #expect(token.text == "nil")
+    }
+
+    @Test("Scans multiple symbols")
+    func scanMultipleSymbols() throws {
+        let lexer = Lexer("foo bar baz")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .symbol)
+        #expect(token1.text == "foo")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .symbol)
+        #expect(token2.text == "bar")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .symbol)
+        #expect(token3.text == "baz")
+
+        let eofToken = try lexer.nextToken()
+        #expect(eofToken.type == .eof)
+    }
+
+    @Test("Scans mixed symbols and numbers")
+    func scanMixedSymbolsAndNumbers() throws {
+        let lexer = Lexer("foo 42 bar")
+
+        let token1 = try lexer.nextToken()
+        #expect(token1.type == .symbol)
+        #expect(token1.text == "foo")
+
+        let token2 = try lexer.nextToken()
+        #expect(token2.type == .integer)
+        #expect(token2.text == "42")
+
+        let token3 = try lexer.nextToken()
+        #expect(token3.type == .symbol)
+        #expect(token3.text == "bar")
     }
 
     @Test("Tracks line and column across newlines")
@@ -309,15 +494,15 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as hex")
     func uppercasePrefixNotHex() throws {
-        // 0XFF should be lexed as 0 followed by illegal character X
+        // 0XFF should be lexed as 0 followed by symbol XFF
         let lexer = Lexer("0XFF")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
         #expect(token.text == "0")
 
-        #expect(throws: LexerError.illegalCharacter("X", line: 1, column: 2)) {
-            try lexer.nextToken()
-        }
+        let symbolToken = try lexer.nextToken()
+        #expect(symbolToken.type == .symbol)
+        #expect(symbolToken.text == "XFF")
     }
 
     // MARK: - Binary integer literals
@@ -421,15 +606,15 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as binary")
     func uppercasePrefixNotBinary() throws {
-        // 0B1010 should be lexed as 0 followed by illegal character B
+        // 0B1010 should be lexed as 0 followed by symbol B1010
         let lexer = Lexer("0B1010")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
         #expect(token.text == "0")
 
-        #expect(throws: LexerError.illegalCharacter("B", line: 1, column: 2)) {
-            try lexer.nextToken()
-        }
+        let symbolToken = try lexer.nextToken()
+        #expect(symbolToken.type == .symbol)
+        #expect(symbolToken.text == "B1010")
     }
 
     // MARK: - Octal integer literals
@@ -525,15 +710,15 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as octal")
     func uppercasePrefixNotOctal() throws {
-        // 0O7 should be lexed as 0 followed by illegal character O
+        // 0O7 should be lexed as 0 followed by symbol O7
         let lexer = Lexer("0O7")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
         #expect(token.text == "0")
 
-        #expect(throws: LexerError.illegalCharacter("O", line: 1, column: 2)) {
-            try lexer.nextToken()
-        }
+        let symbolToken = try lexer.nextToken()
+        #expect(symbolToken.type == .symbol)
+        #expect(symbolToken.text == "O7")
     }
 
     // MARK: - Decimal integers with leading zeros
@@ -700,15 +885,15 @@ struct LexerTests {
 
     @Test("Exponent without digits remains integer")
     func exponentWithoutDigitsRemainsInteger() throws {
-        // 1e should be lexed as integer 1, then illegal character 'e'
+        // 1e should be lexed as integer 1, then symbol 'e'
         let lexer = Lexer("1e")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
         #expect(token.text == "1")
 
-        #expect(throws: LexerError.illegalCharacter("e", line: 1, column: 2)) {
-            try lexer.nextToken()
-        }
+        let symbolToken = try lexer.nextToken()
+        #expect(symbolToken.type == .symbol)
+        #expect(symbolToken.text == "e")
     }
 
     @Test("Exponent with only sign remains integer")
@@ -1661,12 +1846,13 @@ struct LexerTests {
         #expect(token4.text == "false")
     }
 
-    @Test("Throws error for unknown identifier")
-    func unknownIdentifierThrows() throws {
-        let lexer = Lexer("foo")
-        #expect(throws: LexerError.illegalCharacter("f", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+    @Test("Scans identifier starting with reserved word prefix as symbol")
+    func scanIdentifierStartingWithReservedPrefix() throws {
+        // "truthy" starts with "true" but should be scanned as a symbol
+        let lexer = Lexer("truthy")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "truthy")
     }
 
     // MARK: - Nil literal

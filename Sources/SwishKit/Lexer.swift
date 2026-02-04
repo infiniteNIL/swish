@@ -7,6 +7,7 @@ public enum TokenType: Equatable, Sendable {
     case character
     case boolean
     case `nil`
+    case symbol
     case eof
 }
 
@@ -112,32 +113,40 @@ public class Lexer {
         }
 
         if char == "+" || char == "-" {
-            let signChar = advance()
+            // Check if followed by digit or 0 (for number bases) - if so, it's a number
+            if let next = peekAt(1) {
+                if next.isNumber {
+                    let signChar = advance()
 
-            // Check for binary: sign followed by 0b
-            if let next = peek(), next == "0",
-               let afterZero = peekAt(1), afterZero == "b" {
-                return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-            }
+                    // Check for binary: sign followed by 0b
+                    if let n = peek(), n == "0",
+                       let afterZero = peekAt(1), afterZero == "b" {
+                        return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                    }
 
-            // Check for octal: sign followed by 0o
-            if let next = peek(), next == "0",
-               let afterZero = peekAt(1), afterZero == "o" {
-                return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-            }
+                    // Check for octal: sign followed by 0o
+                    if let n = peek(), n == "0",
+                       let afterZero = peekAt(1), afterZero == "o" {
+                        return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                    }
 
-            // Check for hex: sign followed by 0x
-            if let next = peek(), next == "0",
-               let afterZero = peekAt(1), afterZero == "x" {
-                return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-            }
+                    // Check for hex: sign followed by 0x
+                    if let n = peek(), n == "0",
+                       let afterZero = peekAt(1), afterZero == "x" {
+                        return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                    }
 
-            if let next = peek(), next.isNumber {
-                return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                    return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
+                }
             }
-            else {
-                throw LexerError.illegalCharacter(signChar, line: startLine, column: startColumn)
-            }
+            // Otherwise +/- starts a symbol
+            return scanSymbol(startLine: startLine, startColumn: startColumn)
+        }
+
+        // Handle / as division symbol (standalone)
+        if char == "/" {
+            _ = advance()
+            return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
         if char == "\"" {
@@ -148,8 +157,8 @@ public class Lexer {
             return try scanCharacter(startLine: startLine, startColumn: startColumn)
         }
 
-        if char.isLetter {
-            return try scanIdentifier(startLine: startLine, startColumn: startColumn)
+        if isSymbolStart(char) {
+            return scanSymbol(startLine: startLine, startColumn: startColumn)
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
@@ -816,19 +825,73 @@ public class Lexer {
         return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
     }
 
-    private func scanIdentifier(startLine: Int, startColumn: Int) throws -> Token {
+    private func isSymbolStart(_ char: Character) -> Bool {
+        if char.isLetter { return true }
+        switch char {
+        case "*", "+", "!", "-", "_", "'", "?", "<", ">", "=":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func isSymbolContinuation(_ char: Character) -> Bool {
+        if isSymbolStart(char) { return true }
+        if char.isNumber { return true }
+        return false
+    }
+
+    private func scanSymbol(startLine: Int, startColumn: Int) -> Token {
         var text = ""
-        while let char = peek(), char.isLetter || char.isNumber {
-            text.append(advance())
+        var hasSlash = false
+
+        while let char = peek() {
+            if isSymbolContinuation(char) {
+                text.append(advance())
+            }
+            else if char == "." {
+                // Dot can appear in the middle of a symbol (e.g., java.util.BitSet)
+                // but not at the start or end
+                if text.isEmpty {
+                    break
+                }
+                // Look ahead to see if there's more after the dot
+                if let next = peekAt(1), isSymbolContinuation(next) {
+                    text.append(advance()) // consume the dot
+                }
+                else {
+                    break
+                }
+            }
+            else if char == "/" {
+                // Slash can appear once in the middle (namespace separator)
+                if hasSlash || text.isEmpty {
+                    break
+                }
+                // Look ahead to see if there's more after the slash
+                if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
+                    text.append(advance()) // consume the slash
+                    hasSlash = true
+                }
+                else {
+                    break
+                }
+            }
+            else {
+                break
+            }
         }
 
+        // Check for reserved words
         switch text {
         case "true", "false":
             return Token(type: .boolean, text: text, line: startLine, column: startColumn)
+
         case "nil":
             return Token(type: .nil, text: text, line: startLine, column: startColumn)
+
         default:
-            throw LexerError.illegalCharacter(text.first!, line: startLine, column: startColumn)
+            return Token(type: .symbol, text: text, line: startLine, column: startColumn)
         }
     }
 }

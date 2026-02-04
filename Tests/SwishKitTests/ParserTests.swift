@@ -61,10 +61,84 @@ struct ParserTests {
 
     @Test("Lexer error propagates through parser init")
     func lexerErrorPropagates() throws {
-        let lexer = Lexer("abc")
-        #expect(throws: LexerError.illegalCharacter("a", line: 1, column: 1)) {
+        let lexer = Lexer("@")
+        #expect(throws: LexerError.illegalCharacter("@", line: 1, column: 1)) {
             try Parser(lexer)
         }
+    }
+
+    // MARK: - Symbol literals
+
+    @Test("Parses simple symbol")
+    func parseSimpleSymbol() throws {
+        let lexer = Lexer("foo")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("foo")])
+    }
+
+    @Test("Parses hyphenated symbol")
+    func parseHyphenatedSymbol() throws {
+        let lexer = Lexer("foo-bar")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("foo-bar")])
+    }
+
+    @Test("Parses symbol with special chars")
+    func parseSymbolWithSpecialChars() throws {
+        let lexer = Lexer("*foo*")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("*foo*")])
+    }
+
+    @Test("Parses lone + as symbol")
+    func parseLonePlusAsSymbol() throws {
+        let lexer = Lexer("+")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("+")])
+    }
+
+    @Test("Parses lone - as symbol")
+    func parseLoneMinusAsSymbol() throws {
+        let lexer = Lexer("-")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("-")])
+    }
+
+    @Test("Parses / as symbol")
+    func parseSlashAsSymbol() throws {
+        let lexer = Lexer("/")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("/")])
+    }
+
+    @Test("Parses namespaced symbol")
+    func parseNamespacedSymbol() throws {
+        let lexer = Lexer("clojure.core/map")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("clojure.core/map")])
+    }
+
+    @Test("Parses multiple symbols")
+    func parseMultipleSymbols() throws {
+        let lexer = Lexer("foo bar baz")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("foo"), .symbol("bar"), .symbol("baz")])
+    }
+
+    @Test("Parses mixed types including symbols")
+    func parseMixedTypesWithSymbols() throws {
+        let lexer = Lexer("foo 42 \"hello\" bar 1.5")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.symbol("foo"), .integer(42), .string("hello"), .symbol("bar"), .float(1.5)])
     }
 
     // MARK: - Hexadecimal integer literals
