@@ -494,15 +494,11 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as hex")
     func uppercasePrefixNotHex() throws {
-        // 0XFF should be lexed as 0 followed by symbol XFF
+        // 0XFF should be an error - 'X' is not a valid number terminator
         let lexer = Lexer("0XFF")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0")
-
-        let symbolToken = try lexer.nextToken()
-        #expect(symbolToken.type == .symbol)
-        #expect(symbolToken.text == "XFF")
+        #expect(throws: LexerError.invalidNumberFormat("0XFF", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
     // MARK: - Binary integer literals
@@ -606,15 +602,11 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as binary")
     func uppercasePrefixNotBinary() throws {
-        // 0B1010 should be lexed as 0 followed by symbol B1010
+        // 0B1010 should be an error - 'B' is not a valid number terminator
         let lexer = Lexer("0B1010")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0")
-
-        let symbolToken = try lexer.nextToken()
-        #expect(symbolToken.type == .symbol)
-        #expect(symbolToken.text == "B1010")
+        #expect(throws: LexerError.invalidNumberFormat("0B1010", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
     // MARK: - Octal integer literals
@@ -710,15 +702,11 @@ struct LexerTests {
 
     @Test("Uppercase prefix is not recognized as octal")
     func uppercasePrefixNotOctal() throws {
-        // 0O7 should be lexed as 0 followed by symbol O7
+        // 0O7 should be an error - 'O' is not a valid number terminator
         let lexer = Lexer("0O7")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0")
-
-        let symbolToken = try lexer.nextToken()
-        #expect(symbolToken.type == .symbol)
-        #expect(symbolToken.text == "O7")
+        #expect(throws: LexerError.invalidNumberFormat("0O7", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
     // MARK: - Decimal integers with leading zeros
@@ -872,37 +860,29 @@ struct LexerTests {
 
     @Test("Trailing dot without digit is not a float")
     func trailingDotWithoutDigitNotFloat() throws {
-        // 5. should be lexed as integer 5, then illegal character '.'
+        // 5. should be an error - '.' is not a valid number terminator
         let lexer = Lexer("5.")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "5")
-
-        #expect(throws: LexerError.illegalCharacter(".", line: 1, column: 2)) {
+        #expect(throws: LexerError.invalidNumberFormat("5.", line: 1, column: 1)) {
             try lexer.nextToken()
         }
     }
 
-    @Test("Exponent without digits remains integer")
-    func exponentWithoutDigitsRemainsInteger() throws {
-        // 1e should be lexed as integer 1, then symbol 'e'
+    @Test("Exponent without digits is an error")
+    func exponentWithoutDigitsIsError() throws {
+        // 1e should be an error - 'e' is not a valid number terminator
         let lexer = Lexer("1e")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "1")
-
-        let symbolToken = try lexer.nextToken()
-        #expect(symbolToken.type == .symbol)
-        #expect(symbolToken.text == "e")
+        #expect(throws: LexerError.invalidNumberFormat("1e", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
-    @Test("Exponent with only sign remains integer")
-    func exponentWithOnlySignRemainsInteger() throws {
-        // 1e- should be lexed as integer 1, then illegal characters
+    @Test("Exponent with only sign is an error")
+    func exponentWithOnlySignIsError() throws {
+        // 1e- should be an error - 'e' is not a valid number terminator
         let lexer = Lexer("1e-")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "1")
+        #expect(throws: LexerError.invalidNumberFormat("1e-", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
     @Test("Throws error for underscore adjacent to decimal point before")
@@ -939,11 +919,11 @@ struct LexerTests {
 
     @Test("Throws error for leading underscore in exponent")
     func leadingUnderscoreInExponentThrows() throws {
+        // 1e_10 should be an error - 'e' is not a valid number terminator
         let lexer = Lexer("1e_10")
-        // 1e is not a valid exponent (no digits), so 1 is returned as integer
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "1")
+        #expect(throws: LexerError.invalidNumberFormat("1e_10", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
     }
 
     @Test("Scans multiple floats")
@@ -2138,5 +2118,67 @@ struct LexerTests {
         let token = try lexer.nextToken()
         #expect(token.type == .leftParen)
         #expect(token.column == 3)
+    }
+
+    // MARK: - Number terminator validation
+
+    @Test("Binary followed by non-binary digits is an error")
+    func binaryFollowedByNonBinaryDigitsIsError() throws {
+        let lexer = Lexer("0b111222")
+        #expect(throws: LexerError.invalidNumberFormat("0b111222", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Octal followed by non-octal digits is an error")
+    func octalFollowedByNonOctalDigitsIsError() throws {
+        let lexer = Lexer("0o789")
+        #expect(throws: LexerError.invalidNumberFormat("0o789", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Hex followed by non-hex letters is an error")
+    func hexFollowedByNonHexLettersIsError() throws {
+        let lexer = Lexer("0xFGH")
+        #expect(throws: LexerError.invalidNumberFormat("0xFGH", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Decimal followed by letters is an error")
+    func decimalFollowedByLettersIsError() throws {
+        let lexer = Lexer("123abc")
+        #expect(throws: LexerError.invalidNumberFormat("123abc", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("Binary integer inside parens is valid")
+    func binaryIntegerInsideParensIsValid() throws {
+        let lexer = Lexer("(0b111)")
+
+        let lp = try lexer.nextToken()
+        #expect(lp.type == .leftParen)
+
+        let num = try lexer.nextToken()
+        #expect(num.type == .integer)
+        #expect(num.text == "0b111")
+
+        let rp = try lexer.nextToken()
+        #expect(rp.type == .rightParen)
+    }
+
+    @Test("Integer followed by string delimiter is valid")
+    func integerFollowedByStringDelimiterIsValid() throws {
+        let lexer = Lexer("123\"hello\"")
+
+        let num = try lexer.nextToken()
+        #expect(num.type == .integer)
+        #expect(num.text == "123")
+
+        let str = try lexer.nextToken()
+        #expect(str.type == .string)
+        #expect(str.text == "hello")
     }
 }

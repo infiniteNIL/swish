@@ -251,6 +251,7 @@ public class Lexer {
                 throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
             }
 
+            try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
             let cleanText = text.filter { $0 != "_" }
 
             // Check for division by zero
@@ -340,6 +341,7 @@ public class Lexer {
             }
         }
 
+        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
         let tokenType: TokenType = isFloat ? .float : .integer
         return Token(type: tokenType, text: cleanText, line: startLine, column: startColumn)
@@ -379,6 +381,7 @@ public class Lexer {
             throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
         }
 
+        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
         return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
     }
@@ -449,6 +452,7 @@ public class Lexer {
             throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
         }
 
+        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
         return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
     }
@@ -491,12 +495,34 @@ public class Lexer {
             throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
         }
 
+        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
         return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
     }
 
     private func isOctalDigit(_ char: Character) -> Bool {
         char >= "0" && char <= "7"
+    }
+
+    private func isNumberTerminator(_ char: Character?) -> Bool {
+        guard let char = char else { return true }
+        if char.isWhitespace { return true }
+        switch char {
+        case "(", ")", "\"", ":", "\\", ";":
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func validateNumberEnd(text: String, startLine: Int, startColumn: Int) throws {
+        if !isNumberTerminator(peek()) {
+            var fullText = text
+            while let char = peek(), !isNumberTerminator(char) {
+                fullText.append(advance())
+            }
+            throw LexerError.invalidNumberFormat(fullText, line: startLine, column: startColumn)
+        }
     }
 
     private var isAtEnd: Bool {
