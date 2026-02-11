@@ -123,10 +123,18 @@ struct EvaluatorTests {
         #expect(result == .list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
     }
 
-    @Test("Non-def list with symbol evaluates to itself")
-    func nonDefListSelfEvaluates() throws {
-        let result = try evaluator.eval(.list([.symbol("+"), .integer(1), .integer(2)]))
-        #expect(result == .list([.symbol("+"), .integer(1), .integer(2)]))
+    @Test("List evaluates symbols to their bound values")
+    func listEvaluatesSymbols() throws {
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("a"), .integer(5)]))
+        let result = try evaluator.eval(.list([.symbol("a")]))
+        #expect(result == .list([.integer(5)]))
+    }
+
+    @Test("List with undefined symbol throws undefinedSymbol")
+    func listWithUndefinedSymbolThrows() throws {
+        #expect(throws: EvaluatorError.undefinedSymbol("nope")) {
+            try evaluator.eval(.list([.symbol("nope")]))
+        }
     }
 
     // MARK: - def special form

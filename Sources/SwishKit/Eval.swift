@@ -56,7 +56,7 @@ public class Evaluator {
                 environment.set(name, value)
                 return .symbol(name)
             }
-            return expr
+            return .list(try elements.map { try eval($0) })
         }
     }
 }
