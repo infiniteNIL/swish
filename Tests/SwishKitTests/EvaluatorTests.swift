@@ -6,152 +6,167 @@ struct EvaluatorTests {
     let evaluator = Evaluator()
 
     @Test("Integer evaluates to itself")
-    func integerSelfEvaluates() {
-        let result = evaluator.eval(.integer(42))
+    func integerSelfEvaluates() throws {
+        let result = try evaluator.eval(.integer(42))
         #expect(result == .integer(42))
     }
 
     @Test("Negative integer evaluates to itself")
-    func negativeIntegerSelfEvaluates() {
-        let result = evaluator.eval(.integer(-17))
+    func negativeIntegerSelfEvaluates() throws {
+        let result = try evaluator.eval(.integer(-17))
         #expect(result == .integer(-17))
     }
 
     @Test("Zero evaluates to itself")
-    func zeroSelfEvaluates() {
-        let result = evaluator.eval(.integer(0))
+    func zeroSelfEvaluates() throws {
+        let result = try evaluator.eval(.integer(0))
         #expect(result == .integer(0))
     }
 
     // MARK: - Floating point literals
 
     @Test("Float evaluates to itself")
-    func floatSelfEvaluates() {
-        let result = evaluator.eval(.float(3.14))
+    func floatSelfEvaluates() throws {
+        let result = try evaluator.eval(.float(3.14))
         #expect(result == .float(3.14))
     }
 
     @Test("Negative float evaluates to itself")
-    func negativeFloatSelfEvaluates() {
-        let result = evaluator.eval(.float(-2.5))
+    func negativeFloatSelfEvaluates() throws {
+        let result = try evaluator.eval(.float(-2.5))
         #expect(result == .float(-2.5))
     }
 
     @Test("Float zero evaluates to itself")
-    func floatZeroSelfEvaluates() {
-        let result = evaluator.eval(.float(0.0))
+    func floatZeroSelfEvaluates() throws {
+        let result = try evaluator.eval(.float(0.0))
         #expect(result == .float(0.0))
     }
 
     // MARK: - Ratio literals
 
     @Test("Ratio evaluates to itself")
-    func ratioSelfEvaluates() {
-        let result = evaluator.eval(.ratio(Ratio(3, 4)))
+    func ratioSelfEvaluates() throws {
+        let result = try evaluator.eval(.ratio(Ratio(3, 4)))
         #expect(result == .ratio(Ratio(3, 4)))
     }
 
     @Test("Negative ratio evaluates to itself")
-    func negativeRatioSelfEvaluates() {
-        let result = evaluator.eval(.ratio(Ratio(-3, 4)))
+    func negativeRatioSelfEvaluates() throws {
+        let result = try evaluator.eval(.ratio(Ratio(-3, 4)))
         #expect(result == .ratio(Ratio(-3, 4)))
     }
 
     // MARK: - String literals
 
     @Test("String evaluates to itself")
-    func stringSelfEvaluates() {
-        let result = evaluator.eval(.string("hello"))
+    func stringSelfEvaluates() throws {
+        let result = try evaluator.eval(.string("hello"))
         #expect(result == .string("hello"))
     }
 
     @Test("Empty string evaluates to itself")
-    func emptyStringSelfEvaluates() {
-        let result = evaluator.eval(.string(""))
+    func emptyStringSelfEvaluates() throws {
+        let result = try evaluator.eval(.string(""))
         #expect(result == .string(""))
     }
 
     @Test("String with escapes evaluates to itself")
-    func stringWithEscapesSelfEvaluates() {
-        let result = evaluator.eval(.string("hello\nworld"))
+    func stringWithEscapesSelfEvaluates() throws {
+        let result = try evaluator.eval(.string("hello\nworld"))
         #expect(result == .string("hello\nworld"))
-    }
-
-    // MARK: - Symbol literals
-
-    @Test("Symbol evaluates to itself")
-    func symbolSelfEvaluates() {
-        let result = evaluator.eval(.symbol("foo"))
-        #expect(result == .symbol("foo"))
-    }
-
-    @Test("Hyphenated symbol evaluates to itself")
-    func hyphenatedSymbolSelfEvaluates() {
-        let result = evaluator.eval(.symbol("foo-bar"))
-        #expect(result == .symbol("foo-bar"))
-    }
-
-    @Test("+ symbol evaluates to itself")
-    func plusSymbolSelfEvaluates() {
-        let result = evaluator.eval(.symbol("+"))
-        #expect(result == .symbol("+"))
-    }
-
-    @Test("Namespaced symbol evaluates to itself")
-    func namespacedSymbolSelfEvaluates() {
-        let result = evaluator.eval(.symbol("clojure.core/map"))
-        #expect(result == .symbol("clojure.core/map"))
     }
 
     // MARK: - Keyword literals
 
     @Test("Keyword evaluates to itself")
-    func keywordSelfEvaluates() {
-        let result = evaluator.eval(.keyword("foo"))
+    func keywordSelfEvaluates() throws {
+        let result = try evaluator.eval(.keyword("foo"))
         #expect(result == .keyword("foo"))
     }
 
     @Test("Hyphenated keyword evaluates to itself")
-    func hyphenatedKeywordSelfEvaluates() {
-        let result = evaluator.eval(.keyword("foo-bar"))
+    func hyphenatedKeywordSelfEvaluates() throws {
+        let result = try evaluator.eval(.keyword("foo-bar"))
         #expect(result == .keyword("foo-bar"))
     }
 
     @Test("Namespaced keyword evaluates to itself")
-    func namespacedKeywordSelfEvaluates() {
-        let result = evaluator.eval(.keyword("user/name"))
+    func namespacedKeywordSelfEvaluates() throws {
+        let result = try evaluator.eval(.keyword("user/name"))
         #expect(result == .keyword("user/name"))
     }
 
     @Test(":true keyword evaluates to itself")
-    func trueKeywordSelfEvaluates() {
-        let result = evaluator.eval(.keyword("true"))
+    func trueKeywordSelfEvaluates() throws {
+        let result = try evaluator.eval(.keyword("true"))
         #expect(result == .keyword("true"))
     }
 
     // MARK: - List literals
 
     @Test("Empty list evaluates to itself")
-    func emptyListSelfEvaluates() {
-        let result = evaluator.eval(.list([]))
+    func emptyListSelfEvaluates() throws {
+        let result = try evaluator.eval(.list([]))
         #expect(result == .list([]))
     }
 
     @Test("List with integers evaluates to itself")
-    func listWithIntegersSelfEvaluates() {
-        let result = evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
+    func listWithIntegersSelfEvaluates() throws {
+        let result = try evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
         #expect(result == .list([.integer(1), .integer(2), .integer(3)]))
     }
 
     @Test("Nested list evaluates to itself")
-    func nestedListSelfEvaluates() {
-        let result = evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+    func nestedListSelfEvaluates() throws {
+        let result = try evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
         #expect(result == .list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
     }
 
-    @Test("List with mixed types evaluates to itself")
-    func listWithMixedTypesSelfEvaluates() {
-        let result = evaluator.eval(.list([.symbol("+"), .integer(1), .integer(2)]))
+    @Test("Non-def list with symbol evaluates to itself")
+    func nonDefListSelfEvaluates() throws {
+        let result = try evaluator.eval(.list([.symbol("+"), .integer(1), .integer(2)]))
         #expect(result == .list([.symbol("+"), .integer(1), .integer(2)]))
+    }
+
+    // MARK: - def special form
+
+    @Test("def binds a value and returns the symbol")
+    func defBindsValueAndReturnsSymbol() throws {
+        let result = try evaluator.eval(.list([.symbol("def"), .symbol("x"), .integer(10)]))
+        #expect(result == .symbol("x"))
+    }
+
+    @Test("Symbol lookup after def")
+    func symbolLookupAfterDef() throws {
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("y"), .integer(42)]))
+        let result = try evaluator.eval(.symbol("y"))
+        #expect(result == .integer(42))
+    }
+
+    @Test("Redefining overwrites previous binding")
+    func redefiningOverwritesBinding() throws {
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("z"), .integer(1)]))
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("z"), .integer(2)]))
+        let result = try evaluator.eval(.symbol("z"))
+        #expect(result == .integer(2))
+    }
+
+    @Test("Undefined symbol throws undefinedSymbol")
+    func undefinedSymbolThrows() throws {
+        #expect(throws: EvaluatorError.undefinedSymbol("unknown")) {
+            try evaluator.eval(.symbol("unknown"))
+        }
+    }
+
+    @Test("def evaluates its value argument")
+    func defEvaluatesValueArgument() throws {
+        let result = try evaluator.eval(.list([.symbol("def"), .symbol("x"),
+            .list([.symbol("def"), .symbol("y"), .integer(5)])]))
+        #expect(result == .symbol("x"))
+        let xValue = try evaluator.eval(.symbol("x"))
+        #expect(xValue == .symbol("y"))
+        let yValue = try evaluator.eval(.symbol("y"))
+        #expect(yValue == .integer(5))
     }
 }

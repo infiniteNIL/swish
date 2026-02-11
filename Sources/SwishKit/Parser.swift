@@ -19,6 +19,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case integerOverflow(String)
     case invalidFloat(String)
     case unterminatedList(line: Int, column: Int)
+    case invalidDef(String)
 
     public var description: String {
         switch self {
@@ -36,6 +37,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .unterminatedList(let line, let column):
             "Unterminated list (line \(line), column \(column))."
+
+        case .invalidDef(let message):
+            message
         }
     }
 }
@@ -173,6 +177,17 @@ public class Parser {
         }
 
         try advance() // consume ')'
+
+        // Validate def syntax
+        if case .symbol("def") = elements.first {
+            guard elements.count == 3 else {
+                throw ParserError.invalidDef("def requires exactly 2 arguments")
+            }
+            guard case .symbol = elements[1] else {
+                throw ParserError.invalidDef("first argument to def must be a symbol")
+            }
+        }
+
         return .list(elements)
     }
 

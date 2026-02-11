@@ -1,6 +1,7 @@
 # Todo
 
-- [ ] Add def
+- [ ] Add Reader
+- [ ] Add quote
 - [ ] Add support for arrays
 - [ ] Add support for maps
 - [ ] Add support for sets
@@ -10,6 +11,7 @@
 - [ ] add proper evaluation of symbols with environments
 - [ ] Add support for function literals
 
+- [x] Add def
 - [x] Add support for lists
 - [x] Add support for keywords
 - [x] Add support for symbols

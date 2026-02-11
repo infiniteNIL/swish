@@ -743,4 +743,41 @@ struct ParserTests {
             try parser.parse()
         }
     }
+
+    // MARK: - def syntax validation
+
+    @Test("Parses valid def form")
+    func parseValidDef() throws {
+        let lexer = Lexer("(def x 10)")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.list([.symbol("def"), .symbol("x"), .integer(10)])])
+    }
+
+    @Test("Throws error for def with non-symbol first argument")
+    func defWithNonSymbolThrows() throws {
+        let lexer = Lexer("(def 42 10)")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.invalidDef("first argument to def must be a symbol")) {
+            try parser.parse()
+        }
+    }
+
+    @Test("Throws error for def with too few arguments")
+    func defWithTooFewArgumentsThrows() throws {
+        let lexer = Lexer("(def x)")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.invalidDef("def requires exactly 2 arguments")) {
+            try parser.parse()
+        }
+    }
+
+    @Test("Throws error for def with too many arguments")
+    func defWithTooManyArgumentsThrows() throws {
+        let lexer = Lexer("(def x 1 2)")
+        let parser = try Parser(lexer)
+        #expect(throws: ParserError.invalidDef("def requires exactly 2 arguments")) {
+            try parser.parse()
+        }
+    }
 }
