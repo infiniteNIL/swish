@@ -177,4 +177,14 @@ struct EvaluatorTests {
         let yValue = try evaluator.eval(.symbol("y"))
         #expect(yValue == .integer(5))
     }
+
+    @Test("def with apostrophe in symbol name")
+    func defWithApostropheSymbol() throws {
+        let exprs = try Reader.readString("(def a'b 5)")
+        #expect(exprs.count == 1)
+        let result = try evaluator.eval(exprs[0])
+        #expect(result == .symbol("a'b"))
+        let value = try evaluator.eval(.symbol("a'b"))
+        #expect(value == .integer(5))
+    }
 }

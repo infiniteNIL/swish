@@ -2181,4 +2181,52 @@ struct LexerTests {
         #expect(str.type == .string)
         #expect(str.text == "hello")
     }
+
+    // MARK: - Symbol continuation with apostrophe
+
+    @Test("a'b lexes as a single symbol")
+    func apostropheInMiddleOfSymbol() throws {
+        let lexer = Lexer("a'b")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "a'b")
+    }
+
+    @Test("a' lexes as a single symbol")
+    func apostropheAtEndOfSymbol() throws {
+        let lexer = Lexer("a'")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "a'")
+    }
+
+    @Test("'a lexes as quote token then symbol")
+    func leadingApostropheRemainsQuoteMacro() throws {
+        let lexer = Lexer("'a")
+        let quote = try lexer.nextToken()
+        #expect(quote.type == .quote)
+        let sym = try lexer.nextToken()
+        #expect(sym.type == .symbol)
+        #expect(sym.text == "a")
+    }
+
+    // MARK: - Comma as whitespace
+
+    @Test("Commas are treated as whitespace in a list")
+    func commaAsWhitespace() throws {
+        let lexer = Lexer("(1,2,3)")
+        let lp = try lexer.nextToken()
+        #expect(lp.type == .leftParen)
+        let one = try lexer.nextToken()
+        #expect(one.type == .integer)
+        #expect(one.text == "1")
+        let two = try lexer.nextToken()
+        #expect(two.type == .integer)
+        #expect(two.text == "2")
+        let three = try lexer.nextToken()
+        #expect(three.type == .integer)
+        #expect(three.text == "3")
+        let rp = try lexer.nextToken()
+        #expect(rp.type == .rightParen)
+    }
 }

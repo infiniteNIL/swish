@@ -196,7 +196,7 @@ public class Lexer {
     }
 
     private func skipWhitespace() {
-        while let char = peek(), char.isWhitespace {
+        while let char = peek(), char.isWhitespace || char == "," {
             _ = advance()
         }
     }
@@ -512,7 +512,7 @@ public class Lexer {
 
     private func isNumberTerminator(_ char: Character?) -> Bool {
         guard let char = char else { return true }
-        if char.isWhitespace { return true }
+        if char.isWhitespace || char == "," { return true }
         switch char {
         case "(", ")", "\"", ":", "\\", ";":
             return true
@@ -895,6 +895,7 @@ public class Lexer {
     private func isSymbolContinuation(_ char: Character) -> Bool {
         if isSymbolStart(char) { return true }
         if char.isNumber { return true }
+        if char == "'" { return true }
         return false
     }
 
