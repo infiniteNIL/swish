@@ -152,6 +152,14 @@ public class Parser {
             try advance()
             return .keyword(name)
 
+        case .quote:
+            try advance() // consume quote token
+            if currentToken.type == .eof {
+                throw ParserError.unexpectedEOF
+            }
+            let expr = try parseExpr()
+            return .list([.symbol("quote"), expr])
+
         case .leftParen:
             return try parseList()
 

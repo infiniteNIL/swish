@@ -44,6 +44,9 @@ public class Evaluator {
             return value
 
         case .list(let elements):
+            if case .symbol("quote") = elements.first {
+                return elements[1]
+            }
             if case .symbol("def") = elements.first {
                 let name: String
                 if case .symbol(let n) = elements[1] {

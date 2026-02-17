@@ -11,6 +11,7 @@ public enum TokenType: Equatable, Sendable {
     case keyword
     case leftParen
     case rightParen
+    case quote
     case eof
 }
 
@@ -180,6 +181,11 @@ public class Lexer {
         if char == ")" {
             _ = advance()
             return Token(type: .rightParen, text: ")", line: startLine, column: startColumn)
+        }
+
+        if char == "'" {
+            _ = advance()
+            return Token(type: .quote, text: "'", line: startLine, column: startColumn)
         }
 
         if isSymbolStart(char) {
@@ -879,7 +885,7 @@ public class Lexer {
     private func isSymbolStart(_ char: Character) -> Bool {
         if char.isLetter { return true }
         switch char {
-        case "*", "+", "!", "-", "_", "'", "?", "<", ">", "=":
+        case "*", "+", "!", "-", "_", "?", "<", ">", "=":
             return true
         default:
             return false
