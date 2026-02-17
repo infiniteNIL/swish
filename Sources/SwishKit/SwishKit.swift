@@ -14,9 +14,7 @@ public struct Swish {
     /// - Returns: The evaluated `Expr` value
     /// - Throws: `LexerError`, `ParserError`, or `EvaluatorError` if the input is invalid
     public func eval(_ source: String) throws -> Expr {
-        let lexer = Lexer(source)
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
+        let exprs = try Reader.readString(source)
         guard let lastExpr = exprs.last else {
             throw ParserError.unexpectedEOF
         }
