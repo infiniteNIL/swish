@@ -1,6 +1,9 @@
 # Todo
 
 - [ ] Add support for arrays
+- [ ] Add operator builtin functions
+- [ ] Add print builtin functions
+- [ ] Add some builtin string functions
 - [ ] Add support for function literals
 - [ ] Add support for maps
 - [ ] Add support for sets
