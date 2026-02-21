@@ -1,14 +1,15 @@
 # Todo
 
 - [ ] Add support for arrays
+- [ ] Add support for function literals
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
 - [ ] Add support for comment macro
-- [ ] add proper evaluation of symbols with environments
-- [ ] Add support for function literals
+- [ ] Add macros
 
+- [x] add proper evaluation of symbols with environments
 - [x] Add quote
 - [x] Add Reader
 - [x] Add def
