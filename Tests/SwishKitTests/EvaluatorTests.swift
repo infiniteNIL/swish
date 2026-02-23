@@ -187,4 +187,24 @@ struct EvaluatorTests {
         let value = try evaluator.eval(.symbol("a'b"))
         #expect(value == .integer(5))
     }
+
+    // MARK: - Environment parent lookup
+
+    @Test("Child environment looks up symbol in parent")
+    func childEnvironmentLooksUpInParent() {
+        let parent = Environment()
+        parent.set("x", .integer(99))
+        let child = Environment(parent: parent)
+        #expect(child.get("x") == .integer(99))
+    }
+
+    @Test("Child environment binding shadows parent binding")
+    func childEnvironmentShadowsParent() {
+        let parent = Environment()
+        parent.set("x", .integer(1))
+        let child = Environment(parent: parent)
+        child.set("x", .integer(2))
+        #expect(child.get("x") == .integer(2))
+        #expect(parent.get("x") == .integer(1))
+    }
 }

@@ -1,7 +1,8 @@
 # Todo
 
-- [ ] Add support for arrays
+- [ ] Make environment have a parent environment
 - [ ] Add operator builtin functions
+- [ ] Add support for arrays
 - [ ] Add print builtin functions
 - [ ] Add some builtin string functions
 - [ ] Add support for function literals
