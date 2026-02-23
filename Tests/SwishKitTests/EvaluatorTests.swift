@@ -207,4 +207,22 @@ struct EvaluatorTests {
         #expect(child.get("x") == .integer(2))
         #expect(parent.get("x") == .integer(1))
     }
+
+    // MARK: - Core environment
+
+    @Test("Core environment symbol is visible during eval")
+    func coreEnvironmentSymbolVisibleDuringEval() throws {
+        let evaluator = Evaluator()
+        evaluator.coreEnvironment.set("pi", .float(3.14159))
+        let result = try evaluator.eval(.symbol("pi"))
+        #expect(result == .float(3.14159))
+    }
+
+    @Test("def does not affect core environment")
+    func defDoesNotAffectCoreEnvironment() throws {
+        let evaluator = Evaluator()
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("myVar"), .integer(7)]))
+        #expect(evaluator.coreEnvironment.get("myVar") == nil)
+        #expect(evaluator.environment.get("myVar") == .integer(7))
+    }
 }

@@ -30,9 +30,14 @@ public class Environment {
 
 /// Evaluator for Swish expressions
 public class Evaluator {
-    public let environment = Environment()
+    /// Holds built-in symbols and functions (the core library)
+    public let coreEnvironment = Environment()
+    /// Holds user-defined bindings; falls through to coreEnvironment on lookup
+    public let environment: Environment
 
-    public init() {}
+    public init() {
+        environment = Environment(parent: coreEnvironment)
+    }
 
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {

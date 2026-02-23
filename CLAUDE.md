@@ -16,7 +16,19 @@ See [swift.md](swift.md) for Swift and SwiftUI coding guidelines, including mode
 
 ## Architecture
 
-*To be documented as the codebase develops.*
+### Environment Hierarchy
+
+The evaluator uses a two-tier environment chain:
+
+- **Core environment** (`Evaluator.coreEnvironment`): holds built-in symbols and
+  functions (e.g. arithmetic operators, `nil`, `true`). Populated at startup;
+  user code should not shadow these at the global level.
+- **Global environment** (`Evaluator.environment`): holds user-defined bindings
+  created with `def`. Its parent is the core environment, so lookups fall
+  through to core when a name isn't found globally.
+
+Child environments (for `let` bindings, function calls, etc.) will be created
+with the global environment as their parent, forming a full lexical scope chain.
 
 ## REPL Commands
 
