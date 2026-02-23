@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Make environment have a parent environment
 - [ ] Add operator builtin functions
 - [ ] Add support for arrays
 - [ ] Add print builtin functions
@@ -13,6 +12,7 @@
 - [ ] Add support for comment macro
 - [ ] Add macros
 
+- [x] Make environment have a parent environment
 - [x] add proper evaluation of symbols with environments
 - [x] Add quote
 - [x] Add Reader
