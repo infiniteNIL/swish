@@ -332,6 +332,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .function(let name, _, _):
         if let name { "#<fn \(name)>" } else { "#<fn>" }
+
+    case .nativeFunction(let name, _, _):
+        "#<native-fn \(name)>"
     }
 }
 

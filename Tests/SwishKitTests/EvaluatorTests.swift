@@ -225,4 +225,49 @@ struct EvaluatorTests {
         #expect(evaluator.coreEnvironment.get("myVar") == nil)
         #expect(evaluator.environment.get("myVar") == .integer(7))
     }
+
+    // MARK: - Native functions
+
+    @Test("Native function self-evaluates")
+    func nativeFunctionSelfEvaluates() throws {
+        let fn = Expr.nativeFunction(name: "inc", arity: .fixed(1)) { args in .integer(0) }
+        let result = try evaluator.eval(fn)
+        #expect(result == fn)
+    }
+
+    @Test("register places native function in core environment")
+    func registerPlacesNativeFunctionInCoreEnvironment() {
+        let evaluator = Evaluator()
+        evaluator.register(name: "inc", arity: .fixed(1)) { args in args[0] }
+        let stored = evaluator.coreEnvironment.get("inc")
+        #expect(stored == .nativeFunction(name: "inc", arity: .fixed(1)) { _ in .nil })
+    }
+
+    @Test("Calling a fixed-arity native function returns its result")
+    func callingFixedArityNativeFunction() throws {
+        let evaluator = Evaluator()
+        evaluator.register(name: "inc", arity: .fixed(1)) { args in
+            guard case .integer(let n) = args[0] else { return .nil }
+            return .integer(n + 1)
+        }
+        let result = try evaluator.eval(.list([.symbol("inc"), .integer(4)]))
+        #expect(result == .integer(5))
+    }
+
+    @Test("Calling a native function with wrong arity throws arityMismatch")
+    func callingNativeFunctionWithWrongArityThrows() throws {
+        let evaluator = Evaluator()
+        evaluator.register(name: "inc", arity: .fixed(1)) { args in args[0] }
+        #expect(throws: EvaluatorError.arityMismatch(name: "inc", expected: .fixed(1), got: 2)) {
+            try evaluator.eval(.list([.symbol("inc"), .integer(1), .integer(2)]))
+        }
+    }
+
+    @Test("Calling a variadic native function works with any number of args")
+    func callingVariadicNativeFunction() throws {
+        let evaluator = Evaluator()
+        evaluator.register(name: "count", arity: .variadic) { args in .integer(args.count) }
+        #expect(try evaluator.eval(.list([.symbol("count")])) == .integer(0))
+        #expect(try evaluator.eval(.list([.symbol("count"), .integer(1), .integer(2)])) == .integer(2))
+    }
 }

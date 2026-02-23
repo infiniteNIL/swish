@@ -1,11 +1,19 @@
 /// Errors thrown during evaluation
 public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case undefinedSymbol(String)
+    case arityMismatch(name: String, expected: Arity, got: Int)
 
     public var description: String {
         switch self {
         case .undefinedSymbol(let name):
             "Undefined symbol '\(name)'."
+        case .arityMismatch(let name, let expected, let got):
+            switch expected {
+            case .fixed(let n):
+                "Wrong number of arguments to '\(name)': expected \(n), got \(got)."
+            case .variadic:
+                "Wrong number of arguments to '\(name)': got \(got)."
+            }
         }
     }
 }
@@ -42,7 +50,7 @@ public class Evaluator {
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .nativeFunction:
             return expr
 
         case .symbol(let name):
@@ -67,7 +75,25 @@ public class Evaluator {
                 environment.set(name, value)
                 return .symbol(name)
             }
+
+            // Function call: evaluate head, dispatch if it's a native function
+            if let head = elements.first {
+                let callee = try eval(head)
+                if case .nativeFunction(let name, let arity, let body) = callee {
+                    let args = try elements.dropFirst().map { try eval($0) }
+                    if case .fixed(let n) = arity, args.count != n {
+                        throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
+                    }
+                    return try body(args)
+                }
+            }
+
             return .list(try elements.map { try eval($0) })
         }
+    }
+
+    /// Registers a native Swift function in the core environment.
+    public func register(name: String, arity: Arity, body: @escaping ([Expr]) throws -> Expr) {
+        coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
     }
 }
