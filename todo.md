@@ -1,9 +1,8 @@
 # Todo
 
-- [ ] Add operator builtin functions
-- [ ] Add support for arrays
 - [ ] Add print builtin functions
 - [ ] Add some builtin string functions
+- [ ] Add support for arrays
 - [ ] Add support for function literals
 - [ ] Add support for maps
 - [ ] Add support for sets
@@ -12,6 +11,7 @@
 - [ ] Add support for comment macro
 - [ ] Add macros
 
+- [x] Add operator builtin functions
 - [x] Make environment have a parent environment
 - [x] add proper evaluation of symbols with environments
 - [x] Add quote
