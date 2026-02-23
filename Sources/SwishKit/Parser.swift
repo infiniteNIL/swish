@@ -1,5 +1,5 @@
 /// Specifies how many arguments a function accepts
-public enum Arity: Equatable {
+public enum Arity: Equatable, Sendable {
     case fixed(Int)   // exactly N arguments
     case variadic     // zero or more arguments
 }
