@@ -2,6 +2,7 @@
 public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case undefinedSymbol(String)
     case arityMismatch(name: String, expected: Arity, got: Int)
+    case invalidArgument(function: String, message: String)
 
     public var description: String {
         switch self {
@@ -14,6 +15,8 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
             case .variadic:
                 "Wrong number of arguments to '\(name)': got \(got)."
             }
+        case .invalidArgument(let function, let message):
+            "Invalid argument to '\(function)': \(message)."
         }
     }
 }
@@ -45,6 +48,7 @@ public class Evaluator {
 
     public init() {
         environment = Environment(parent: coreEnvironment)
+        registerCoreFunctions(into: self)
     }
 
     /// Evaluates a Swish expression
