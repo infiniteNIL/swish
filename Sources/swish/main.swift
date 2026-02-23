@@ -329,6 +329,9 @@ private func sourceForm(_ expr: Expr) -> String {
 
     case .list(let elements):
         "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
+
+    case .function(let name, _, _):
+        if let name { "#<fn \(name)>" } else { "#<fn>" }
     }
 }
 

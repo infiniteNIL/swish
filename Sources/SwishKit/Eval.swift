@@ -42,7 +42,7 @@ public class Evaluator {
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function:
             return expr
 
         case .symbol(let name):

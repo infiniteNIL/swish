@@ -44,6 +44,9 @@ public class Printer {
 
         case .list(let elements):
             "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
+
+        case .function(let name, _, _):
+            if let name { "#<fn \(name)>" } else { "#<fn>" }
         }
     }
 

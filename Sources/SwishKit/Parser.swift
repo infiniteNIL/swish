@@ -10,6 +10,7 @@ public enum Expr: Equatable {
     case symbol(String)
     case keyword(String)
     case list([Expr])
+    indirect case function(name: String?, params: [String], body: Expr)
 }
 
 /// Errors thrown during parsing
