@@ -53,6 +53,20 @@ public class Printer {
         }
     }
 
+    /// Returns a display representation (strings without quotes, characters as-is)
+    public func displayString(_ expr: Expr) -> String {
+        switch expr {
+        case .string(let value):
+            value
+        case .character(let char):
+            String(char)
+        case .list(let elements):
+            "(" + elements.map { displayString($0) }.joined(separator: " ") + ")"
+        default:
+            printString(expr)
+        }
+    }
+
     private func printCharacter(_ char: Character) -> String {
         switch char {
         case "\n": return "\\newline"

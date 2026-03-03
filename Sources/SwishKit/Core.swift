@@ -70,6 +70,20 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         }
         return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
     }
+
+    // MARK: - I/O
+
+    evaluator.register(name: "print", arity: .variadic) { args in
+        let output = args.map { Printer().displayString($0) }.joined(separator: " ")
+        Swift.print(output, terminator: "")
+        return .nil
+    }
+
+    evaluator.register(name: "println", arity: .variadic) { args in
+        let output = args.map { Printer().displayString($0) }.joined(separator: " ")
+        Swift.print(output)
+        return .nil
+    }
 }
 
 // MARK: - Numeric helpers
