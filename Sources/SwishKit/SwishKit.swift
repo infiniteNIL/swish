@@ -9,6 +9,14 @@ public struct Swish {
 
     public init() {}
 
+    /// Reads and evaluates a Swish source file.
+    /// - Parameter filename: Path to the file to run
+    /// - Throws: File read errors, `LexerError`, `ParserError`, or `EvaluatorError`
+    public func run(filename: String) throws {
+        let source = try String(contentsOfFile: filename, encoding: .utf8)
+        _ = try eval(source)
+    }
+
     /// Evaluates a Lisp expression string and returns the result.
     /// - Parameter source: A string containing a Lisp expression
     /// - Returns: The evaluated `Expr` value

@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Add filename argument to swish cli
 - [ ] Add some builtin string functions
 - [ ] Add support for arrays
 - [ ] Add support for function literals
@@ -11,6 +10,7 @@
 - [ ] Add support for comment macro
 - [ ] Add macros
 
+- [x] Add filename argument to swish cli
 - [x] Add print builtin functions
 - [x] Add operator builtin functions
 - [x] Make environment have a parent environment

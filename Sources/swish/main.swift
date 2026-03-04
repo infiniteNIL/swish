@@ -20,7 +20,7 @@ private let commands: [(name: String, description: String)] = [
 ]
 
 /// Swish REPL - Read-Eval-Print Loop
-func main() {
+func startREPL() {
     let swish = Swish()
     let printer = Printer()
 
@@ -389,4 +389,4 @@ private func substituteResultReferences(_ input: String, results: [Int: Expr]) -
     return processed
 }
 
-main()
+SwishCLI.main()
