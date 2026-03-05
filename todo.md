@@ -1,5 +1,6 @@
 # Todo
 
+- [ ] and, or, not
 - [ ] if
 - [ ] Add support for arrays
 - [ ] Add support for function literals
