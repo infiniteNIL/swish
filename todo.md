@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] logical operators
 - [ ] if
 - [ ] Add support for arrays
 - [ ] Add support for function literals
@@ -12,6 +11,7 @@
 - [ ] Add support for comment macro
 - [ ] Add macros
 
+- [x] logical operators
 - [x] Add filename argument to swish cli
 - [x] Add print builtin functions
 - [x] Add operator builtin functions

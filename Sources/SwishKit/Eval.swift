@@ -12,6 +12,8 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
             switch expected {
             case .fixed(let n):
                 "Wrong number of arguments to '\(name)': expected \(n), got \(got)."
+            case .atLeastOne:
+                "Wrong number of arguments to '\(name)': expected at least 1, got \(got)."
             case .variadic:
                 "Wrong number of arguments to '\(name)': got \(got)."
             }
@@ -87,6 +89,9 @@ public class Evaluator {
                     let args = try elements.dropFirst().map { try eval($0) }
                     if case .fixed(let n) = arity, args.count != n {
                         throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
+                    }
+                    if case .atLeastOne = arity, args.isEmpty {
+                        throw EvaluatorError.arityMismatch(name: name, expected: arity, got: 0)
                     }
                     return try body(args)
                 }

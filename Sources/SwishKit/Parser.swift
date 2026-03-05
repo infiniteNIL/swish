@@ -1,7 +1,8 @@
 /// Specifies how many arguments a function accepts
 public enum Arity: Equatable, Sendable {
-    case fixed(Int)   // exactly N arguments
-    case variadic     // zero or more arguments
+    case fixed(Int)    // exactly N arguments
+    case atLeastOne    // 1 or more arguments
+    case variadic      // zero or more arguments
 }
 
 /// AST node types for Swish expressions

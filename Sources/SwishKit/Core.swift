@@ -71,6 +71,46 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
     }
 
+    // MARK: - Comparison
+
+    evaluator.register(name: "<", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(true) }
+        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
+            try numericLessThan(a, b, function: "<")
+        })
+    }
+
+    evaluator.register(name: ">", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(true) }
+        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
+            try numericLessThan(b, a, function: ">")
+        })
+    }
+
+    evaluator.register(name: "<=", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(true) }
+        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
+            try !numericLessThan(b, a, function: "<=")
+        })
+    }
+
+    evaluator.register(name: ">=", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(true) }
+        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
+            try !numericLessThan(a, b, function: ">=")
+        })
+    }
+
+    evaluator.register(name: "=", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(true) }
+        return .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
+    }
+
+    evaluator.register(name: "not=", arity: .atLeastOne) { args in
+        if args.count == 1 { return .boolean(false) }
+        return .boolean(!zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
+    }
+
     // MARK: - I/O
 
     evaluator.register(name: "print", arity: .variadic) { args in
@@ -83,6 +123,35 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         let output = args.map { Printer().displayString($0) }.joined(separator: " ")
         Swift.print(output)
         return .nil
+    }
+}
+
+// MARK: - Comparison helpers
+
+private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
+    switch (a, b) {
+    case (.integer(let x), .integer(let y)):
+        return x < y
+    case (.float(let x), .float(let y)):
+        return x < y
+    case (.integer(let x), .float(let y)):
+        return Double(x) < y
+    case (.float(let x), .integer(let y)):
+        return x < Double(y)
+    case (.ratio(let x), .ratio(let y)):
+        return x.numerator * y.denominator < y.numerator * x.denominator
+    case (.integer(let x), .ratio(let y)):
+        return x * y.denominator < y.numerator
+    case (.ratio(let x), .integer(let y)):
+        return x.numerator < y * x.denominator
+    case (.float(let x), .ratio(let y)):
+        return x < Double(y.numerator) / Double(y.denominator)
+    case (.ratio(let x), .float(let y)):
+        return Double(x.numerator) / Double(x.denominator) < y
+    default:
+        let p = Printer()
+        throw EvaluatorError.invalidArgument(
+            function: function, message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
     }
 }
 
