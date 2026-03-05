@@ -1,8 +1,10 @@
 # Todo
 
-- [ ] Add some builtin string functions
+- [ ] logical operators
+- [ ] if
 - [ ] Add support for arrays
 - [ ] Add support for function literals
+- [ ] Add some builtin string functions
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
