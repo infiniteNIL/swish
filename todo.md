@@ -1,7 +1,7 @@
 # Todo
 
-- [ ] and, or, not
 - [ ] if
+- [ ] let
 - [ ] Add support for arrays
 - [ ] Add support for function literals
 - [ ] Add some builtin string functions
@@ -9,8 +9,11 @@
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
-- [ ] Add support for comment macro
 - [ ] Add macros
+- [ ] Add support for comment macro
+- [ ] namespaces?
+- [ ] core.swish
+- [ ] and, or, not
 
 - [x] logical operators
 - [x] Add filename argument to swish cli
