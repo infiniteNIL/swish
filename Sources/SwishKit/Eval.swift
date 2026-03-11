@@ -86,6 +86,10 @@ public class Evaluator {
             }
 
             if case .symbol("if") = elements.first {
+                guard elements.count >= 3 else {
+                    throw EvaluatorError.invalidArgument(function: "if",
+                        message: "requires a condition and a then-branch")
+                }
                 let condition = try eval(elements[1])
                 let isFalsy = condition == .nil || condition == .boolean(false)
                 if !isFalsy {

@@ -262,6 +262,22 @@ struct EvaluatorTests {
 
     // MARK: - if special form
 
+    @Test("if with no arguments throws")
+    func ifNoArgumentsThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "if",
+            message: "requires a condition and a then-branch")) {
+            try evaluator.eval(.list([.symbol("if")]))
+        }
+    }
+
+    @Test("if with only condition throws")
+    func ifOnlyConditionThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "if",
+            message: "requires a condition and a then-branch")) {
+            try evaluator.eval(.list([.symbol("if"), .boolean(true)]))
+        }
+    }
+
     @Test("if with truthy condition evaluates then-branch")
     func ifTruthyEvalsThenBranch() throws {
         let result = try evaluator.eval(.list([.symbol("if"), .boolean(true), .integer(1), .integer(2)]))

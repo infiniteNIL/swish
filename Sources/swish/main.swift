@@ -38,7 +38,6 @@ func startREPL() {
         // Fall back to basic readLine if terminal not available
         while true {
             let mainPrompt = "λ(\(inputCount))> "
-            let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
             print(mainPrompt, terminator: "")
             guard var input = readLine() else {
                 print(defaultCursor, terminator: "")
@@ -49,11 +48,13 @@ func startREPL() {
             // Handle multiline input
             var contType = continuationNeeded(input)
             while contType != .none {
+                let additional = computeIndent(input, mainPromptLen: mainPrompt.count)
+                let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". " + String(repeating: " ", count: additional)
                 print(continuationPrompt, terminator: "")
                 guard let continuation = readLine() else {
                     break
                 }
-                input += (contType == .multilineString ? "\n" : " ") + continuation
+                input += "\n" + continuation
                 contType = continuationNeeded(input)
             }
 
@@ -83,7 +84,6 @@ func startREPL() {
 
     while true {
         let mainPrompt = "λ(\(inputCount))> "
-        let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
 
         var input: String
         do {
@@ -109,8 +109,10 @@ func startREPL() {
         var contType = continuationNeeded(input)
         while contType != .none {
             do {
+                let additional = computeIndent(input, mainPromptLen: mainPrompt.count)
+                let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". " + String(repeating: " ", count: additional)
                 let continuation = try ln.readLine(prompt: continuationPrompt, strippingNewline: true)
-                input += (contType == .multilineString ? "\n" : " ") + continuation
+                input += "\n" + continuation
                 contType = continuationNeeded(input)
             }
             catch LineReaderError.EOF {
@@ -174,14 +176,14 @@ private func continuationNeeded(_ input: String) -> ContinuationType {
     while i < input.endIndex {
         let char = input[i]
 
-        // Track parentheses for lists
-        if char == "(" {
+        // Track parentheses and brackets
+        if char == "(" || char == "[" {
             parenDepth += 1
             i = input.index(after: i)
             continue
         }
 
-        if char == ")" {
+        if char == ")" || char == "]" {
             parenDepth -= 1
             i = input.index(after: i)
             continue
@@ -274,6 +276,80 @@ private func continuationNeeded(_ input: String) -> ContinuationType {
     }
 
     return .none
+}
+
+/// Returns the number of additional spaces to add after the base continuation prompt,
+/// aligning the cursor under the first character after the innermost unclosed delimiter.
+/// Assumes continuation lines in `input` are separated by newlines.
+private func computeIndent(_ input: String, mainPromptLen: Int) -> Int {
+    var depth = 0
+    var col = mainPromptLen   // 0-indexed column of the next character
+    var stack: [Int] = []     // target column (first content after) for each unclosed opener
+    var i = input.startIndex
+
+    while i < input.endIndex {
+        let char = input[i]
+
+        if char == "\n" {
+            // Column after the continuation prompt = the current indent target
+            col = stack.last ?? mainPromptLen
+            i = input.index(after: i)
+            continue
+        }
+
+        if char == "\"" {
+            let n1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
+            let n2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
+            if let a = n1, let b = n2, a < input.endIndex, b < input.endIndex,
+               input[a] == "\"", input[b] == "\"" {
+                // Multiline string - skip to closing """
+                i = input.index(after: b)
+                while i < input.endIndex {
+                    if input[i] == "\"",
+                       let c1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex),
+                       let c2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex),
+                       c1 < input.endIndex, c2 < input.endIndex,
+                       input[c1] == "\"", input[c2] == "\"" {
+                        i = input.index(after: c2)
+                        break
+                    }
+                    i = input.index(after: i)
+                }
+                continue
+            } else {
+                // Regular string - skip to closing quote, tracking col
+                i = input.index(after: i)
+                col += 1
+                while i < input.endIndex {
+                    if input[i] == "\\" {
+                        i = input.index(after: i)
+                        if i < input.endIndex { i = input.index(after: i); col += 2 }
+                    } else if input[i] == "\"" {
+                        i = input.index(after: i); col += 1; break
+                    } else {
+                        i = input.index(after: i); col += 1
+                    }
+                }
+                continue
+            }
+        }
+
+        if char == "(" {
+            depth += 1
+            stack.append(col + 2)   // 2-space body indent after (
+        } else if char == "[" {
+            depth += 1
+            stack.append(col + 1)   // align under first element after [
+        } else if char == ")" || char == "]" {
+            depth = max(0, depth - 1)
+            if !stack.isEmpty { stack.removeLast() }
+        }
+        col += 1
+        i = input.index(after: i)
+    }
+
+    guard let target = stack.last else { return 0 }
+    return max(0, target - mainPromptLen)
 }
 
 /// Swish logo banner
