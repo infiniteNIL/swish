@@ -1,8 +1,6 @@
 # Todo
 
-- [ ] if
 - [ ] let
-- [ ] Add support for arrays
 - [ ] Add support for function literals
 - [ ] Add some builtin string functions
 - [ ] Add support for maps
@@ -15,6 +13,8 @@
 - [ ] core.swish
 - [ ] and, or, not
 
+- [x] Add support for vector literals
+- [x] if
 - [x] logical operators
 - [x] Add filename argument to swish cli
 - [x] Add print builtin functions

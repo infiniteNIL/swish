@@ -59,6 +59,9 @@ public class Evaluator {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .nativeFunction:
             return expr
 
+        case .vector(let elements):
+            return .vector(try elements.map { try eval($0) })
+
         case .symbol(let name):
             guard let value = environment.get(name) else {
                 throw EvaluatorError.undefinedSymbol(name)
@@ -80,6 +83,18 @@ public class Evaluator {
                 let value = try eval(elements[2])
                 environment.set(name, value)
                 return .symbol(name)
+            }
+
+            if case .symbol("if") = elements.first {
+                let condition = try eval(elements[1])
+                let isFalsy = condition == .nil || condition == .boolean(false)
+                if !isFalsy {
+                    return try eval(elements[2])
+                } else if elements.count > 3 {
+                    return try eval(elements[3])
+                } else {
+                    return .nil
+                }
             }
 
             // Function call: evaluate head, dispatch if it's a native function

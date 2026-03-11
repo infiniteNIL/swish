@@ -11,6 +11,8 @@ public enum TokenType: Equatable, Sendable {
     case keyword
     case leftParen
     case rightParen
+    case leftBracket
+    case rightBracket
     case quote
     case eof
 }
@@ -181,6 +183,16 @@ public class Lexer {
         if char == ")" {
             _ = advance()
             return Token(type: .rightParen, text: ")", line: startLine, column: startColumn)
+        }
+
+        if char == "[" {
+            _ = advance()
+            return Token(type: .leftBracket, text: "[", line: startLine, column: startColumn)
+        }
+
+        if char == "]" {
+            _ = advance()
+            return Token(type: .rightBracket, text: "]", line: startLine, column: startColumn)
         }
 
         if char == "'" {
@@ -514,7 +526,7 @@ public class Lexer {
         guard let char = char else { return true }
         if char.isWhitespace || char == "," { return true }
         switch char {
-        case "(", ")", "\"", ":", "\\", ";":
+        case "(", ")", "[", "]", "\"", ":", "\\", ";":
             return true
         default:
             return false

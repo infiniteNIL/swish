@@ -226,6 +226,78 @@ struct EvaluatorTests {
         #expect(evaluator.environment.get("myVar") == .integer(7))
     }
 
+    // MARK: - vector literals
+
+    @Test("Empty vector evaluates to empty vector")
+    func emptyVectorEvaluates() throws {
+        let result = try evaluator.eval(.vector([]))
+        #expect(result == .vector([]))
+    }
+
+    @Test("Vector with literals evaluates elements")
+    func vectorWithLiteralsEvaluates() throws {
+        let result = try evaluator.eval(.vector([.integer(1), .boolean(true), .nil]))
+        #expect(result == .vector([.integer(1), .boolean(true), .nil]))
+    }
+
+    @Test("Vector elements are evaluated")
+    func vectorElementsAreEvaluated() throws {
+        // (+ 1 1) inside a vector should evaluate to 2
+        let result = try evaluator.eval(.vector([
+            .integer(1),
+            .list([.symbol("+"), .integer(1), .integer(1)]),
+            .integer(3)
+        ]))
+        #expect(result == .vector([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("Nested vector evaluates inner elements")
+    func nestedVectorEvaluates() throws {
+        let result = try evaluator.eval(.vector([
+            .integer(1),
+            .vector([.integer(2), .integer(3)])
+        ]))
+        #expect(result == .vector([.integer(1), .vector([.integer(2), .integer(3)])]))
+    }
+
+    // MARK: - if special form
+
+    @Test("if with truthy condition evaluates then-branch")
+    func ifTruthyEvalsThenBranch() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .boolean(true), .integer(1), .integer(2)]))
+        #expect(result == .integer(1))
+    }
+
+    @Test("if with false evaluates else-branch")
+    func ifFalseEvalsElseBranch() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .boolean(false), .integer(1), .integer(2)]))
+        #expect(result == .integer(2))
+    }
+
+    @Test("if with nil evaluates else-branch")
+    func ifNilEvalsElseBranch() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .nil, .integer(1), .integer(2)]))
+        #expect(result == .integer(2))
+    }
+
+    @Test("if with 0 evaluates then-branch (0 is truthy)")
+    func ifZeroEvalsThenBranch() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .integer(0), .integer(1), .integer(2)]))
+        #expect(result == .integer(1))
+    }
+
+    @Test("if with falsy condition and no else-branch returns nil")
+    func ifFalsyNoElseReturnsNil() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .boolean(false), .integer(1)]))
+        #expect(result == .nil)
+    }
+
+    @Test("if with truthy condition and no else-branch evaluates then-branch")
+    func ifTruthyNoElseEvalsThenBranch() throws {
+        let result = try evaluator.eval(.list([.symbol("if"), .boolean(true), .integer(42)]))
+        #expect(result == .integer(42))
+    }
+
     // MARK: - Native functions
 
     @Test("Native function self-evaluates")

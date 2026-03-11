@@ -2210,6 +2210,53 @@ struct LexerTests {
         #expect(sym.text == "a")
     }
 
+    // MARK: - Bracket tokens
+
+    @Test("Scans left bracket")
+    func scanLeftBracket() throws {
+        let lexer = Lexer("[")
+        let token = try lexer.nextToken()
+        #expect(token.type == .leftBracket)
+        #expect(token.text == "[")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans right bracket")
+    func scanRightBracket() throws {
+        let lexer = Lexer("]")
+        let token = try lexer.nextToken()
+        #expect(token.type == .rightBracket)
+        #expect(token.text == "]")
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("Scans bracket pair with integers")
+    func scanBracketPairWithIntegers() throws {
+        let lexer = Lexer("[1 2]")
+        let lb = try lexer.nextToken()
+        #expect(lb.type == .leftBracket)
+        let one = try lexer.nextToken()
+        #expect(one.type == .integer)
+        #expect(one.text == "1")
+        let two = try lexer.nextToken()
+        #expect(two.type == .integer)
+        #expect(two.text == "2")
+        let rb = try lexer.nextToken()
+        #expect(rb.type == .rightBracket)
+    }
+
+    @Test("Bracket immediately after integer is a separate token")
+    func bracketAfterIntegerIsSeparateToken() throws {
+        let lexer = Lexer("1[2]")
+        let one = try lexer.nextToken()
+        #expect(one.type == .integer)
+        #expect(one.text == "1")
+        let lb = try lexer.nextToken()
+        #expect(lb.type == .leftBracket)
+    }
+
     // MARK: - Comma as whitespace
 
     @Test("Commas are treated as whitespace in a list")

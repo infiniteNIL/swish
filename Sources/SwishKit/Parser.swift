@@ -17,6 +17,7 @@ public enum Expr {
     case symbol(String)
     case keyword(String)
     case list([Expr])
+    case vector([Expr])
     indirect case function(name: String?, params: [String], body: Expr)
     case nativeFunction(name: String, arity: Arity, body: ([Expr]) throws -> Expr)
 }
@@ -34,6 +35,7 @@ extension Expr: Equatable {
         case (.symbol(let a), .symbol(let b)):             return a == b
         case (.keyword(let a), .keyword(let b)):           return a == b
         case (.list(let a), .list(let b)):                 return a == b
+        case (.vector(let a), .vector(let b)):             return a == b
         case (.function(let n1, let p1, let b1),
               .function(let n2, let p2, let b2)):          return n1 == n2 && p1 == p2 && b1 == b2
         case (.nativeFunction(let n1, let a1, _),
@@ -50,6 +52,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case integerOverflow(String)
     case invalidFloat(String)
     case unterminatedList(line: Int, column: Int)
+    case unterminatedVector(line: Int, column: Int)
     case invalidDef(String)
 
     public var description: String {
@@ -68,6 +71,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .unterminatedList(let line, let column):
             "Unterminated list (line \(line), column \(column))."
+
+        case .unterminatedVector(let line, let column):
+            "Unterminated vector (line \(line), column \(column))."
 
         case .invalidDef(let message):
             message
@@ -197,6 +203,12 @@ public class Parser {
         case .rightParen:
             throw ParserError.unexpectedToken(currentToken)
 
+        case .leftBracket:
+            return try parseVector()
+
+        case .rightBracket:
+            throw ParserError.unexpectedToken(currentToken)
+
         case .eof:
             throw ParserError.unexpectedEOF
         }
@@ -228,6 +240,23 @@ public class Parser {
         }
 
         return .list(elements)
+    }
+
+    private func parseVector() throws -> Expr {
+        let startToken = currentToken
+        try advance() // consume '['
+
+        var elements: [Expr] = []
+
+        while currentToken.type != .rightBracket {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedVector(line: startToken.line, column: startToken.column)
+            }
+            elements.append(try parseExpr())
+        }
+
+        try advance() // consume ']'
+        return .vector(elements)
     }
 
     private func parseHexInteger(_ text: String) -> Int? {

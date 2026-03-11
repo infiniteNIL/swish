@@ -45,6 +45,9 @@ public class Printer {
         case .list(let elements):
             "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
 
+        case .vector(let elements):
+            "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
+
         case .function(let name, _, _):
             if let name { "#<fn \(name)>" } else { "#<fn>" }
 
@@ -62,6 +65,8 @@ public class Printer {
             String(char)
         case .list(let elements):
             "(" + elements.map { displayString($0) }.joined(separator: " ") + ")"
+        case .vector(let elements):
+            "[" + elements.map { displayString($0) }.joined(separator: " ") + "]"
         default:
             printString(expr)
         }
