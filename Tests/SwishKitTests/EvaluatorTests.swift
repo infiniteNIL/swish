@@ -111,23 +111,40 @@ struct EvaluatorTests {
         #expect(result == .list([]))
     }
 
-    @Test("List with integers evaluates to itself")
-    func listWithIntegersSelfEvaluates() throws {
-        let result = try evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
-        #expect(result == .list([.integer(1), .integer(2), .integer(3)]))
+    @Test("List with integer head throws notAFunction")
+    func listWithIntegerHeadThrows() throws {
+        #expect(throws: EvaluatorError.notAFunction(.integer(1))) {
+            try evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
+        }
     }
 
-    @Test("Nested list evaluates to itself")
-    func nestedListSelfEvaluates() throws {
-        let result = try evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
-        #expect(result == .list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+    @Test("Nested list with integer head throws notAFunction")
+    func nestedListWithIntegerHeadThrows() throws {
+        #expect(throws: EvaluatorError.notAFunction(.integer(1))) {
+            try evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+        }
     }
 
-    @Test("List evaluates symbols to their bound values")
-    func listEvaluatesSymbols() throws {
+    @Test("Symbol bound to non-function throws notAFunction")
+    func symbolBoundToNonFunctionThrows() throws {
         _ = try evaluator.eval(.list([.symbol("def"), .symbol("a"), .integer(5)]))
-        let result = try evaluator.eval(.list([.symbol("a")]))
-        #expect(result == .list([.integer(5)]))
+        #expect(throws: EvaluatorError.notAFunction(.integer(5))) {
+            try evaluator.eval(.list([.symbol("a")]))
+        }
+    }
+
+    @Test("nil as list head throws notAFunction")
+    func nilAsListHeadThrows() throws {
+        #expect(throws: EvaluatorError.notAFunction(.nil)) {
+            try evaluator.eval(.list([.nil]))
+        }
+    }
+
+    @Test("Keyword as list head throws notAFunction")
+    func keywordAsListHeadThrows() throws {
+        #expect(throws: EvaluatorError.notAFunction(.keyword("foo"))) {
+            try evaluator.eval(.list([.keyword("foo")]))
+        }
     }
 
     @Test("List with undefined symbol throws undefinedSymbol")
