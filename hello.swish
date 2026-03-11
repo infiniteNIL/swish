@@ -1,2 +1,4 @@
-(println "Hello, World!")
+(if (> (+ 1 2) 1)
+  (println "Hello, World!")
+  (println "This shouldn't print!"))
 

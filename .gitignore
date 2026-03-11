@@ -46,3 +46,4 @@ playground.xcworkspace
 # Temporary files
 *.swp
 *~
+.jank-repl-history
