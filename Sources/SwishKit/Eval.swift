@@ -142,7 +142,7 @@ public class Evaluator {
     }
 
     /// Registers a native Swift function in the core environment.
-    public func register(name: String, arity: Arity, body: @escaping ([Expr]) throws -> Expr) {
+    public func register(name: String, arity: Arity, body: @escaping @Sendable ([Expr]) throws -> Expr) {
         coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
     }
 }

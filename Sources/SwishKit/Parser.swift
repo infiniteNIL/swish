@@ -6,7 +6,7 @@ public enum Arity: Equatable, Sendable {
 }
 
 /// AST node types for Swish expressions
-public enum Expr {
+public enum Expr: Sendable {
     case integer(Int)
     case float(Double)
     case ratio(Ratio)
@@ -19,7 +19,7 @@ public enum Expr {
     case list([Expr])
     case vector([Expr])
     indirect case function(name: String?, params: [String], body: Expr)
-    case nativeFunction(name: String, arity: Arity, body: ([Expr]) throws -> Expr)
+    case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
 }
 
 extension Expr: Equatable {
