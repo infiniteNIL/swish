@@ -8,6 +8,7 @@
 - [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
 - [ ] Add macros
+- [ ] defn
 - [ ] Add support for comment macro
 - [ ] namespaces?
 - [ ] core.swish
