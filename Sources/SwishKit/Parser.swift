@@ -54,6 +54,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unterminatedList(line: Int, column: Int)
     case unterminatedVector(line: Int, column: Int)
     case invalidDef(String)
+    case invalidLet(String)
 
     public var description: String {
         switch self {
@@ -76,6 +77,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
             "Unterminated vector (line \(line), column \(column))."
 
         case .invalidDef(let message):
+            message
+
+        case .invalidLet(let message):
             message
         }
     }
@@ -236,6 +240,24 @@ public class Parser {
             }
             guard case .symbol = elements[1] else {
                 throw ParserError.invalidDef("first argument to def must be a symbol")
+            }
+        }
+
+        // Validate let syntax
+        if case .symbol("let") = elements.first {
+            guard elements.count >= 2 else {
+                throw ParserError.invalidLet("let requires a binding vector")
+            }
+            guard case .vector(let bindings) = elements[1] else {
+                throw ParserError.invalidLet("first argument to let must be a vector")
+            }
+            guard bindings.count % 2 == 0 else {
+                throw ParserError.invalidLet("let binding vector requires an even number of forms")
+            }
+            for i in stride(from: 0, to: bindings.count, by: 2) {
+                guard case .symbol = bindings[i] else {
+                    throw ParserError.invalidLet("binding targets in let must be symbols")
+                }
             }
         }
 

@@ -71,15 +71,19 @@ public class Evaluator {
 
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {
+        try eval(expr, in: environment)
+    }
+
+    private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .nativeFunction:
             return expr
 
         case .vector(let elements):
-            return .vector(try elements.map { try eval($0) })
+            return .vector(try elements.map { try eval($0, in: env) })
 
         case .symbol(let name):
-            guard let value = environment.get(name) else {
+            guard let value = env.get(name) else {
                 throw EvaluatorError.undefinedSymbol(name)
             }
             return value
@@ -96,7 +100,7 @@ public class Evaluator {
                     // Parser validates this, but be safe
                     throw EvaluatorError.undefinedSymbol("def")
                 }
-                let value = try eval(elements[2])
+                let value = try eval(elements[2], in: env)
                 environment.set(name, value)
                 return .symbol(name)
             }
@@ -106,22 +110,40 @@ public class Evaluator {
                     throw EvaluatorError.invalidArgument(function: "if",
                         message: "requires a condition and a then-branch")
                 }
-                let condition = try eval(elements[1])
+                let condition = try eval(elements[1], in: env)
                 let isFalsy = condition == .nil || condition == .boolean(false)
                 if !isFalsy {
-                    return try eval(elements[2])
+                    return try eval(elements[2], in: env)
                 } else if elements.count > 3 {
-                    return try eval(elements[3])
+                    return try eval(elements[3], in: env)
                 } else {
                     return .nil
                 }
             }
 
+            if case .symbol("let") = elements.first {
+                guard elements.count >= 2, case .vector(let bindingVec) = elements[1] else {
+                    throw EvaluatorError.invalidArgument(function: "let",
+                        message: "first argument must be a vector of bindings")
+                }
+                let letEnv = Environment(parent: env)
+                for i in stride(from: 0, to: bindingVec.count, by: 2) {
+                    guard case .symbol(let name) = bindingVec[i] else { continue }
+                    letEnv.set(name, try eval(bindingVec[i + 1], in: letEnv))
+                }
+                let body = elements.dropFirst(2)
+                var result: Expr = .nil
+                for bodyExpr in body {
+                    result = try eval(bodyExpr, in: letEnv)
+                }
+                return result
+            }
+
             // Function call: evaluate head, dispatch to native or user-defined function
             if let head = elements.first {
-                let callee = try eval(head)
+                let callee = try eval(head, in: env)
                 if case .nativeFunction(let name, let arity, let body) = callee {
-                    let args = try elements.dropFirst().map { try eval($0) }
+                    let args = try elements.dropFirst().map { try eval($0, in: env) }
                     if case .fixed(let n) = arity, args.count != n {
                         throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
                     }

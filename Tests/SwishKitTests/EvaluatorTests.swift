@@ -331,6 +331,101 @@ struct EvaluatorTests {
         #expect(result == .integer(42))
     }
 
+    // MARK: - let special form
+
+    @Test("let with no body returns nil")
+    func letNoBodyReturnsNil() throws {
+        let result = try evaluator.eval(.list([.symbol("let"), .vector([])]))
+        #expect(result == .nil)
+    }
+
+    @Test("let with empty bindings evaluates body")
+    func letEmptyBindingsEvaluatesBody() throws {
+        let result = try evaluator.eval(.list([.symbol("let"), .vector([]), .integer(42)]))
+        #expect(result == .integer(42))
+    }
+
+    @Test("let binds a symbol and returns it from body")
+    func letBindsSymbol() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(1)]),
+            .symbol("x")
+        ]))
+        #expect(result == .integer(1))
+    }
+
+    @Test("let with multiple bindings evaluates body with all bindings")
+    func letMultipleBindings() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(1), .symbol("y"), .integer(2)]),
+            .list([.symbol("+"), .symbol("x"), .symbol("y")])
+        ]))
+        #expect(result == .integer(3))
+    }
+
+    @Test("let returns last body expression")
+    func letReturnsLastBodyExpr() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(1)]),
+            .integer(99),
+            .symbol("x")
+        ]))
+        #expect(result == .integer(1))
+    }
+
+    @Test("let bindings are sequential (later can reference earlier)")
+    func letSequentialBindings() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([
+                .symbol("x"), .integer(1),
+                .symbol("y"), .list([.symbol("+"), .symbol("x"), .integer(1)])
+            ]),
+            .symbol("y")
+        ]))
+        #expect(result == .integer(2))
+    }
+
+    @Test("let is lexically scoped (binding not visible outside)")
+    func letBindingNotVisibleOutside() throws {
+        _ = try evaluator.eval(.list([
+            .symbol("let"), .vector([.symbol("local"), .integer(7)]), .symbol("local")
+        ]))
+        #expect(throws: EvaluatorError.undefinedSymbol("local")) {
+            try evaluator.eval(.symbol("local"))
+        }
+    }
+
+    @Test("nested let can reference outer binding")
+    func nestedLetReferencesOuter() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(10)]),
+            .list([
+                .symbol("let"),
+                .vector([.symbol("y"), .integer(20)]),
+                .list([.symbol("+"), .symbol("x"), .symbol("y")])
+            ])
+        ]))
+        #expect(result == .integer(30))
+    }
+
+    @Test("let can shadow outer binding")
+    func letShadowsOuterBinding() throws {
+        _ = try evaluator.eval(.list([.symbol("def"), .symbol("x"), .integer(1)]))
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(99)]),
+            .symbol("x")
+        ]))
+        #expect(result == .integer(99))
+        // outer x is unchanged
+        #expect(try evaluator.eval(.symbol("x")) == .integer(1))
+    }
+
     // MARK: - Native functions
 
     @Test("Native function self-evaluates")
