@@ -470,4 +470,239 @@ struct EvaluatorTests {
         #expect(try evaluator.eval(.list([.symbol("count")])) == .integer(0))
         #expect(try evaluator.eval(.list([.symbol("count"), .integer(1), .integer(2)])) == .integer(2))
     }
+
+    // MARK: - fn special form
+
+    @Test("fn evaluates to a function value")
+    func fnEvaluatesToFunction() throws {
+        let result = try evaluator.eval(.list([.symbol("fn"), .vector([.symbol("x")]), .symbol("x")]))
+        #expect(result == .function(name: nil, params: ["x"], body: [.symbol("x")]))
+    }
+
+    @Test("fn with no params evaluates to a zero-param function")
+    func fnNoParamsEvaluatesToFunction() throws {
+        let result = try evaluator.eval(.list([.symbol("fn"), .vector([]), .integer(42)]))
+        #expect(result == .function(name: nil, params: [], body: [.integer(42)]))
+    }
+
+    @Test("Named fn evaluates to a function with name")
+    func namedFnEvaluatesToNamedFunction() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("fn"), .symbol("square"),
+            .vector([.symbol("x")]),
+            .list([.symbol("*"), .symbol("x"), .symbol("x")])
+        ]))
+        #expect(result == .function(
+            name: "square",
+            params: ["x"],
+            body: [.list([.symbol("*"), .symbol("x"), .symbol("x")])]
+        ))
+    }
+
+    @Test("Immediately invoked fn returns body result")
+    func immediatelyInvokedFn() throws {
+        // ((fn [x] x) 5) => 5
+        let result = try evaluator.eval(.list([
+            .list([.symbol("fn"), .vector([.symbol("x")]), .symbol("x")]),
+            .integer(5)
+        ]))
+        #expect(result == .integer(5))
+    }
+
+    @Test("fn with multiple params binds all arguments")
+    func fnMultipleParams() throws {
+        // ((fn [x y] (+ x y)) 2 3) => 5
+        let result = try evaluator.eval(.list([
+            .list([
+                .symbol("fn"),
+                .vector([.symbol("x"), .symbol("y")]),
+                .list([.symbol("+"), .symbol("x"), .symbol("y")])
+            ]),
+            .integer(2),
+            .integer(3)
+        ]))
+        #expect(result == .integer(5))
+    }
+
+    @Test("fn with no params called with no args returns body result")
+    func fnNoParamsCall() throws {
+        // ((fn [] 42)) => 42
+        let result = try evaluator.eval(.list([
+            .list([.symbol("fn"), .vector([]), .integer(42)])
+        ]))
+        #expect(result == .integer(42))
+    }
+
+    @Test("fn with multi-expression body returns last expression")
+    func fnMultiExprBody() throws {
+        // ((fn [x] 1 2 x) 7) => 7
+        let result = try evaluator.eval(.list([
+            .list([
+                .symbol("fn"),
+                .vector([.symbol("x")]),
+                .integer(1),
+                .integer(2),
+                .symbol("x")
+            ]),
+            .integer(7)
+        ]))
+        #expect(result == .integer(7))
+    }
+
+    @Test("fn with empty body returns nil")
+    func fnEmptyBody() throws {
+        // ((fn [])) => nil
+        let result = try evaluator.eval(.list([
+            .list([.symbol("fn"), .vector([])])
+        ]))
+        #expect(result == .nil)
+    }
+
+    @Test("def can bind a fn and it can be called by name")
+    func defFnAndCall() throws {
+        // (def double (fn [x] (+ x x)))
+        // (double 4) => 8
+        _ = try evaluator.eval(.list([
+            .symbol("def"), .symbol("double"),
+            .list([
+                .symbol("fn"),
+                .vector([.symbol("x")]),
+                .list([.symbol("+"), .symbol("x"), .symbol("x")])
+            ])
+        ]))
+        let result = try evaluator.eval(.list([.symbol("double"), .integer(4)]))
+        #expect(result == .integer(8))
+    }
+
+    @Test("fn closes over let bindings in enclosing scope")
+    func fnClosesOverLetBindings() throws {
+        // (let [x 10] ((fn [y] (+ x y)) 5)) => 15
+        let result = try evaluator.eval(.list([
+            .symbol("let"),
+            .vector([.symbol("x"), .integer(10)]),
+            .list([
+                .list([
+                    .symbol("fn"),
+                    .vector([.symbol("y")]),
+                    .list([.symbol("+"), .symbol("x"), .symbol("y")])
+                ]),
+                .integer(5)
+            ])
+        ]))
+        #expect(result == .integer(15))
+    }
+
+    @Test("Calling fn with too few arguments throws arityMismatch")
+    func fnTooFewArgsThrows() throws {
+        #expect(throws: EvaluatorError.arityMismatch(name: "fn", expected: .fixed(2), got: 1)) {
+            try evaluator.eval(.list([
+                .list([
+                    .symbol("fn"),
+                    .vector([.symbol("x"), .symbol("y")]),
+                    .symbol("x")
+                ]),
+                .integer(1)
+            ]))
+        }
+    }
+
+    @Test("Calling fn with too many arguments throws arityMismatch")
+    func fnTooManyArgsThrows() throws {
+        #expect(throws: EvaluatorError.arityMismatch(name: "fn", expected: .fixed(1), got: 2)) {
+            try evaluator.eval(.list([
+                .list([
+                    .symbol("fn"),
+                    .vector([.symbol("x")]),
+                    .symbol("x")
+                ]),
+                .integer(1),
+                .integer(2)
+            ]))
+        }
+    }
+
+    @Test("Named fn uses its name in arity mismatch error")
+    func namedFnArityMismatchUsesName() throws {
+        #expect(throws: EvaluatorError.arityMismatch(name: "inc", expected: .fixed(1), got: 0)) {
+            try evaluator.eval(.list([
+                .list([
+                    .symbol("fn"),
+                    .symbol("inc"),
+                    .vector([.symbol("x")]),
+                    .symbol("x")
+                ])
+            ]))
+        }
+    }
+
+    @Test("fn throws undefinedSymbol when body references unknown symbol")
+    func fnUndefinedSymbolInBodyThrows() throws {
+        #expect(throws: EvaluatorError.undefinedSymbol("x")) {
+            try evaluator.eval(.list([.symbol("fn"), .vector([]), .symbol("x")]))
+        }
+    }
+
+    @Test("fn does not throw for symbols that are parameters")
+    func fnParamSymbolsAreValid() throws {
+        // (fn [x] x) — x is a param, should not throw
+        #expect(throws: Never.self) {
+            try evaluator.eval(.list([.symbol("fn"), .vector([.symbol("x")]), .symbol("x")]))
+        }
+    }
+
+    @Test("fn does not throw for symbols defined in the enclosing environment")
+    func fnClosedOverSymbolIsValid() throws {
+        // (let [x 1] (fn [] x)) — x is in scope, should not throw
+        #expect(throws: Never.self) {
+            try evaluator.eval(.list([
+                .symbol("let"),
+                .vector([.symbol("x"), .integer(1)]),
+                .list([.symbol("fn"), .vector([]), .symbol("x")])
+            ]))
+        }
+    }
+
+    @Test("fn throws undefinedSymbol for unknown symbol nested in body expression")
+    func fnNestedUndefinedSymbolThrows() throws {
+        // (fn [x] (+ x y)) — y is not defined
+        #expect(throws: EvaluatorError.undefinedSymbol("y")) {
+            try evaluator.eval(.list([
+                .symbol("fn"),
+                .vector([.symbol("x")]),
+                .list([.symbol("+"), .symbol("x"), .symbol("y")])
+            ]))
+        }
+    }
+
+    @Test("fn with nested fn checks inner body with inner params")
+    func fnNestedFnUsesInnerParams() throws {
+        // (fn [x] (fn [y] (+ x y))) — both x and y are in scope for inner body
+        #expect(throws: Never.self) {
+            try evaluator.eval(.list([
+                .symbol("fn"),
+                .vector([.symbol("x")]),
+                .list([
+                    .symbol("fn"),
+                    .vector([.symbol("y")]),
+                    .list([.symbol("+"), .symbol("x"), .symbol("y")])
+                ])
+            ]))
+        }
+    }
+
+    @Test("fn with let in body sees let-bound symbols")
+    func fnLetBindingInBody() throws {
+        // (fn [] (let [x 1] x)) — x is bound by let, should not throw
+        #expect(throws: Never.self) {
+            try evaluator.eval(.list([
+                .symbol("fn"),
+                .vector([]),
+                .list([
+                    .symbol("let"),
+                    .vector([.symbol("x"), .integer(1)]),
+                    .symbol("x")
+                ])
+            ]))
+        }
+    }
 }

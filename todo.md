@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Add support for function literals
 - [ ] Add some builtin string functions
 - [ ] Add support for maps
 - [ ] Add support for sets
@@ -13,6 +12,7 @@
 - [ ] core.swish
 - [ ] and, or, not
 
+- [x] Add support for function literals
 - [x] let
 - [x] Add support for vector literals
 - [x] if

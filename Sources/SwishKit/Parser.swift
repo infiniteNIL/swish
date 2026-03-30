@@ -18,7 +18,7 @@ public enum Expr: Sendable {
     case keyword(String)
     case list([Expr])
     case vector([Expr])
-    indirect case function(name: String?, params: [String], body: Expr)
+    indirect case function(name: String?, params: [String], body: [Expr])
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
 }
 
@@ -55,6 +55,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unterminatedVector(line: Int, column: Int)
     case invalidDef(String)
     case invalidLet(String)
+    case invalidFn(String)
 
     public var description: String {
         switch self {
@@ -80,6 +81,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
             message
 
         case .invalidLet(let message):
+            message
+
+        case .invalidFn(let message):
             message
         }
     }
@@ -257,6 +261,22 @@ public class Parser {
             for i in stride(from: 0, to: bindings.count, by: 2) {
                 guard case .symbol = bindings[i] else {
                     throw ParserError.invalidLet("binding targets in let must be symbols")
+                }
+            }
+        }
+
+        // Validate fn syntax
+        if case .symbol("fn") = elements.first {
+            var offset = 1
+            if elements.count > 1, case .symbol = elements[1] {
+                offset = 2
+            }
+            guard elements.count > offset, case .vector(let params) = elements[offset] else {
+                throw ParserError.invalidFn("fn requires a parameter vector")
+            }
+            for param in params {
+                guard case .symbol = param else {
+                    throw ParserError.invalidFn("fn parameters must be symbols")
                 }
             }
         }

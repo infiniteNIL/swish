@@ -139,6 +139,23 @@ public class Evaluator {
                 return result
             }
 
+            if case .symbol("fn") = elements.first {
+                var offset = 1
+                var name: String? = nil
+                if elements.count > 1, case .symbol(let n) = elements[1],
+                   elements.count > 2, case .vector = elements[2] {
+                    name = n
+                    offset = 2
+                }
+                guard elements.count > offset, case .vector(let paramExprs) = elements[offset] else {
+                    throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
+                }
+                let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
+                let body = Array(elements.dropFirst(offset + 1))
+                try checkUndefinedSymbols(in: body, localBindings: Set(params), env: env)
+                return .function(name: name, params: params, body: body)
+            }
+
             // Function call: evaluate head, dispatch to native or user-defined function
             if let head = elements.first {
                 let callee = try eval(head, in: env)
@@ -152,9 +169,20 @@ public class Evaluator {
                     }
                     return try body(args)
                 }
-                if case .function = callee {
-                    // TODO: implement user-defined function calls when `fn` is added
-                    fatalError("user-defined function calls not yet implemented")
+                if case .function(let name, let params, let body) = callee {
+                    let args = try elements.dropFirst().map { try eval($0, in: env) }
+                    guard args.count == params.count else {
+                        throw EvaluatorError.arityMismatch(name: name ?? "fn", expected: .fixed(params.count), got: args.count)
+                    }
+                    let fnEnv = Environment(parent: env)
+                    for (param, arg) in zip(params, args) {
+                        fnEnv.set(param, arg)
+                    }
+                    var result: Expr = .nil
+                    for bodyExpr in body {
+                        result = try eval(bodyExpr, in: fnEnv)
+                    }
+                    return result
                 }
                 throw EvaluatorError.notAFunction(callee)
             }
@@ -166,5 +194,77 @@ public class Evaluator {
     /// Registers a native Swift function in the core environment.
     public func register(name: String, arity: Arity, body: @escaping @Sendable ([Expr]) throws -> Expr) {
         coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
+    }
+
+    /// Recursively checks that every symbol referenced in `exprs` is either in
+    /// `localBindings` or resolvable in `env`. Understands special forms so that
+    /// binding targets (fn params, let names, def name) are not treated as lookups.
+    private func checkUndefinedSymbols(in exprs: [Expr], localBindings: Set<String>, env: Environment) throws {
+        for expr in exprs {
+            try checkUndefinedSymbols(in: expr, localBindings: localBindings, env: env)
+        }
+    }
+
+    private func checkUndefinedSymbols(in expr: Expr, localBindings: Set<String>, env: Environment) throws {
+        switch expr {
+        case .symbol(let name):
+            guard localBindings.contains(name) || env.get(name) != nil else {
+                throw EvaluatorError.undefinedSymbol(name)
+            }
+
+        case .list(let elements) where !elements.isEmpty:
+            switch elements[0] {
+            case .symbol("quote"):
+                return
+
+            case .symbol("fn"):
+                var offset = 1
+                if elements.count > 1, case .symbol = elements[1],
+                   elements.count > 2, case .vector = elements[2] {
+                    offset = 2
+                }
+                if elements.count > offset, case .vector(let paramExprs) = elements[offset] {
+                    let innerParams = Set(paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } })
+                    try checkUndefinedSymbols(in: Array(elements.dropFirst(offset + 1)),
+                                              localBindings: localBindings.union(innerParams), env: env)
+                }
+
+            case .symbol("let"):
+                if elements.count > 1, case .vector(let bindingVec) = elements[1] {
+                    var letBindings = localBindings
+                    var i = 0
+                    while i + 1 < bindingVec.count {
+                        try checkUndefinedSymbols(in: bindingVec[i + 1], localBindings: letBindings, env: env)
+                        if case .symbol(let s) = bindingVec[i] { letBindings.insert(s) }
+                        i += 2
+                    }
+                    try checkUndefinedSymbols(in: Array(elements.dropFirst(2)), localBindings: letBindings, env: env)
+                }
+
+            case .symbol("def"):
+                // elements[1] is the binding target (not a lookup); check the value expression
+                if elements.count > 2 {
+                    try checkUndefinedSymbols(in: elements[2], localBindings: localBindings, env: env)
+                }
+
+            case .symbol("if"):
+                for element in elements.dropFirst() {
+                    try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env)
+                }
+
+            default:
+                for element in elements {
+                    try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env)
+                }
+            }
+
+        case .vector(let elements):
+            for element in elements {
+                try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env)
+            }
+
+        default:
+            break
+        }
     }
 }

@@ -890,4 +890,49 @@ struct ParserTests {
             try Reader.readString("(let [1 2])")
         }
     }
+
+    // MARK: - fn special form
+
+    @Test("Parses anonymous fn with params and body")
+    func parsesAnonymousFn() throws {
+        let result = try Reader.readString("(fn [x] x)")
+        #expect(result == [.list([.symbol("fn"), .vector([.symbol("x")]), .symbol("x")])])
+    }
+
+    @Test("Parses named fn")
+    func parsesNamedFn() throws {
+        let result = try Reader.readString("(fn square [x] (* x x))")
+        #expect(result == [.list([
+            .symbol("fn"), .symbol("square"),
+            .vector([.symbol("x")]),
+            .list([.symbol("*"), .symbol("x"), .symbol("x")])
+        ])])
+    }
+
+    @Test("Parses fn with empty params")
+    func parsesFnWithEmptyParams() throws {
+        let result = try Reader.readString("(fn [] 42)")
+        #expect(result == [.list([.symbol("fn"), .vector([]), .integer(42)])])
+    }
+
+    @Test("Throws invalidFn when parameter vector is missing")
+    func fnMissingParamVectorThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn requires a parameter vector")) {
+            try Reader.readString("(fn)")
+        }
+    }
+
+    @Test("Throws invalidFn when first argument is not a vector")
+    func fnFirstArgNotVectorThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn requires a parameter vector")) {
+            try Reader.readString("(fn 42)")
+        }
+    }
+
+    @Test("Throws invalidFn when a parameter is not a symbol")
+    func fnNonSymbolParamThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn parameters must be symbols")) {
+            try Reader.readString("(fn [42] x)")
+        }
+    }
 }

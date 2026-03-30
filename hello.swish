@@ -1,4 +1,7 @@
-(if (> (+ 1 2) 1)
-  (println "Hello, World!")
-  (println "This shouldn't print!"))
+(def hello (fn []
+             (if (> (+ 1 2) 1)
+                (println "Hello, World!")
+                (println "This shouldn't print!"))))
+
+(hello)
 
