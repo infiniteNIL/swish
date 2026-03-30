@@ -1,7 +1,6 @@
-(def hello (fn []
+(def hello (fn [s]
              (if (> (+ 1 2) 1)
-                (println "Hello, World!")
+                (println "Hello," s)
                 (println "This shouldn't print!"))))
 
-(hello)
-
+(hello "Rod")
