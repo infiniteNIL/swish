@@ -205,6 +205,30 @@ public class Parser {
             let expr = try parseExpr()
             return .list([.symbol("quote"), expr])
 
+        case .backtick:
+            try advance() // consume backtick token
+            if currentToken.type == .eof {
+                throw ParserError.unexpectedEOF
+            }
+            let expr = try parseExpr()
+            return .list([.symbol("syntax-quote"), expr])
+
+        case .unquote:
+            try advance() // consume unquote token
+            if currentToken.type == .eof {
+                throw ParserError.unexpectedEOF
+            }
+            let expr = try parseExpr()
+            return .list([.symbol("unquote"), expr])
+
+        case .unquoteSplicing:
+            try advance() // consume unquote-splicing token
+            if currentToken.type == .eof {
+                throw ParserError.unexpectedEOF
+            }
+            let expr = try parseExpr()
+            return .list([.symbol("unquote-splicing"), expr])
+
         case .leftParen:
             return try parseList()
 

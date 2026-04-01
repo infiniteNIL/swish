@@ -92,6 +92,9 @@ public class Evaluator {
             if case .symbol("quote") = elements.first {
                 return elements[1]
             }
+            if case .symbol("syntax-quote") = elements.first {
+                return try syntaxQuoteExpand(elements[1], in: env)
+            }
             if case .symbol("def") = elements.first {
                 let name: String
                 if case .symbol(let n) = elements[1] {
@@ -196,6 +199,37 @@ public class Evaluator {
         coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
     }
 
+    /// Recursively expands a syntax-quote template, substituting (unquote ...) and
+    /// splicing (unquote-splicing ...) sub-forms.
+    private func syntaxQuoteExpand(_ expr: Expr, in env: Environment) throws -> Expr {
+        guard case .list(let elements) = expr else {
+            return expr // atoms are returned as-is
+        }
+
+        // (unquote x) → evaluate x
+        if case .symbol("unquote") = elements.first {
+            return try eval(elements[1], in: env)
+        }
+
+        // General list: process each element, splicing unquote-splicing sub-forms
+        var result: [Expr] = []
+        for element in elements {
+            if case .list(let sub) = element,
+               case .symbol("unquote-splicing") = sub.first {
+                let spliced = try eval(sub[1], in: env)
+                guard case .list(let splicedElements) = spliced else {
+                    throw EvaluatorError.invalidArgument(
+                        function: "unquote-splicing",
+                        message: "value must be a list")
+                }
+                result.append(contentsOf: splicedElements)
+            } else {
+                result.append(try syntaxQuoteExpand(element, in: env))
+            }
+        }
+        return .list(result)
+    }
+
     /// Recursively checks that every symbol referenced in `exprs` is either in
     /// `localBindings` or resolvable in `env`. Understands special forms so that
     /// binding targets (fn params, let names, def name) are not treated as lookups.
@@ -216,6 +250,16 @@ public class Evaluator {
             switch elements[0] {
             case .symbol("quote"):
                 return
+
+            case .symbol("syntax-quote"):
+                if elements.count > 1 {
+                    try checkSyntaxQuoteSymbols(in: elements[1], localBindings: localBindings, env: env)
+                }
+
+            case .symbol("unquote"), .symbol("unquote-splicing"):
+                if elements.count > 1 {
+                    try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
+                }
 
             case .symbol("fn"):
                 var offset = 1
@@ -265,6 +309,31 @@ public class Evaluator {
 
         default:
             break
+        }
+    }
+
+    /// Walks a syntax-quote template and checks symbols only inside (unquote ...)
+    /// and (unquote-splicing ...) sub-forms, since only those get evaluated.
+    private func checkSyntaxQuoteSymbols(
+        in expr: Expr, localBindings: Set<String>, env: Environment
+    ) throws {
+        guard case .list(let elements) = expr else { return }
+
+        if case .symbol("unquote") = elements.first {
+            if elements.count > 1 {
+                try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
+            }
+            return
+        }
+
+        for element in elements {
+            if case .list(let sub) = element, case .symbol("unquote-splicing") = sub.first {
+                if sub.count > 1 {
+                    try checkUndefinedSymbols(in: sub[1], localBindings: localBindings, env: env)
+                }
+            } else {
+                try checkSyntaxQuoteSymbols(in: element, localBindings: localBindings, env: env)
+            }
         }
     }
 }

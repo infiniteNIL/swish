@@ -84,4 +84,65 @@ struct SwishKitTests {
         #expect(try swish.eval("00") == .integer(0))
         #expect(try swish.eval("-09") == .integer(-9))
     }
+
+    // MARK: - syntax-quote / unquote / unquote-splicing (full pipeline)
+
+    @Test("`a returns the symbol a")
+    func backtickAtomReturnSymbol() throws {
+        #expect(try swish.eval("`a") == .symbol("a"))
+    }
+
+    @Test("`(1 2 3) returns the list unevaluated")
+    func backtickPlainListUnevaluated() throws {
+        #expect(try swish.eval("`(1 2 3)") == .list([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("`(1 ~x 3) substitutes x")
+    func backtickUnquoteSubstitutes() throws {
+        #expect(try swish.eval("(def x 2) `(1 ~x 3)") == .list([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("`(1 (2 ~x) 3) substitutes x recursively")
+    func backtickUnquoteRecursive() throws {
+        #expect(try swish.eval("(def x 5) `(1 (2 ~x) 3)") == .list([
+            .integer(1),
+            .list([.integer(2), .integer(5)]),
+            .integer(3)
+        ]))
+    }
+
+    @Test("`(1 ~@xs 3) splices xs into the list")
+    func backtickUnquoteSplicingSplices() throws {
+        #expect(try swish.eval("(def xs '(4 5)) `(1 ~@xs 3)") == .list([
+            .integer(1), .integer(4), .integer(5), .integer(3)
+        ]))
+    }
+
+    @Test("`(~x ~@xs ~x) handles mixed unquote and splicing")
+    func backtickMixedUnquoteAndSplicing() throws {
+        #expect(try swish.eval("(def x 2) (def xs '(4 5)) `(~x ~@xs ~x)") == .list([
+            .integer(2), .integer(4), .integer(5), .integer(2)
+        ]))
+    }
+
+    @Test("`~x evaluates x directly")
+    func backtickTopLevelUnquote() throws {
+        #expect(try swish.eval("(def x 7) `~x") == .integer(7))
+    }
+
+    @Test("unquote of undefined symbol throws undefinedSymbol")
+    func backtickUnquoteUndefinedThrows() throws {
+        #expect(throws: EvaluatorError.undefinedSymbol("missing")) {
+            _ = try swish.eval("`(1 ~missing 3)")
+        }
+    }
+
+    @Test("unquote-splicing a non-list throws invalidArgument")
+    func backtickUnquoteSplicingNonListThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(
+            function: "unquote-splicing", message: "value must be a list"
+        )) {
+            _ = try swish.eval("(def v 99) `(1 ~@v 3)")
+        }
+    }
 }

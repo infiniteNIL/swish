@@ -1,17 +1,20 @@
 # Todo
 
+- [ ] Add macros
+- [ ] defn
 - [ ] Add some builtin string functions
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
-- [ ] Add macros
-- [ ] defn
 - [ ] Add support for comment macro
 - [ ] namespaces?
 - [ ] core.swish
 - [ ] and, or, not
 
+- [x] syntax-quote
+- [x] unquote
+- [x] unquote-splicing
 - [x] Add support for function literals
 - [x] let
 - [x] Add support for vector literals

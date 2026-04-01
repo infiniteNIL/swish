@@ -2210,6 +2210,93 @@ struct LexerTests {
         #expect(sym.text == "a")
     }
 
+    // MARK: - Unquote reader macros
+
+    @Test("~ produces unquote token")
+    func tildeProducesUnquoteToken() throws {
+        let lexer = Lexer("~")
+        let token = try lexer.nextToken()
+        #expect(token.type == .unquote)
+        #expect(token.text == "~")
+    }
+
+    @Test("~@ produces unquoteSplicing token")
+    func tildeAtProducesUnquoteSplicingToken() throws {
+        let lexer = Lexer("~@")
+        let token = try lexer.nextToken()
+        #expect(token.type == .unquoteSplicing)
+        #expect(token.text == "~@")
+    }
+
+    @Test("~a lexes as unquote token then symbol")
+    func unquoteFollowedBySymbol() throws {
+        let lexer = Lexer("~a")
+        let uq = try lexer.nextToken()
+        #expect(uq.type == .unquote)
+        let sym = try lexer.nextToken()
+        #expect(sym.type == .symbol)
+        #expect(sym.text == "a")
+    }
+
+    @Test("~@xs lexes as unquoteSplicing token then symbol")
+    func unquoteSplicingFollowedBySymbol() throws {
+        let lexer = Lexer("~@xs")
+        let uqs = try lexer.nextToken()
+        #expect(uqs.type == .unquoteSplicing)
+        let sym = try lexer.nextToken()
+        #expect(sym.type == .symbol)
+        #expect(sym.text == "xs")
+    }
+
+    @Test("unquote token has correct position")
+    func unquoteTokenPosition() throws {
+        let lexer = Lexer("~x")
+        let token = try lexer.nextToken()
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("unquoteSplicing token has correct position")
+    func unquoteSplicingTokenPosition() throws {
+        let lexer = Lexer("~@x")
+        let token = try lexer.nextToken()
+        #expect(token.line == 1)
+        #expect(token.column == 1)
+    }
+
+    @Test("~(1 2) lexes as unquote then list tokens")
+    func unquoteFollowedByList() throws {
+        let lexer = Lexer("~(1 2)")
+        let uq = try lexer.nextToken()
+        #expect(uq.type == .unquote)
+        let lp = try lexer.nextToken()
+        #expect(lp.type == .leftParen)
+        let one = try lexer.nextToken()
+        #expect(one.type == .integer)
+        #expect(one.text == "1")
+    }
+
+    @Test("~@(xs) lexes as unquoteSplicing then list tokens")
+    func unquoteSplicingFollowedByList() throws {
+        let lexer = Lexer("~@(xs)")
+        let uqs = try lexer.nextToken()
+        #expect(uqs.type == .unquoteSplicing)
+        let lp = try lexer.nextToken()
+        #expect(lp.type == .leftParen)
+    }
+
+    @Test("backtick followed by ~x produces backtick unquote symbol sequence")
+    func backtickUnquoteSymbolSequence() throws {
+        let lexer = Lexer("`~x")
+        let bt = try lexer.nextToken()
+        #expect(bt.type == .backtick)
+        let uq = try lexer.nextToken()
+        #expect(uq.type == .unquote)
+        let sym = try lexer.nextToken()
+        #expect(sym.type == .symbol)
+        #expect(sym.text == "x")
+    }
+
     // MARK: - Bracket tokens
 
     @Test("Scans left bracket")

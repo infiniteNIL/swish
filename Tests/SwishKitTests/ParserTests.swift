@@ -935,4 +935,74 @@ struct ParserTests {
             try Reader.readString("(fn [42] x)")
         }
     }
+
+    // MARK: - Unquote / unquote-splicing reader macros
+
+    @Test("~x expands to (unquote x)")
+    func unquoteSymbolExpands() throws {
+        let result = try Reader.readString("~x")
+        #expect(result == [.list([.symbol("unquote"), .symbol("x")])])
+    }
+
+    @Test("~@xs expands to (unquote-splicing xs)")
+    func unquoteSplicingSymbolExpands() throws {
+        let result = try Reader.readString("~@xs")
+        #expect(result == [.list([.symbol("unquote-splicing"), .symbol("xs")])])
+    }
+
+    @Test("~(+ 1 2) expands to (unquote (+ 1 2))")
+    func unquoteListExpands() throws {
+        let result = try Reader.readString("~(+ 1 2)")
+        #expect(result == [.list([
+            .symbol("unquote"),
+            .list([.symbol("+"), .integer(1), .integer(2)])
+        ])])
+    }
+
+    @Test("`~x expands to (syntax-quote (unquote x))")
+    func backtickUnquoteExpands() throws {
+        let result = try Reader.readString("`~x")
+        #expect(result == [.list([
+            .symbol("syntax-quote"),
+            .list([.symbol("unquote"), .symbol("x")])
+        ])])
+    }
+
+    @Test("`(1 ~x 3) expands to (syntax-quote (1 (unquote x) 3))")
+    func backtickListWithUnquoteExpands() throws {
+        let result = try Reader.readString("`(1 ~x 3)")
+        #expect(result == [.list([
+            .symbol("syntax-quote"),
+            .list([
+                .integer(1),
+                .list([.symbol("unquote"), .symbol("x")]),
+                .integer(3)
+            ])
+        ])])
+    }
+
+    @Test("`(1 ~@xs 3) expands to (syntax-quote (1 (unquote-splicing xs) 3))")
+    func backtickListWithUnquoteSplicingExpands() throws {
+        let result = try Reader.readString("`(1 ~@xs 3)")
+        #expect(result == [.list([
+            .symbol("syntax-quote"),
+            .list([
+                .integer(1),
+                .list([.symbol("unquote-splicing"), .symbol("xs")]),
+                .integer(3)
+            ])
+        ])])
+    }
+
+    @Test("`(~x ~@xs) expands correctly")
+    func backtickMixedUnquoteExpands() throws {
+        let result = try Reader.readString("`(~x ~@xs)")
+        #expect(result == [.list([
+            .symbol("syntax-quote"),
+            .list([
+                .list([.symbol("unquote"), .symbol("x")]),
+                .list([.symbol("unquote-splicing"), .symbol("xs")])
+            ])
+        ])])
+    }
 }

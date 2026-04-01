@@ -14,6 +14,9 @@ public enum TokenType: Equatable, Sendable {
     case leftBracket
     case rightBracket
     case quote
+    case backtick
+    case unquote
+    case unquoteSplicing
     case eof
 }
 
@@ -198,6 +201,20 @@ public class Lexer {
         if char == "'" {
             _ = advance()
             return Token(type: .quote, text: "'", line: startLine, column: startColumn)
+        }
+
+        if char == "`" {
+            _ = advance()
+            return Token(type: .backtick, text: "`", line: startLine, column: startColumn)
+        }
+
+        if char == "~" {
+            _ = advance()
+            if peek() == "@" {
+                _ = advance()
+                return Token(type: .unquoteSplicing, text: "~@", line: startLine, column: startColumn)
+            }
+            return Token(type: .unquote, text: "~", line: startLine, column: startColumn)
         }
 
         if isSymbolStart(char) {
