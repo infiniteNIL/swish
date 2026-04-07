@@ -64,9 +64,17 @@ public class Evaluator {
     /// Holds user-defined bindings; falls through to coreEnvironment on lookup
     public let environment: Environment
 
+    private var gensymCounter = 0
+
     public init() {
         environment = Environment(parent: coreEnvironment)
         registerCoreFunctions(into: self)
+    }
+
+    /// Generates a unique symbol with the given prefix
+    func gensym(prefix: String = "G__") -> String {
+        gensymCounter += 1
+        return "\(prefix)\(gensymCounter)"
     }
 
     /// Evaluates a Swish expression
@@ -76,7 +84,7 @@ public class Evaluator {
 
     private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .nativeFunction:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction:
             return expr
 
         case .vector(let elements):
@@ -93,7 +101,8 @@ public class Evaluator {
                 return elements[1]
             }
             if case .symbol("syntax-quote") = elements.first {
-                return try syntaxQuoteExpand(elements[1], in: env)
+                var gensyms: [String: String] = [:]
+                return try syntaxQuoteExpand(elements[1], in: env, gensyms: &gensyms)
             }
             if case .symbol("def") = elements.first {
                 let name: String
@@ -155,13 +164,35 @@ public class Evaluator {
                 }
                 let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
                 let body = Array(elements.dropFirst(offset + 1))
-                try checkUndefinedSymbols(in: body, localBindings: Set(params), env: env)
+                let paramNames = Set(params.filter { $0 != "&" })
+                try checkUndefinedSymbols(in: body, localBindings: paramNames, env: env)
                 return .function(name: name, params: params, body: body)
+            }
+
+            if case .symbol("defmacro") = elements.first {
+                guard case .symbol(let name) = elements[1],
+                      case .vector(let paramExprs) = elements[2] else {
+                    throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
+                }
+                let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
+                let body = Array(elements.dropFirst(3))
+                environment.set(name, .macro(name: name, params: params, body: body))
+                return .symbol(name)
             }
 
             // Function call: evaluate head, dispatch to native or user-defined function
             if let head = elements.first {
                 let callee = try eval(head, in: env)
+                if case .macro(let macroName, let params, let body) = callee {
+                    let macroArgs = Array(elements.dropFirst())
+                    let macroEnv = Environment(parent: environment)
+                    try bindParams(params, to: macroArgs, in: macroEnv, name: macroName ?? "macro")
+                    var expanded: Expr = .nil
+                    for bodyExpr in body {
+                        expanded = try eval(bodyExpr, in: macroEnv)
+                    }
+                    return try eval(expanded, in: env)
+                }
                 if case .nativeFunction(let name, let arity, let body) = callee {
                     let args = try elements.dropFirst().map { try eval($0, in: env) }
                     if case .fixed(let n) = arity, args.count != n {
@@ -174,13 +205,8 @@ public class Evaluator {
                 }
                 if case .function(let name, let params, let body) = callee {
                     let args = try elements.dropFirst().map { try eval($0, in: env) }
-                    guard args.count == params.count else {
-                        throw EvaluatorError.arityMismatch(name: name ?? "fn", expected: .fixed(params.count), got: args.count)
-                    }
                     let fnEnv = Environment(parent: env)
-                    for (param, arg) in zip(params, args) {
-                        fnEnv.set(param, arg)
-                    }
+                    try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
                     var result: Expr = .nil
                     for bodyExpr in body {
                         result = try eval(bodyExpr, in: fnEnv)
@@ -199,35 +225,88 @@ public class Evaluator {
         coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
     }
 
-    /// Recursively expands a syntax-quote template, substituting (unquote ...) and
-    /// splicing (unquote-splicing ...) sub-forms.
-    private func syntaxQuoteExpand(_ expr: Expr, in env: Environment) throws -> Expr {
-        guard case .list(let elements) = expr else {
-            return expr // atoms are returned as-is
+    /// Expands a macro call one step. Returns nil if the form is not a macro call.
+    func macroexpand1(_ expr: Expr) throws -> Expr? {
+        guard case .list(let elements) = expr,
+              !elements.isEmpty,
+              case .symbol(let name) = elements[0],
+              let value = environment.get(name),
+              case .macro(_, let params, let body) = value else {
+            return nil
         }
-
-        // (unquote x) → evaluate x
-        if case .symbol("unquote") = elements.first {
-            return try eval(elements[1], in: env)
+        let macroArgs = Array(elements.dropFirst())
+        let macroEnv = Environment(parent: environment)
+        try bindParams(params, to: macroArgs, in: macroEnv, name: name)
+        var result: Expr = .nil
+        for bodyExpr in body {
+            result = try eval(bodyExpr, in: macroEnv)
         }
+        return result
+    }
 
-        // General list: process each element, splicing unquote-splicing sub-forms
-        var result: [Expr] = []
-        for element in elements {
-            if case .list(let sub) = element,
-               case .symbol("unquote-splicing") = sub.first {
-                let spliced = try eval(sub[1], in: env)
-                guard case .list(let splicedElements) = spliced else {
-                    throw EvaluatorError.invalidArgument(
-                        function: "unquote-splicing",
-                        message: "value must be a list")
-                }
-                result.append(contentsOf: splicedElements)
-            } else {
-                result.append(try syntaxQuoteExpand(element, in: env))
+    /// Binds params to args in the given environment, supporting variadic & rest params.
+    private func bindParams(_ params: [String], to args: [Expr], in env: Environment, name: String) throws {
+        if let ampIdx = params.firstIndex(of: "&") {
+            let fixedParams = Array(params[..<ampIdx])
+            let restParam = params[ampIdx + 1]
+            guard args.count >= fixedParams.count else {
+                throw EvaluatorError.arityMismatch(
+                    name: name, expected: .fixed(fixedParams.count), got: args.count)
+            }
+            for (param, arg) in zip(fixedParams, args) {
+                env.set(param, arg)
+            }
+            env.set(restParam, .list(Array(args.dropFirst(fixedParams.count))))
+        }
+        else {
+            guard args.count == params.count else {
+                throw EvaluatorError.arityMismatch(
+                    name: name, expected: .fixed(params.count), got: args.count)
+            }
+            for (param, arg) in zip(params, args) {
+                env.set(param, arg)
             }
         }
-        return .list(result)
+    }
+
+    /// Recursively expands a syntax-quote template, substituting (unquote ...) and
+    /// splicing (unquote-splicing ...) sub-forms. Auto-gensyms symbols ending in #.
+    private func syntaxQuoteExpand(_ expr: Expr, in env: Environment, gensyms: inout [String: String]) throws -> Expr {
+        switch expr {
+        case .symbol(let name) where name.hasSuffix("#"):
+            let base = String(name.dropLast()) + "__"
+            let generated = gensyms[name] ?? gensym(prefix: base)
+            gensyms[name] = generated
+            return .symbol(generated)
+
+        case .list(let elements):
+            if case .symbol("unquote") = elements.first {
+                return try eval(elements[1], in: env)
+            }
+            var result: [Expr] = []
+            for element in elements {
+                if case .list(let sub) = element,
+                   case .symbol("unquote-splicing") = sub.first {
+                    let spliced = try eval(sub[1], in: env)
+                    guard case .list(let splicedElements) = spliced else {
+                        throw EvaluatorError.invalidArgument(
+                            function: "unquote-splicing",
+                            message: "value must be a list")
+                    }
+                    result.append(contentsOf: splicedElements)
+                }
+                else {
+                    result.append(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
+                }
+            }
+            return .list(result)
+
+        case .vector(let elements):
+            return .vector(try elements.map { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) })
+
+        default:
+            return expr
+        }
     }
 
     /// Recursively checks that every symbol referenced in `exprs` is either in
@@ -268,8 +347,19 @@ public class Evaluator {
                     offset = 2
                 }
                 if elements.count > offset, case .vector(let paramExprs) = elements[offset] {
-                    let innerParams = Set(paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } })
+                    let innerParams = Set(paramExprs.compactMap {
+                        if case .symbol(let s) = $0, s != "&" { return s } else { return nil }
+                    })
                     try checkUndefinedSymbols(in: Array(elements.dropFirst(offset + 1)),
+                                              localBindings: localBindings.union(innerParams), env: env)
+                }
+
+            case .symbol("defmacro"):
+                if elements.count > 2, case .vector(let paramExprs) = elements[2] {
+                    let innerParams = Set(paramExprs.compactMap {
+                        if case .symbol(let s) = $0, s != "&" { return s } else { return nil }
+                    })
+                    try checkUndefinedSymbols(in: Array(elements.dropFirst(3)),
                                               localBindings: localBindings.union(innerParams), env: env)
                 }
 
@@ -317,23 +407,34 @@ public class Evaluator {
     private func checkSyntaxQuoteSymbols(
         in expr: Expr, localBindings: Set<String>, env: Environment
     ) throws {
-        guard case .list(let elements) = expr else { return }
-
-        if case .symbol("unquote") = elements.first {
-            if elements.count > 1 {
-                try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
-            }
-            return
-        }
-
-        for element in elements {
-            if case .list(let sub) = element, case .symbol("unquote-splicing") = sub.first {
-                if sub.count > 1 {
-                    try checkUndefinedSymbols(in: sub[1], localBindings: localBindings, env: env)
+        switch expr {
+        case .list(let elements):
+            if case .symbol("unquote") = elements.first {
+                if elements.count > 1 {
+                    try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
                 }
-            } else {
+                return
+            }
+            for element in elements {
+                if case .list(let sub) = element, case .symbol("unquote-splicing") = sub.first {
+                    if sub.count > 1 {
+                        try checkUndefinedSymbols(in: sub[1], localBindings: localBindings, env: env)
+                    }
+                }
+                else {
+                    try checkSyntaxQuoteSymbols(in: element, localBindings: localBindings, env: env)
+                }
+            }
+
+        case .vector(let elements):
+            for element in elements {
                 try checkSyntaxQuoteSymbols(in: element, localBindings: localBindings, env: env)
             }
+
+        default:
+            break
         }
     }
 }
+
+extension Evaluator: @unchecked Sendable {}

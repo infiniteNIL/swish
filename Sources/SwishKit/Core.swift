@@ -111,6 +111,31 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         return .boolean(!zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
     }
 
+    // MARK: - Macros
+
+    evaluator.register(name: "gensym", arity: .variadic) { [evaluator] args in
+        let prefix: String
+        if let first = args.first, case .string(let p) = first {
+            prefix = p
+        }
+        else {
+            prefix = "G__"
+        }
+        return .symbol(evaluator.gensym(prefix: prefix))
+    }
+
+    evaluator.register(name: "macroexpand-1", arity: .fixed(1)) { [evaluator] args in
+        try evaluator.macroexpand1(args[0]) ?? args[0]
+    }
+
+    evaluator.register(name: "macroexpand", arity: .fixed(1)) { [evaluator] args in
+        var form = args[0]
+        while let expanded = try evaluator.macroexpand1(form) {
+            form = expanded
+        }
+        return form
+    }
+
     // MARK: - I/O
 
     evaluator.register(name: "print", arity: .variadic) { args in

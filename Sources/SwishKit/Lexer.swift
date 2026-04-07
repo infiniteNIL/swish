@@ -914,7 +914,7 @@ public class Lexer {
     private func isSymbolStart(_ char: Character) -> Bool {
         if char.isLetter { return true }
         switch char {
-        case "*", "+", "!", "-", "_", "?", "<", ">", "=":
+        case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&":
             return true
         default:
             return false
@@ -925,6 +925,7 @@ public class Lexer {
         if isSymbolStart(char) { return true }
         if char.isNumber { return true }
         if char == "'" { return true }
+        if char == "#" { return true }
         return false
     }
 

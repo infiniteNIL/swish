@@ -19,6 +19,7 @@ public enum Expr: Sendable {
     case list([Expr])
     case vector([Expr])
     indirect case function(name: String?, params: [String], body: [Expr])
+    indirect case macro(name: String?, params: [String], body: [Expr])
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
 }
 
@@ -38,6 +39,10 @@ extension Expr: Equatable {
         case (.vector(let a), .vector(let b)):             return a == b
         case (.function(let n1, let p1, let b1),
               .function(let n2, let p2, let b2)):          return n1 == n2 && p1 == p2 && b1 == b2
+
+        case (.macro(let n1, let p1, let b1),
+              .macro(let n2, let p2, let b2)):             return n1 == n2 && p1 == p2 && b1 == b2
+
         case (.nativeFunction(let n1, let a1, _),
               .nativeFunction(let n2, let a2, _)):         return n1 == n2 && a1 == a2
         default:                                           return false
@@ -56,6 +61,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidDef(String)
     case invalidLet(String)
     case invalidFn(String)
+    case invalidDefmacro(String)
 
     public var description: String {
         switch self {
@@ -85,6 +91,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .invalidFn(let message):
             message
+
+        case .invalidDefmacro(let message):
+            message
         }
     }
 }
@@ -93,6 +102,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 public class Parser {
     private let lexer: Lexer
     private var currentToken: Token
+    private var syntaxQuoteDepth = 0
 
     public init(_ lexer: Lexer) throws {
         self.lexer = lexer
@@ -210,7 +220,9 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unexpectedEOF
             }
+            syntaxQuoteDepth += 1
             let expr = try parseExpr()
+            syntaxQuoteDepth -= 1
             return .list([.symbol("syntax-quote"), expr])
 
         case .unquote:
@@ -261,6 +273,12 @@ public class Parser {
 
         try advance() // consume ')'
 
+        // Skip special-form validation inside syntax-quote templates — those lists
+        // are data, not code to be immediately evaluated.
+        guard syntaxQuoteDepth == 0 else {
+            return .list(elements)
+        }
+
         // Validate def syntax
         if case .symbol("def") = elements.first {
             guard elements.count == 3 else {
@@ -298,14 +316,38 @@ public class Parser {
             guard elements.count > offset, case .vector(let params) = elements[offset] else {
                 throw ParserError.invalidFn("fn requires a parameter vector")
             }
-            for param in params {
-                guard case .symbol = param else {
-                    throw ParserError.invalidFn("fn parameters must be symbols")
-                }
+            try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
+        }
+
+        // Validate defmacro syntax
+        if case .symbol("defmacro") = elements.first {
+            guard elements.count >= 4 else {
+                throw ParserError.invalidDefmacro(
+                    "defmacro requires a name, parameter vector, and at least one body form")
             }
+            guard case .symbol = elements[1] else {
+                throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
+            }
+            guard case .vector(let params) = elements[2] else {
+                throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
+            }
+            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
         }
 
         return .list(elements)
+    }
+
+    private func validateParamVector(_ params: [Expr], makeError: (String) -> ParserError) throws {
+        for param in params {
+            guard case .symbol = param else {
+                throw makeError("parameters must be symbols")
+            }
+        }
+        if let ampIdx = params.firstIndex(of: .symbol("&")) {
+            guard ampIdx == params.count - 2 else {
+                throw makeError("& must be followed by exactly one symbol")
+            }
+        }
     }
 
     private func parseVector() throws -> Expr {

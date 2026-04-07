@@ -51,6 +51,9 @@ public class Printer {
         case .function(let name, _, _):
             if let name { "#<fn \(name)>" } else { "#<fn>" }
 
+        case .macro(let name, _, _):
+            if let name { "#<macro \(name)>" } else { "#<macro>" }
+
         case .nativeFunction(let name, _, _):
             "#<native-fn \(name)>"
         }

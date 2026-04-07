@@ -1005,4 +1005,93 @@ struct ParserTests {
             ])
         ])])
     }
+
+    // MARK: - defmacro parsing
+
+    @Test("defmacro parses correctly")
+    func defmacroParses() throws {
+        let result = try Reader.readString("(defmacro m [x] x)")
+        #expect(result == [.list([
+            .symbol("defmacro"),
+            .symbol("m"),
+            .vector([.symbol("x")]),
+            .symbol("x")
+        ])])
+    }
+
+    @Test("defmacro with multiple body forms parses correctly")
+    func defmacroMultipleBodyForms() throws {
+        let result = try Reader.readString("(defmacro m [x y] x y)")
+        #expect(result == [.list([
+            .symbol("defmacro"),
+            .symbol("m"),
+            .vector([.symbol("x"), .symbol("y")]),
+            .symbol("x"),
+            .symbol("y")
+        ])])
+    }
+
+    @Test("defmacro requires a symbol name")
+    func defmacroRequiresSymbolName() throws {
+        #expect(throws: ParserError.invalidDefmacro("first argument to defmacro must be a symbol")) {
+            try Reader.readString("(defmacro 42 [x] x)")
+        }
+    }
+
+    @Test("defmacro requires a parameter vector")
+    func defmacroRequiresParamVector() throws {
+        #expect(throws: ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")) {
+            try Reader.readString("(defmacro m x x)")
+        }
+    }
+
+    @Test("defmacro requires at least one body form")
+    func defmacroRequiresBodyForm() throws {
+        #expect(throws: ParserError.invalidDefmacro(
+            "defmacro requires a name, parameter vector, and at least one body form")) {
+            try Reader.readString("(defmacro m [x])")
+        }
+    }
+
+    @Test("defmacro parameters must be symbols")
+    func defmacroParamsMustBeSymbols() throws {
+        #expect(throws: ParserError.invalidDefmacro("defmacro parameters must be symbols")) {
+            try Reader.readString("(defmacro m [42] 42)")
+        }
+    }
+
+    @Test("defmacro with variadic & rest param parses correctly")
+    func defmacroVariadicParses() throws {
+        let result = try Reader.readString("(defmacro m [x & rest] rest)")
+        #expect(result == [.list([
+            .symbol("defmacro"),
+            .symbol("m"),
+            .vector([.symbol("x"), .symbol("&"), .symbol("rest")]),
+            .symbol("rest")
+        ])])
+    }
+
+    @Test("fn with & rest param parses correctly")
+    func fnVariadicParses() throws {
+        let result = try Reader.readString("(fn [x & rest] rest)")
+        #expect(result == [.list([
+            .symbol("fn"),
+            .vector([.symbol("x"), .symbol("&"), .symbol("rest")]),
+            .symbol("rest")
+        ])])
+    }
+
+    @Test("fn & with nothing after it throws invalidFn")
+    func fnAmpersandAloneThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one symbol")) {
+            try Reader.readString("(fn [x &] x)")
+        }
+    }
+
+    @Test("fn & with more than one symbol after it throws invalidFn")
+    func fnAmpersandTooManyThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one symbol")) {
+            try Reader.readString("(fn [x & a b] x)")
+        }
+    }
 }
