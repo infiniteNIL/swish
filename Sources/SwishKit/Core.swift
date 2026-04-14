@@ -11,126 +11,151 @@ func registerCoreFunctions(into evaluator: Evaluator) {
 // MARK: - Arithmetic
 
 private func registerArithmetic(into evaluator: Evaluator) {
-    evaluator.register(name: "+", arity: .variadic) { args in
-        if args.isEmpty { return .integer(0) }
-        if args.count == 1 { return try assertSingleNumeric(args[0], function: "+") }
-        return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
-    }
+    evaluator.register(name: "+", arity: .variadic, body: coreAdd)
+    evaluator.register(name: "-", arity: .variadic, body: coreSubtract)
+    evaluator.register(name: "*", arity: .variadic, body: coreMultiply)
+    evaluator.register(name: "/", arity: .variadic, body: coreDivide)
+}
 
-    evaluator.register(name: "-", arity: .variadic) { args in
-        if args.isEmpty {
-            throw EvaluatorError.invalidArgument(function: "-", message: "requires at least 1 argument")
-        }
-        if args.count == 1 {
-            switch args[0] {
-            case .integer(let x):  return .integer(-x)
-            case .float(let x):    return .float(-x)
-            case .ratio(let x):    return .ratio(Ratio(-x.numerator, x.denominator))
-            default:
-                throw EvaluatorError.invalidArgument(
-                    function: "-", message: "expected a number, got \(printer.printString(args[0]))")
-            }
-        }
-        return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
-    }
+private func coreAdd(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty { return .integer(0) }
+    if args.count == 1 { return try assertSingleNumeric(args[0], function: "+") }
+    return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
+}
 
-    evaluator.register(name: "*", arity: .variadic) { args in
-        if args.isEmpty { return .integer(1) }
-        if args.count == 1 { return try assertSingleNumeric(args[0], function: "*") }
-        return try args.dropFirst().reduce(args[0]) { try numericMultiply($0, $1) }
+private func coreSubtract(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty {
+        throw EvaluatorError.invalidArgument(function: "-", message: "requires at least 1 argument")
     }
+    if args.count == 1 {
+        switch args[0] {
+        case .integer(let x):  return .integer(-x)
+        case .float(let x):    return .float(-x)
+        case .ratio(let x):    return .ratio(Ratio(-x.numerator, x.denominator))
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "-", message: "expected a number, got \(printer.printString(args[0]))")
+        }
+    }
+    return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
+}
 
-    evaluator.register(name: "/", arity: .variadic) { args in
-        if args.isEmpty {
-            throw EvaluatorError.invalidArgument(function: "/", message: "requires at least 1 argument")
-        }
-        if args.count == 1 {
-            switch args[0] {
-            case .integer(let x):
-                if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-                let r = Ratio(1, x)
-                return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-            case .float(let x):
-                return .float(1.0 / x)
-            case .ratio(let x):
-                if x.numerator == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-                let r = Ratio(x.denominator, x.numerator)
-                return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-            default:
-                throw EvaluatorError.invalidArgument(
-                    function: "/", message: "expected a number, got \(printer.printString(args[0]))")
-            }
-        }
-        return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
+private func coreMultiply(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty { return .integer(1) }
+    if args.count == 1 { return try assertSingleNumeric(args[0], function: "*") }
+    return try args.dropFirst().reduce(args[0]) { try numericMultiply($0, $1) }
+}
+
+private func coreDivide(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty {
+        throw EvaluatorError.invalidArgument(function: "/", message: "requires at least 1 argument")
     }
+    if args.count == 1 {
+        switch args[0] {
+        case .integer(let x):
+            if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            let r = Ratio(1, x)
+            return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+        case .float(let x):
+            return .float(1.0 / x)
+        case .ratio(let x):
+            if x.numerator == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            let r = Ratio(x.denominator, x.numerator)
+            return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "/", message: "expected a number, got \(printer.printString(args[0]))")
+        }
+    }
+    return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
 }
 
 // MARK: - Comparison
 
 private func registerComparison(into evaluator: Evaluator) {
-    // (name, swap a/b, negate result)
-    for (name, swap, negate) in [("<", false, false), (">", true, false), ("<=", true, true), (">=", false, true)] {
-        evaluator.register(name: name, arity: .atLeastOne) { args in
-            if args.count == 1 { return .boolean(true) }
-            return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
-                let result = try numericLessThan(swap ? b : a, swap ? a : b, function: name)
-                return negate ? !result : result
-            })
-        }
-    }
+    evaluator.register(name: "<",    arity: .atLeastOne, body: coreLessThan)
+    evaluator.register(name: ">",    arity: .atLeastOne, body: coreGreaterThan)
+    evaluator.register(name: "<=",   arity: .atLeastOne, body: coreLessOrEqual)
+    evaluator.register(name: ">=",   arity: .atLeastOne, body: coreGreaterOrEqual)
+    evaluator.register(name: "=",    arity: .atLeastOne, body: coreEqual)
+    evaluator.register(name: "not=", arity: .atLeastOne, body: coreNotEqual)
+}
 
-    evaluator.register(name: "=", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(true) }
-        return .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
-    }
+private func coreLessThan(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(true) }
+    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try numericLessThan($0, $1, function: "<") })
+}
 
-    evaluator.register(name: "not=", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(false) }
-        return .boolean(!zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
-    }
+private func coreGreaterThan(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(true) }
+    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try numericLessThan($1, $0, function: ">") })
+}
+
+private func coreLessOrEqual(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(true) }
+    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try !numericLessThan($1, $0, function: "<=") })
+}
+
+private func coreGreaterOrEqual(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(true) }
+    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try !numericLessThan($0, $1, function: ">=") })
+}
+
+private func coreEqual(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(true) }
+    return .boolean(zip(args, args.dropFirst()).allSatisfy { $0 == $1 })
+}
+
+private func coreNotEqual(_ args: [Expr]) throws -> Expr {
+    if args.count == 1 { return .boolean(false) }
+    return .boolean(!zip(args, args.dropFirst()).allSatisfy { $0 == $1 })
 }
 
 // MARK: - Macros
 
 private func registerMacros(into evaluator: Evaluator) {
-    evaluator.register(name: "gensym", arity: .variadic) { [evaluator] args in
-        let prefix: String
-        if let first = args.first, case .string(let p) = first {
-            prefix = p
-        }
-        else {
-            prefix = "G__"
-        }
-        return .symbol(evaluator.gensym(prefix: prefix))
-    }
+    evaluator.register(name: "gensym",        arity: .variadic) { [evaluator] args in try coreGensym(evaluator, args) }
+    evaluator.register(name: "macroexpand-1", arity: .fixed(1)) { [evaluator] args in try coreMacroexpand1(evaluator, args) }
+    evaluator.register(name: "macroexpand",   arity: .fixed(1)) { [evaluator] args in try coreMacroexpand(evaluator, args) }
+}
 
-    evaluator.register(name: "macroexpand-1", arity: .fixed(1)) { [evaluator] args in
-        try evaluator.macroexpand1(args[0]) ?? args[0]
+private func coreGensym(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let prefix: String
+    if let first = args.first, case .string(let p) = first {
+        prefix = p
+    } else {
+        prefix = "G__"
     }
+    return .symbol(evaluator.gensym(prefix: prefix))
+}
 
-    evaluator.register(name: "macroexpand", arity: .fixed(1)) { [evaluator] args in
-        var form = args[0]
-        while let expanded = try evaluator.macroexpand1(form) {
-            form = expanded
-        }
-        return form
+private func coreMacroexpand1(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    try evaluator.macroexpand1(args[0]) ?? args[0]
+}
+
+private func coreMacroexpand(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    var form = args[0]
+    while let expanded = try evaluator.macroexpand1(form) {
+        form = expanded
     }
+    return form
 }
 
 // MARK: - I/O
 
 private func registerIO(into evaluator: Evaluator) {
-    evaluator.register(name: "print", arity: .variadic) { args in
-        let output = args.map { printer.strString($0) }.joined(separator: " ")
-        Swift.print(output, terminator: "")
-        return .nil
-    }
+    evaluator.register(name: "print",   arity: .variadic, body: corePrint)
+    evaluator.register(name: "println", arity: .variadic, body: corePrintln)
+}
 
-    evaluator.register(name: "println", arity: .variadic) { args in
-        let output = args.map { printer.strString($0) }.joined(separator: " ")
-        Swift.print(output)
-        return .nil
-    }
+private func corePrint(_ args: [Expr]) throws -> Expr {
+    Swift.print(args.map { printer.strString($0) }.joined(separator: " "), terminator: "")
+    return .nil
+}
+
+private func corePrintln(_ args: [Expr]) throws -> Expr {
+    Swift.print(args.map { printer.strString($0) }.joined(separator: " "))
+    return .nil
 }
 
 // MARK: - Numeric coercion
