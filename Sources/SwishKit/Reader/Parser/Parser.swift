@@ -20,143 +20,121 @@ public class Parser {
 
     private func parseExpr() throws -> Expr {
         switch currentToken.type {
-        case .integer:
-            let text = currentToken.text
-            let value: Int
-
-            if let binaryValue = parseBinaryInteger(text) {
-                value = binaryValue
-            }
-            else if let hexValue = parseHexInteger(text) {
-                value = hexValue
-            }
-            else if let octalValue = parseOctalInteger(text) {
-                value = octalValue
-            }
-            else if let decValue = Int(text) {
-                value = decValue
-            }
-            else {
-                throw ParserError.integerOverflow(text)
-            }
-
-            let expr = Expr.integer(value)
-            try advance()
-            return expr
-
-        case .float:
-            let text = currentToken.text
-            guard let value = Double(text) else {
-                throw ParserError.invalidFloat(text)
-            }
-            let expr = Expr.float(value)
-            try advance()
-            return expr
-
-        case .ratio:
-            let text = currentToken.text
-            let parts = text.split(separator: "/", maxSplits: 1)
-            guard parts.count == 2,
-                  let numerator = Int(parts[0]),
-                  let denominator = Int(parts[1]) else {
-                throw ParserError.integerOverflow(text)
-            }
-
-            // Zero numerator returns integer 0
-            if numerator == 0 {
-                try advance()
-                return .integer(0)
-            }
-
-            let ratio = Ratio(numerator, denominator)
-
-            // If reduced denominator is 1, return integer
-            if ratio.denominator == 1 {
-                try advance()
-                return .integer(ratio.numerator)
-            }
-
-            try advance()
-            return .ratio(ratio)
-
-        case .string:
-            let value = currentToken.text
-            try advance()
-            return .string(value)
-
-        case .character:
-            let char = currentToken.text.first!
-            try advance()
-            return .character(char)
-
-        case .boolean:
-            let value = currentToken.text == "true"
-            try advance()
-            return .boolean(value)
-
-        case .nil:
-            try advance()
-            return .nil
-
-        case .symbol:
-            let name = currentToken.text
-            try advance()
-            return .symbol(name)
-
-        case .keyword:
-            let name = currentToken.text
-            try advance()
-            return .keyword(name)
-
-        case .quote:
-            try advance() // consume quote token
-            if currentToken.type == .eof {
-                throw ParserError.unexpectedEOF
-            }
-            let expr = try parseExpr()
-            return .list([.symbol("quote"), expr])
-
-        case .backtick:
-            try advance() // consume backtick token
-            if currentToken.type == .eof {
-                throw ParserError.unexpectedEOF
-            }
-            syntaxQuoteDepth += 1
-            let expr = try parseExpr()
-            syntaxQuoteDepth -= 1
-            return .list([.symbol("syntax-quote"), expr])
-
-        case .unquote:
-            try advance() // consume unquote token
-            if currentToken.type == .eof {
-                throw ParserError.unexpectedEOF
-            }
-            let expr = try parseExpr()
-            return .list([.symbol("unquote"), expr])
-
-        case .unquoteSplicing:
-            try advance() // consume unquote-splicing token
-            if currentToken.type == .eof {
-                throw ParserError.unexpectedEOF
-            }
-            let expr = try parseExpr()
-            return .list([.symbol("unquote-splicing"), expr])
-
-        case .leftParen:
-            return try parseList()
-
-        case .rightParen:
+        case .integer:        return try parseInteger()
+        case .float:          return try parseFloat()
+        case .ratio:          return try parseRatio()
+        case .string:         return try parseString()
+        case .character:      return try parseCharacter()
+        case .boolean:        return try parseBoolean()
+        case .nil:            return try parseNil()
+        case .symbol:         return try parseSymbol()
+        case .keyword:        return try parseKeyword()
+        case .quote:          return try parseQuote()
+        case .backtick:       return try parseBacktick()
+        case .unquote:        return try parseUnquote()
+        case .unquoteSplicing: return try parseUnquoteSplicing()
+        case .leftParen:      return try parseList()
+        case .leftBracket:    return try parseVector()
+        case .rightParen, .rightBracket:
             throw ParserError.unexpectedToken(currentToken)
-
-        case .leftBracket:
-            return try parseVector()
-
-        case .rightBracket:
-            throw ParserError.unexpectedToken(currentToken)
-
         case .eof:
             throw ParserError.unexpectedEOF
         }
+    }
+
+    private func parseInteger() throws -> Expr {
+        let text = currentToken.text
+        let value: Int
+        if let v = parseBinaryInteger(text)      { value = v }
+        else if let v = parseHexInteger(text)    { value = v }
+        else if let v = parseOctalInteger(text)  { value = v }
+        else if let v = Int(text)                { value = v }
+        else { throw ParserError.integerOverflow(text) }
+        try advance()
+        return .integer(value)
+    }
+
+    private func parseFloat() throws -> Expr {
+        let text = currentToken.text
+        guard let value = Double(text) else { throw ParserError.invalidFloat(text) }
+        try advance()
+        return .float(value)
+    }
+
+    private func parseRatio() throws -> Expr {
+        let text = currentToken.text
+        let parts = text.split(separator: "/", maxSplits: 1)
+        guard parts.count == 2,
+              let numerator = Int(parts[0]),
+              let denominator = Int(parts[1]) else {
+            throw ParserError.integerOverflow(text)
+        }
+        try advance()
+        if numerator == 0 { return .integer(0) }
+        let ratio = Ratio(numerator, denominator)
+        return ratio.denominator == 1 ? .integer(ratio.numerator) : .ratio(ratio)
+    }
+
+    private func parseString() throws -> Expr {
+        let value = currentToken.text
+        try advance()
+        return .string(value)
+    }
+
+    private func parseCharacter() throws -> Expr {
+        let char = currentToken.text.first!
+        try advance()
+        return .character(char)
+    }
+
+    private func parseBoolean() throws -> Expr {
+        let value = currentToken.text == "true"
+        try advance()
+        return .boolean(value)
+    }
+
+    private func parseNil() throws -> Expr {
+        try advance()
+        return .nil
+    }
+
+    private func parseSymbol() throws -> Expr {
+        let name = currentToken.text
+        try advance()
+        return .symbol(name)
+    }
+
+    private func parseKeyword() throws -> Expr {
+        let name = currentToken.text
+        try advance()
+        return .keyword(name)
+    }
+
+    private func parseQuote() throws -> Expr {
+        try advance()
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        return .list([.symbol("quote"), try parseExpr()])
+    }
+
+    private func parseBacktick() throws -> Expr {
+        try advance()
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        syntaxQuoteDepth += 1
+        let expr = try parseExpr()
+        syntaxQuoteDepth -= 1
+        return .list([.symbol("syntax-quote"), expr])
+    }
+
+    private func parseUnquote() throws -> Expr {
+        try advance()
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        return .list([.symbol("unquote"), try parseExpr()])
+    }
+
+    private func parseUnquoteSplicing() throws -> Expr {
+        try advance()
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        return .list([.symbol("unquote-splicing"), try parseExpr()])
     }
 
     private func parseList() throws -> Expr {
