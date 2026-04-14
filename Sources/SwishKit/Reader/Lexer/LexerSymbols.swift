@@ -78,38 +78,11 @@ extension Lexer {
     }
 
     func scanSymbol(startLine: Int, startColumn: Int) -> Token {
-        var text = ""
-        var hasSlash = false
-
-        while let char = peek() {
-            if isSymbolContinuation(char) {
-                text.append(advance())
-            }
-            else if char == "." {
-                if text.isEmpty { break }
-                if let next = peekAt(1), isSymbolContinuation(next) {
-                    text.append(advance())
-                }
-                else { break }
-            }
-            else if char == "/" {
-                if hasSlash || text.isEmpty { break }
-                if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
-                    text.append(advance())
-                    hasSlash = true
-                }
-                else { break }
-            }
-            else { break }
-        }
-
+        let text = scanQualifiedName()
         switch text {
-        case "true", "false":
-            return Token(type: .boolean, text: text, line: startLine, column: startColumn)
-        case "nil":
-            return Token(type: .nil, text: text, line: startLine, column: startColumn)
-        default:
-            return Token(type: .symbol, text: text, line: startLine, column: startColumn)
+        case "true", "false": return Token(type: .boolean, text: text, line: startLine, column: startColumn)
+        case "nil":           return Token(type: .nil,     text: text, line: startLine, column: startColumn)
+        default:              return Token(type: .symbol,  text: text, line: startLine, column: startColumn)
         }
     }
 
@@ -134,31 +107,27 @@ extension Lexer {
             throw LexerError.invalidKeyword("invalid character '\(char)' after ':'", line: startLine, column: startColumn)
         }
 
+        let text = scanQualifiedName()
+        return Token(type: .keyword, text: text, line: startLine, column: startColumn)
+    }
+
+    private func scanQualifiedName() -> String {
         var text = ""
         var hasSlash = false
-
-        while let c = peek() {
-            if isSymbolContinuation(c) {
+        while let char = peek() {
+            if isSymbolContinuation(char) {
                 text.append(advance())
-            }
-            else if c == "." {
+            } else if char == "." {
                 if text.isEmpty { break }
-                if let next = peekAt(1), isSymbolContinuation(next) {
-                    text.append(advance())
-                }
+                if let next = peekAt(1), isSymbolContinuation(next) { text.append(advance()) }
                 else { break }
-            }
-            else if c == "/" {
+            } else if char == "/" {
                 if hasSlash || text.isEmpty { break }
                 if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
-                    text.append(advance())
-                    hasSlash = true
-                }
-                else { break }
-            }
-            else { break }
+                    text.append(advance()); hasSlash = true
+                } else { break }
+            } else { break }
         }
-
-        return Token(type: .keyword, text: text, line: startLine, column: startColumn)
+        return text
     }
 }
