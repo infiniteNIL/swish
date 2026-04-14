@@ -107,3 +107,5 @@ public class Printer {
         return result
     }
 }
+
+extension Printer: @unchecked Sendable {}

@@ -1,18 +1,12 @@
+private let printer = Printer()
+
 /// Registers all built-in functions into the evaluator's core environment.
 func registerCoreFunctions(into evaluator: Evaluator) {
     // MARK: - Arithmetic
 
     evaluator.register(name: "+", arity: .variadic) { args in
         if args.isEmpty { return .integer(0) }
-        if args.count == 1 {
-            switch args[0] {
-            case .integer, .float, .ratio:
-                return args[0]
-            default:
-                throw EvaluatorError.invalidArgument(
-                    function: "+", message: "expected a number, got \(Printer().printString(args[0]))")
-            }
-        }
+        if args.count == 1 { return try assertSingleNumeric(args[0], function: "+") }
         return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
     }
 
@@ -27,7 +21,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
             case .ratio(let x):    return .ratio(Ratio(-x.numerator, x.denominator))
             default:
                 throw EvaluatorError.invalidArgument(
-                    function: "-", message: "expected a number, got \(Printer().printString(args[0]))")
+                    function: "-", message: "expected a number, got \(printer.printString(args[0]))")
             }
         }
         return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
@@ -35,15 +29,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
 
     evaluator.register(name: "*", arity: .variadic) { args in
         if args.isEmpty { return .integer(1) }
-        if args.count == 1 {
-            switch args[0] {
-            case .integer, .float, .ratio:
-                return args[0]
-            default:
-                throw EvaluatorError.invalidArgument(
-                    function: "*", message: "expected a number, got \(Printer().printString(args[0]))")
-            }
-        }
+        if args.count == 1 { return try assertSingleNumeric(args[0], function: "*") }
         return try args.dropFirst().reduce(args[0]) { try numericMultiply($0, $1) }
     }
 
@@ -65,7 +51,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
                 return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
             default:
                 throw EvaluatorError.invalidArgument(
-                    function: "/", message: "expected a number, got \(Printer().printString(args[0]))")
+                    function: "/", message: "expected a number, got \(printer.printString(args[0]))")
             }
         }
         return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
@@ -73,32 +59,15 @@ func registerCoreFunctions(into evaluator: Evaluator) {
 
     // MARK: - Comparison
 
-    evaluator.register(name: "<", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(true) }
-        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
-            try numericLessThan(a, b, function: "<")
-        })
-    }
-
-    evaluator.register(name: ">", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(true) }
-        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
-            try numericLessThan(b, a, function: ">")
-        })
-    }
-
-    evaluator.register(name: "<=", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(true) }
-        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
-            try !numericLessThan(b, a, function: "<=")
-        })
-    }
-
-    evaluator.register(name: ">=", arity: .atLeastOne) { args in
-        if args.count == 1 { return .boolean(true) }
-        return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
-            try !numericLessThan(a, b, function: ">=")
-        })
+    // (name, swap a/b, negate result)
+    for (name, swap, negate) in [("<", false, false), (">", true, false), ("<=", true, true), (">=", false, true)] {
+        evaluator.register(name: name, arity: .atLeastOne) { args in
+            if args.count == 1 { return .boolean(true) }
+            return try .boolean(zip(args, args.dropFirst()).allSatisfy { a, b in
+                let result = try numericLessThan(swap ? b : a, swap ? a : b, function: name)
+                return negate ? !result : result
+            })
+        }
     }
 
     evaluator.register(name: "=", arity: .atLeastOne) { args in
@@ -139,13 +108,13 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     // MARK: - I/O
 
     evaluator.register(name: "print", arity: .variadic) { args in
-        let output = args.map { Printer().strString($0) }.joined(separator: " ")
+        let output = args.map { printer.strString($0) }.joined(separator: " ")
         Swift.print(output, terminator: "")
         return .nil
     }
 
     evaluator.register(name: "println", arity: .variadic) { args in
-        let output = args.map { Printer().strString($0) }.joined(separator: " ")
+        let output = args.map { printer.strString($0) }.joined(separator: " ")
         Swift.print(output)
         return .nil
     }
@@ -173,12 +142,23 @@ private func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws ->
     default:
         throw EvaluatorError.invalidArgument(
             function: function,
-            message: "expected numbers, got \(Printer().printString(a)) and \(Printer().printString(b))")
+            message: "expected numbers, got \(printer.printString(a)) and \(printer.printString(b))")
     }
 }
 
 private func ratioExpr(_ r: Ratio) -> Expr {
     r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+}
+
+// MARK: - Validation helpers
+
+private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
+    switch arg {
+    case .integer, .float, .ratio: return arg
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: function, message: "expected a number, got \(printer.printString(arg))")
+    }
 }
 
 // MARK: - Comparison helpers
