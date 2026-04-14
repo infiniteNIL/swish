@@ -50,53 +50,15 @@ public class Lexer {
             return Token(type: .eof, text: "", line: startLine, column: startColumn)
         }
 
-        // Unsigned binary: 0b...
-        if char == "0", let next = peekAt(1), next == "b" {
-            return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: "")
-        }
-
-        // Unsigned octal: 0o...
-        if char == "0", let next = peekAt(1), next == "o" {
-            return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: "")
-        }
-
-        // Unsigned hex: 0x...
-        if char == "0", let next = peekAt(1), next == "x" {
-            return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: "")
-        }
-
         if char.isNumber {
-            return try scanDecimalNumber(startLine: startLine, startColumn: startColumn)
+            return try scanNumber(startLine: startLine, startColumn: startColumn)
         }
 
         if char == "+" || char == "-" {
-            // Check if followed by digit or 0 (for number bases) - if so, it's a number
-            if let next = peekAt(1) {
-                if next.isNumber {
-                    let signChar = advance()
-
-                    // Check for binary: sign followed by 0b
-                    if let n = peek(), n == "0",
-                       let afterZero = peekAt(1), afterZero == "b" {
-                        return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-                    }
-
-                    // Check for octal: sign followed by 0o
-                    if let n = peek(), n == "0",
-                       let afterZero = peekAt(1), afterZero == "o" {
-                        return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-                    }
-
-                    // Check for hex: sign followed by 0x
-                    if let n = peek(), n == "0",
-                       let afterZero = peekAt(1), afterZero == "x" {
-                        return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-                    }
-
-                    return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: String(signChar))
-                }
+            if let next = peekAt(1), next.isNumber {
+                let sign = String(advance())
+                return try scanNumber(startLine: startLine, startColumn: startColumn, prefix: sign)
             }
-            // Otherwise +/- starts a symbol
             return scanSymbol(startLine: startLine, startColumn: startColumn)
         }
 
@@ -106,55 +68,22 @@ public class Lexer {
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
-        if char == "\"" {
-            return try scanString(startLine: startLine, startColumn: startColumn)
-        }
+        if char == "\"" { return try scanString(startLine: startLine, startColumn: startColumn) }
+        if char == "\\" { return try scanCharacter(startLine: startLine, startColumn: startColumn) }
+        if char == ":"  { return try scanKeyword(startLine: startLine, startColumn: startColumn) }
 
-        if char == "\\" {
-            return try scanCharacter(startLine: startLine, startColumn: startColumn)
-        }
-
-        if char == ":" {
-            return try scanKeyword(startLine: startLine, startColumn: startColumn)
-        }
-
-        if char == "(" {
+        switch char {
+        case "(": _ = advance(); return Token(type: .leftParen,        text: "(",  line: startLine, column: startColumn)
+        case ")": _ = advance(); return Token(type: .rightParen,       text: ")",  line: startLine, column: startColumn)
+        case "[": _ = advance(); return Token(type: .leftBracket,      text: "[",  line: startLine, column: startColumn)
+        case "]": _ = advance(); return Token(type: .rightBracket,     text: "]",  line: startLine, column: startColumn)
+        case "'": _ = advance(); return Token(type: .quote,            text: "'",  line: startLine, column: startColumn)
+        case "`": _ = advance(); return Token(type: .backtick,         text: "`",  line: startLine, column: startColumn)
+        case "~":
             _ = advance()
-            return Token(type: .leftParen, text: "(", line: startLine, column: startColumn)
-        }
-
-        if char == ")" {
-            _ = advance()
-            return Token(type: .rightParen, text: ")", line: startLine, column: startColumn)
-        }
-
-        if char == "[" {
-            _ = advance()
-            return Token(type: .leftBracket, text: "[", line: startLine, column: startColumn)
-        }
-
-        if char == "]" {
-            _ = advance()
-            return Token(type: .rightBracket, text: "]", line: startLine, column: startColumn)
-        }
-
-        if char == "'" {
-            _ = advance()
-            return Token(type: .quote, text: "'", line: startLine, column: startColumn)
-        }
-
-        if char == "`" {
-            _ = advance()
-            return Token(type: .backtick, text: "`", line: startLine, column: startColumn)
-        }
-
-        if char == "~" {
-            _ = advance()
-            if peek() == "@" {
-                _ = advance()
-                return Token(type: .unquoteSplicing, text: "~@", line: startLine, column: startColumn)
-            }
+            if peek() == "@" { _ = advance(); return Token(type: .unquoteSplicing, text: "~@", line: startLine, column: startColumn) }
             return Token(type: .unquote, text: "~", line: startLine, column: startColumn)
+        default: break
         }
 
         if isSymbolStart(char) {
@@ -162,6 +91,18 @@ public class Lexer {
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)
+    }
+
+    private func scanNumber(startLine: Int, startColumn: Int, prefix: String = "") throws -> Token {
+        if peek() == "0", let next = peekAt(1) {
+            switch next {
+            case "b": return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+            case "o": return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+            case "x": return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+            default: break
+            }
+        }
+        return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: prefix)
     }
 
     // MARK: - Cursor helpers
