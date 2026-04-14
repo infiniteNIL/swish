@@ -166,32 +166,9 @@ extension Lexer {
             case "r":  result.append("\r")
             case "0":  result.append("\0")
             case "u":
-                let afterU = input.index(after: nextIndex)
-                guard afterU < input.endIndex, input[afterU] == "{" else {
-                    throw LexerError.invalidUnicodeEscape("expected '{'", line: startLine, column: startColumn)
-                }
-                var hexDigits = ""
-                var hexIndex = input.index(after: afterU)
-                while hexIndex < input.endIndex && input[hexIndex] != "}" {
-                    let hexChar = input[hexIndex]
-                    guard hexChar.isHexDigit else {
-                        throw LexerError.invalidUnicodeEscape("invalid hex digit", line: startLine, column: startColumn)
-                    }
-                    hexDigits.append(hexChar)
-                    hexIndex = input.index(after: hexIndex)
-                }
-                guard hexIndex < input.endIndex else {
-                    throw LexerError.unterminatedString(line: startLine, column: startColumn)
-                }
-                guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
-                    throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: startLine, column: startColumn)
-                }
-                guard let codePoint = UInt32(hexDigits, radix: 16),
-                      let scalar = Unicode.Scalar(codePoint) else {
-                    throw LexerError.invalidUnicodeEscape("invalid code point", line: startLine, column: startColumn)
-                }
-                result.append(Character(scalar))
-                i = input.index(after: hexIndex)  // advance past '}'
+                let (char, nextI) = try processUnicodeEscape(in: input, from: nextIndex, startLine: startLine, startColumn: startColumn)
+                result.append(char)
+                i = nextI
                 continue
             default:
                 throw LexerError.invalidEscapeSequence(char: nextChar, line: startLine, column: startColumn)
@@ -201,5 +178,34 @@ extension Lexer {
         }
 
         return result
+    }
+
+    /// Parses `\u{XXXX}` starting with the index of `u`, returns the character and the index after `}`.
+    private func processUnicodeEscape(in input: String, from uIndex: String.Index, startLine: Int, startColumn: Int) throws -> (Character, String.Index) {
+        let afterU = input.index(after: uIndex)
+        guard afterU < input.endIndex, input[afterU] == "{" else {
+            throw LexerError.invalidUnicodeEscape("expected '{'", line: startLine, column: startColumn)
+        }
+        var hexDigits = ""
+        var hexIndex = input.index(after: afterU)
+        while hexIndex < input.endIndex && input[hexIndex] != "}" {
+            let hexChar = input[hexIndex]
+            guard hexChar.isHexDigit else {
+                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: startLine, column: startColumn)
+            }
+            hexDigits.append(hexChar)
+            hexIndex = input.index(after: hexIndex)
+        }
+        guard hexIndex < input.endIndex else {
+            throw LexerError.unterminatedString(line: startLine, column: startColumn)
+        }
+        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
+            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: startLine, column: startColumn)
+        }
+        guard let codePoint = UInt32(hexDigits, radix: 16),
+              let scalar = Unicode.Scalar(codePoint) else {
+            throw LexerError.invalidUnicodeEscape("invalid code point", line: startLine, column: startColumn)
+        }
+        return (Character(scalar), input.index(after: hexIndex))
     }
 }
