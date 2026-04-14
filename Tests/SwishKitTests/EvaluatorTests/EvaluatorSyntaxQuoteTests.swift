@@ -155,10 +155,10 @@ struct EvaluatorSyntaxQuoteTests {
         }
     }
 
-    @Test("fn body with syntax-quote and unquote rejects undefined symbols")
-    func fnBodySyntaxQuoteUnquoteRejectsUndefined() throws {
-        // (fn [] (syntax-quote (1 (unquote y) 3))) — y is not defined
-        #expect(throws: EvaluatorError.undefinedSymbol("y")) {
+    @Test("fn body with syntax-quote and unquote succeeds at definition time")
+    func fnBodySyntaxQuoteUnquoteDefinitionSucceeds() throws {
+        // (fn [] (syntax-quote (1 (unquote y) 3))) — y is not defined, but that's ok at definition time
+        #expect(throws: Never.self) {
             try evaluator.eval(.list([
                 .symbol("fn"),
                 .vector([]),
@@ -171,6 +171,25 @@ struct EvaluatorSyntaxQuoteTests {
                     ])
                 ])
             ]))
+        }
+    }
+
+    @Test("fn body with syntax-quote and unquote throws undefinedSymbol at call time")
+    func fnBodySyntaxQuoteUnquoteCallTimeThrows() throws {
+        let fn = try evaluator.eval(.list([
+            .symbol("fn"),
+            .vector([]),
+            .list([
+                .symbol("syntax-quote"),
+                .list([
+                    .integer(1),
+                    .list([.symbol("unquote"), .symbol("y")]),
+                    .integer(3)
+                ])
+            ])
+        ]))
+        #expect(throws: EvaluatorError.undefinedSymbol("y")) {
+            try evaluator.eval(.list([fn]))
         }
     }
 
@@ -193,10 +212,10 @@ struct EvaluatorSyntaxQuoteTests {
         }
     }
 
-    @Test("fn body with syntax-quote and unquote-splicing rejects undefined symbols")
-    func fnBodySyntaxQuoteUnquoteSplicingRejectsUndefined() throws {
-        // (fn [] (syntax-quote (1 (unquote-splicing zs) 3))) — zs is not defined
-        #expect(throws: EvaluatorError.undefinedSymbol("zs")) {
+    @Test("fn body with syntax-quote and unquote-splicing succeeds at definition time")
+    func fnBodySyntaxQuoteUnquoteSplicingDefinitionSucceeds() throws {
+        // (fn [] (syntax-quote (1 (unquote-splicing zs) 3))) — zs is not defined, but that's ok at definition time
+        #expect(throws: Never.self) {
             try evaluator.eval(.list([
                 .symbol("fn"),
                 .vector([]),
@@ -209,6 +228,25 @@ struct EvaluatorSyntaxQuoteTests {
                     ])
                 ])
             ]))
+        }
+    }
+
+    @Test("fn body with syntax-quote and unquote-splicing throws undefinedSymbol at call time")
+    func fnBodySyntaxQuoteUnquoteSplicingCallTimeThrows() throws {
+        let fn = try evaluator.eval(.list([
+            .symbol("fn"),
+            .vector([]),
+            .list([
+                .symbol("syntax-quote"),
+                .list([
+                    .integer(1),
+                    .list([.symbol("unquote-splicing"), .symbol("zs")]),
+                    .integer(3)
+                ])
+            ])
+        ]))
+        #expect(throws: EvaluatorError.undefinedSymbol("zs")) {
+            try evaluator.eval(.list([fn]))
         }
     }
 

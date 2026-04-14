@@ -119,8 +119,6 @@ public class Evaluator {
         }
         let params = extractParamNames(paramExprs)
         let body = Array(elements.dropFirst(offset + 1))
-        let paramNames = Set(params.filter { $0 != "&" })
-        try checkUndefinedSymbols(in: body, localBindings: paramNames, env: env)
         return .function(name: name, params: params, body: body)
     }
 
@@ -273,115 +271,6 @@ public class Evaluator {
 
     private func extractParamNames(_ exprs: [Expr]) -> [String] {
         exprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
-    }
-
-    /// Recursively checks that every symbol referenced in `exprs` is either in
-    /// `localBindings` or resolvable in `env`. Understands special forms so that
-    /// binding targets (fn params, let names, def name) are not treated as lookups.
-    private func checkUndefinedSymbols(in exprs: [Expr], localBindings: Set<String>, env: Environment) throws {
-        for expr in exprs {
-            try checkUndefinedSymbols(in: expr, localBindings: localBindings, env: env)
-        }
-    }
-
-    private func checkUndefinedSymbols(in expr: Expr, localBindings: Set<String>, env: Environment, inSyntaxQuote: Bool = false) throws {
-        switch expr {
-        case .symbol(let name):
-            if inSyntaxQuote { return }  // symbols in syntax-quote templates are data, not lookups
-            guard localBindings.contains(name) || env.get(name) != nil else {
-                throw EvaluatorError.undefinedSymbol(name)
-            }
-
-        case .list(let elements) where !elements.isEmpty:
-            if inSyntaxQuote {
-                // Inside a syntax-quote template, only check inside unquote/unquote-splicing
-                switch elements.first {
-                case .symbol("unquote"):
-                    if elements.count > 1 {
-                        try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
-                    }
-                default:
-                    for element in elements {
-                        if case .list(let sub) = element, case .symbol("unquote-splicing") = sub.first {
-                            if sub.count > 1 {
-                                try checkUndefinedSymbols(in: sub[1], localBindings: localBindings, env: env)
-                            }
-                        } else {
-                            try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env, inSyntaxQuote: true)
-                        }
-                    }
-                }
-                return
-            }
-
-            switch elements[0] {
-            case .symbol("quote"):
-                return
-
-            case .symbol("syntax-quote"):
-                if elements.count > 1 {
-                    try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env, inSyntaxQuote: true)
-                }
-
-            case .symbol("unquote"), .symbol("unquote-splicing"):
-                if elements.count > 1 {
-                    try checkUndefinedSymbols(in: elements[1], localBindings: localBindings, env: env)
-                }
-
-            case .symbol("fn"):
-                var offset = 1
-                if elements.count > 1, case .symbol = elements[1],
-                   elements.count > 2, case .vector = elements[2] { offset = 2 }
-                if elements.count > offset, case .vector(let paramExprs) = elements[offset] {
-                    let innerParams = Set(extractParamNames(paramExprs).filter { $0 != "&" })
-                    try checkUndefinedSymbols(in: Array(elements.dropFirst(offset + 1)),
-                                              localBindings: localBindings.union(innerParams), env: env)
-                }
-
-            case .symbol("defmacro"):
-                if elements.count > 2, case .vector(let paramExprs) = elements[2] {
-                    let innerParams = Set(extractParamNames(paramExprs).filter { $0 != "&" })
-                    try checkUndefinedSymbols(in: Array(elements.dropFirst(3)),
-                                              localBindings: localBindings.union(innerParams), env: env)
-                }
-
-            case .symbol("let"):
-                if elements.count > 1, case .vector(let bindingVec) = elements[1] {
-                    var letBindings = localBindings
-                    var i = 0
-                    while i + 1 < bindingVec.count {
-                        try checkUndefinedSymbols(in: bindingVec[i + 1], localBindings: letBindings, env: env)
-                        if case .symbol(let s) = bindingVec[i] { letBindings.insert(s) }
-                        i += 2
-                    }
-                    try checkUndefinedSymbols(in: Array(elements.dropFirst(2)), localBindings: letBindings, env: env)
-                }
-
-            case .symbol("def"):
-                // elements[1] is the binding target (not a lookup); check the value expression
-                if elements.count > 2 {
-                    try checkUndefinedSymbols(in: elements[2], localBindings: localBindings, env: env)
-                }
-
-            case .symbol("if"):
-                for element in elements.dropFirst() {
-                    try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env)
-                }
-
-            default:
-                for element in elements {
-                    try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env)
-                }
-            }
-
-        case .vector(let elements):
-            for element in elements {
-                try checkUndefinedSymbols(in: element, localBindings: localBindings, env: env, inSyntaxQuote: inSyntaxQuote)
-            }
-
-        default:
-            break
-        }
     }
 }
 

@@ -167,10 +167,18 @@ struct EvaluatorFnTests {
         }
     }
 
-    @Test("fn throws undefinedSymbol when body references unknown symbol")
-    func fnUndefinedSymbolInBodyThrows() throws {
-        #expect(throws: EvaluatorError.undefinedSymbol("x")) {
+    @Test("fn with unknown symbol in body succeeds at definition time")
+    func fnUnknownSymbolDefinitionSucceeds() throws {
+        #expect(throws: Never.self) {
             try evaluator.eval(.list([.symbol("fn"), .vector([]), .symbol("x")]))
+        }
+    }
+
+    @Test("fn with unknown symbol throws undefinedSymbol at call time")
+    func fnUnknownSymbolCallTimeThrows() throws {
+        let fn = try evaluator.eval(.list([.symbol("fn"), .vector([]), .symbol("x")]))
+        #expect(throws: EvaluatorError.undefinedSymbol("x")) {
+            try evaluator.eval(.list([fn]))
         }
     }
 
@@ -194,15 +202,26 @@ struct EvaluatorFnTests {
         }
     }
 
-    @Test("fn throws undefinedSymbol for unknown symbol nested in body expression")
-    func fnNestedUndefinedSymbolThrows() throws {
-        // (fn [x] (+ x y)) — y is not defined
-        #expect(throws: EvaluatorError.undefinedSymbol("y")) {
+    @Test("fn with unknown symbol nested in body succeeds at definition time")
+    func fnNestedUnknownSymbolDefinitionSucceeds() throws {
+        #expect(throws: Never.self) {
             try evaluator.eval(.list([
                 .symbol("fn"),
                 .vector([.symbol("x")]),
                 .list([.symbol("+"), .symbol("x"), .symbol("y")])
             ]))
+        }
+    }
+
+    @Test("fn with unknown symbol nested in body throws undefinedSymbol at call time")
+    func fnNestedUnknownSymbolCallTimeThrows() throws {
+        let fn = try evaluator.eval(.list([
+            .symbol("fn"),
+            .vector([.symbol("x")]),
+            .list([.symbol("+"), .symbol("x"), .symbol("y")])
+        ]))
+        #expect(throws: EvaluatorError.undefinedSymbol("y")) {
+            try evaluator.eval(.list([fn, .integer(1)]))
         }
     }
 
