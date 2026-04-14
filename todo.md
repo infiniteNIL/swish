@@ -1,6 +1,7 @@
 # Todo
 
-- [ ] Add macros
+- [ ] namespaces
+- [ ] swish.core
 - [ ] defn
 - [ ] Add some builtin string functions
 - [ ] Add support for maps
@@ -8,10 +9,9 @@
 - [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
 - [ ] Add support for comment macro
-- [ ] namespaces?
-- [ ] core.swish
 - [ ] and, or, not
 
+- [x] Add macros
 - [x] syntax-quote
 - [x] unquote
 - [x] unquote-splicing

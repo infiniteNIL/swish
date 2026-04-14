@@ -151,196 +151,86 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     }
 }
 
+// MARK: - Numeric coercion
+
+private enum NumericPair {
+    case ints(Int, Int)
+    case floats(Double, Double)
+    case ratios(Ratio, Ratio)
+}
+
+private func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> NumericPair {
+    switch (a, b) {
+    case (.integer(let x), .integer(let y)): return .ints(x, y)
+    case (.float(let x),   .float(let y)):   return .floats(x, y)
+    case (.float(let x),   .integer(let y)): return .floats(x, Double(y))
+    case (.integer(let x), .float(let y)):   return .floats(Double(x), y)
+    case (.float(let x),   .ratio(let y)):   return .floats(x, Double(y.numerator) / Double(y.denominator))
+    case (.ratio(let x),   .float(let y)):   return .floats(Double(x.numerator) / Double(x.denominator), y)
+    case (.ratio(let x),   .ratio(let y)):   return .ratios(x, y)
+    case (.ratio(let x),   .integer(let y)): return .ratios(x, Ratio(y, 1))
+    case (.integer(let x), .ratio(let y)):   return .ratios(Ratio(x, 1), y)
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: function,
+            message: "expected numbers, got \(Printer().printString(a)) and \(Printer().printString(b))")
+    }
+}
+
+private func ratioExpr(_ r: Ratio) -> Expr {
+    r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+}
+
 // MARK: - Comparison helpers
 
 private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
-    switch (a, b) {
-    case (.integer(let x), .integer(let y)):
-        return x < y
-    case (.float(let x), .float(let y)):
-        return x < y
-    case (.integer(let x), .float(let y)):
-        return Double(x) < y
-    case (.float(let x), .integer(let y)):
-        return x < Double(y)
-    case (.ratio(let x), .ratio(let y)):
-        return x.numerator * y.denominator < y.numerator * x.denominator
-    case (.integer(let x), .ratio(let y)):
-        return x * y.denominator < y.numerator
-    case (.ratio(let x), .integer(let y)):
-        return x.numerator < y * x.denominator
-    case (.float(let x), .ratio(let y)):
-        return x < Double(y.numerator) / Double(y.denominator)
-    case (.ratio(let x), .float(let y)):
-        return Double(x.numerator) / Double(x.denominator) < y
-    default:
-        let p = Printer()
-        throw EvaluatorError.invalidArgument(
-            function: function, message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
+    switch try coerceNumericPair(a, b, function: function) {
+    case .ints(let x, let y):     return x < y
+    case .floats(let x, let y):   return x < y
+    case .ratios(let x, let y):   return x.numerator * y.denominator < y.numerator * x.denominator
     }
 }
 
 // MARK: - Numeric helpers
 
 private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch (a, b) {
-    case (.integer(let x), .integer(let y)):
-        return .integer(x + y)
-
-    case (.float(let x), .float(let y)):
-        return .float(x + y)
-
-    case (.float(let x), .integer(let y)):
-        return .float(x + Double(y))
-
-    case (.integer(let x), .float(let y)):
-        return .float(Double(x) + y)
-
-    case (.float(let x), .ratio(let y)):
-        return .float(x + Double(y.numerator) / Double(y.denominator))
-
-    case (.ratio(let x), .float(let y)):
-        return .float(Double(x.numerator) / Double(x.denominator) + y)
-
-    case (.ratio(let x), .ratio(let y)):
-        let r = Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
-                      x.denominator * y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.ratio(let x), .integer(let y)):
-        let r = Ratio(x.numerator + y * x.denominator, x.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.integer(let x), .ratio(let y)):
-        let r = Ratio(x * y.denominator + y.numerator, y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    default:
-        let p = Printer()
-        throw EvaluatorError.invalidArgument(
-            function: "+", message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
+    switch try coerceNumericPair(a, b, function: "+") {
+    case .ints(let x, let y):   return .integer(x + y)
+    case .floats(let x, let y): return .float(x + y)
+    case .ratios(let x, let y):
+        return ratioExpr(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
+                               x.denominator * y.denominator))
     }
 }
 
 private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch (a, b) {
-    case (.integer(let x), .integer(let y)):
-        return .integer(x - y)
-
-    case (.float(let x), .float(let y)):
-        return .float(x - y)
-
-    case (.float(let x), .integer(let y)):
-        return .float(x - Double(y))
-
-    case (.integer(let x), .float(let y)):
-        return .float(Double(x) - y)
-
-    case (.float(let x), .ratio(let y)):
-        return .float(x - Double(y.numerator) / Double(y.denominator))
-
-    case (.ratio(let x), .float(let y)):
-        return .float(Double(x.numerator) / Double(x.denominator) - y)
-
-    case (.ratio(let x), .ratio(let y)):
-        let r = Ratio(x.numerator * y.denominator - y.numerator * x.denominator,
-                      x.denominator * y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.ratio(let x), .integer(let y)):
-        let r = Ratio(x.numerator - y * x.denominator, x.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.integer(let x), .ratio(let y)):
-        let r = Ratio(x * y.denominator - y.numerator, y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    default:
-        let p = Printer()
-        throw EvaluatorError.invalidArgument(
-            function: "-", message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
+    switch try coerceNumericPair(a, b, function: "-") {
+    case .ints(let x, let y):   return .integer(x - y)
+    case .floats(let x, let y): return .float(x - y)
+    case .ratios(let x, let y):
+        return ratioExpr(Ratio(x.numerator * y.denominator - y.numerator * x.denominator,
+                               x.denominator * y.denominator))
     }
 }
 
 private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch (a, b) {
-    case (.integer(let x), .integer(let y)):
-        return .integer(x * y)
-
-    case (.float(let x), .float(let y)):
-        return .float(x * y)
-
-    case (.float(let x), .integer(let y)):
-        return .float(x * Double(y))
-
-    case (.integer(let x), .float(let y)):
-        return .float(Double(x) * y)
-
-    case (.float(let x), .ratio(let y)):
-        return .float(x * Double(y.numerator) / Double(y.denominator))
-
-    case (.ratio(let x), .float(let y)):
-        return .float(Double(x.numerator) / Double(x.denominator) * y)
-
-    case (.ratio(let x), .ratio(let y)):
-        let r = Ratio(x.numerator * y.numerator, x.denominator * y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.ratio(let x), .integer(let y)):
-        let r = Ratio(x.numerator * y, x.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.integer(let x), .ratio(let y)):
-        let r = Ratio(x * y.numerator, y.denominator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    default:
-        let p = Printer()
-        throw EvaluatorError.invalidArgument(
-            function: "*", message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
+    switch try coerceNumericPair(a, b, function: "*") {
+    case .ints(let x, let y):   return .integer(x * y)
+    case .floats(let x, let y): return .float(x * y)
+    case .ratios(let x, let y):
+        return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
     }
 }
 
 private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch (a, b) {
-    case (.integer(let x), .integer(let y)):
+    switch try coerceNumericPair(a, b, function: "/") {
+    case .ints(let x, let y):
         if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-        let r = Ratio(x, y)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.float(let x), .float(let y)):
+        return ratioExpr(Ratio(x, y))
+    case .floats(let x, let y):
         return .float(x / y)
-
-    case (.float(let x), .integer(let y)):
-        return .float(x / Double(y))
-
-    case (.integer(let x), .float(let y)):
-        return .float(Double(x) / y)
-
-    case (.float(let x), .ratio(let y)):
-        return .float(x / (Double(y.numerator) / Double(y.denominator)))
-
-    case (.ratio(let x), .float(let y)):
-        return .float((Double(x.numerator) / Double(x.denominator)) / y)
-
-    case (.ratio(let x), .ratio(let y)):
+    case .ratios(let x, let y):
         if y.numerator == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-        let r = Ratio(x.numerator * y.denominator, x.denominator * y.numerator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.ratio(let x), .integer(let y)):
-        if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-        let r = Ratio(x.numerator, x.denominator * y)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    case (.integer(let x), .ratio(let y)):
-        if y.numerator == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
-        let r = Ratio(x * y.denominator, y.numerator)
-        return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
-
-    default:
-        let p = Printer()
-        throw EvaluatorError.invalidArgument(
-            function: "/", message: "expected numbers, got \(p.printString(a)) and \(p.printString(b))")
+        return ratioExpr(Ratio(x.numerator * y.denominator, x.denominator * y.numerator))
     }
 }

@@ -86,138 +86,159 @@ public class Evaluator {
         switch expr {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction:
             return expr
-
         case .vector(let elements):
             return .vector(try elements.map { try eval($0, in: env) })
-
         case .symbol(let name):
             guard let value = env.get(name) else {
                 throw EvaluatorError.undefinedSymbol(name)
             }
             return value
-
         case .list(let elements):
-            if case .symbol("quote") = elements.first {
-                return elements[1]
-            }
-            if case .symbol("syntax-quote") = elements.first {
-                var gensyms: [String: String] = [:]
-                return try syntaxQuoteExpand(elements[1], in: env, gensyms: &gensyms)
-            }
-            if case .symbol("def") = elements.first {
-                let name: String
-                if case .symbol(let n) = elements[1] {
-                    name = n
-                } else {
-                    // Parser validates this, but be safe
-                    throw EvaluatorError.undefinedSymbol("def")
-                }
-                let value = try eval(elements[2], in: env)
-                environment.set(name, value)
-                return .symbol(name)
-            }
-
-            if case .symbol("if") = elements.first {
-                guard elements.count >= 3 else {
-                    throw EvaluatorError.invalidArgument(function: "if",
-                        message: "requires a condition and a then-branch")
-                }
-                let condition = try eval(elements[1], in: env)
-                let isFalsy = condition == .nil || condition == .boolean(false)
-                if !isFalsy {
-                    return try eval(elements[2], in: env)
-                } else if elements.count > 3 {
-                    return try eval(elements[3], in: env)
-                } else {
-                    return .nil
-                }
-            }
-
-            if case .symbol("let") = elements.first {
-                guard elements.count >= 2, case .vector(let bindingVec) = elements[1] else {
-                    throw EvaluatorError.invalidArgument(function: "let",
-                        message: "first argument must be a vector of bindings")
-                }
-                let letEnv = Environment(parent: env)
-                for i in stride(from: 0, to: bindingVec.count, by: 2) {
-                    guard case .symbol(let name) = bindingVec[i] else { continue }
-                    letEnv.set(name, try eval(bindingVec[i + 1], in: letEnv))
-                }
-                let body = elements.dropFirst(2)
-                var result: Expr = .nil
-                for bodyExpr in body {
-                    result = try eval(bodyExpr, in: letEnv)
-                }
-                return result
-            }
-
-            if case .symbol("fn") = elements.first {
-                var offset = 1
-                var name: String? = nil
-                if elements.count > 1, case .symbol(let n) = elements[1],
-                   elements.count > 2, case .vector = elements[2] {
-                    name = n
-                    offset = 2
-                }
-                guard elements.count > offset, case .vector(let paramExprs) = elements[offset] else {
-                    throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
-                }
-                let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
-                let body = Array(elements.dropFirst(offset + 1))
-                let paramNames = Set(params.filter { $0 != "&" })
-                try checkUndefinedSymbols(in: body, localBindings: paramNames, env: env)
-                return .function(name: name, params: params, body: body)
-            }
-
-            if case .symbol("defmacro") = elements.first {
-                guard case .symbol(let name) = elements[1],
-                      case .vector(let paramExprs) = elements[2] else {
-                    throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
-                }
-                let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
-                let body = Array(elements.dropFirst(3))
-                environment.set(name, .macro(name: name, params: params, body: body))
-                return .symbol(name)
-            }
-
-            // Function call: evaluate head, dispatch to native or user-defined function
-            if let head = elements.first {
-                let callee = try eval(head, in: env)
-                if case .macro(let macroName, let params, let body) = callee {
-                    let macroArgs = Array(elements.dropFirst())
-                    let macroEnv = Environment(parent: environment)
-                    try bindParams(params, to: macroArgs, in: macroEnv, name: macroName ?? "macro")
-                    var expanded: Expr = .nil
-                    for bodyExpr in body {
-                        expanded = try eval(bodyExpr, in: macroEnv)
-                    }
-                    return try eval(expanded, in: env)
-                }
-                if case .nativeFunction(let name, let arity, let body) = callee {
-                    let args = try elements.dropFirst().map { try eval($0, in: env) }
-                    if case .fixed(let n) = arity, args.count != n {
-                        throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
-                    }
-                    if case .atLeastOne = arity, args.isEmpty {
-                        throw EvaluatorError.arityMismatch(name: name, expected: arity, got: 0)
-                    }
-                    return try body(args)
-                }
-                if case .function(let name, let params, let body) = callee {
-                    let args = try elements.dropFirst().map { try eval($0, in: env) }
-                    let fnEnv = Environment(parent: env)
-                    try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
-                    var result: Expr = .nil
-                    for bodyExpr in body {
-                        result = try eval(bodyExpr, in: fnEnv)
-                    }
-                    return result
-                }
-                throw EvaluatorError.notAFunction(callee)
-            }
-
-            return .list([])  // empty list () evaluates to itself
+            return try evalList(elements, in: env)
         }
+    }
+
+    // MARK: - List dispatch
+
+    private func evalList(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard let head = elements.first else { return .list([]) }
+        switch head {
+        case .symbol("quote"):        return elements[1]
+        case .symbol("syntax-quote"): return try evalSyntaxQuote(elements, in: env)
+        case .symbol("def"):          return try evalDef(elements, in: env)
+        case .symbol("if"):           return try evalIf(elements, in: env)
+        case .symbol("let"):          return try evalLet(elements, in: env)
+        case .symbol("fn"):           return try evalFn(elements, in: env)
+        case .symbol("defmacro"):     return try evalDefmacro(elements)
+        default:
+            let callee = try eval(head, in: env)
+            return try callFunction(callee, args: elements.dropFirst(), in: env)
+        }
+    }
+
+    // MARK: - Special forms
+
+    private func evalSyntaxQuote(_ elements: [Expr], in env: Environment) throws -> Expr {
+        var gensyms: [String: String] = [:]
+        return try syntaxQuoteExpand(elements[1], in: env, gensyms: &gensyms)
+    }
+
+    private func evalDef(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard case .symbol(let name) = elements[1] else {
+            throw EvaluatorError.undefinedSymbol("def")
+        }
+        let value = try eval(elements[2], in: env)
+        environment.set(name, value)
+        return .symbol(name)
+    }
+
+    private func evalIf(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count >= 3 else {
+            throw EvaluatorError.invalidArgument(function: "if",
+                message: "requires a condition and a then-branch")
+        }
+        let condition = try eval(elements[1], in: env)
+        let isFalsy = condition == .nil || condition == .boolean(false)
+        if !isFalsy {
+            return try eval(elements[2], in: env)
+        } else if elements.count > 3 {
+            return try eval(elements[3], in: env)
+        } else {
+            return .nil
+        }
+    }
+
+    private func evalLet(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count >= 2, case .vector(let bindingVec) = elements[1] else {
+            throw EvaluatorError.invalidArgument(function: "let",
+                message: "first argument must be a vector of bindings")
+        }
+        let letEnv = Environment(parent: env)
+        for i in stride(from: 0, to: bindingVec.count, by: 2) {
+            guard case .symbol(let name) = bindingVec[i] else { continue }
+            letEnv.set(name, try eval(bindingVec[i + 1], in: letEnv))
+        }
+        var result: Expr = .nil
+        for bodyExpr in elements.dropFirst(2) {
+            result = try eval(bodyExpr, in: letEnv)
+        }
+        return result
+    }
+
+    private func evalFn(_ elements: [Expr], in env: Environment) throws -> Expr {
+        var offset = 1
+        var name: String? = nil
+        if elements.count > 1, case .symbol(let n) = elements[1],
+           elements.count > 2, case .vector = elements[2] {
+            name = n
+            offset = 2
+        }
+        guard elements.count > offset, case .vector(let paramExprs) = elements[offset] else {
+            throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
+        }
+        let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
+        let body = Array(elements.dropFirst(offset + 1))
+        let paramNames = Set(params.filter { $0 != "&" })
+        try checkUndefinedSymbols(in: body, localBindings: paramNames, env: env)
+        return .function(name: name, params: params, body: body)
+    }
+
+    private func evalDefmacro(_ elements: [Expr]) throws -> Expr {
+        guard case .symbol(let name) = elements[1],
+              case .vector(let paramExprs) = elements[2] else {
+            throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
+        }
+        let params = paramExprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
+        let body = Array(elements.dropFirst(3))
+        environment.set(name, .macro(name: name, params: params, body: body))
+        return .symbol(name)
+    }
+
+    // MARK: - Function call dispatch
+
+    private func callFunction(_ callee: Expr, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        switch callee {
+        case .macro(let name, let params, let body):
+            return try callMacro(name: name, params: params, body: body, args: args, in: env)
+        case .nativeFunction(let name, let arity, let body):
+            let evaluated = try args.map { try eval($0, in: env) }
+            return try callNativeFunction(name: name, arity: arity, body: body, args: evaluated)
+        case .function(let name, let params, let body):
+            let evaluated = try args.map { try eval($0, in: env) }
+            return try callUserFunction(name: name, params: params, body: body, args: evaluated, in: env)
+        default:
+            throw EvaluatorError.notAFunction(callee)
+        }
+    }
+
+    private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let macroEnv = Environment(parent: environment)
+        try bindParams(params, to: Array(args), in: macroEnv, name: name ?? "macro")
+        var expanded: Expr = .nil
+        for bodyExpr in body {
+            expanded = try eval(bodyExpr, in: macroEnv)
+        }
+        return try eval(expanded, in: env)
+    }
+
+    private func callNativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr, args: [Expr]) throws -> Expr {
+        if case .fixed(let n) = arity, args.count != n {
+            throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
+        }
+        if case .atLeastOne = arity, args.isEmpty {
+            throw EvaluatorError.arityMismatch(name: name, expected: arity, got: 0)
+        }
+        return try body(args)
+    }
+
+    private func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr], in env: Environment) throws -> Expr {
+        let fnEnv = Environment(parent: env)
+        try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
+        var result: Expr = .nil
+        for bodyExpr in body {
+            result = try eval(bodyExpr, in: fnEnv)
+        }
+        return result
     }
 
     /// Registers a native Swift function in the core environment.
