@@ -12,7 +12,9 @@ public class Printer {
         floatFormatter.maximumFractionDigits = 15
     }
 
-    /// Returns a human-readable string representation of a Swish expression
+    /// Returns a machine-readable string representation of a Swish expression.
+    /// Strings are quoted and escaped; characters use named forms (e.g. \newline).
+    /// Output round-trips through the reader. Backs the planned `pr-str` native function.
     public func printString(_ expr: Expr) -> String {
         switch expr {
         case .integer(let value):
@@ -59,17 +61,19 @@ public class Printer {
         }
     }
 
-    /// Returns a display representation (strings without quotes, characters as-is)
-    public func displayString(_ expr: Expr) -> String {
+    /// Returns a human-readable string representation of a Swish expression.
+    /// Strings print without quotes; characters print as the raw character.
+    /// Backs the planned `str` native function. Named `strString` to mirror `printString` → `pr-str`.
+    public func strString(_ expr: Expr) -> String {
         switch expr {
         case .string(let value):
             value
         case .character(let char):
             String(char)
         case .list(let elements):
-            "(" + elements.map { displayString($0) }.joined(separator: " ") + ")"
+            "(" + elements.map { strString($0) }.joined(separator: " ") + ")"
         case .vector(let elements):
-            "[" + elements.map { displayString($0) }.joined(separator: " ") + "]"
+            "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
         default:
             printString(expr)
         }

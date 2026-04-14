@@ -139,13 +139,13 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     // MARK: - I/O
 
     evaluator.register(name: "print", arity: .variadic) { args in
-        let output = args.map { Printer().displayString($0) }.joined(separator: " ")
+        let output = args.map { Printer().strString($0) }.joined(separator: " ")
         Swift.print(output, terminator: "")
         return .nil
     }
 
     evaluator.register(name: "println", arity: .variadic) { args in
-        let output = args.map { Printer().displayString($0) }.joined(separator: " ")
+        let output = args.map { Printer().strString($0) }.joined(separator: " ")
         Swift.print(output)
         return .nil
     }
