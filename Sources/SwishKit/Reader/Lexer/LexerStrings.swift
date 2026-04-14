@@ -15,42 +15,17 @@ extension Lexer {
                 advance()  // consume backslash
                 if isAtEnd { throw LexerError.unterminatedString(line: startLine, column: startColumn) }
                 switch peek()! {
-                case "\"": value.append("\"")
-                case "\\": value.append("\\")
-                case "n":  value.append("\n")
-                case "t":  value.append("\t")
-                case "r":  value.append("\r")
-                case "0":  value.append("\0")
-                case "u":
-                    guard let next = peekAt(1), next == "{" else {
-                        throw LexerError.invalidUnicodeEscape("expected '{'", line: line, column: column)
-                    }
-                    advance()  // consume 'u'
-                    advance()  // consume '{'
-                    var hexDigits = ""
-                    while !isAtEnd && peek() != "}" {
-                        guard let char = peek(), char.isHexDigit else {
-                            throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
-                        }
-                        hexDigits.append(advance())
-                    }
-                    guard !isAtEnd else { throw LexerError.unterminatedString(line: startLine, column: startColumn) }
-                    guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
-                        throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
-                    }
-                    guard let codePoint = UInt32(hexDigits, radix: 16),
-                          let scalar = Unicode.Scalar(codePoint) else {
-                        throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
-                    }
-                    value.append(Character(scalar))
-                    // The shared advance() below consumes '}'
-                default:
-                    throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
+                case "\"": value.append("\""); advance()
+                case "\\": value.append("\\"); advance()
+                case "n":  value.append("\n"); advance()
+                case "t":  value.append("\t"); advance()
+                case "r":  value.append("\r"); advance()
+                case "0":  value.append("\0"); advance()
+                case "u":  value.append(try scanUnicodeEscapeFromStream(startLine: startLine, startColumn: startColumn))
+                default:   throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
                 }
-                advance()
             } else {
-                value.append(peek()!)
-                advance()
+                value.append(advance())
             }
         }
 
@@ -60,6 +35,46 @@ extension Lexer {
     }
 
     func scanMultilineString(startLine: Int, startColumn: Int) throws -> Token {
+        let (rawLines, indent) = try collectMultilineRawLines(startLine: startLine, startColumn: startColumn)
+        let strippedLines = try stripIndentation(rawLines, indent: indent, startLine: startLine)
+        let joinedContent = joinWithContinuations(strippedLines)
+        let result = try processEscapeSequences(joinedContent, startLine: startLine, startColumn: startColumn)
+        return Token(type: .string, text: result, line: startLine, column: startColumn)
+    }
+
+    // MARK: - Single-line string helpers
+
+    private func scanUnicodeEscapeFromStream(startLine: Int, startColumn: Int) throws -> Character {
+        guard peekAt(1) == "{" else {
+            throw LexerError.invalidUnicodeEscape("expected '{'", line: line, column: column)
+        }
+        advance()  // consume 'u'
+        advance()  // consume '{'
+
+        var hexDigits = ""
+        while !isAtEnd && peek() != "}" {
+            guard let char = peek(), char.isHexDigit else {
+                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
+            }
+            hexDigits.append(advance())
+        }
+
+        guard !isAtEnd else { throw LexerError.unterminatedString(line: startLine, column: startColumn) }
+        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
+            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
+        }
+        guard let codePoint = UInt32(hexDigits, radix: 16),
+              let scalar = Unicode.Scalar(codePoint) else {
+            throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
+        }
+
+        advance()  // consume '}'
+        return Character(scalar)
+    }
+
+    // MARK: - Multiline string helpers
+
+    private func collectMultilineRawLines(startLine: Int, startColumn: Int) throws -> (lines: [String], closingIndentation: String) {
         // After opening """, only whitespace is allowed before the newline
         while !isAtEnd && peek() != "\n" {
             if let char = peek(), !char.isWhitespace {
@@ -67,17 +82,14 @@ extension Lexer {
             }
             advance()
         }
-
         if isAtEnd { throw LexerError.unterminatedMultilineString(line: startLine, column: startColumn) }
         advance()  // consume the newline after opening """
 
-        // Collect raw lines until we find closing """
         var rawLines: [String] = []
         var currentLine = ""
 
         while !isAtEnd {
             if peek() == "\"" && peekAt(1) == "\"" && peekAt(2) == "\"" { break }
-
             if peek() == "\n" {
                 rawLines.append(currentLine)
                 currentLine = ""
@@ -89,9 +101,7 @@ extension Lexer {
 
         if isAtEnd { throw LexerError.unterminatedMultilineString(line: startLine, column: startColumn) }
 
-        // currentLine is the whitespace before closing """ — determines baseline indentation
         let closingIndentation = currentLine
-
         for char in closingIndentation {
             if !char.isWhitespace {
                 throw LexerError.multilineStringInsufficientIndentation(line: line, column: column)
@@ -99,38 +109,35 @@ extension Lexer {
         }
 
         advance(); advance(); advance()  // consume closing """
+        return (rawLines, closingIndentation)
+    }
 
-        // Strip baseline indentation from each line
-        var strippedLines: [String] = []
-
-        for (lineIndex, rawLine) in rawLines.enumerated() {
-            if rawLine.isEmpty { strippedLines.append(""); continue }
-
-            let isWhitespaceOnly = rawLine.allSatisfy { $0.isWhitespace }
-
-            if !rawLine.hasPrefix(closingIndentation) {
-                if isWhitespaceOnly { strippedLines.append(""); continue }
+    private func stripIndentation(_ lines: [String], indent: String, startLine: Int) throws -> [String] {
+        try lines.enumerated().map { (lineIndex, rawLine) in
+            if rawLine.isEmpty { return "" }
+            if rawLine.allSatisfy({ $0.isWhitespace }) { return "" }
+            guard rawLine.hasPrefix(indent) else {
                 throw LexerError.multilineStringInsufficientIndentation(
                     line: startLine + 1 + lineIndex, column: 1)
             }
-
-            strippedLines.append(String(rawLine.dropFirst(closingIndentation.count)))
+            return String(rawLine.dropFirst(indent.count))
         }
+    }
 
-        // Join lines, handling line continuations
-        var joinedContent = ""
-        for (i, line) in strippedLines.enumerated() {
+    private func joinWithContinuations(_ lines: [String]) -> String {
+        var result = ""
+        for (i, line) in lines.enumerated() {
             if line.hasSuffix("\\") && !line.hasSuffix("\\\\") {
-                joinedContent.append(String(line.dropLast()))
+                result.append(String(line.dropLast()))
             } else {
-                joinedContent.append(line)
-                if i < strippedLines.count - 1 { joinedContent.append("\n") }
+                result.append(line)
+                if i < lines.count - 1 { result.append("\n") }
             }
         }
-
-        let result = try processEscapeSequences(joinedContent, startLine: startLine, startColumn: startColumn)
-        return Token(type: .string, text: result, line: startLine, column: startColumn)
+        return result
     }
+
+    // MARK: - Escape sequence processing
 
     private func processEscapeSequences(_ input: String, startLine: Int, startColumn: Int) throws -> String {
         var result = ""
