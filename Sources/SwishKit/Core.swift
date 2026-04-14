@@ -2,8 +2,15 @@ private let printer = Printer()
 
 /// Registers all built-in functions into the evaluator's core environment.
 func registerCoreFunctions(into evaluator: Evaluator) {
-    // MARK: - Arithmetic
+    registerArithmetic(into: evaluator)
+    registerComparison(into: evaluator)
+    registerMacros(into: evaluator)
+    registerIO(into: evaluator)
+}
 
+// MARK: - Arithmetic
+
+private func registerArithmetic(into evaluator: Evaluator) {
     evaluator.register(name: "+", arity: .variadic) { args in
         if args.isEmpty { return .integer(0) }
         if args.count == 1 { return try assertSingleNumeric(args[0], function: "+") }
@@ -56,9 +63,11 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         }
         return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
     }
+}
 
-    // MARK: - Comparison
+// MARK: - Comparison
 
+private func registerComparison(into evaluator: Evaluator) {
     // (name, swap a/b, negate result)
     for (name, swap, negate) in [("<", false, false), (">", true, false), ("<=", true, true), (">=", false, true)] {
         evaluator.register(name: name, arity: .atLeastOne) { args in
@@ -79,9 +88,11 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         if args.count == 1 { return .boolean(false) }
         return .boolean(!zip(args, args.dropFirst()).allSatisfy { a, b in a == b })
     }
+}
 
-    // MARK: - Macros
+// MARK: - Macros
 
+private func registerMacros(into evaluator: Evaluator) {
     evaluator.register(name: "gensym", arity: .variadic) { [evaluator] args in
         let prefix: String
         if let first = args.first, case .string(let p) = first {
@@ -104,9 +115,11 @@ func registerCoreFunctions(into evaluator: Evaluator) {
         }
         return form
     }
+}
 
-    // MARK: - I/O
+// MARK: - I/O
 
+private func registerIO(into evaluator: Evaluator) {
     evaluator.register(name: "print", arity: .variadic) { args in
         let output = args.map { printer.strString($0) }.joined(separator: " ")
         Swift.print(output, terminator: "")
