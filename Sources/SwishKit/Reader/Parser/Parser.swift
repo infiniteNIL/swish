@@ -158,62 +158,61 @@ public class Parser {
             return .list(elements)
         }
 
-        // Validate def syntax
-        if case .symbol("def") = elements.first {
-            guard elements.count == 3 else {
-                throw ParserError.invalidDef("def requires exactly 2 arguments")
-            }
-            guard case .symbol = elements[1] else {
-                throw ParserError.invalidDef("first argument to def must be a symbol")
-            }
-        }
-
-        // Validate let syntax
-        if case .symbol("let") = elements.first {
-            guard elements.count >= 2 else {
-                throw ParserError.invalidLet("let requires a binding vector")
-            }
-            guard case .vector(let bindings) = elements[1] else {
-                throw ParserError.invalidLet("first argument to let must be a vector")
-            }
-            guard bindings.count % 2 == 0 else {
-                throw ParserError.invalidLet("let binding vector requires an even number of forms")
-            }
-            for i in stride(from: 0, to: bindings.count, by: 2) {
-                guard case .symbol = bindings[i] else {
-                    throw ParserError.invalidLet("binding targets in let must be symbols")
-                }
-            }
-        }
-
-        // Validate fn syntax
-        if case .symbol("fn") = elements.first {
-            var offset = 1
-            if elements.count > 1, case .symbol = elements[1] {
-                offset = 2
-            }
-            guard elements.count > offset, case .vector(let params) = elements[offset] else {
-                throw ParserError.invalidFn("fn requires a parameter vector")
-            }
-            try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
-        }
-
-        // Validate defmacro syntax
-        if case .symbol("defmacro") = elements.first {
-            guard elements.count >= 4 else {
-                throw ParserError.invalidDefmacro(
-                    "defmacro requires a name, parameter vector, and at least one body form")
-            }
-            guard case .symbol = elements[1] else {
-                throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
-            }
-            guard case .vector(let params) = elements[2] else {
-                throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
-            }
-            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
-        }
+        if case .symbol("def")      = elements.first { try validateDef(elements) }
+        if case .symbol("let")      = elements.first { try validateLet(elements) }
+        if case .symbol("fn")       = elements.first { try validateFn(elements) }
+        if case .symbol("defmacro") = elements.first { try validateDefmacro(elements) }
 
         return .list(elements)
+    }
+
+    private func validateDef(_ elements: [Expr]) throws {
+        guard elements.count == 3 else {
+            throw ParserError.invalidDef("def requires exactly 2 arguments")
+        }
+        guard case .symbol = elements[1] else {
+            throw ParserError.invalidDef("first argument to def must be a symbol")
+        }
+    }
+
+    private func validateLet(_ elements: [Expr]) throws {
+        guard elements.count >= 2 else {
+            throw ParserError.invalidLet("let requires a binding vector")
+        }
+        guard case .vector(let bindings) = elements[1] else {
+            throw ParserError.invalidLet("first argument to let must be a vector")
+        }
+        guard bindings.count % 2 == 0 else {
+            throw ParserError.invalidLet("let binding vector requires an even number of forms")
+        }
+        for i in stride(from: 0, to: bindings.count, by: 2) {
+            guard case .symbol = bindings[i] else {
+                throw ParserError.invalidLet("binding targets in let must be symbols")
+            }
+        }
+    }
+
+    private func validateFn(_ elements: [Expr]) throws {
+        var offset = 1
+        if elements.count > 1, case .symbol = elements[1] { offset = 2 }
+        guard elements.count > offset, case .vector(let params) = elements[offset] else {
+            throw ParserError.invalidFn("fn requires a parameter vector")
+        }
+        try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
+    }
+
+    private func validateDefmacro(_ elements: [Expr]) throws {
+        guard elements.count >= 4 else {
+            throw ParserError.invalidDefmacro(
+                "defmacro requires a name, parameter vector, and at least one body form")
+        }
+        guard case .symbol = elements[1] else {
+            throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
+        }
+        guard case .vector(let params) = elements[2] else {
+            throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
+        }
+        try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
     }
 
     private func validateParamVector(_ params: [Expr], makeError: (String) -> ParserError) throws {
