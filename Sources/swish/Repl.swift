@@ -219,6 +219,41 @@ final class Repl {
         return result
     }
 
+    // MARK: - String scanning helpers
+
+    private func isTripleQuote(at i: String.Index, in s: String) -> Bool {
+        guard let n1 = s.index(i, offsetBy: 1, limitedBy: s.endIndex),
+              let n2 = s.index(i, offsetBy: 2, limitedBy: s.endIndex),
+              n1 < s.endIndex, n2 < s.endIndex else { return false }
+        return s[n1] == "\"" && s[n2] == "\""
+    }
+
+    private func skipPastClosingTripleQuote(from i: String.Index, in s: String) -> (String.Index, Bool) {
+        var j = i
+        while j < s.endIndex {
+            if s[j] == "\"" && isTripleQuote(at: j, in: s) {
+                return (s.index(j, offsetBy: 3), true)
+            }
+            j = s.index(after: j)
+        }
+        return (j, false)
+    }
+
+    private func skipPastClosingQuote(from i: String.Index, in s: String) -> (String.Index, Bool) {
+        var j = i
+        while j < s.endIndex {
+            if s[j] == "\\" {
+                j = s.index(after: j)
+                if j < s.endIndex { j = s.index(after: j) }
+            } else if s[j] == "\"" {
+                return (s.index(after: j), true)
+            } else {
+                j = s.index(after: j)
+            }
+        }
+        return (j, false)
+    }
+
     // MARK: - Continuation detection
 
     private enum ContinuationType {
@@ -248,51 +283,23 @@ final class Repl {
             }
 
             if char == "\"" {
-                let next1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
-                let next2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
-
-                if let n1 = next1, let n2 = next2, n1 < input.endIndex, n2 < input.endIndex,
-                   input[n1] == "\"", input[n2] == "\"" {
-                    i = input.index(after: n2)
+                if isTripleQuote(at: i, in: input) {
+                    i = input.index(i, offsetBy: 3)
                     while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
                         i = input.index(after: i)
                     }
                     if i >= input.endIndex { return .multilineString }
                     if input[i] == "\n" { i = input.index(after: i) }
-                    var foundClosing = false
-                    while i < input.endIndex {
-                        if input[i] == "\"" {
-                            let cn1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
-                            let cn2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
-                            if let c1 = cn1, let c2 = cn2, c1 < input.endIndex, c2 < input.endIndex,
-                               input[c1] == "\"", input[c2] == "\"" {
-                                i = input.index(after: c2)
-                                foundClosing = true
-                                break
-                            }
-                        }
-                        i = input.index(after: i)
-                    }
-                    if !foundClosing { return .multilineString }
-                    continue
+                    let (newI, found) = skipPastClosingTripleQuote(from: i, in: input)
+                    i = newI
+                    if !found { return .multilineString }
                 } else {
                     i = input.index(after: i)
-                    var foundClosing = false
-                    while i < input.endIndex {
-                        if input[i] == "\\" {
-                            i = input.index(after: i)
-                            if i < input.endIndex { i = input.index(after: i) }
-                        } else if input[i] == "\"" {
-                            i = input.index(after: i)
-                            foundClosing = true
-                            break
-                        } else {
-                            i = input.index(after: i)
-                        }
-                    }
-                    if !foundClosing { return .regularString }
-                    continue
+                    let (newI, found) = skipPastClosingQuote(from: i, in: input)
+                    i = newI
+                    if !found { return .regularString }
                 }
+                continue
             }
 
             i = input.index(after: i)
@@ -319,24 +326,11 @@ final class Repl {
             }
 
             if char == "\"" {
-                let n1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex)
-                let n2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex)
-                if let a = n1, let b = n2, a < input.endIndex, b < input.endIndex,
-                   input[a] == "\"", input[b] == "\"" {
-                    i = input.index(after: b)
-                    while i < input.endIndex {
-                        if input[i] == "\"",
-                           let c1 = input.index(i, offsetBy: 1, limitedBy: input.endIndex),
-                           let c2 = input.index(i, offsetBy: 2, limitedBy: input.endIndex),
-                           c1 < input.endIndex, c2 < input.endIndex,
-                           input[c1] == "\"", input[c2] == "\"" {
-                            i = input.index(after: c2)
-                            break
-                        }
-                        i = input.index(after: i)
-                    }
-                    continue
+                if isTripleQuote(at: i, in: input) {
+                    i = input.index(i, offsetBy: 3)
+                    (i, _) = skipPastClosingTripleQuote(from: i, in: input)
                 } else {
+                    // Regular string: keep inline to track col as we scan
                     i = input.index(after: i)
                     col += 1
                     while i < input.endIndex {
@@ -349,8 +343,8 @@ final class Repl {
                             i = input.index(after: i); col += 1
                         }
                     }
-                    continue
                 }
+                continue
             }
 
             if char == "(" {
