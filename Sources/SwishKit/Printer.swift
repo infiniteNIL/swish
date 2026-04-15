@@ -79,6 +79,21 @@ public class Printer {
         }
     }
 
+    /// Returns the source-code form of a Swish expression for use in result substitution.
+    /// Like `printString` but floats use `String(value)` for exact round-trip fidelity.
+    public func sourceForm(_ expr: Expr) -> String {
+        switch expr {
+        case .float(let value):
+            String(value)
+        case .list(let elements):
+            "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
+        case .vector(let elements):
+            "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
+        default:
+            printString(expr)
+        }
+    }
+
     private func printCharacter(_ char: Character) -> String {
         switch char {
         case "\n": return "\\newline"

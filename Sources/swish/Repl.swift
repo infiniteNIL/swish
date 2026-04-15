@@ -11,7 +11,6 @@ private let defaultCursor = "\u{1b}[0 q"
 
 private let orange = "\u{1b}[38;2;255;149;0m"      // #FF9500 - Swift logo orange
 private let green  = "\u{1b}[38;2;52;199;89m"       // #34C759 - Apple system green
-private let red    = "\u{1b}[38;2;255;59;48m"       // #FF3B30 - Apple system red
 private let reset  = "\u{1b}[0m"
 
 // MARK: - REPL commands
@@ -166,57 +165,10 @@ final class Repl {
                 if prevChar.isNumber || prevChar == "_" { continue }
             }
             if let n = Int(match.1), let previousResult = results[n] {
-                processed = processed.replacingOccurrences(of: String(match.0), with: sourceForm(previousResult))
+                processed = processed.replacingOccurrences(of: String(match.0), with: printer.sourceForm(previousResult))
             }
         }
         return processed
-    }
-
-    private func sourceForm(_ expr: Expr) -> String {
-        switch expr {
-        case .integer(let value):   return String(value)
-        case .float(let value):     return String(value)
-        case .ratio(let ratio):     return "\(ratio.numerator)/\(ratio.denominator)"
-        case .string(let value):    return "\"\(escapeStringForSource(value))\""
-        case .character(let char):  return characterSourceForm(char)
-        case .boolean(let value):   return value ? "true" : "false"
-        case .nil:                  return "nil"
-        case .symbol(let name):     return name
-        case .keyword(let name):    return ":\(name)"
-        case .list(let elements):   return "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
-        case .vector(let elements): return "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
-        case .function(let name, _, _):      return name.map { "#<fn \($0)>" } ?? "#<fn>"
-        case .macro(let name, _, _):         return name.map { "#<macro \($0)>" } ?? "#<macro>"
-        case .nativeFunction(let name, _, _): return "#<native-fn \(name)>"
-        }
-    }
-
-    private func characterSourceForm(_ char: Character) -> String {
-        switch char {
-        case "\n": return "\\newline"
-        case "\t": return "\\tab"
-        case " ":  return "\\space"
-        case "\r": return "\\return"
-        case "\u{0008}": return "\\backspace"
-        case "\u{000C}": return "\\formfeed"
-        default:   return "\\\(char)"
-        }
-    }
-
-    private func escapeStringForSource(_ s: String) -> String {
-        var result = ""
-        for char in s {
-            switch char {
-            case "\"": result.append("\\\"")
-            case "\\": result.append("\\\\")
-            case "\n": result.append("\\n")
-            case "\t": result.append("\\t")
-            case "\r": result.append("\\r")
-            case "\0": result.append("\\0")
-            default:   result.append(char)
-            }
-        }
-        return result
     }
 
     // MARK: - String scanning helpers
