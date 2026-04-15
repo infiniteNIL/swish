@@ -27,6 +27,7 @@ public class Evaluator {
         switch expr {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction:
             return expr
+
         case .vector(let elements):
             return .vector(try elements.map { try eval($0, in: env) })
 
@@ -35,6 +36,7 @@ public class Evaluator {
                 throw EvaluatorError.undefinedSymbol(name)
             }
             return value
+
         case .list(let elements):
             return try evalList(elements, in: env)
         }
@@ -45,13 +47,26 @@ public class Evaluator {
     private func evalList(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard let head = elements.first else { return .list([]) }
         switch head {
-        case .symbol("quote"):        return elements[1]
-        case .symbol("syntax-quote"): return try evalSyntaxQuote(elements, in: env)
-        case .symbol("def"):          return try evalDef(elements, in: env)
-        case .symbol("if"):           return try evalIf(elements, in: env)
-        case .symbol("let"):          return try evalLet(elements, in: env)
-        case .symbol("fn"):           return try evalFn(elements, in: env)
-        case .symbol("defmacro"):     return try evalDefmacro(elements)
+        case .symbol("quote"):
+            return elements[1]
+
+        case .symbol("syntax-quote"):
+            return try evalSyntaxQuote(elements, in: env)
+
+        case .symbol("def"):
+            return try evalDef(elements, in: env)
+
+        case .symbol("if"):
+            return try evalIf(elements, in: env)
+
+        case .symbol("let"):
+            return try evalLet(elements, in: env)
+
+        case .symbol("fn"):
+            return try evalFn(elements, in: env)
+
+        case .symbol("defmacro"):
+            return try evalDefmacro(elements)
 
         default:
             let callee = try eval(head, in: env)
@@ -275,8 +290,12 @@ public class Evaluator {
 
     private func extractParamNames(_ exprs: [Expr]) -> [String] {
         exprs.compactMap {
-            if case .symbol(let s) = $0 { return s }
-            else { return nil }
+            if case .symbol(let s) = $0 {
+                return s
+            }
+            else {
+                return nil
+            }
         }
     }
 }

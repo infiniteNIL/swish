@@ -28,11 +28,15 @@ extension Lexer {
         // Check for exponent: e or E
         if let e = peek(), e == "e" || e == "E" {
             var offset = 1
-            if let sign = peekAt(offset), sign == "+" || sign == "-" { offset += 1 }
+            if let sign = peekAt(offset), sign == "+" || sign == "-" {
+                offset += 1
+            }
             if let digitAfter = peekAt(offset), digitAfter.isNumber {
                 isFloat = true
                 text.append(advance()) // consume 'e' or 'E'
-                if let sign = peek(), sign == "+" || sign == "-" { text.append(advance()) }
+                if let sign = peek(), sign == "+" || sign == "-" {
+                    text.append(advance())
+                }
                 try scanDigitSequence(into: &text, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
             }
         }

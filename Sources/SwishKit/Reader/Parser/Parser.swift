@@ -20,23 +20,54 @@ public class Parser {
 
     private func parseExpr() throws -> Expr {
         switch currentToken.type {
-        case .integer:        return try parseInteger()
-        case .float:          return try parseFloat()
-        case .ratio:          return try parseRatio()
-        case .string:         return try parseString()
-        case .character:      return try parseCharacter()
-        case .boolean:        return try parseBoolean()
-        case .nil:            return try parseNil()
-        case .symbol:         return try parseSymbol()
-        case .keyword:        return try parseKeyword()
-        case .quote:          return try parseQuote()
-        case .backtick:       return try parseBacktick()
-        case .unquote:        return try parseUnquote()
-        case .unquoteSplicing: return try parseUnquoteSplicing()
-        case .leftParen:      return try parseList()
-        case .leftBracket:    return try parseVector()
+        case .integer:
+            return try parseInteger()
+
+        case .float:
+            return try parseFloat()
+
+        case .ratio:
+            return try parseRatio()
+
+        case .string:
+            return try parseString()
+
+        case .character:
+            return try parseCharacter()
+
+        case .boolean:
+            return try parseBoolean()
+
+        case .nil:
+            return try parseNil()
+
+        case .symbol:
+            return try parseSymbol()
+
+        case .keyword:
+            return try parseKeyword()
+
+        case .quote:
+            return try parseQuote()
+
+        case .backtick:
+            return try parseBacktick()
+
+        case .unquote:
+            return try parseUnquote()
+
+        case .unquoteSplicing:
+            return try parseUnquoteSplicing()
+
+        case .leftParen:
+            return try parseList()
+
+        case .leftBracket:
+            return try parseVector()
+
         case .rightParen, .rightBracket:
             throw ParserError.unexpectedToken(currentToken)
+
         case .eof:
             throw ParserError.unexpectedEOF
         }
@@ -45,11 +76,21 @@ public class Parser {
     private func parseInteger() throws -> Expr {
         let text = currentToken.text
         let value: Int
-        if let v = parseBinaryInteger(text)      { value = v }
-        else if let v = parseHexInteger(text)    { value = v }
-        else if let v = parseOctalInteger(text)  { value = v }
-        else if let v = Int(text)                { value = v }
-        else { throw ParserError.integerOverflow(text) }
+        if let v = parseBinaryInteger(text) {
+            value = v
+        }
+        else if let v = parseHexInteger(text) {
+            value = v
+        }
+        else if let v = parseOctalInteger(text) {
+            value = v
+        }
+        else if let v = Int(text) {
+            value = v
+        }
+        else {
+            throw ParserError.integerOverflow(text)
+        }
         try advance()
         return .integer(value)
     }
@@ -70,7 +111,9 @@ public class Parser {
             throw ParserError.integerOverflow(text)
         }
         try advance()
-        if numerator == 0 { return .integer(0) }
+        if numerator == 0 {
+            return .integer(0)
+        }
         let ratio = Ratio(numerator, denominator)
         return ratio.denominator == 1 ? .integer(ratio.numerator) : .ratio(ratio)
     }
@@ -112,13 +155,17 @@ public class Parser {
 
     private func parseQuote() throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        if currentToken.type == .eof {
+            throw ParserError.unexpectedEOF
+        }
         return .list([.symbol("quote"), try parseExpr()])
     }
 
     private func parseBacktick() throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        if currentToken.type == .eof {
+            throw ParserError.unexpectedEOF
+        }
         syntaxQuoteDepth += 1
         let expr = try parseExpr()
         syntaxQuoteDepth -= 1
@@ -127,13 +174,17 @@ public class Parser {
 
     private func parseUnquote() throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        if currentToken.type == .eof {
+            throw ParserError.unexpectedEOF
+        }
         return .list([.symbol("unquote"), try parseExpr()])
     }
 
     private func parseUnquoteSplicing() throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        if currentToken.type == .eof {
+            throw ParserError.unexpectedEOF
+        }
         return .list([.symbol("unquote-splicing"), try parseExpr()])
     }
 
@@ -158,10 +209,18 @@ public class Parser {
             return .list(elements)
         }
 
-        if case .symbol("def")      = elements.first { try validateDef(elements) }
-        if case .symbol("let")      = elements.first { try validateLet(elements) }
-        if case .symbol("fn")       = elements.first { try validateFn(elements) }
-        if case .symbol("defmacro") = elements.first { try validateDefmacro(elements) }
+        if case .symbol("def") = elements.first {
+            try validateDef(elements)
+        }
+        if case .symbol("let") = elements.first {
+            try validateLet(elements)
+        }
+        if case .symbol("fn") = elements.first {
+            try validateFn(elements)
+        }
+        if case .symbol("defmacro") = elements.first {
+            try validateDefmacro(elements)
+        }
 
         return .list(elements)
     }
@@ -194,7 +253,9 @@ public class Parser {
 
     private func validateFn(_ elements: [Expr]) throws {
         var offset = 1
-        if elements.count > 1, case .symbol = elements[1] { offset = 2 }
+        if elements.count > 1, case .symbol = elements[1] {
+            offset = 2
+        }
         guard elements.count > offset, case .vector(let params) = elements[offset] else {
             throw ParserError.invalidFn("fn requires a parameter vector")
         }

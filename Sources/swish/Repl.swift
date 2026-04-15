@@ -50,9 +50,15 @@ final class Repl {
             guard !trimmed.isEmpty else { continue }
             lineReader?.addHistory(input)
             switch handleCommand(trimmed) {
-            case .exit:        teardownCursor(); return
-            case .handled:     continue
-            case .notACommand: break
+            case .exit:
+                teardownCursor()
+                return
+
+            case .handled:
+                continue
+
+            case .notACommand:
+                break
             }
             do {
                 let result = try eval(trimmed)
@@ -101,8 +107,13 @@ final class Repl {
     private enum CommandResult { case exit, handled, notACommand }
 
     private func handleCommand(_ trimmed: String) -> CommandResult {
-        if matchCommand(trimmed, "quit") { return .exit }
-        if matchCommand(trimmed, "help") { printHelp(); return .handled }
+        if matchCommand(trimmed, "quit") {
+            return .exit
+        }
+        if matchCommand(trimmed, "help") {
+            printHelp()
+            return .handled
+        }
         return .notACommand
     }
 
@@ -165,7 +176,9 @@ final class Repl {
             if matchStart > input.startIndex {
                 let prevIndex = input.index(before: matchStart)
                 let prevChar = input[prevIndex]
-                if prevChar.isNumber || prevChar == "_" { continue }
+                if prevChar.isNumber || prevChar == "_" {
+                    continue
+                }
             }
             if let n = Int(match.1), let previousResult = results[n] {
                 processed = processed.replacingOccurrences(of: String(match.0), with: printer.sourceForm(previousResult))
@@ -184,13 +197,19 @@ final class Repl {
         while j < s.endIndex {
             if s[j] == "\\" {
                 j = s.index(after: j)
-                if j < s.endIndex { j = s.index(after: j); col += 2 }
+                if j < s.endIndex {
+                    j = s.index(after: j)
+                    col += 2
+                }
             }
             else if s[j] == "\"" {
-                j = s.index(after: j); col += 1; break
+                j = s.index(after: j)
+                col += 1
+                break
             }
             else {
-                j = s.index(after: j); col += 1
+                j = s.index(after: j)
+                col += 1
             }
         }
         return (j, col)
@@ -219,7 +238,9 @@ final class Repl {
         while j < s.endIndex {
             if s[j] == "\\" {
                 j = s.index(after: j)
-                if j < s.endIndex { j = s.index(after: j) }
+                if j < s.endIndex {
+                    j = s.index(after: j)
+                }
             }
             else if s[j] == "\"" {
                 return (s.index(after: j), true)
@@ -246,28 +267,42 @@ final class Repl {
 
         while i < input.endIndex {
             switch input[i] {
-            case "(", "[": parenDepth += 1
-            case ")", "]": parenDepth -= 1
+            case "(", "[":
+                parenDepth += 1
+
+            case ")", "]":
+                parenDepth -= 1
+
             case "\"":
                 if isTripleQuote(at: i, in: input) {
                     i = input.index(i, offsetBy: 3)
                     while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
                         i = input.index(after: i)
                     }
-                    if i >= input.endIndex { return .multilineString }
-                    if input[i] == "\n" { i = input.index(after: i) }
+                    if i >= input.endIndex {
+                        return .multilineString
+                    }
+                    if input[i] == "\n" {
+                        i = input.index(after: i)
+                    }
                     let (newI, found) = skipPastClosingTripleQuote(from: i, in: input)
                     i = newI
-                    if !found { return .multilineString }
+                    if !found {
+                        return .multilineString
+                    }
                 }
                 else {
                     i = input.index(after: i)
                     let (newI, found) = skipPastClosingQuote(from: i, in: input)
                     i = newI
-                    if !found { return .regularString }
+                    if !found {
+                        return .regularString
+                    }
                 }
                 continue
-            default: break
+
+            default:
+                break
             }
             i = input.index(after: i)
         }
@@ -288,18 +323,30 @@ final class Repl {
                 col = stack.last ?? mainPromptLen
                 i = input.index(after: i)
                 continue
+
             case "\"":
                 if isTripleQuote(at: i, in: input) {
                     i = input.index(i, offsetBy: 3)
                     (i, _) = skipPastClosingTripleQuote(from: i, in: input)
-                } else {
+                }
+                else {
                     (i, col) = skipRegularStringTrackingCol(from: input.index(after: i), in: input, col: col + 1)
                 }
                 continue
-            case "(": stack.append(col + 2)
-            case "[": stack.append(col + 1)
-            case ")", "]": if !stack.isEmpty { stack.removeLast() }
-            default: break
+
+            case "(":
+                stack.append(col + 2)
+
+            case "[":
+                stack.append(col + 1)
+
+            case ")", "]":
+                if !stack.isEmpty {
+                    stack.removeLast()
+                }
+
+            default:
+                break
             }
             col += 1
             i = input.index(after: i)

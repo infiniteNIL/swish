@@ -51,12 +51,20 @@ public class Printer {
             "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
 
         case .function(let name, _, _):
-            if let name { "#<fn \(name)>" }
-            else { "#<fn>" }
+            if let name {
+                "#<fn \(name)>"
+            }
+            else {
+                "#<fn>"
+            }
 
         case .macro(let name, _, _):
-            if let name { "#<macro \(name)>" }
-            else { "#<macro>" }
+            if let name {
+                "#<macro \(name)>"
+            }
+            else {
+                "#<macro>"
+            }
 
         case .nativeFunction(let name, _, _):
             "#<native-fn \(name)>"
@@ -70,12 +78,16 @@ public class Printer {
         switch expr {
         case .string(let value):
             value
+
         case .character(let char):
             String(char)
+
         case .list(let elements):
             "(" + elements.map { strString($0) }.joined(separator: " ") + ")"
+
         case .vector(let elements):
             "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
+
         default:
             printString(expr)
         }
@@ -87,10 +99,13 @@ public class Printer {
         switch expr {
         case .float(let value):
             String(value)
+
         case .list(let elements):
             "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
+
         case .vector(let elements):
             "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
+
         default:
             printString(expr)
         }
@@ -98,13 +113,26 @@ public class Printer {
 
     private func printCharacter(_ char: Character) -> String {
         switch char {
-        case "\n": return "\\newline"
-        case "\t": return "\\tab"
-        case " ": return "\\space"
-        case "\r": return "\\return"
-        case "\u{0008}": return "\\backspace"
-        case "\u{000C}": return "\\formfeed"
-        default: return "\\\(char)"
+        case "\n":
+            return "\\newline"
+
+        case "\t":
+            return "\\tab"
+
+        case " ":
+            return "\\space"
+
+        case "\r":
+            return "\\return"
+
+        case "\u{0008}":
+            return "\\backspace"
+
+        case "\u{000C}":
+            return "\\formfeed"
+
+        default:
+            return "\\\(char)"
         }
     }
 
@@ -112,13 +140,26 @@ public class Printer {
         var result = ""
         for char in s {
             switch char {
-            case "\"": result.append("\\\"")
-            case "\\": result.append("\\\\")
-            case "\n": result.append("\\n")
-            case "\t": result.append("\\t")
-            case "\r": result.append("\\r")
-            case "\0": result.append("\\0")
-            default: result.append(char)
+            case "\"":
+                result.append("\\\"")
+
+            case "\\":
+                result.append("\\\\")
+
+            case "\n":
+                result.append("\\n")
+
+            case "\t":
+                result.append("\\t")
+
+            case "\r":
+                result.append("\\r")
+
+            case "\0":
+                result.append("\\0")
+
+            default:
+                result.append(char)
             }
         }
         return result

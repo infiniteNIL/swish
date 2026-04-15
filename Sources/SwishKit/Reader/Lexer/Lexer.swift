@@ -39,22 +39,51 @@ public class Lexer {
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
-        if char == "\"" { return try scanString(startLine: startLine, startColumn: startColumn) }
-        if char == "\\" { return try scanCharacter(startLine: startLine, startColumn: startColumn) }
-        if char == ":"  { return try scanKeyword(startLine: startLine, startColumn: startColumn) }
+        if char == "\"" {
+            return try scanString(startLine: startLine, startColumn: startColumn)
+        }
+        if char == "\\" {
+            return try scanCharacter(startLine: startLine, startColumn: startColumn)
+        }
+        if char == ":" {
+            return try scanKeyword(startLine: startLine, startColumn: startColumn)
+        }
 
         switch char {
-        case "(": _ = advance(); return Token(type: .leftParen,        text: "(",  line: startLine, column: startColumn)
-        case ")": _ = advance(); return Token(type: .rightParen,       text: ")",  line: startLine, column: startColumn)
-        case "[": _ = advance(); return Token(type: .leftBracket,      text: "[",  line: startLine, column: startColumn)
-        case "]": _ = advance(); return Token(type: .rightBracket,     text: "]",  line: startLine, column: startColumn)
-        case "'": _ = advance(); return Token(type: .quote,            text: "'",  line: startLine, column: startColumn)
-        case "`": _ = advance(); return Token(type: .backtick,         text: "`",  line: startLine, column: startColumn)
+        case "(":
+            _ = advance()
+            return Token(type: .leftParen, text: "(", line: startLine, column: startColumn)
+
+        case ")":
+            _ = advance()
+            return Token(type: .rightParen, text: ")", line: startLine, column: startColumn)
+
+        case "[":
+            _ = advance()
+            return Token(type: .leftBracket, text: "[", line: startLine, column: startColumn)
+
+        case "]":
+            _ = advance()
+            return Token(type: .rightBracket, text: "]", line: startLine, column: startColumn)
+
+        case "'":
+            _ = advance()
+            return Token(type: .quote, text: "'", line: startLine, column: startColumn)
+
+        case "`":
+            _ = advance()
+            return Token(type: .backtick, text: "`", line: startLine, column: startColumn)
+
         case "~":
             _ = advance()
-            if peek() == "@" { _ = advance(); return Token(type: .unquoteSplicing, text: "~@", line: startLine, column: startColumn) }
+            if peek() == "@" {
+                _ = advance()
+                return Token(type: .unquoteSplicing, text: "~@", line: startLine, column: startColumn)
+            }
             return Token(type: .unquote, text: "~", line: startLine, column: startColumn)
-        default: break
+
+        default:
+            break
         }
 
         if isSymbolStart(char) {
@@ -67,10 +96,17 @@ public class Lexer {
     private func scanNumber(startLine: Int, startColumn: Int, prefix: String = "") throws -> Token {
         if peek() == "0", let next = peekAt(1) {
             switch next {
-            case "b": return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
-            case "o": return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
-            case "x": return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
-            default: break
+            case "b":
+                return try scanBinaryInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+
+            case "o":
+                return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+
+            case "x":
+                return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+
+            default:
+                break
             }
         }
         return try scanDecimalNumber(startLine: startLine, startColumn: startColumn, prefix: prefix)
@@ -123,10 +159,13 @@ public class Lexer {
 
     func isNumberTerminator(_ char: Character?) -> Bool {
         guard let char = char else { return true }
-        if char.isWhitespace || char == "," { return true }
+        if char.isWhitespace || char == "," {
+            return true
+        }
         switch char {
         case "(", ")", "[", "]", "\"", ":", "\\", ";":
             return true
+
         default:
             return false
         }
@@ -149,10 +188,13 @@ public class Lexer {
     // MARK: - Symbol helpers
 
     func isSymbolStart(_ char: Character) -> Bool {
-        if char.isLetter { return true }
+        if char.isLetter {
+            return true
+        }
         switch char {
         case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&":
             return true
+
         default:
             return false
         }

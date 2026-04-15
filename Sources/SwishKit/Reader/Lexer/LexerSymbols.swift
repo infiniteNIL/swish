@@ -40,13 +40,26 @@ extension Lexer {
 
     private func resolveNamedCharacter(_ name: String) -> Character? {
         switch name {
-        case "newline":   return "\n"
-        case "tab":       return "\t"
-        case "space":     return " "
-        case "return":    return "\r"
-        case "backspace": return "\u{0008}"
-        case "formfeed":  return "\u{000C}"
-        default:          return nil
+        case "newline":
+            return "\n"
+
+        case "tab":
+            return "\t"
+
+        case "space":
+            return " "
+
+        case "return":
+            return "\r"
+
+        case "backspace":
+            return "\u{0008}"
+
+        case "formfeed":
+            return "\u{000C}"
+
+        default:
+            return nil
         }
     }
 
@@ -80,9 +93,14 @@ extension Lexer {
     func scanSymbol(startLine: Int, startColumn: Int) -> Token {
         let text = scanQualifiedName()
         switch text {
-        case "true", "false": return Token(type: .boolean, text: text, line: startLine, column: startColumn)
-        case "nil":           return Token(type: .nil,     text: text, line: startLine, column: startColumn)
-        default:              return Token(type: .symbol,  text: text, line: startLine, column: startColumn)
+        case "true", "false":
+            return Token(type: .boolean, text: text, line: startLine, column: startColumn)
+
+        case "nil":
+            return Token(type: .nil, text: text, line: startLine, column: startColumn)
+
+        default:
+            return Token(type: .symbol, text: text, line: startLine, column: startColumn)
         }
     }
 
@@ -119,18 +137,31 @@ extension Lexer {
                 text.append(advance())
             }
             else if char == "." {
-                if text.isEmpty { break }
-                if let next = peekAt(1), isSymbolContinuation(next) { text.append(advance()) }
-                else { break }
+                if text.isEmpty {
+                    break
+                }
+                if let next = peekAt(1), isSymbolContinuation(next) {
+                    text.append(advance())
+                }
+                else {
+                    break
+                }
             }
             else if char == "/" {
-                if hasSlash || text.isEmpty { break }
-                if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
-                    text.append(advance()); hasSlash = true
+                if hasSlash || text.isEmpty {
+                    break
                 }
-                else { break }
+                if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
+                    text.append(advance())
+                    hasSlash = true
+                }
+                else {
+                    break
+                }
             }
-            else { break }
+            else {
+                break
+            }
         }
         return text
     }

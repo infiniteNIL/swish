@@ -60,21 +60,42 @@ if condition {
 }
 ```
 
-- Place a blank line between switch cases only when cases have multi-statement bodies. Single-statement cases need no blank line between them.
+- All `if`/`else if`/`else` bodies must be on their own indented line — never inline.
 
 ```swift
-// Correct — multi-statement cases get blank lines
-switch condition {
-case .a:
-    let x = compute()
-    return x
-
-case .b:
-    let y = compute()
-    return y
+// Correct
+if condition {
+    return value
 }
 
-// Correct — single-statement cases need no blank lines
+if condition {
+    doSomething()
+}
+else {
+    doOther()
+}
+
+// Incorrect
+if condition { return value }
+if condition { doSomething() } else { doOther() }
+```
+
+- In switch statements, all case bodies must be on their own line, and there must always be a blank line between cases.
+
+```swift
+// Correct
+switch condition {
+case .a:
+    return 1
+
+case .b:
+    return 2
+
+case .c:
+    return 3
+}
+
+// Incorrect
 switch condition {
 case .a: return 1
 case .b: return 2
