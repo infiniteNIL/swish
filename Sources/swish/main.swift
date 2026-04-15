@@ -1,1 +1,0 @@
-SwishCLI.main()

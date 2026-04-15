@@ -50,7 +50,11 @@ final class Repl {
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
             lineReader?.addHistory(input)
-            if handleCommand(trimmed) { teardownCursor(); return }
+            switch handleCommand(trimmed) {
+            case .exit:        teardownCursor(); return
+            case .handled:     continue
+            case .notACommand: break
+            }
             do {
                 let result = try eval(trimmed)
                 printResult(result)
@@ -92,10 +96,12 @@ final class Repl {
 
     // MARK: - Command handling
 
-    private func handleCommand(_ trimmed: String) -> Bool {
-        if matchCommand(trimmed, "quit") { return true }
-        if matchCommand(trimmed, "help") { printHelp() }
-        return false
+    private enum CommandResult { case exit, handled, notACommand }
+
+    private func handleCommand(_ trimmed: String) -> CommandResult {
+        if matchCommand(trimmed, "quit") { return .exit }
+        if matchCommand(trimmed, "help") { printHelp(); return .handled }
+        return .notACommand
     }
 
     // MARK: - Eval / print

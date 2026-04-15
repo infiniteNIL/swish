@@ -2,6 +2,7 @@ import ArgumentParser
 import Foundation
 import SwishKit
 
+@main
 struct SwishCLI: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swish",
