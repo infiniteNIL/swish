@@ -25,7 +25,7 @@ struct SwishCLI: ParsableCommand {
                 throw ExitCode.failure
             }
         } else {
-            startREPL()
+            Repl().run()
         }
     }
 }
