@@ -173,6 +173,24 @@ final class Repl {
 
     // MARK: - String scanning helpers
 
+    // Advances past the closing ", tracking column position. Opening quote already consumed.
+    // Returns (newIndex, newCol).
+    private func skipRegularStringTrackingCol(from i: String.Index, in s: String, col: Int) -> (String.Index, Int) {
+        var j = i
+        var col = col
+        while j < s.endIndex {
+            if s[j] == "\\" {
+                j = s.index(after: j)
+                if j < s.endIndex { j = s.index(after: j); col += 2 }
+            } else if s[j] == "\"" {
+                j = s.index(after: j); col += 1; break
+            } else {
+                j = s.index(after: j); col += 1
+            }
+        }
+        return (j, col)
+    }
+
     private func isTripleQuote(at i: String.Index, in s: String) -> Bool {
         guard let n1 = s.index(i, offsetBy: 1, limitedBy: s.endIndex),
               let n2 = s.index(i, offsetBy: 2, limitedBy: s.endIndex),
@@ -220,21 +238,10 @@ final class Repl {
         var parenDepth = 0
 
         while i < input.endIndex {
-            let char = input[i]
-
-            if char == "(" || char == "[" {
-                parenDepth += 1
-                i = input.index(after: i)
-                continue
-            }
-
-            if char == ")" || char == "]" {
-                parenDepth -= 1
-                i = input.index(after: i)
-                continue
-            }
-
-            if char == "\"" {
+            switch input[i] {
+            case "(", "[": parenDepth += 1
+            case ")", "]": parenDepth -= 1
+            case "\"":
                 if isTripleQuote(at: i, in: input) {
                     i = input.index(i, offsetBy: 3)
                     while i < input.endIndex && input[i] != "\n" && input[i].isWhitespace {
@@ -252,8 +259,8 @@ final class Repl {
                     if !found { return .regularString }
                 }
                 continue
+            default: break
             }
-
             i = input.index(after: i)
         }
 
@@ -263,51 +270,28 @@ final class Repl {
     // MARK: - Indent computation
 
     private func computeIndent(_ input: String, mainPromptLen: Int) -> Int {
-        var depth = 0
         var col = mainPromptLen
         var stack: [Int] = []
         var i = input.startIndex
 
         while i < input.endIndex {
-            let char = input[i]
-
-            if char == "\n" {
+            switch input[i] {
+            case "\n":
                 col = stack.last ?? mainPromptLen
                 i = input.index(after: i)
                 continue
-            }
-
-            if char == "\"" {
+            case "\"":
                 if isTripleQuote(at: i, in: input) {
                     i = input.index(i, offsetBy: 3)
                     (i, _) = skipPastClosingTripleQuote(from: i, in: input)
                 } else {
-                    // Regular string: keep inline to track col as we scan
-                    i = input.index(after: i)
-                    col += 1
-                    while i < input.endIndex {
-                        if input[i] == "\\" {
-                            i = input.index(after: i)
-                            if i < input.endIndex { i = input.index(after: i); col += 2 }
-                        } else if input[i] == "\"" {
-                            i = input.index(after: i); col += 1; break
-                        } else {
-                            i = input.index(after: i); col += 1
-                        }
-                    }
+                    (i, col) = skipRegularStringTrackingCol(from: input.index(after: i), in: input, col: col + 1)
                 }
                 continue
-            }
-
-            if char == "(" {
-                depth += 1
-                stack.append(col + 2)
-            } else if char == "[" {
-                depth += 1
-                stack.append(col + 1)
-            } else if char == ")" || char == "]" {
-                depth = max(0, depth - 1)
-                if !stack.isEmpty { stack.removeLast() }
+            case "(": stack.append(col + 2)
+            case "[": stack.append(col + 1)
+            case ")", "]": if !stack.isEmpty { stack.removeLast() }
+            default: break
             }
             col += 1
             i = input.index(after: i)
