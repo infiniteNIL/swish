@@ -1,21 +1,15 @@
 private let printer = Printer()
 
-/// Registers all built-in functions into the evaluator's core environment.
-func registerCoreFunctions(into evaluator: Evaluator) {
-    registerArithmetic(into: evaluator)
-    registerComparison(into: evaluator)
-    registerMacros(into: evaluator)
-    registerIO(into: evaluator)
-}
+// MARK: - Registration
 
-// MARK: - Arithmetic
-
-private func registerArithmetic(into evaluator: Evaluator) {
+func registerArithmetic(into evaluator: Evaluator) {
     evaluator.register(name: "+", arity: .variadic, body: coreAdd)
     evaluator.register(name: "-", arity: .variadic, body: coreSubtract)
     evaluator.register(name: "*", arity: .variadic, body: coreMultiply)
     evaluator.register(name: "/", arity: .variadic, body: coreDivide)
 }
+
+// MARK: - Implementations
 
 private func coreAdd(_ args: [Expr]) throws -> Expr {
     if args.isEmpty { return .integer(0) }
@@ -70,103 +64,15 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
     return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
 }
 
-// MARK: - Comparison
+// MARK: - Numeric coercion (internal — used by CoreComparison via numericLessThan)
 
-private func registerComparison(into evaluator: Evaluator) {
-    evaluator.register(name: "<",    arity: .atLeastOne, body: coreLessThan)
-    evaluator.register(name: ">",    arity: .atLeastOne, body: coreGreaterThan)
-    evaluator.register(name: "<=",   arity: .atLeastOne, body: coreLessOrEqual)
-    evaluator.register(name: ">=",   arity: .atLeastOne, body: coreGreaterOrEqual)
-    evaluator.register(name: "=",    arity: .atLeastOne, body: coreEqual)
-    evaluator.register(name: "not=", arity: .atLeastOne, body: coreNotEqual)
-}
-
-private func coreLessThan(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(true) }
-    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try numericLessThan($0, $1, function: "<") })
-}
-
-private func coreGreaterThan(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(true) }
-    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try numericLessThan($1, $0, function: ">") })
-}
-
-private func coreLessOrEqual(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(true) }
-    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try !numericLessThan($1, $0, function: "<=") })
-}
-
-private func coreGreaterOrEqual(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(true) }
-    return try .boolean(zip(args, args.dropFirst()).allSatisfy { try !numericLessThan($0, $1, function: ">=") })
-}
-
-private func coreEqual(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(true) }
-    return .boolean(zip(args, args.dropFirst()).allSatisfy { $0 == $1 })
-}
-
-private func coreNotEqual(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(false) }
-    return .boolean(!zip(args, args.dropFirst()).allSatisfy { $0 == $1 })
-}
-
-// MARK: - Macros
-
-private func registerMacros(into evaluator: Evaluator) {
-    evaluator.register(name: "gensym",        arity: .variadic) { [evaluator] args in try coreGensym(evaluator, args) }
-    evaluator.register(name: "macroexpand-1", arity: .fixed(1)) { [evaluator] args in try coreMacroexpand1(evaluator, args) }
-    evaluator.register(name: "macroexpand",   arity: .fixed(1)) { [evaluator] args in try coreMacroexpand(evaluator, args) }
-}
-
-private func coreGensym(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    let prefix: String
-    if let first = args.first, case .string(let p) = first {
-        prefix = p
-    } else {
-        prefix = "G__"
-    }
-    return .symbol(evaluator.gensym(prefix: prefix))
-}
-
-private func coreMacroexpand1(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    try evaluator.macroexpand1(args[0]) ?? args[0]
-}
-
-private func coreMacroexpand(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    var form = args[0]
-    while let expanded = try evaluator.macroexpand1(form) {
-        form = expanded
-    }
-    return form
-}
-
-// MARK: - I/O
-
-private func registerIO(into evaluator: Evaluator) {
-    evaluator.register(name: "print",   arity: .variadic, body: corePrint)
-    evaluator.register(name: "println", arity: .variadic, body: corePrintln)
-}
-
-private func corePrint(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { printer.strString($0) }.joined(separator: " "), terminator: "")
-    return .nil
-}
-
-private func corePrintln(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { printer.strString($0) }.joined(separator: " "))
-    return .nil
-}
-
-// MARK: - Numeric coercion
-
-private enum NumericPair {
+enum NumericPair {
     case ints(Int, Int)
     case floats(Double, Double)
     case ratios(Ratio, Ratio)
 }
 
-private func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> NumericPair {
+func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> NumericPair {
     switch (a, b) {
     case (.integer(let x), .integer(let y)): return .ints(x, y)
     case (.float(let x),   .float(let y)):   return .floats(x, y)
@@ -184,11 +90,11 @@ private func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws ->
     }
 }
 
+// MARK: - Numeric helpers
+
 private func ratioExpr(_ r: Ratio) -> Expr {
     r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
 }
-
-// MARK: - Validation helpers
 
 private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
     switch arg {
@@ -198,18 +104,6 @@ private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
             function: function, message: "expected a number, got \(printer.printString(arg))")
     }
 }
-
-// MARK: - Comparison helpers
-
-private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
-    switch try coerceNumericPair(a, b, function: function) {
-    case .ints(let x, let y):     return x < y
-    case .floats(let x, let y):   return x < y
-    case .ratios(let x, let y):   return x.numerator * y.denominator < y.numerator * x.denominator
-    }
-}
-
-// MARK: - Numeric helpers
 
 private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
     switch try coerceNumericPair(a, b, function: "+") {
