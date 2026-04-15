@@ -29,6 +29,7 @@ public class Evaluator {
             return expr
         case .vector(let elements):
             return .vector(try elements.map { try eval($0, in: env) })
+
         case .symbol(let name):
             guard let value = env.get(name) else {
                 throw EvaluatorError.undefinedSymbol(name)
@@ -51,6 +52,7 @@ public class Evaluator {
         case .symbol("let"):          return try evalLet(elements, in: env)
         case .symbol("fn"):           return try evalFn(elements, in: env)
         case .symbol("defmacro"):     return try evalDefmacro(elements)
+
         default:
             let callee = try eval(head, in: env)
             return try callFunction(callee, args: elements.dropFirst(), in: env)
@@ -82,9 +84,11 @@ public class Evaluator {
         let isFalsy = condition == .nil || condition == .boolean(false)
         if !isFalsy {
             return try eval(elements[2], in: env)
-        } else if elements.count > 3 {
+        }
+        else if elements.count > 3 {
             return try eval(elements[3], in: env)
-        } else {
+        }
+        else {
             return .nil
         }
     }
@@ -270,7 +274,10 @@ public class Evaluator {
     }
 
     private func extractParamNames(_ exprs: [Expr]) -> [String] {
-        exprs.compactMap { if case .symbol(let s) = $0 { return s } else { return nil } }
+        exprs.compactMap {
+            if case .symbol(let s) = $0 { return s }
+            else { return nil }
+        }
     }
 }
 

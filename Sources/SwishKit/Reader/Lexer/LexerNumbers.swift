@@ -90,14 +90,16 @@ extension Lexer {
                 text.append(advance())
                 hasDigits = true
                 lastWasUnderscore = false
-            } else if char == "_" {
+            }
+            else if char == "_" {
                 if !hasDigits || lastWasUnderscore {
                     throw LexerError.invalidNumberFormat(text + "_", line: startLine, column: startColumn)
                 }
                 advance()
                 text.append("_")
                 lastWasUnderscore = true
-            } else {
+            }
+            else {
                 break
             }
         }

@@ -117,16 +117,20 @@ extension Lexer {
         while let char = peek() {
             if isSymbolContinuation(char) {
                 text.append(advance())
-            } else if char == "." {
+            }
+            else if char == "." {
                 if text.isEmpty { break }
                 if let next = peekAt(1), isSymbolContinuation(next) { text.append(advance()) }
                 else { break }
-            } else if char == "/" {
+            }
+            else if char == "/" {
                 if hasSlash || text.isEmpty { break }
                 if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
                     text.append(advance()); hasSlash = true
-                } else { break }
-            } else { break }
+                }
+                else { break }
+            }
+            else { break }
         }
         return text
     }

@@ -57,7 +57,8 @@ final class Repl {
             do {
                 let result = try eval(trimmed)
                 printResult(result)
-            } catch {
+            }
+            catch {
                 printError(error)
             }
             inputCount += 1
@@ -70,10 +71,12 @@ final class Repl {
         if let ln = lineReader {
             do {
                 return try ln.readLine(prompt: prompt, strippingNewline: true)
-            } catch {
+            }
+            catch {
                 return nil
             }
-        } else {
+        }
+        else {
             print(prompt, terminator: "")
             return Swift.readLine()
         }
@@ -182,9 +185,11 @@ final class Repl {
             if s[j] == "\\" {
                 j = s.index(after: j)
                 if j < s.endIndex { j = s.index(after: j); col += 2 }
-            } else if s[j] == "\"" {
+            }
+            else if s[j] == "\"" {
                 j = s.index(after: j); col += 1; break
-            } else {
+            }
+            else {
                 j = s.index(after: j); col += 1
             }
         }
@@ -215,9 +220,11 @@ final class Repl {
             if s[j] == "\\" {
                 j = s.index(after: j)
                 if j < s.endIndex { j = s.index(after: j) }
-            } else if s[j] == "\"" {
+            }
+            else if s[j] == "\"" {
                 return (s.index(after: j), true)
-            } else {
+            }
+            else {
                 j = s.index(after: j)
             }
         }
@@ -252,7 +259,8 @@ final class Repl {
                     let (newI, found) = skipPastClosingTripleQuote(from: i, in: input)
                     i = newI
                     if !found { return .multilineString }
-                } else {
+                }
+                else {
                     i = input.index(after: i)
                     let (newI, found) = skipPastClosingQuote(from: i, in: input)
                     i = newI

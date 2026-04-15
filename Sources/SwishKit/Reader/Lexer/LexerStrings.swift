@@ -24,7 +24,8 @@ extension Lexer {
                 case "u":  value.append(try scanUnicodeEscapeFromStream(startLine: startLine, startColumn: startColumn))
                 default:   throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
                 }
-            } else {
+            }
+            else {
                 value.append(advance())
             }
         }
@@ -94,7 +95,8 @@ extension Lexer {
                 rawLines.append(currentLine)
                 currentLine = ""
                 advance()
-            } else {
+            }
+            else {
                 currentLine.append(advance())
             }
         }
@@ -129,7 +131,8 @@ extension Lexer {
         for (i, line) in lines.enumerated() {
             if line.hasSuffix("\\") && !line.hasSuffix("\\\\") {
                 result.append(String(line.dropLast()))
-            } else {
+            }
+            else {
                 result.append(line)
                 if i < lines.count - 1 { result.append("\n") }
             }

@@ -12,7 +12,8 @@ private func coreGensym(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let prefix: String
     if let first = args.first, case .string(let p) = first {
         prefix = p
-    } else {
+    }
+    else {
         prefix = "G__"
     }
     return .symbol(evaluator.gensym(prefix: prefix))

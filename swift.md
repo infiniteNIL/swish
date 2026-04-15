@@ -60,24 +60,25 @@ if condition {
 }
 ```
 
-- Place a newline between cases in a switch statement
+- Place a blank line between switch cases only when cases have multi-statement bodies. Single-statement cases need no blank line between them.
 
 ```swift
-// Correct
+// Correct — multi-statement cases get blank lines
 switch condition {
-case ...:
-    // ...
+case .a:
+    let x = compute()
+    return x
 
-case ...:
-    // ...
+case .b:
+    let y = compute()
+    return y
 }
 
-// Incorrect
+// Correct — single-statement cases need no blank lines
 switch condition {
-case ...:
-    // ...
-case ...:
-    // ...
+case .a: return 1
+case .b: return 2
+case .c: return 3
 }
 ```
 

@@ -21,11 +21,13 @@ struct SwishCLI: ParsableCommand {
             let interpreter = Swish()
             do {
                 try interpreter.run(filename: file)
-            } catch {
+            }
+            catch {
                 fputs("error: \(error)\n", stderr)
                 throw ExitCode.failure
             }
-        } else {
+        }
+        else {
             Repl().run()
         }
     }
