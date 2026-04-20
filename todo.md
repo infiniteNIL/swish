@@ -1,5 +1,6 @@
 # Todo
 
+- [ ] Vars
 - [ ] namespaces
 - [ ] swish.core
 - [ ] defn
