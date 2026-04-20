@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Vars
 - [ ] namespaces
 - [ ] swish.core
 - [ ] defn
@@ -12,6 +11,7 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] Vars
 - [x] Add macros
 - [x] syntax-quote
 - [x] unquote
