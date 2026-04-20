@@ -189,7 +189,12 @@ struct EvaluatorLiteralsTests {
         let evaluator = Evaluator()
         _ = try evaluator.eval(.list([.symbol("def"), .symbol("myVar"), .integer(7)]))
         #expect(evaluator.coreEnvironment.get("myVar") == nil)
-        #expect(evaluator.environment.get("myVar") == .integer(7))
+
+        guard case .varRef(let v) = evaluator.environment.get("myVar") else {
+            Issue.record("Expected .varRef in environment")
+            return
+        }
+        #expect(v.value == .integer(7))
     }
 
     // MARK: - vector literals

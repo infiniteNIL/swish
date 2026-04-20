@@ -7,10 +7,15 @@ struct EvaluatorSpecialFormsTests {
 
     // MARK: - def special form
 
-    @Test("def binds a value and returns the symbol")
-    func defBindsValueAndReturnsSymbol() throws {
+    @Test("def binds a value and returns the varRef")
+    func defBindsValueAndReturnsVarRef() throws {
         let result = try evaluator.eval(.list([.symbol("def"), .symbol("x"), .integer(10)]))
-        #expect(result == .symbol("x"))
+        guard case .varRef(let v) = result else {
+            Issue.record("Expected .varRef, got \(result)")
+            return
+        }
+        #expect(v.name == "x")
+        #expect(v.value == .integer(10))
     }
 
     @Test("Symbol lookup after def")
@@ -39,9 +44,19 @@ struct EvaluatorSpecialFormsTests {
     func defEvaluatesValueArgument() throws {
         let result = try evaluator.eval(.list([.symbol("def"), .symbol("x"),
             .list([.symbol("def"), .symbol("y"), .integer(5)])]))
-        #expect(result == .symbol("x"))
-        let xValue = try evaluator.eval(.symbol("x"))
-        #expect(xValue == .symbol("y"))
+
+        guard case .varRef(let xVar) = result else {
+            Issue.record("Expected .varRef for x, got \(result)")
+            return
+        }
+        #expect(xVar.name == "x")
+
+        guard case .varRef(let yVar) = xVar.value else {
+            Issue.record("Expected x's value to be .varRef for y, got \(String(describing: xVar.value))")
+            return
+        }
+        #expect(yVar.name == "y")
+
         let yValue = try evaluator.eval(.symbol("y"))
         #expect(yValue == .integer(5))
     }
@@ -50,8 +65,14 @@ struct EvaluatorSpecialFormsTests {
     func defWithApostropheSymbol() throws {
         let exprs = try Reader.readString("(def a'b 5)")
         #expect(exprs.count == 1)
+
         let result = try evaluator.eval(exprs[0])
-        #expect(result == .symbol("a'b"))
+        guard case .varRef(let v) = result else {
+            Issue.record("Expected .varRef, got \(result)")
+            return
+        }
+        #expect(v.name == "a'b")
+        
         let value = try evaluator.eval(.symbol("a'b"))
         #expect(value == .integer(5))
     }

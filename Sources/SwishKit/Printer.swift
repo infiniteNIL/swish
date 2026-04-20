@@ -68,6 +68,9 @@ public class Printer {
 
         case .nativeFunction(let name, _, _):
             "#<native-fn \(name)>"
+
+        case .varRef(let v):
+            "#'\(v.namespace)/\(v.name)"
         }
     }
 

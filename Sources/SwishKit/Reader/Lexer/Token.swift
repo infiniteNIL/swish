@@ -17,6 +17,7 @@ public enum TokenType: Equatable, Sendable {
     case backtick
     case unquote
     case unquoteSplicing
+    case varRef
     case eof
 }
 

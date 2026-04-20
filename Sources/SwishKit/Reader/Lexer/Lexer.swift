@@ -82,6 +82,14 @@ public class Lexer {
             }
             return Token(type: .unquote, text: "~", line: startLine, column: startColumn)
 
+        case "#":
+            _ = advance()
+            guard peek() == "'" else {
+                throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
+            }
+            _ = advance()
+            return Token(type: .varRef, text: "#'", line: startLine, column: startColumn)
+
         default:
             break
         }

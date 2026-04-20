@@ -25,7 +25,7 @@ public class Evaluator {
 
     private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction, .varRef:
             return expr
 
         case .vector(let elements):
@@ -35,7 +35,13 @@ public class Evaluator {
             guard let value = env.get(name) else {
                 throw EvaluatorError.undefinedSymbol(name)
             }
-            return value
+            guard case .varRef(let v) = value else {
+                return value
+            }
+            guard let bound = v.value else {
+                throw EvaluatorError.unboundVar("\(v.namespace)/\(v.name)")
+            }
+            return bound
 
         case .list(let elements):
             return try evalList(elements, in: env)
@@ -68,6 +74,16 @@ public class Evaluator {
         case .symbol("defmacro"):
             return try evalDefmacro(elements)
 
+        case .symbol("var"):
+            guard elements.count == 2, case .symbol(let name) = elements[1] else {
+                throw EvaluatorError.invalidArgument(function: "var",
+                    message: "requires exactly one symbol argument")
+            }
+            guard let stored = env.get(name), case .varRef = stored else {
+                throw EvaluatorError.undefinedSymbol(name)
+            }
+            return stored
+
         default:
             let callee = try eval(head, in: env)
             return try callFunction(callee, args: elements.dropFirst(), in: env)
@@ -85,9 +101,17 @@ public class Evaluator {
         guard case .symbol(let name) = elements[1] else {
             throw EvaluatorError.undefinedSymbol("def")
         }
-        let value = try eval(elements[2], in: env)
-        environment.set(name, value)
-        return .symbol(name)
+        let existing = environment.get(name)
+        if case .varRef(let existingVar) = existing {
+            if elements.count == 3 {
+                existingVar.value = try eval(elements[2], in: env)
+            }
+            return .varRef(existingVar)
+        }
+        let newValue: Expr? = elements.count == 3 ? try eval(elements[2], in: env) : nil
+        let v = Var(name: name, namespace: "user", value: newValue)
+        environment.set(name, .varRef(v))
+        return .varRef(v)
     }
 
     private func evalIf(_ elements: [Expr], in env: Environment) throws -> Expr {

@@ -59,6 +59,9 @@ public class Parser {
         case .unquoteSplicing:
             return try parseUnquoteSplicing()
 
+        case .varRef:
+            return try parseVarRef()
+
         case .leftParen:
             return try parseList()
 
@@ -188,6 +191,14 @@ public class Parser {
         return .list([.symbol("unquote-splicing"), try parseExpr()])
     }
 
+    private func parseVarRef() throws -> Expr {
+        try advance()
+        if currentToken.type == .eof {
+            throw ParserError.unexpectedEOF
+        }
+        return .list([.symbol("var"), try parseExpr()])
+    }
+
     private func parseList() throws -> Expr {
         let startToken = currentToken
         try advance() // consume '('
@@ -226,9 +237,10 @@ public class Parser {
     }
 
     private func validateDef(_ elements: [Expr]) throws {
-        guard elements.count == 3 else {
-            throw ParserError.invalidDef("def requires exactly 2 arguments")
+        guard elements.count == 2 || elements.count == 3 else {
+            throw ParserError.invalidDef("def requires 1 or 2 arguments")
         }
+        
         guard case .symbol = elements[1] else {
             throw ParserError.invalidDef("first argument to def must be a symbol")
         }
