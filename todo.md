@@ -4,6 +4,7 @@
 - [ ] swish.core
 - [ ] defn
 - [ ] Add some builtin string functions
+- [ ] Use Swift Collections lib for persistent data structures
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
