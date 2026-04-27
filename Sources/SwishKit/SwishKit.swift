@@ -22,7 +22,7 @@ public struct Swish {
     /// - Returns: The evaluated `Expr` value
     /// - Throws: `LexerError`, `ParserError`, or `EvaluatorError` if the input is invalid
     public var currentNamespaceName: String {
-        evaluator.currentNs().name
+        evaluator.currentNamespaceName
     }
 
     public func eval(_ source: String) throws -> Expr {

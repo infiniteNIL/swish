@@ -15,7 +15,7 @@ func registerNamespace(into evaluator: Evaluator) {
                 message: "expected a symbol, got \(args[0])")
         }
         let ns = evaluator.findOrCreateNs(name)
-        evaluator.findNs("clojure.core")!.findVar(name: "*ns*")!.value = .namespace(ns)
+        evaluator.setCurrentNs(ns)
         return .namespace(ns)
     }
 }
