@@ -95,20 +95,7 @@ public class Evaluator {
             return try evalDefmacro(elements)
 
         case .symbol("var"):
-            guard elements.count == 2, case .symbol(let name) = elements[1] else {
-                throw EvaluatorError.invalidArgument(function: "var",
-                    message: "requires exactly one symbol argument")
-            }
-            if let v = try resolveQualifiedVar(name: name) {
-                return .varRef(v)
-            }
-            if let stored = env.get(name), case .varRef = stored {
-                return stored
-            }
-            if let v = resolveVar(name: name, in: currentNs()) {
-                return .varRef(v)
-            }
-            throw EvaluatorError.undefinedSymbol(name)
+            return try evalVar(elements, in: env)
 
         default:
             let callee = try eval(head, in: env)
@@ -117,6 +104,23 @@ public class Evaluator {
     }
 
     // MARK: - Special forms
+
+    private func evalVar(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count == 2, case .symbol(let name) = elements[1] else {
+            throw EvaluatorError.invalidArgument(function: "var",
+                message: "requires exactly one symbol argument")
+        }
+        if let v = try resolveQualifiedVar(name: name) {
+            return .varRef(v)
+        }
+        if let stored = env.get(name), case .varRef = stored {
+            return stored
+        }
+        if let v = resolveVar(name: name, in: currentNs()) {
+            return .varRef(v)
+        }
+        throw EvaluatorError.undefinedSymbol(name)
+    }
 
     private func evalSyntaxQuote(_ elements: [Expr], in env: Environment) throws -> Expr {
         var gensyms: [String: String] = [:]

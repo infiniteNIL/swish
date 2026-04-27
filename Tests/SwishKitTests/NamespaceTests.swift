@@ -69,7 +69,7 @@ struct NamespaceTests {
         let v1 = ns1.intern(name: "foo")
         let v2 = ns2.intern(name: "foo")
         try ns3.refer(v1)
-        #expect(throws: EvaluatorError.self) {
+        #expect(throws: NamespaceError.self) {
             try ns3.refer(v2)
         }
     }

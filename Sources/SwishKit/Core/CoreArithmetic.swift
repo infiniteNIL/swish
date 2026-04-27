@@ -1,5 +1,3 @@
-private let printer = Printer()
-
 // MARK: - Registration
 
 func registerArithmetic(into evaluator: Evaluator) {
@@ -38,7 +36,7 @@ private func coreSubtract(_ args: [Expr]) throws -> Expr {
 
         default:
             throw EvaluatorError.invalidArgument(
-                function: "-", message: "expected a number, got \(printer.printString(args[0]))")
+                function: "-", message: "expected a number, got \(corePrinter.printString(args[0]))")
         }
     }
     return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
@@ -79,7 +77,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
 
         default:
             throw EvaluatorError.invalidArgument(
-                function: "/", message: "expected a number, got \(printer.printString(args[0]))")
+                function: "/", message: "expected a number, got \(corePrinter.printString(args[0]))")
         }
     }
     return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
@@ -125,7 +123,7 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     default:
         throw EvaluatorError.invalidArgument(
             function: function,
-            message: "expected numbers, got \(printer.printString(a)) and \(printer.printString(b))")
+            message: "expected numbers, got \(corePrinter.printString(a)) and \(corePrinter.printString(b))")
     }
 }
 
@@ -142,7 +140,7 @@ private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
 
     default:
         throw EvaluatorError.invalidArgument(
-            function: function, message: "expected a number, got \(printer.printString(arg))")
+            function: function, message: "expected a number, got \(corePrinter.printString(arg))")
     }
 }
 

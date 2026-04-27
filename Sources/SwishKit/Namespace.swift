@@ -27,9 +27,10 @@ public final class Namespace: @unchecked Sendable {
     /// Idempotent for the same Var. Throws if a different Var already occupies that name.
     public func refer(_ v: Var) throws {
         if let existing = mappings[v.name], existing !== v {
-            throw EvaluatorError.invalidArgument(
-                function: "refer",
-                message: "'\(v.name)' already refers to \(existing.namespace.name)/\(existing.name)")
+            throw NamespaceError.referConflict(
+                name: v.name,
+                existing: "\(existing.namespace.name)/\(existing.name)",
+                new: "\(v.namespace.name)/\(v.name)")
         }
         mappings[v.name] = v
     }

@@ -1,5 +1,3 @@
-private let printer = Printer()
-
 // MARK: - Registration
 
 func registerIO(into evaluator: Evaluator) {
@@ -10,11 +8,11 @@ func registerIO(into evaluator: Evaluator) {
 // MARK: - Implementations
 
 private func corePrint(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { printer.strString($0) }.joined(separator: " "), terminator: "")
+    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "), terminator: "")
     return .nil
 }
 
 private func corePrintln(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { printer.strString($0) }.joined(separator: " "))
+    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "))
     return .nil
 }
