@@ -34,7 +34,7 @@ public class Evaluator {
         namespaces[name] = ns
         if name != "clojure.core", let core = findNs("clojure.core") {
             for (_, v) in core.mappings {
-                try? ns.refer(v)
+                try! ns.refer(v)
             }
         }
         return ns
@@ -46,6 +46,25 @@ public class Evaluator {
             fatalError("*ns* corrupted — expected .namespace, got \(String(describing: nsVar.value))")
         }
         return ns
+    }
+
+    /// Looks up an unqualified name in `ns`, falling through to clojure.core if not found there.
+    private func resolveVar(name: String, in ns: Namespace) -> Var? {
+        ns.findVar(name: name)
+            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name) : nil)
+    }
+
+    /// Splits a qualified `ns/name` symbol and resolves it to a Var.
+    /// Returns nil if the symbol is not qualified (no slash, or the bare "/" symbol).
+    /// Throws undefinedSymbol if the namespace or var is not found.
+    private func resolveQualifiedVar(name: String) throws -> Var? {
+        guard name.contains("/"), name != "/" else { return nil }
+        let slashIdx = name.firstIndex(of: "/")!
+        let nsAlias = String(name[name.startIndex..<slashIdx])
+        let shortName = String(name[name.index(after: slashIdx)...])
+        guard let ns = findNs(nsAlias) else { throw EvaluatorError.undefinedSymbol(name) }
+        guard let v = ns.findVar(name: shortName) else { throw EvaluatorError.undefinedSymbol(name) }
+        return v
     }
 
     /// Generates a unique symbol with the given prefix
@@ -68,16 +87,7 @@ public class Evaluator {
             return .vector(try elements.map { try eval($0, in: env) })
 
         case .symbol(let name):
-            if name.contains("/") && name != "/" {
-                let slashIdx = name.firstIndex(of: "/")!
-                let nsAlias = String(name[name.startIndex..<slashIdx])
-                let shortName = String(name[name.index(after: slashIdx)...])
-                guard let ns = findNs(nsAlias) else {
-                    throw EvaluatorError.undefinedSymbol(name)
-                }
-                guard let v = ns.findVar(name: shortName) else {
-                    throw EvaluatorError.undefinedSymbol(name)
-                }
+            if let v = try resolveQualifiedVar(name: name) {
                 guard let bound = v.value else {
                     throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
                 }
@@ -92,15 +102,7 @@ public class Evaluator {
                 }
                 return value
             }
-            let ns = currentNs()
-            if let v = ns.findVar(name: name) {
-                guard let bound = v.value else {
-                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
-                }
-                return bound
-            }
-            // Fall through to clojure.core for symbols not in current ns mappings
-            if ns.name != "clojure.core", let v = findNs("clojure.core")?.findVar(name: name) {
+            if let v = resolveVar(name: name, in: currentNs()) {
                 guard let bound = v.value else {
                     throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
                 }
@@ -144,22 +146,13 @@ public class Evaluator {
                 throw EvaluatorError.invalidArgument(function: "var",
                     message: "requires exactly one symbol argument")
             }
-            if name.contains("/") && name != "/" {
-                let slashIdx = name.firstIndex(of: "/")!
-                let nsAlias = String(name[name.startIndex..<slashIdx])
-                let shortName = String(name[name.index(after: slashIdx)...])
-                guard let ns = findNs(nsAlias), let v = ns.findVar(name: shortName) else {
-                    throw EvaluatorError.undefinedSymbol(name)
-                }
+            if let v = try resolveQualifiedVar(name: name) {
                 return .varRef(v)
             }
             if let stored = env.get(name), case .varRef = stored {
                 return stored
             }
-            if let v = currentNs().findVar(name: name) {
-                return .varRef(v)
-            }
-            if let v = findNs("clojure.core")?.findVar(name: name) {
+            if let v = resolveVar(name: name, in: currentNs()) {
                 return .varRef(v)
             }
             throw EvaluatorError.undefinedSymbol(name)
@@ -182,19 +175,10 @@ public class Evaluator {
             throw EvaluatorError.undefinedSymbol("def")
         }
         let ns = currentNs()
-        // Check for system vars in current ns or clojure.core fallback before interning
-        let existing = ns.findVar(name: name)
-            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name) : nil)
-        if let existing, existing.isSystem {
+        if let existing = resolveVar(name: name, in: ns), existing.isSystem {
             throw EvaluatorError.cannotRedefineSystemVar(name)
         }
-        let v: Var
-        if let homeVar = ns.findVar(name: name), homeVar.namespace === ns {
-            v = homeVar
-        }
-        else {
-            v = ns.intern(name: name)
-        }
+        let v = ns.intern(name: name)
         if elements.count == 3 {
             v.value = try eval(elements[2], in: env)
         }
@@ -322,10 +306,8 @@ public class Evaluator {
               case .symbol(let name) = elements[0] else {
             return nil
         }
-        let ns = currentNs()
-        let value = ns.findVar(name: name)?.value
-            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name)?.value : nil)
-        guard let value, case .macro(_, let params, let body) = value else {
+        guard let value = resolveVar(name: name, in: currentNs())?.value,
+              case .macro(_, let params, let body) = value else {
             return nil
         }
         let macroArgs = Array(elements.dropFirst())
