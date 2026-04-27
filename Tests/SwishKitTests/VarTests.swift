@@ -34,7 +34,7 @@ struct VarTests {
             return
         }
         #expect(v.name == "foo")
-        #expect(v.namespace == "user")
+        #expect(v.namespace.name == "user")
         #expect(v.value == .integer(42))
     }
 

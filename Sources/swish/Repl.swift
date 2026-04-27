@@ -40,7 +40,7 @@ final class Repl {
         print("v0.1.0 — Type /help for commands.\n")
 
         while true {
-            let prompt = "λ(\(inputCount))> "
+            let prompt = "\(swish.currentNamespaceName)(\(inputCount))> "
             guard var input = readline(prompt: prompt) else {
                 teardownCursor()
                 return

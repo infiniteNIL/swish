@@ -235,11 +235,11 @@ struct EvaluatorSpecialFormsTests {
         #expect(result == fn)
     }
 
-    @Test("register places native function in core environment")
+    @Test("register places native function in clojure.core namespace")
     func registerPlacesNativeFunctionInCoreEnvironment() {
         let evaluator = Evaluator()
         evaluator.register(name: "inc", arity: .fixed(1)) { args in args[0] }
-        let stored = evaluator.coreEnvironment.get("inc")
+        let stored = evaluator.findNs("clojure.core")?.findVar(name: "inc")?.value
         #expect(stored == .nativeFunction(name: "inc", arity: .fixed(1)) { _ in .nil })
     }
 

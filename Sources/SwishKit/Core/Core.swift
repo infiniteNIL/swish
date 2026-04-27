@@ -4,4 +4,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerComparison(into: evaluator)
     registerMacros(into: evaluator)
     registerIO(into: evaluator)
+    registerNamespace(into: evaluator)
 }

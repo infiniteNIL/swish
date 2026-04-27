@@ -22,6 +22,7 @@ public indirect enum Expr: Sendable {
     case macro(name: String?, params: [String], body: [Expr])
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
     case varRef(Var)
+    case namespace(Namespace)
 }
 
 extension Expr: Equatable {
@@ -45,6 +46,7 @@ extension Expr: Equatable {
         case (.nativeFunction(let n1, let a1, _),
               .nativeFunction(let n2, let a2, _)):         return n1 == n2 && a1 == a2
         case (.varRef(let a), .varRef(let b)):             return a === b
+        case (.namespace(let a), .namespace(let b)):       return a === b
         default:                                           return false
         }
     }

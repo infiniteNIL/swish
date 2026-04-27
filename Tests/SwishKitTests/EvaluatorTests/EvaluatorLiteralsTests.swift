@@ -176,25 +176,22 @@ struct EvaluatorLiteralsTests {
 
     // MARK: - Core environment
 
-    @Test("Core environment symbol is visible during eval")
+    @Test("Symbol registered in clojure.core is visible in user namespace")
     func coreEnvironmentSymbolVisibleDuringEval() throws {
         let evaluator = Evaluator()
-        evaluator.coreEnvironment.set("pi", .float(3.14159))
+        evaluator.findNs("clojure.core")!.intern(name: "pi", value: .float(3.14159))
         let result = try evaluator.eval(.symbol("pi"))
         #expect(result == .float(3.14159))
     }
 
-    @Test("def does not affect core environment")
+    @Test("def interns into user namespace, not clojure.core")
     func defDoesNotAffectCoreEnvironment() throws {
         let evaluator = Evaluator()
         _ = try evaluator.eval(.list([.symbol("def"), .symbol("myVar"), .integer(7)]))
-        #expect(evaluator.coreEnvironment.get("myVar") == nil)
+        #expect(evaluator.findNs("clojure.core")?.findVar(name: "myVar") == nil)
 
-        guard case .varRef(let v) = evaluator.environment.get("myVar") else {
-            Issue.record("Expected .varRef in environment")
-            return
-        }
-        #expect(v.value == .integer(7))
+        let v = evaluator.findNs("user")?.findVar(name: "myVar")
+        #expect(v?.value == .integer(7))
     }
 
     // MARK: - vector literals

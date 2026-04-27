@@ -70,7 +70,10 @@ public class Printer {
             "#<native-fn \(name)>"
 
         case .varRef(let v):
-            "#'\(v.namespace)/\(v.name)"
+            "#'\(v.namespace.name)/\(v.name)"
+
+        case .namespace(let ns):
+            "#<Namespace \(ns.name)>"
         }
     }
 

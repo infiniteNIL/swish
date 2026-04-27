@@ -1,10 +1,13 @@
 # Todo
 
-- [ ] namespaces
-- [ ] swish.core
+- [ ] create-ns
+- [ ] all-ns
+- [ ] find-ns
+- [ ] initial ns macro (or special form at first)
+- [ ] clojure.core
 - [ ] defn
 - [ ] Add some builtin string functions
-- [ ] Use Swift Collections lib for persistent data structures
+- [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for single-line comments
@@ -12,6 +15,9 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] namespaces
+- [x] *ns*
+- [x] in-ns
 - [x] Vars
 - [x] Add macros
 - [x] syntax-quote

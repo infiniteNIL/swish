@@ -5,6 +5,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case invalidArgument(function: String, message: String)
     case notAFunction(Expr)
     case unboundVar(String)
+    case cannotRedefineSystemVar(String)
 
     public var description: String {
         switch self {
@@ -28,6 +29,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .unboundVar(let fqn):
             return "Var '\(fqn)' is unbound."
+
+        case .cannotRedefineSystemVar(let name):
+            return "Cannot redefine system var '\(name)'."
 
         case .notAFunction(let expr):
             let rep: String

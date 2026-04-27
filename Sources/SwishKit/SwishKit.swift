@@ -21,6 +21,10 @@ public struct Swish {
     /// - Parameter source: A string containing a Lisp expression
     /// - Returns: The evaluated `Expr` value
     /// - Throws: `LexerError`, `ParserError`, or `EvaluatorError` if the input is invalid
+    public var currentNamespaceName: String {
+        evaluator.currentNs().name
+    }
+
     public func eval(_ source: String) throws -> Expr {
         let exprs = try Reader.readString(source)
         guard let lastExpr = exprs.last else {

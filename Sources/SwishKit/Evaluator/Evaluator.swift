@@ -1,15 +1,51 @@
 /// Evaluator for Swish expressions
 public class Evaluator {
-    /// Holds built-in symbols and functions (the core library)
-    public let coreEnvironment = Environment()
-    /// Holds user-defined bindings; falls through to coreEnvironment on lookup
-    public let environment: Environment
+    private var namespaces: [String: Namespace] = [:]
 
     private var gensymCounter = 0
 
     public init() {
-        environment = Environment(parent: coreEnvironment)
+        // 1. Create clojure.core first — register() interns into it
+        let coreNs = Namespace(name: "clojure.core")
+        namespaces["clojure.core"] = coreNs
+
+        // 2. Populate clojure.core with all built-ins
         registerCoreFunctions(into: self)
+
+        // 3. Create user and auto-refer clojure.core (fully populated by now)
+        let userNs = findOrCreateNs("user")
+
+        // 4. *ns* — a system var in clojure.core holding the current namespace
+        let nsVar = coreNs.intern(name: "*ns*", value: .namespace(userNs))
+        nsVar.isSystem = true
+    }
+
+    // MARK: - Namespace registry
+
+    public func findNs(_ name: String) -> Namespace? {
+        namespaces[name]
+    }
+
+    public func findOrCreateNs(_ name: String) -> Namespace {
+        if let existing = namespaces[name] {
+            return existing
+        }
+        let ns = Namespace(name: name)
+        namespaces[name] = ns
+        if name != "clojure.core", let core = findNs("clojure.core") {
+            for (_, v) in core.mappings {
+                try? ns.refer(v)
+            }
+        }
+        return ns
+    }
+
+    func currentNs() -> Namespace {
+        let nsVar = findNs("clojure.core")!.findVar(name: "*ns*")!
+        guard case .namespace(let ns) = nsVar.value else {
+            fatalError("*ns* corrupted — expected .namespace, got \(String(describing: nsVar.value))")
+        }
+        return ns
     }
 
     /// Generates a unique symbol with the given prefix
@@ -20,28 +56,57 @@ public class Evaluator {
 
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {
-        try eval(expr, in: environment)
+        try eval(expr, in: Environment())
     }
 
     private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction, .varRef:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction, .varRef, .namespace:
             return expr
 
         case .vector(let elements):
             return .vector(try elements.map { try eval($0, in: env) })
 
         case .symbol(let name):
-            guard let value = env.get(name) else {
-                throw EvaluatorError.undefinedSymbol(name)
+            if name.contains("/") && name != "/" {
+                let slashIdx = name.firstIndex(of: "/")!
+                let nsAlias = String(name[name.startIndex..<slashIdx])
+                let shortName = String(name[name.index(after: slashIdx)...])
+                guard let ns = findNs(nsAlias) else {
+                    throw EvaluatorError.undefinedSymbol(name)
+                }
+                guard let v = ns.findVar(name: shortName) else {
+                    throw EvaluatorError.undefinedSymbol(name)
+                }
+                guard let bound = v.value else {
+                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+                }
+                return bound
             }
-            guard case .varRef(let v) = value else {
+            if let value = env.get(name) {
+                if case .varRef(let v) = value {
+                    guard let bound = v.value else {
+                        throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+                    }
+                    return bound
+                }
                 return value
             }
-            guard let bound = v.value else {
-                throw EvaluatorError.unboundVar("\(v.namespace)/\(v.name)")
+            let ns = currentNs()
+            if let v = ns.findVar(name: name) {
+                guard let bound = v.value else {
+                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+                }
+                return bound
             }
-            return bound
+            // Fall through to clojure.core for symbols not in current ns mappings
+            if ns.name != "clojure.core", let v = findNs("clojure.core")?.findVar(name: name) {
+                guard let bound = v.value else {
+                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+                }
+                return bound
+            }
+            throw EvaluatorError.undefinedSymbol(name)
 
         case .list(let elements):
             return try evalList(elements, in: env)
@@ -79,10 +144,25 @@ public class Evaluator {
                 throw EvaluatorError.invalidArgument(function: "var",
                     message: "requires exactly one symbol argument")
             }
-            guard let stored = env.get(name), case .varRef = stored else {
-                throw EvaluatorError.undefinedSymbol(name)
+            if name.contains("/") && name != "/" {
+                let slashIdx = name.firstIndex(of: "/")!
+                let nsAlias = String(name[name.startIndex..<slashIdx])
+                let shortName = String(name[name.index(after: slashIdx)...])
+                guard let ns = findNs(nsAlias), let v = ns.findVar(name: shortName) else {
+                    throw EvaluatorError.undefinedSymbol(name)
+                }
+                return .varRef(v)
             }
-            return stored
+            if let stored = env.get(name), case .varRef = stored {
+                return stored
+            }
+            if let v = currentNs().findVar(name: name) {
+                return .varRef(v)
+            }
+            if let v = findNs("clojure.core")?.findVar(name: name) {
+                return .varRef(v)
+            }
+            throw EvaluatorError.undefinedSymbol(name)
 
         default:
             let callee = try eval(head, in: env)
@@ -101,16 +181,23 @@ public class Evaluator {
         guard case .symbol(let name) = elements[1] else {
             throw EvaluatorError.undefinedSymbol("def")
         }
-        let existing = environment.get(name)
-        if case .varRef(let existingVar) = existing {
-            if elements.count == 3 {
-                existingVar.value = try eval(elements[2], in: env)
-            }
-            return .varRef(existingVar)
+        let ns = currentNs()
+        // Check for system vars in current ns or clojure.core fallback before interning
+        let existing = ns.findVar(name: name)
+            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name) : nil)
+        if let existing, existing.isSystem {
+            throw EvaluatorError.cannotRedefineSystemVar(name)
         }
-        let newValue: Expr? = elements.count == 3 ? try eval(elements[2], in: env) : nil
-        let v = Var(name: name, namespace: "user", value: newValue)
-        environment.set(name, .varRef(v))
+        let v: Var
+        if let homeVar = ns.findVar(name: name), homeVar.namespace === ns {
+            v = homeVar
+        }
+        else {
+            v = ns.intern(name: name)
+        }
+        if elements.count == 3 {
+            v.value = try eval(elements[2], in: env)
+        }
         return .varRef(v)
     }
 
@@ -172,7 +259,7 @@ public class Evaluator {
         }
         let params = extractParamNames(paramExprs)
         let body = Array(elements.dropFirst(3))
-        environment.set(name, .macro(name: name, params: params, body: body))
+        currentNs().intern(name: name, value: .macro(name: name, params: params, body: body))
         return .symbol(name)
     }
 
@@ -194,7 +281,7 @@ public class Evaluator {
     }
 
     private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let macroEnv = Environment(parent: environment)
+        let macroEnv = Environment()
         try bindParams(params, to: Array(args), in: macroEnv, name: name ?? "macro")
         var expanded: Expr = .nil
         for bodyExpr in body {
@@ -223,22 +310,26 @@ public class Evaluator {
         return result
     }
 
-    /// Registers a native Swift function in the core environment.
+    /// Registers a native Swift function in the clojure.core namespace.
     public func register(name: String, arity: Arity, body: @escaping @Sendable ([Expr]) throws -> Expr) {
-        coreEnvironment.set(name, .nativeFunction(name: name, arity: arity, body: body))
+        findNs("clojure.core")!.intern(name: name, value: .nativeFunction(name: name, arity: arity, body: body))
     }
 
     /// Expands a macro call one step. Returns nil if the form is not a macro call.
     func macroexpand1(_ expr: Expr) throws -> Expr? {
         guard case .list(let elements) = expr,
               !elements.isEmpty,
-              case .symbol(let name) = elements[0],
-              let value = environment.get(name),
-              case .macro(_, let params, let body) = value else {
+              case .symbol(let name) = elements[0] else {
+            return nil
+        }
+        let ns = currentNs()
+        let value = ns.findVar(name: name)?.value
+            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name)?.value : nil)
+        guard let value, case .macro(_, let params, let body) = value else {
             return nil
         }
         let macroArgs = Array(elements.dropFirst())
-        let macroEnv = Environment(parent: environment)
+        let macroEnv = Environment()
         try bindParams(params, to: macroArgs, in: macroEnv, name: name)
         var result: Expr = .nil
         for bodyExpr in body {
