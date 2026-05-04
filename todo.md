@@ -3,9 +3,6 @@
 - [ ] create-ns
 - [ ] all-ns
 - [ ] find-ns
-- [ ] initial ns macro (or special form at first)
-- [ ] clojure.core
-- [ ] defn
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Add support for maps
@@ -15,6 +12,9 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] initial ns macro (or special form at first)
+- [x] clojure.core
+- [x] defn
 - [x] namespaces
 - [x] *ns*
 - [x] in-ns
