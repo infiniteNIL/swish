@@ -102,7 +102,7 @@ public class Evaluator {
             return try evalVar(elements, in: env)
 
         case .symbol("ns"):
-            return try evalNs(elements, in: env)
+            return try evalNs(elements)
 
         default:
             let callee = try eval(head, in: env)
@@ -129,7 +129,7 @@ public class Evaluator {
         throw EvaluatorError.undefinedSymbol(name)
     }
 
-    private func evalNs(_ elements: [Expr], in env: Environment) throws -> Expr {
+    private func evalNs(_ elements: [Expr]) throws -> Expr {
         guard elements.count == 2, case .symbol(let name) = elements[1] else {
             throw EvaluatorError.invalidArgument(function: "ns",
                 message: "requires exactly one symbol argument")
@@ -187,11 +187,7 @@ public class Evaluator {
             guard case .symbol(let name) = bindingVec[i] else { continue }
             letEnv.set(name, try eval(bindingVec[i + 1], in: letEnv))
         }
-        var result: Expr = .nil
-        for bodyExpr in elements.dropFirst(2) {
-            result = try eval(bodyExpr, in: letEnv)
-        }
-        return result
+        return try evalBody(Array(elements.dropFirst(2)), in: letEnv)
     }
 
     private func evalFn(_ elements: [Expr], in env: Environment) throws -> Expr {
@@ -239,12 +235,7 @@ public class Evaluator {
     }
 
     private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let macroEnv = Environment()
-        try bindParams(params, to: Array(args), in: macroEnv, name: name ?? "macro")
-        var expanded: Expr = .nil
-        for bodyExpr in body {
-            expanded = try eval(bodyExpr, in: macroEnv)
-        }
+        let expanded = try expandMacro(name: name ?? "macro", params: params, body: body, args: Array(args))
         return try eval(expanded, in: env)
     }
 
@@ -261,11 +252,7 @@ public class Evaluator {
     private func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr], in env: Environment) throws -> Expr {
         let fnEnv = Environment(parent: env)
         try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
-        var result: Expr = .nil
-        for bodyExpr in body {
-            result = try eval(bodyExpr, in: fnEnv)
-        }
-        return result
+        return try evalBody(body, in: fnEnv)
     }
 
     /// Expands a macro call one step. Returns nil if the form is not a macro call.
@@ -279,12 +266,19 @@ public class Evaluator {
               case .macro(_, let params, let body) = value else {
             return nil
         }
-        let macroArgs = Array(elements.dropFirst())
+        return try expandMacro(name: name, params: params, body: body, args: Array(elements.dropFirst()))
+    }
+
+    private func expandMacro(name: String, params: [String], body: [Expr], args: [Expr]) throws -> Expr {
         let macroEnv = Environment()
-        try bindParams(params, to: macroArgs, in: macroEnv, name: name)
+        try bindParams(params, to: args, in: macroEnv, name: name)
+        return try evalBody(body, in: macroEnv)
+    }
+
+    private func evalBody(_ forms: [Expr], in env: Environment) throws -> Expr {
         var result: Expr = .nil
-        for bodyExpr in body {
-            result = try eval(bodyExpr, in: macroEnv)
+        for form in forms {
+            result = try eval(form, in: env)
         }
         return result
     }
