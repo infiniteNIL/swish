@@ -9,15 +9,19 @@ public class Evaluator {
         let coreNs = Namespace(name: "clojure.core")
         namespaces["clojure.core"] = coreNs
 
-        // 2. Populate clojure.core with all built-ins
+        // 2. Populate clojure.core with all native built-ins
         registerCoreFunctions(into: self)
 
-        // 3. Create user and auto-refer clojure.core (fully populated by now)
-        let userNs = findOrCreateNs("user")
-
-        // 4. *ns* — a system var in clojure.core holding the current namespace
-        let nsVar = coreNs.intern(name: "*ns*", value: .namespace(userNs))
+        // 3. *ns* must exist before loading core.clj (evalNs and evalDefmacro use currentNs())
+        let nsVar = coreNs.intern(name: "*ns*", value: .namespace(coreNs))
         nsVar.isSystem = true
+
+        // 4. Load clojure/core.clj — defines Clojure-level macros (defn, etc.) into clojure.core
+        loadCoreLibrary()
+
+        // 5. Create user after core.clj so auto-refer picks up all new definitions
+        let userNs = findOrCreateNs("user")
+        setCurrentNs(userNs)
     }
 
     /// Generates a unique symbol with the given prefix
@@ -97,6 +101,9 @@ public class Evaluator {
         case .symbol("var"):
             return try evalVar(elements, in: env)
 
+        case .symbol("ns"):
+            return try evalNs(elements, in: env)
+
         default:
             let callee = try eval(head, in: env)
             return try callFunction(callee, args: elements.dropFirst(), in: env)
@@ -120,6 +127,16 @@ public class Evaluator {
             return .varRef(v)
         }
         throw EvaluatorError.undefinedSymbol(name)
+    }
+
+    private func evalNs(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count == 2, case .symbol(let name) = elements[1] else {
+            throw EvaluatorError.invalidArgument(function: "ns",
+                message: "requires exactly one symbol argument")
+        }
+        let ns = findOrCreateNs(name)
+        setCurrentNs(ns)
+        return .nil
     }
 
     private func evalSyntaxQuote(_ elements: [Expr], in env: Environment) throws -> Expr {

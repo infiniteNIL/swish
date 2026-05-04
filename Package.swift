@@ -17,7 +17,12 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0")
     ],
     targets: [
-        .target(name: "SwishKit"),
+        .target(
+            name: "SwishKit",
+            resources: [
+                .copy("Resources/clojure")
+            ]
+        ),
         .executableTarget(
             name: "swish",
             dependencies: [
