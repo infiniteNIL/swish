@@ -17,16 +17,37 @@ extension Evaluator {
         }
     }
 
-    /// Returns the namespace named `name`, loading its `.clj` resource file if needed.
-    /// Throws `namespaceNotFound` if the namespace doesn't exist and no resource file matches.
+    /// Returns the namespace named `name`, loading it if needed.
+    /// Search order: bundle resources (.clj), then current working directory (.swish).
+    /// Throws `namespaceNotFound` if the namespace cannot be located.
     func requireNs(_ name: String) throws -> Namespace {
         if let existing = findNs(name) {
             return existing
         }
-        let resourcePath = name.replacingOccurrences(of: ".", with: "/")
-        guard let url = Bundle.module.url(forResource: resourcePath, withExtension: "clj") else {
-            throw EvaluatorError.namespaceNotFound(name)
+        if name.hasPrefix("clojure") {
+            let lastDot = name.lastIndex(of: ".")!
+            let resourceName = String(name[name.index(after: lastDot)...])
+            let subdirectory = String(name[..<lastDot]).replacingOccurrences(of: ".", with: "/")
+            if let url = Bundle.module.url(forResource: resourceName,
+                                           withExtension: "clj",
+                                           subdirectory: subdirectory) {
+                return try loadNs(name: name, url: url)
+            }
         }
+
+        let cwdURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent(name.replacingOccurrences(of: ".", with: "/"))
+            .appendingPathExtension("swish")
+        if FileManager.default.fileExists(atPath: cwdURL.path) {
+            return try loadNs(name: name, url: cwdURL)
+        }
+
+        throw EvaluatorError.namespaceNotFound(name)
+    }
+
+    private func loadNs(name: String, url: URL) throws -> Namespace {
+        let savedNs = currentNs()
+        defer { setCurrentNs(savedNs) }
         let source = try String(contentsOf: url, encoding: .utf8)
         for expr in try Reader.readString(source) {
             _ = try eval(expr)
