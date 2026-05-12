@@ -1,6 +1,10 @@
-(def hello (fn [s]
-             (if (> (+ 1 2) 1)
-                (println "Hello," s)
-                (println "This shouldn't print!"))))
+(ns rod
+  (:require [clojure.string :as str]
+            [test]))
+
+(defn hello [s]
+  (if (> (+ 1 2) 1)
+    (println "Hello," s (str/test-str) (test/another-test-str))
+    (println "This shouldn't print!")))
 
 (hello "Rod")

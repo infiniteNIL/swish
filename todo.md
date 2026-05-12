@@ -1,7 +1,7 @@
 # Todo
 
-- [ ] create-ns
 - [ ] all-ns
+- [ ] (loaded-libs)
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
@@ -12,6 +12,11 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] require
+- [x] alias
+- [x] refer
+- [x] ns with :require directive support (:as, :refer [syms], :refer :all)
+- [x] create-ns
 - [x] initial ns macro (or special form at first)
 - [x] clojure.core
 - [x] defn

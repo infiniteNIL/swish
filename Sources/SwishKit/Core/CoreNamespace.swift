@@ -18,4 +18,70 @@ func registerNamespace(into evaluator: Evaluator) {
         evaluator.setCurrentNs(ns)
         return .namespace(ns)
     }
+
+    evaluator.register(name: "require", arity: .atLeastOne) { [evaluator] args in
+        try evaluator.processRequireDirective(args)
+        return .nil
+    }
+
+    evaluator.register(name: "alias", arity: .fixed(2)) { [evaluator] args in
+        guard case .symbol(let aliasName) = args[0] else {
+            throw EvaluatorError.invalidArgument(
+                function: "alias",
+                message: "first argument must be a symbol, got \(args[0])")
+        }
+        guard case .symbol(let nsName) = args[1] else {
+            throw EvaluatorError.invalidArgument(
+                function: "alias",
+                message: "second argument must be a symbol, got \(args[1])")
+        }
+        guard let ns = evaluator.findNs(nsName) else {
+            throw EvaluatorError.namespaceNotFound(nsName)
+        }
+        try evaluator.currentNs().alias(name: aliasName, ns: ns)
+        return .nil
+    }
+
+    evaluator.register(name: "refer", arity: .atLeastOne) { [evaluator] args in
+        guard case .symbol(let nsName) = args[0] else {
+            throw EvaluatorError.invalidArgument(
+                function: "refer",
+                message: "first argument must be a symbol, got \(args[0])")
+        }
+        guard let srcNs = evaluator.findNs(nsName) else {
+            throw EvaluatorError.namespaceNotFound(nsName)
+        }
+        var only: Set<String>? = nil
+        var exclude: Set<String> = []
+        var i = 1
+        while i + 1 < args.count {
+            guard case .keyword(let key) = args[i] else {
+                i += 1
+                continue
+            }
+            switch key {
+            case "only":
+                if case .vector(let syms) = args[i + 1] {
+                    only = Set(syms.compactMap { if case .symbol(let s) = $0 { s } else { nil } })
+                }
+            case "exclude":
+                if case .vector(let syms) = args[i + 1] {
+                    exclude = Set(syms.compactMap { if case .symbol(let s) = $0 { s } else { nil } })
+                }
+            default:
+                break
+            }
+            i += 2
+        }
+        let currentNs = evaluator.currentNs()
+        for (varName, v) in srcNs.mappings where v.namespace === srcNs {
+            if let only {
+                if only.contains(varName) { try currentNs.refer(v) }
+            }
+            else if !exclude.contains(varName) {
+                try currentNs.refer(v)
+            }
+        }
+        return .nil
+    }
 }

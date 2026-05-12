@@ -54,7 +54,9 @@ extension Evaluator {
         let slashIdx = name.firstIndex(of: "/")!
         let nsAlias = String(name[name.startIndex..<slashIdx])
         let shortName = String(name[name.index(after: slashIdx)...])
-        guard let ns = findNs(nsAlias) else { throw EvaluatorError.undefinedSymbol(name) }
+        guard let ns = currentNs().findAlias(nsAlias) ?? findNs(nsAlias) else {
+            throw EvaluatorError.undefinedSymbol(name)
+        }
         guard let v = ns.findVar(name: shortName) else { throw EvaluatorError.undefinedSymbol(name) }
         return v
     }

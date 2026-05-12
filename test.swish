@@ -1,0 +1,4 @@
+(ns test)
+
+(defn another-test []
+  "This is another test string from the test namespace.")

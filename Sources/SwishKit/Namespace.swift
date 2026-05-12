@@ -2,6 +2,7 @@
 public final class Namespace: @unchecked Sendable {
     public let name: String
     public private(set) var mappings: [String: Var] = [:]
+    public private(set) var aliases: [String: Namespace] = [:]
 
     public init(name: String) {
         self.name = name
@@ -37,5 +38,21 @@ public final class Namespace: @unchecked Sendable {
 
     public func findVar(name: String) -> Var? {
         mappings[name]
+    }
+
+    /// Maps `name` to `ns` as a local alias. Idempotent for the same namespace.
+    /// Throws if a different namespace already occupies that alias.
+    public func alias(name: String, ns: Namespace) throws {
+        if let existing = aliases[name], existing !== ns {
+            throw NamespaceError.aliasConflict(
+                name: name,
+                existing: existing.name,
+                new: ns.name)
+        }
+        aliases[name] = ns
+    }
+
+    public func findAlias(_ name: String) -> Namespace? {
+        aliases[name]
     }
 }

@@ -6,6 +6,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case notAFunction(Expr)
     case unboundVar(String)
     case cannotRedefineSystemVar(String)
+    case namespaceNotFound(String)
 
     public var description: String {
         switch self {
@@ -32,6 +33,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .cannotRedefineSystemVar(let name):
             return "Cannot redefine system var '\(name)'."
+
+        case .namespaceNotFound(let name):
+            return "No namespace named '\(name)' found."
 
         case .notAFunction(let expr):
             let rep: String

@@ -101,4 +101,160 @@ struct EvaluatorNamespaceTests {
             _ = try swish.eval("__no_such_var__")
         }
     }
+
+    // MARK: - alias
+
+    @Test("(alias 'c 'clojure.core) lets c/+ resolve to clojure.core/+")
+    func aliasEnablesQualifiedLookup() throws {
+        let swish = Swish()
+        _ = try swish.eval("(alias 'c 'clojure.core)")
+        let result = try swish.eval("(c/+ 1 2)")
+        #expect(result == .integer(3))
+    }
+
+    @Test("alias is per-namespace — alias in user does not affect other ns")
+    func aliasIsPerNamespace() throws {
+        let swish = Swish()
+        _ = try swish.eval("(alias 'c 'clojure.core)")
+        _ = try swish.eval("(in-ns 'other)")
+        #expect(throws: EvaluatorError.undefinedSymbol("c/+")) {
+            _ = try swish.eval("(c/+ 1 2)")
+        }
+    }
+
+    @Test("alias conflict throws aliasConflict")
+    func aliasConflictThrows() throws {
+        let swish = Swish()
+        _ = try swish.eval("(create-ns 'foo)")
+        _ = try swish.eval("(alias 'f 'clojure.core)")
+        #expect(throws: NamespaceError.aliasConflict(name: "f", existing: "clojure.core", new: "foo")) {
+            _ = try swish.eval("(alias 'f 'foo)")
+        }
+    }
+
+    @Test("alias to same namespace is idempotent")
+    func aliasSameNsIdempotent() throws {
+        let swish = Swish()
+        _ = try swish.eval("(alias 'c 'clojure.core)")
+        _ = try swish.eval("(alias 'c 'clojure.core)")
+        let result = try swish.eval("(c/+ 1 2)")
+        #expect(result == .integer(3))
+    }
+
+    @Test("alias to unknown namespace throws namespaceNotFound")
+    func aliasUnknownNsThrows() throws {
+        let swish = Swish()
+        #expect(throws: EvaluatorError.namespaceNotFound("no.such.ns")) {
+            _ = try swish.eval("(alias 'x 'no.such.ns)")
+        }
+    }
+
+    // MARK: - refer
+
+    @Test("(refer ...) with :only refers only the named vars from a user namespace")
+    func referOnly() throws {
+        let swish = Swish()
+        _ = try swish.eval("(in-ns 'src)")
+        _ = try swish.eval("(def a 1)")
+        _ = try swish.eval("(def b 2)")
+        _ = try swish.eval("(in-ns 'consumer)")
+        _ = try swish.eval("(refer 'src :only '[a])")
+        #expect(try swish.eval("a") == .integer(1))
+        #expect(throws: EvaluatorError.undefinedSymbol("b")) {
+            _ = try swish.eval("b")
+        }
+    }
+
+    @Test("(refer ...) with :exclude skips the listed vars from a user namespace")
+    func referExclude() throws {
+        let swish = Swish()
+        _ = try swish.eval("(in-ns 'src2)")
+        _ = try swish.eval("(def x 10)")
+        _ = try swish.eval("(def y 20)")
+        _ = try swish.eval("(in-ns 'consumer2)")
+        _ = try swish.eval("(refer 'src2 :exclude '[x])")
+        #expect(try swish.eval("y") == .integer(20))
+        #expect(throws: EvaluatorError.undefinedSymbol("x")) {
+            _ = try swish.eval("x")
+        }
+    }
+
+    @Test("refer to unknown namespace throws namespaceNotFound")
+    func referUnknownNsThrows() throws {
+        let swish = Swish()
+        #expect(throws: EvaluatorError.namespaceNotFound("no.such.ns")) {
+            _ = try swish.eval("(refer 'no.such.ns)")
+        }
+    }
+
+    @Test("refer does not re-export auto-referred clojure.core vars")
+    func referDoesNotReExportAutoRefers() throws {
+        let swish = Swish()
+        _ = try swish.eval("(in-ns 'myns)")
+        _ = try swish.eval("(def my-fn (fn [] 42))")
+        _ = try swish.eval("(in-ns 'consumer)")
+        _ = try swish.eval("(refer 'myns)")
+        #expect(try swish.eval("(my-fn)") == .integer(42))
+        // clojure.core/+ should NOT have been re-exported through myns
+        let myns = swish.evaluator.findNs("myns")!
+        let plusInMyns = myns.mappings["+"]
+        #expect(plusInMyns?.namespace.name == "clojure.core")
+        let consumerNs = swish.evaluator.findNs("consumer")!
+        let plusInConsumer = consumerNs.mappings["+"]
+        #expect(plusInConsumer?.namespace.name == "clojure.core")
+    }
+
+    // MARK: - require
+
+    @Test("(require 'clojure.core) is a no-op when already loaded")
+    func requireAlreadyLoadedIsNoop() throws {
+        let swish = Swish()
+        _ = try swish.eval("(require 'clojure.core)")
+        let result = try swish.eval("(+ 1 2)")
+        #expect(result == .integer(3))
+    }
+
+    @Test("(require 'unknown.ns) throws namespaceNotFound")
+    func requireUnknownNsThrows() throws {
+        let swish = Swish()
+        #expect(throws: EvaluatorError.namespaceNotFound("unknown.ns")) {
+            _ = try swish.eval("(require 'unknown.ns)")
+        }
+    }
+
+    // MARK: - ns with :require directives
+
+    @Test("(ns foo (:require [clojure.core :as cc])) enables cc/+ alias")
+    func nsRequireAs() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns foo (:require [clojure.core :as cc]))")
+        let result = try swish.eval("(cc/+ 1 2)")
+        #expect(result == .integer(3))
+    }
+
+    @Test("(ns foo (:require [clojure.core :refer [+]])) makes + available unqualified")
+    func nsRequireRefer() throws {
+        let swish = Swish()
+        _ = try swish.eval("(in-ns 'bare)")
+        _ = try swish.eval("(ns bare2 (:require [clojure.core :refer [+]]))")
+        let result = try swish.eval("(+ 10 20)")
+        #expect(result == .integer(30))
+    }
+
+    @Test("(ns foo (:require [clojure.core :as cc :refer [+]])) supports both")
+    func nsRequireAsAndRefer() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns combo (:require [clojure.core :as cc :refer [+]]))")
+        #expect(try swish.eval("(+ 1 2)") == .integer(3))
+        #expect(try swish.eval("(cc/+ 1 2)") == .integer(3))
+    }
+
+    @Test("ns with unknown directive throws invalidArgument")
+    func nsUnknownDirectiveThrows() throws {
+        let swish = Swish()
+        #expect(throws: EvaluatorError.invalidArgument(
+            function: "ns", message: "unknown directive ':import'")) {
+            _ = try swish.eval("(ns bad (:import java.util.Date))")
+        }
+    }
 }
