@@ -13,7 +13,11 @@ public class Parser {
     public func parse() throws -> [Expr] {
         var exprs: [Expr] = []
         while currentToken.type != .eof {
-            exprs.append(try parseExpr())
+            if let expr = try parseFormSkipDiscards() {
+                exprs.append(expr)
+            } else if currentToken.type != .eof {
+                throw ParserError.unexpectedToken(currentToken)
+            }
         }
         return exprs
     }
@@ -61,6 +65,9 @@ public class Parser {
 
         case .varRef:
             return try parseVarRef()
+
+        case .discard:
+            throw ParserError.unexpectedToken(currentToken)
 
         case .leftParen:
             return try parseList()
@@ -209,7 +216,11 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
             }
-            elements.append(try parseExpr())
+            if let expr = try parseFormSkipDiscards() {
+                elements.append(expr)
+            } else if currentToken.type != .rightParen {
+                throw ParserError.unexpectedToken(currentToken)
+            }
         }
 
         try advance() // consume ')'
@@ -311,7 +322,11 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedVector(line: startToken.line, column: startToken.column)
             }
-            elements.append(try parseExpr())
+            if let expr = try parseFormSkipDiscards() {
+                elements.append(expr)
+            } else if currentToken.type != .rightBracket {
+                throw ParserError.unexpectedToken(currentToken)
+            }
         }
 
         try advance() // consume ']'
@@ -376,6 +391,20 @@ public class Parser {
         guard let magnitude = Int(octalPart, radix: 8) else { return nil }
 
         return negative ? -magnitude : magnitude
+    }
+
+    // MARK: - Discard
+
+    private func parseFormSkipDiscards() throws -> Expr? {
+        while currentToken.type == .discard {
+            try advance()
+            if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+            _ = try parseFormSkipDiscards()
+        }
+        if currentToken.type == .eof
+            || currentToken.type == .rightParen
+            || currentToken.type == .rightBracket { return nil }
+        return try parseExpr()
     }
 
     private func advance() throws {

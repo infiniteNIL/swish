@@ -328,6 +328,15 @@ struct LexerTokenTests {
         #expect(rp.type == .rightParen)
     }
 
+    // MARK: - Discard macro
+
+    @Test("#_ produces discard token")
+    func hashUnderscoreProducesDiscardToken() throws {
+        let token = try Lexer("#_").nextToken()
+        #expect(token.type == .discard)
+        #expect(token.text == "#_")
+    }
+
     // MARK: - Comments
 
     @Test("Comment-only input returns EOF")

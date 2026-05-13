@@ -84,11 +84,15 @@ public class Lexer {
 
         case "#":
             _ = advance()
-            guard peek() == "'" else {
-                throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
+            if peek() == "'" {
+                _ = advance()
+                return Token(type: .varRef, text: "#'", line: startLine, column: startColumn)
             }
-            _ = advance()
-            return Token(type: .varRef, text: "#'", line: startLine, column: startColumn)
+            if peek() == "_" {
+                _ = advance()
+                return Token(type: .discard, text: "#_", line: startLine, column: startColumn)
+            }
+            throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:
             break

@@ -248,4 +248,37 @@ struct ParserSpecialFormsTests {
             try Reader.readString("(fn [x & a b] x)")
         }
     }
+
+    // MARK: - Discard macro
+
+    @Test("#_42 at top level discards the form")
+    func discardAtTopLevel() throws {
+        let result = try Reader.readString("#_42")
+        #expect(result == [])
+    }
+
+    @Test("#_ discards form inside a list")
+    func discardInsideList() throws {
+        let result = try Reader.readString("(+ 1 #_2 3)")
+        #expect(result == [.list([.symbol("+"), .integer(1), .integer(3)])])
+    }
+
+    @Test("#_ discards form inside a vector")
+    func discardInsideVector() throws {
+        let result = try Reader.readString("[a #_b c]")
+        #expect(result == [.vector([.symbol("a"), .symbol("c")])])
+    }
+
+    @Test("#_ before closing paren discards last element")
+    func discardBeforeClosingParen() throws {
+        let result = try Reader.readString("(a #_b)")
+        #expect(result == [.list([.symbol("a")])])
+    }
+
+    @Test("#_ with no following form throws unexpectedEOF")
+    func discardWithNoFormThrows() throws {
+        #expect(throws: ParserError.unexpectedEOF) {
+            try Reader.readString("#_")
+        }
+    }
 }
