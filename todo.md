@@ -10,6 +10,7 @@
 - [ ] Add support for sets
 - [ ] Add support for comment macro
 - [ ] and, or, not
+- [ ] Jank Clojure test suite
 
 - [x] Add support for #_ reader macro to comment out form
 - [x] Add support for single-line comments
