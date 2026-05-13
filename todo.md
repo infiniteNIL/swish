@@ -12,6 +12,7 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] str function
 - [x] do special form
 - [x] require
 - [x] alias
