@@ -21,6 +21,19 @@
            ; but recursion is working
 (println (str n "! is") (fact n))
 
+; This is really slow. Clojure is much faster
+(defn fib [n]
+  (if (<= n 1)
+    n
+    (+ (fib (- n 1))
+       (fib (- n 2)))))
+
+; Be careful with m. A value too high and it will take a very, very long time
+; to return
+(def m 10)
+
+(println "fib" m "is" (fib m))
+
 (comment
   5
   (fact 6)
