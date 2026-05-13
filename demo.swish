@@ -4,7 +4,7 @@
 
 (defn hello [s]
   (if (> (+ 1 2) 1)
-    (do (println "Hello," s)
+    (do (println "Hello," (str s "."))
         (println (str/test-str))
         (println (test/another-test-str)))
     (println "This shouldn't print!")))
