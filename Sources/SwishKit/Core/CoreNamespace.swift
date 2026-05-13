@@ -51,7 +51,7 @@ func registerNamespace(into evaluator: Evaluator) {
         guard let srcNs = evaluator.findNs(nsName) else {
             throw EvaluatorError.namespaceNotFound(nsName)
         }
-        var only: Set<String>? = nil
+        var only: Set<String>?
         var exclude: Set<String> = []
         var i = 1
         while i + 1 < args.count {

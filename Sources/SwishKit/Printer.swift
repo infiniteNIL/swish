@@ -1,7 +1,7 @@
 import Foundation
 
 /// Printer for Swish expressions
-public class Printer {
+public struct Printer {
     private let floatFormatter: NumberFormatter
 
     public init() {

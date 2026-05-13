@@ -27,10 +27,8 @@ public struct Swish {
 
     public func eval(_ source: String) throws -> Expr {
         let exprs = try Reader.readString(source)
-        guard let lastExpr = exprs.last else {
-            throw ParserError.unexpectedEOF
-        }
-        var result = lastExpr
+        guard !exprs.isEmpty else { throw ParserError.unexpectedEOF }
+        var result: Expr = .nil
         for expr in exprs {
             result = try evaluator.eval(expr)
         }
