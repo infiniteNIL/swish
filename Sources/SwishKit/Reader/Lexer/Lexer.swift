@@ -158,8 +158,14 @@ public class Lexer {
     // MARK: - Whitespace
 
     private func skipWhitespace() {
-        while let char = peek(), char.isWhitespace || char == "," {
-            advance()
+        while true {
+            while let char = peek(), char.isWhitespace || char == "," {
+                advance()
+            }
+            guard peek() == ";" else { break }
+            while let char = peek(), char != "\n" {
+                advance()
+            }
         }
     }
 

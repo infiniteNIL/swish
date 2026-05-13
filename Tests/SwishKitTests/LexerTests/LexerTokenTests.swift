@@ -327,4 +327,44 @@ struct LexerTokenTests {
         let rp = try lexer.nextToken()
         #expect(rp.type == .rightParen)
     }
+
+    // MARK: - Comments
+
+    @Test("Comment-only input returns EOF")
+    func commentOnlyReturnsEof() throws {
+        let token = try Lexer("; just a comment").nextToken()
+        #expect(token.type == .eof)
+    }
+
+    @Test("Comment before token is skipped")
+    func commentBeforeToken() throws {
+        let lexer = Lexer("; comment\n42")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "42")
+    }
+
+    @Test("Inline comment after token is skipped")
+    func inlineCommentAfterToken() throws {
+        let lexer = Lexer("42 ; comment")
+        let first = try lexer.nextToken()
+        #expect(first.type == .integer)
+        #expect(first.text == "42")
+        let second = try lexer.nextToken()
+        #expect(second.type == .eof)
+    }
+
+    @Test("Multiple comment lines are all skipped")
+    func multipleCommentLines() throws {
+        let lexer = Lexer("; a\n; b\n99")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "99")
+    }
+
+    @Test("Comment at end of file with no trailing newline returns EOF")
+    func commentAtEofNoNewline() throws {
+        let token = try Lexer("; no newline").nextToken()
+        #expect(token.type == .eof)
+    }
 }
