@@ -20,7 +20,7 @@ func registerNamespace(into evaluator: Evaluator) {
     }
 
     evaluator.register(name: "require", arity: .atLeastOne) { [evaluator] args in
-        try evaluator.processRequireDirective(args)
+        try evaluator.processRequireDirective(args, caller: "require")
         return .nil
     }
 

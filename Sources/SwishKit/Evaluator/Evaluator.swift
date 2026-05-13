@@ -146,7 +146,7 @@ public class Evaluator {
             }
             switch kind {
             case "require":
-                try processRequireDirective(Array(parts.dropFirst()))
+                try processRequireDirective(Array(parts.dropFirst()), caller: "ns")
             default:
                 throw EvaluatorError.invalidArgument(function: "ns",
                     message: "unknown directive ':\(kind)'")
@@ -155,7 +155,7 @@ public class Evaluator {
         return .nil
     }
 
-    func processRequireDirective(_ specs: [Expr]) throws {
+    func processRequireDirective(_ specs: [Expr], caller: String = "require") throws {
         for spec in specs {
             switch spec {
             case .symbol(let nsName):
@@ -163,7 +163,7 @@ public class Evaluator {
 
             case .vector(let parts):
                 guard !parts.isEmpty, case .symbol(let nsName) = parts[0] else {
-                    throw EvaluatorError.invalidArgument(function: "ns",
+                    throw EvaluatorError.invalidArgument(function: caller,
                         message: ":require spec must start with a namespace symbol")
                 }
                 let loadedNs = try requireNs(nsName)
@@ -176,7 +176,7 @@ public class Evaluator {
                     switch key {
                     case "as":
                         guard case .symbol(let aliasName) = parts[i + 1] else {
-                            throw EvaluatorError.invalidArgument(function: "ns",
+                            throw EvaluatorError.invalidArgument(function: caller,
                                 message: ":as requires a symbol")
                         }
                         try currentNs().alias(name: aliasName, ns: loadedNs)
@@ -196,7 +196,7 @@ public class Evaluator {
                                 try currentNs().refer(v)
                             }
                         default:
-                            throw EvaluatorError.invalidArgument(function: "ns",
+                            throw EvaluatorError.invalidArgument(function: caller,
                                 message: ":refer requires a vector of symbols or :all")
                         }
 
@@ -207,7 +207,7 @@ public class Evaluator {
                 }
 
             default:
-                throw EvaluatorError.invalidArgument(function: "ns",
+                throw EvaluatorError.invalidArgument(function: caller,
                     message: ":require spec must be a symbol or vector")
             }
         }

@@ -8,10 +8,7 @@ extension Evaluator {
             fatalError("SwishKit: clojure/core.clj not found in bundle")
         }
         do {
-            let source = try String(contentsOf: url, encoding: .utf8)
-            for expr in try Reader.readString(source) {
-                _ = try eval(expr)
-            }
+            _ = try loadNs(name: "clojure.core", url: url)
         } catch {
             fatalError("SwishKit: failed to load clojure/core.clj: \(error)")
         }
@@ -24,8 +21,7 @@ extension Evaluator {
         if let existing = findNs(name) {
             return existing
         }
-        if name.hasPrefix("clojure") {
-            let lastDot = name.lastIndex(of: ".")!
+        if name.hasPrefix("clojure"), let lastDot = name.lastIndex(of: ".") {
             let resourceName = String(name[name.index(after: lastDot)...])
             let subdirectory = String(name[..<lastDot]).replacingOccurrences(of: ".", with: "/")
             if let url = Bundle.module.url(forResource: resourceName,
