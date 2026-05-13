@@ -52,19 +52,19 @@ public class Parser {
             return try parseKeyword()
 
         case .quote:
-            return try parseQuote()
+            return try parseReaderMacro("quote")
 
         case .backtick:
             return try parseBacktick()
 
         case .unquote:
-            return try parseUnquote()
+            return try parseReaderMacro("unquote")
 
         case .unquoteSplicing:
-            return try parseUnquoteSplicing()
+            return try parseReaderMacro("unquote-splicing")
 
         case .varRef:
-            return try parseVarRef()
+            return try parseReaderMacro("var")
 
         case .discard:
             throw ParserError.unexpectedToken(currentToken)
@@ -163,47 +163,19 @@ public class Parser {
         return .keyword(name)
     }
 
-    private func parseQuote() throws -> Expr {
+    private func parseReaderMacro(_ symbolName: String) throws -> Expr {
         try advance()
-        if currentToken.type == .eof {
-            throw ParserError.unexpectedEOF
-        }
-        return .list([.symbol("quote"), try parseExpr()])
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        return .list([.symbol(symbolName), try parseExpr()])
     }
 
     private func parseBacktick() throws -> Expr {
         try advance()
-        if currentToken.type == .eof {
-            throw ParserError.unexpectedEOF
-        }
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
         syntaxQuoteDepth += 1
         let expr = try parseExpr()
         syntaxQuoteDepth -= 1
         return .list([.symbol("syntax-quote"), expr])
-    }
-
-    private func parseUnquote() throws -> Expr {
-        try advance()
-        if currentToken.type == .eof {
-            throw ParserError.unexpectedEOF
-        }
-        return .list([.symbol("unquote"), try parseExpr()])
-    }
-
-    private func parseUnquoteSplicing() throws -> Expr {
-        try advance()
-        if currentToken.type == .eof {
-            throw ParserError.unexpectedEOF
-        }
-        return .list([.symbol("unquote-splicing"), try parseExpr()])
-    }
-
-    private func parseVarRef() throws -> Expr {
-        try advance()
-        if currentToken.type == .eof {
-            throw ParserError.unexpectedEOF
-        }
-        return .list([.symbol("var"), try parseExpr()])
     }
 
     private func parseList() throws -> Expr {
