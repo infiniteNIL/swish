@@ -45,25 +45,16 @@ public class Evaluator {
 
         case .symbol(let name):
             if let v = try resolveQualifiedVar(name: name) {
-                guard let bound = v.value else {
-                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
-                }
-                return bound
+                return try deref(v)
             }
             if let value = env.get(name) {
                 if case .varRef(let v) = value {
-                    guard let bound = v.value else {
-                        throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
-                    }
-                    return bound
+                    return try deref(v)
                 }
                 return value
             }
             if let v = resolveVar(name: name, in: currentNs()) {
-                guard let bound = v.value else {
-                    throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
-                }
-                return bound
+                return try deref(v)
             }
             throw EvaluatorError.undefinedSymbol(name)
 
@@ -111,6 +102,13 @@ public class Evaluator {
             let callee = try eval(head, in: env)
             return try callFunction(callee, args: elements.dropFirst(), in: env)
         }
+    }
+
+    private func deref(_ v: Var) throws -> Expr {
+        guard let bound = v.value else {
+            throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+        }
+        return bound
     }
 
     // MARK: - Special forms

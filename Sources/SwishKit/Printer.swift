@@ -79,7 +79,7 @@ public struct Printer {
 
     /// Returns a human-readable string representation of a Swish expression.
     /// Strings print without quotes; characters print as the raw character.
-    /// Backs the planned `str` native function. Named `strString` to mirror `printString` → `pr-str`.
+    /// Backs the `str` native function. Named `strString` to mirror `printString` → `pr-str`.
     public func strString(_ expr: Expr) -> String {
         switch expr {
         case .nil:
