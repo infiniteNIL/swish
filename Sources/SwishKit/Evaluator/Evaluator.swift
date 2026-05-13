@@ -476,9 +476,7 @@ public class Evaluator {
         }
         var newLocals = outerLocals
         if offset < elements.count, case .vector(let paramExprs) = elements[offset] {
-            for p in paramExprs {
-                if case .symbol(let n) = p { newLocals.insert(n) }
-            }
+            newLocals.formUnion(extractParamNames(paramExprs))
         }
         var result = Array(elements.prefix(offset + 1))
         result += Array(elements.dropFirst(offset + 1)).map { expandAliasesInExpr($0, locals: newLocals) }
