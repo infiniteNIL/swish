@@ -7,11 +7,11 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Add support for maps
 - [ ] Add support for sets
-- [ ] Add support for single-line comments
 - [ ] Add support for #_ reader macro to comment out form
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] Add support for single-line comments
 - [x] str function
 - [x] do special form
 - [x] require
