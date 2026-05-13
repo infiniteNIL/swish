@@ -18,18 +18,18 @@ let package = Package(
             from: "1.3.0"),
         .package(
             url: "https://github.com/objecthub/swift-commandlinekit.git",
-            from: "1.0.0"),
-        .package(
-            url: "https://github.com/apple/swift-collections.git",
-            .upToNextMinor(from: "1.5.0") // or `.upToNextMajor`
-        )
+            from: "1.0.0")//,
+//        .package(
+//            url: "https://github.com/apple/swift-collections.git",
+//            .upToNextMinor(from: "1.5.0") // or `.upToNextMajor`
+//        )
     ],
     targets: [
         .target(
             name: "SwishKit",
-            dependencies: [
-                .product(name: "Collections", package: "swift-collections")
-            ],
+//            dependencies: [
+//                .product(name: "Collections", package: "swift-collections")
+//            ],
             resources: [
                 .copy("Resources/clojure")
             ]
