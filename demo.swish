@@ -20,3 +20,8 @@
            ; Clojure does the same thing
            ; but recursion is working
 (println (str n "! is") (fact n))
+
+(comment
+  5
+  (fact 6)
+,,,)
