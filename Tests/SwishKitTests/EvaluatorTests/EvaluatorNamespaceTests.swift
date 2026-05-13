@@ -257,4 +257,16 @@ struct EvaluatorNamespaceTests {
             _ = try swish.eval("(ns bad (:import java.util.Date))")
         }
     }
+
+    @Test("alias in function body resolves when called from a different namespace")
+    func aliasFunctionBodyResolvesAcrossNamespaces() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns ns-b)")
+        _ = try swish.eval("(defn greeting [] \"hello\")")
+        _ = try swish.eval("(ns ns-a (:require [ns-b :as b]))")
+        _ = try swish.eval("(defn call-b [] (b/greeting))")
+        _ = try swish.eval("(ns user)")
+        let result = try swish.eval("(ns-a/call-b)")
+        #expect(result == .string("hello"))
+    }
 }

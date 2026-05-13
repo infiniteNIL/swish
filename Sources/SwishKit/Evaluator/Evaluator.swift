@@ -277,7 +277,7 @@ public class Evaluator {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
         }
         let params = extractParamNames(paramExprs)
-        let body = Array(elements.dropFirst(offset + 1))
+        let body = expandAliases(in: Array(elements.dropFirst(offset + 1)))
         return .function(name: name, params: params, body: body)
     }
 
@@ -287,7 +287,7 @@ public class Evaluator {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
         let params = extractParamNames(paramExprs)
-        let body = Array(elements.dropFirst(3))
+        let body = expandAliases(in: Array(elements.dropFirst(3)))
         currentNs().intern(name: name, value: .macro(name: name, params: params, body: body))
         return .symbol(name)
     }
@@ -431,6 +431,36 @@ public class Evaluator {
             else {
                 return nil
             }
+        }
+    }
+
+    // MARK: - Alias expansion
+
+    private func expandAliases(in forms: [Expr]) -> [Expr] {
+        forms.map { expandAliasesInExpr($0) }
+    }
+
+    private func expandAliasesInExpr(_ expr: Expr) -> Expr {
+        switch expr {
+        case .symbol(let name):
+            guard name.contains("/"), name != "/" else { return expr }
+            let slashIdx = name.firstIndex(of: "/")!
+            let nsAlias = String(name[name.startIndex..<slashIdx])
+            let varName = String(name[name.index(after: slashIdx)...])
+            guard let ns = currentNs().findAlias(nsAlias) else { return expr }
+            return .symbol("\(ns.name)/\(varName)")
+
+        case .list(let elements):
+            guard let head = elements.first else { return expr }
+            if case .symbol("quote") = head { return expr }
+            if case .symbol("syntax-quote") = head { return expr }
+            return .list(elements.map { expandAliasesInExpr($0) })
+
+        case .vector(let elements):
+            return .vector(elements.map { expandAliasesInExpr($0) })
+
+        default:
+            return expr
         }
     }
 }
