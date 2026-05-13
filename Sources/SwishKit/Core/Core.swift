@@ -7,4 +7,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerMacros(into: evaluator)
     registerIO(into: evaluator)
     registerNamespace(into: evaluator)
+    registerString(into: evaluator)
 }

@@ -50,9 +50,9 @@ struct PrinterDisplayStringTests {
         #expect(printer.strString(.boolean(true)) == "true")
     }
 
-    @Test("displays nil same as printString")
+    @Test("displays nil as empty string")
     func displaysNil() {
-        #expect(printer.strString(.nil) == "nil")
+        #expect(printer.strString(.nil) == "")
     }
 
     @Test("displays keyword same as printString")

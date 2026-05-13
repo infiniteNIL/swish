@@ -82,6 +82,9 @@ public struct Printer {
     /// Backs the planned `str` native function. Named `strString` to mirror `printString` → `pr-str`.
     public func strString(_ expr: Expr) -> String {
         switch expr {
+        case .nil:
+            ""
+
         case .string(let value):
             value
 
