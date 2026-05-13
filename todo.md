@@ -1,10 +1,11 @@
 # Todo
 
+- [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
+- [ ] doc strings (need maps first)
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] find-ns
 - [ ] Add some builtin string functions
-- [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] Add support for comment macro
