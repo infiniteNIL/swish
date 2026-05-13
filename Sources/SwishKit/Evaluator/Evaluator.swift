@@ -282,12 +282,16 @@ public class Evaluator {
     }
 
     private func evalDefmacro(_ elements: [Expr]) throws -> Expr {
-        guard case .symbol(let name) = elements[1],
-              case .vector(let paramExprs) = elements[2] else {
+        guard elements.count >= 3, case .symbol(let name) = elements[1] else {
+            throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
+        }
+        let vectorIdx: Int
+        if case .string = elements[2] { vectorIdx = 3 } else { vectorIdx = 2 }
+        guard vectorIdx < elements.count, case .vector(let paramExprs) = elements[vectorIdx] else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
         let params = extractParamNames(paramExprs)
-        let body = expandAliases(in: Array(elements.dropFirst(3)))
+        let body = expandAliases(in: Array(elements.dropFirst(vectorIdx + 1)))
         currentNs().intern(name: name, value: .macro(name: name, params: params, body: body))
         return .symbol(name)
     }

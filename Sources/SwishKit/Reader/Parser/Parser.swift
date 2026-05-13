@@ -258,14 +258,12 @@ public class Parser {
     }
 
     private func validateDefmacro(_ elements: [Expr]) throws {
-        guard elements.count >= 4 else {
-            throw ParserError.invalidDefmacro(
-                "defmacro requires a name, parameter vector, and at least one body form")
-        }
-        guard case .symbol = elements[1] else {
+        guard elements.count >= 3, case .symbol = elements[1] else {
             throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
         }
-        guard case .vector(let params) = elements[2] else {
+        let vectorIdx: Int
+        if case .string = elements[2] { vectorIdx = 3 } else { vectorIdx = 2 }
+        guard vectorIdx < elements.count, case .vector(let params) = elements[vectorIdx] else {
             throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
         }
         try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }

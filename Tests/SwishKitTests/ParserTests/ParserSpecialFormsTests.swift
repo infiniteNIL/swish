@@ -199,12 +199,31 @@ struct ParserSpecialFormsTests {
         }
     }
 
-    @Test("defmacro requires at least one body form")
-    func defmacroRequiresBodyForm() throws {
-        #expect(throws: ParserError.invalidDefmacro(
-            "defmacro requires a name, parameter vector, and at least one body form")) {
-            try Reader.readString("(defmacro m [x])")
-        }
+    @Test("defmacro with empty body parses successfully")
+    func defmacroEmptyBodyParses() throws {
+        let result = try Reader.readString("(defmacro m [x])")
+        #expect(result == [.list([.symbol("defmacro"), .symbol("m"), .vector([.symbol("x")])])])
+    }
+
+    @Test("defmacro with docstring parses successfully")
+    func defmacroWithDocstringParses() throws {
+        let result = try Reader.readString("(defmacro m \"doc\" [x] x)")
+        #expect(result == [.list([
+            .symbol("defmacro"), .symbol("m"),
+            .string("doc"),
+            .vector([.symbol("x")]),
+            .symbol("x")
+        ])])
+    }
+
+    @Test("defmacro with docstring and empty body parses successfully")
+    func defmacroWithDocstringEmptyBodyParses() throws {
+        let result = try Reader.readString("(defmacro m \"doc\" [x])")
+        #expect(result == [.list([
+            .symbol("defmacro"), .symbol("m"),
+            .string("doc"),
+            .vector([.symbol("x")])
+        ])])
     }
 
     @Test("defmacro parameters must be symbols")
