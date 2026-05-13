@@ -12,6 +12,7 @@
 - [ ] Add support for comment macro
 - [ ] and, or, not
 
+- [x] do special form
 - [x] require
 - [x] alias
 - [x] refer

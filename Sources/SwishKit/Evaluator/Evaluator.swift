@@ -89,6 +89,9 @@ public class Evaluator {
         case .symbol("if"):
             return try evalIf(elements, in: env)
 
+        case .symbol("do"):
+            return try evalBody(Array(elements.dropFirst()), in: env)
+
         case .symbol("let"):
             return try evalLet(elements, in: env)
 

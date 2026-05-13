@@ -226,6 +226,46 @@ struct EvaluatorSpecialFormsTests {
         #expect(try evaluator.eval(.symbol("x")) == .integer(1))
     }
 
+    // MARK: - do special form
+
+    @Test("do with no expressions returns nil")
+    func doNoExpressionsReturnsNil() throws {
+        let result = try evaluator.eval(.list([.symbol("do")]))
+        #expect(result == .nil)
+    }
+
+    @Test("do with single expression returns it")
+    func doSingleExpressionReturnsIt() throws {
+        let result = try evaluator.eval(.list([.symbol("do"), .integer(42)]))
+        #expect(result == .integer(42))
+    }
+
+    @Test("do with multiple expressions returns last")
+    func doMultipleExpressionsReturnsLast() throws {
+        let result = try evaluator.eval(.list([.symbol("do"), .integer(1), .integer(2), .integer(3)]))
+        #expect(result == .integer(3))
+    }
+
+    @Test("do evaluates side effects")
+    func doEvaluatesSideEffects() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("do"),
+            .list([.symbol("def"), .symbol("doSideEffect"), .integer(7)]),
+            .symbol("doSideEffect")
+        ]))
+        #expect(result == .integer(7))
+    }
+
+    @Test("nested do returns last expression of outer")
+    func nestedDoReturnsLastOfOuter() throws {
+        let result = try evaluator.eval(.list([
+            .symbol("do"),
+            .list([.symbol("do"), .integer(1), .integer(2)]),
+            .integer(3)
+        ]))
+        #expect(result == .integer(3))
+    }
+
     // MARK: - Native functions
 
     @Test("Native function self-evaluates")

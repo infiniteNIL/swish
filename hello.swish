@@ -4,9 +4,9 @@
 
 (defn hello [s]
   (if (> (+ 1 2) 1)
-    (println "Hello," s \newline
-             (str/test-str) \newline
-             (test/another-test-str))
+    (do (println "Hello," s)
+        (println (str/test-str))
+        (println (test/another-test-str)))
     (println "This shouldn't print!")))
 
 (hello "Rod")
