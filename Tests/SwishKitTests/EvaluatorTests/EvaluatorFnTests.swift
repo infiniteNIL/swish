@@ -27,7 +27,7 @@ struct EvaluatorFnTests {
         #expect(result == .function(
             name: "square",
             params: ["x"],
-            body: [.list([.symbol("*"), .symbol("x"), .symbol("x")])]
+            body: [.list([.symbol("clojure.core/*"), .symbol("x"), .symbol("x")])]
         ))
     }
 

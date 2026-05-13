@@ -277,7 +277,7 @@ public class Evaluator {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
         }
         let params = extractParamNames(paramExprs)
-        let body = expandAliases(in: Array(elements.dropFirst(offset + 1)))
+        let body = expandAliases(in: Array(elements.dropFirst(offset + 1)), locals: Set(params))
         return .function(name: name, params: params, body: body)
     }
 
@@ -436,29 +436,70 @@ public class Evaluator {
 
     // MARK: - Alias expansion
 
-    private func expandAliases(in forms: [Expr]) -> [Expr] {
-        forms.map { expandAliasesInExpr($0) }
+    private func expandAliases(in forms: [Expr], locals: Set<String> = []) -> [Expr] {
+        forms.map { expandAliasesInExpr($0, locals: locals) }
     }
 
-    private func expandAliasesInExpr(_ expr: Expr) -> Expr {
+    private func expandAliasesInExpr(_ expr: Expr, locals: Set<String> = []) -> Expr {
         switch expr {
         case .symbol(let name):
-            guard let (nsAlias, varName) = splitQualified(name) else { return expr }
-            guard let ns = currentNs().findAlias(nsAlias) else { return expr }
-            return .symbol("\(ns.name)/\(varName)")
+            if locals.contains(name) { return expr }
+            if let (nsAlias, varName) = splitQualified(name),
+               let ns = currentNs().findAlias(nsAlias) {
+                return .symbol("\(ns.name)/\(varName)")
+            }
+            if !name.contains("/"), let v = resolveVar(name: name, in: currentNs()) {
+                return .symbol("\(v.namespace.name)/\(v.name)")
+            }
+            return expr
 
         case .list(let elements):
             guard let head = elements.first else { return expr }
             if case .symbol("quote") = head { return expr }
             if case .symbol("syntax-quote") = head { return expr }
-            return .list(elements.map { expandAliasesInExpr($0) })
+            if case .symbol("fn") = head { return expandFnForm(elements, outerLocals: locals) }
+            if case .symbol("let") = head { return expandLetForm(elements, outerLocals: locals) }
+            return .list(elements.map { expandAliasesInExpr($0, locals: locals) })
 
         case .vector(let elements):
-            return .vector(elements.map { expandAliasesInExpr($0) })
+            return .vector(elements.map { expandAliasesInExpr($0, locals: locals) })
 
         default:
             return expr
         }
+    }
+
+    private func expandFnForm(_ elements: [Expr], outerLocals: Set<String>) -> Expr {
+        var offset = 1
+        if elements.count > 2, case .symbol = elements[1], case .vector = elements[2] {
+            offset = 2
+        }
+        var newLocals = outerLocals
+        if offset < elements.count, case .vector(let paramExprs) = elements[offset] {
+            for p in paramExprs {
+                if case .symbol(let n) = p { newLocals.insert(n) }
+            }
+        }
+        var result = Array(elements.prefix(offset + 1))
+        result += Array(elements.dropFirst(offset + 1)).map { expandAliasesInExpr($0, locals: newLocals) }
+        return .list(result)
+    }
+
+    private func expandLetForm(_ elements: [Expr], outerLocals: Set<String>) -> Expr {
+        guard elements.count >= 2, case .vector(let bindings) = elements[1] else {
+            return .list(elements.map { expandAliasesInExpr($0, locals: outerLocals) })
+        }
+        var newLocals = outerLocals
+        var newBindings: [Expr] = []
+        var i = 0
+        while i + 1 < bindings.count {
+            newBindings.append(bindings[i])
+            newBindings.append(expandAliasesInExpr(bindings[i + 1], locals: newLocals))
+            if case .symbol(let n) = bindings[i] { newLocals.insert(n) }
+            i += 2
+        }
+        let body = Array(elements.dropFirst(2)).map { expandAliasesInExpr($0, locals: newLocals) }
+        return .list([elements[0], .vector(newBindings)] + body)
     }
 }
 

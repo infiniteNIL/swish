@@ -258,6 +258,16 @@ struct EvaluatorNamespaceTests {
         }
     }
 
+    @Test("unqualified recursive call resolves in defining namespace")
+    func recursiveCallResolvesInDefiningNamespace() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns math)")
+        _ = try swish.eval("(defn fact [n] (if (= n 0) 1 (* n (fact (- n 1)))))")
+        _ = try swish.eval("(ns user)")
+        let result = try swish.eval("(math/fact 5)")
+        #expect(result == .integer(120))
+    }
+
     @Test("alias in function body resolves when called from a different namespace")
     func aliasFunctionBodyResolvesAcrossNamespaces() throws {
         let swish = Swish()
