@@ -9,4 +9,14 @@
         (println (test/another-test-str)))
     (println "This shouldn't print!")))
 
+(defn fact [n]
+  (if (<= n 2)
+    n
+    (* n (fact (- n 1)))))
+
 (hello "Rod")
+
+(def n 20) ; This is a big as we can go before we get an arith overflow
+           ; Clojure does the same thing
+           ; but recursion is working
+(println (str n "! is") (fact n))
