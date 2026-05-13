@@ -443,10 +443,7 @@ public class Evaluator {
     private func expandAliasesInExpr(_ expr: Expr) -> Expr {
         switch expr {
         case .symbol(let name):
-            guard name.contains("/"), name != "/" else { return expr }
-            let slashIdx = name.firstIndex(of: "/")!
-            let nsAlias = String(name[name.startIndex..<slashIdx])
-            let varName = String(name[name.index(after: slashIdx)...])
+            guard let (nsAlias, varName) = splitQualified(name) else { return expr }
             guard let ns = currentNs().findAlias(nsAlias) else { return expr }
             return .symbol("\(ns.name)/\(varName)")
 

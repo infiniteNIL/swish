@@ -46,14 +46,18 @@ extension Evaluator {
             ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name) : nil)
     }
 
+    /// Splits `ns/name` into its two parts. Returns nil for unqualified symbols or the bare "/" symbol.
+    func splitQualified(_ name: String) -> (ns: String, member: String)? {
+        guard name.contains("/"), name != "/" else { return nil }
+        let idx = name.firstIndex(of: "/")!
+        return (String(name[name.startIndex..<idx]), String(name[name.index(after: idx)...]))
+    }
+
     /// Splits a qualified `ns/name` symbol and resolves it to a Var.
     /// Returns nil if the symbol is not qualified (no slash, or the bare "/" symbol).
     /// Throws undefinedSymbol if the namespace or var is not found.
     func resolveQualifiedVar(name: String) throws -> Var? {
-        guard name.contains("/"), name != "/" else { return nil }
-        let slashIdx = name.firstIndex(of: "/")!
-        let nsAlias = String(name[name.startIndex..<slashIdx])
-        let shortName = String(name[name.index(after: slashIdx)...])
+        guard let (nsAlias, shortName) = splitQualified(name) else { return nil }
         guard let ns = currentNs().findAlias(nsAlias) ?? findNs(nsAlias) else {
             throw EvaluatorError.undefinedSymbol(name)
         }
