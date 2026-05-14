@@ -308,19 +308,25 @@ public class Evaluator {
     }
 
     private func evalDefmacro(_ elements: [Expr]) throws -> Expr {
-        guard elements.count >= 3, case .symbol(let name, _) = elements[1]
+        guard elements.count >= 3, case .symbol(let name, let symMeta) = elements[1]
         else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
+        let docString: String?
         let vectorIdx: Int
-        if case .string = elements[2] { vectorIdx = 3 } else { vectorIdx = 2 }
+        if case .string(let s) = elements[2] { docString = s; vectorIdx = 3 }
+        else { docString = nil; vectorIdx = 2 }
         guard vectorIdx < elements.count, case .vector(let paramExprs, _) = elements[vectorIdx]
         else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
+        var meta: [Expr: Expr] = symMeta ?? [:]
+        if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+        let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta
         let params = extractParamNames(paramExprs)
         let body = expandAliases(in: Array(elements.dropFirst(vectorIdx + 1)))
-        currentNs().intern(name: name, value: .macro(name: name, params: params, body: body, metadata: nil))
+        let v = currentNs().intern(name: name, value: .macro(name: name, params: params, body: body, metadata: macroMeta))
+        v.metadata = macroMeta
         return .symbol(name, metadata: nil)
     }
 

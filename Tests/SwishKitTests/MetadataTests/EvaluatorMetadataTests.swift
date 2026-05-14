@@ -75,6 +75,27 @@ struct EvaluatorMetadataTests {
         ], metadata: nil))
     }
 
+    // MARK: - defmacro doc string
+
+    @Test("defmacro doc string is stored under :doc in var metadata")
+    func defmacroDocStringInMetadata() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defmacro my-mac \"Does a thing\" [x] x)")
+        let result = try swish2.eval("(meta #'user/my-mac)")
+        #expect(result == .map([.keyword("doc"): .string("Does a thing")], metadata: nil))
+    }
+
+    @Test("defmacro ^-metadata and doc string are merged")
+    func defmacroMetadataAndDocStringMerged() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defmacro ^:private my-mac \"Docs\" [x] x)")
+        let result = try swish2.eval("(meta #'user/my-mac)")
+        #expect(result == .map([
+            .keyword("private"): .boolean(true),
+            .keyword("doc"): .string("Docs")
+        ], metadata: nil))
+    }
+
     // MARK: - reset-meta!
 
     @Test("reset-meta! replaces var metadata")
