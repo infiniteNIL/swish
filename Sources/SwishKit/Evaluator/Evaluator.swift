@@ -305,12 +305,25 @@ public class Evaluator {
         switch callee {
         case .macro(let name, let params, let body):
             return try callMacro(name: name, params: params, body: body, args: args, in: env)
+
         case .nativeFunction(let name, let arity, let body):
             let evaluated = try args.map { try eval($0, in: env) }
             return try callNativeFunction(name: name, arity: arity, body: body, args: evaluated)
+
         case .function(let name, let params, let body):
             let evaluated = try args.map { try eval($0, in: env) }
             return try callUserFunction(name: name, params: params, body: body, args: evaluated, in: env)
+
+        case .map(let dict):
+            let evaluated = try args.map { try eval($0, in: env) }
+            guard evaluated.count == 1 || evaluated.count == 2 else {
+                throw EvaluatorError.invalidArgument(
+                    function: "map",
+                    message: "requires 1 or 2 arguments, got \(evaluated.count)")
+            }
+            let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
+            return dict[evaluated[0]] ?? notFound
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }

@@ -107,4 +107,45 @@ struct CoreMapTests {
             try swish.eval("(get {:a 1} :a :b :c)")
         }
     }
+
+    // MARK: - map as function
+
+    @Test("({:a 1 :b 2} :a) returns value for existing key")
+    func mapAsFunctionExistingKey() throws {
+        #expect(try swish.eval("({:a 1 :b 2} :a)") == .integer(1))
+    }
+
+    @Test("({:a 1 :b 2} :c) returns nil for missing key")
+    func mapAsFunctionMissingKey() throws {
+        #expect(try swish.eval("({:a 1 :b 2} :c)") == .nil)
+    }
+
+    @Test("({:a 1 :b 2} :c 99) returns default for missing key")
+    func mapAsFunctionMissingKeyWithDefault() throws {
+        #expect(try swish.eval("({:a 1 :b 2} :c 99)") == .integer(99))
+    }
+
+    @Test("({} :k) returns nil for empty map")
+    func mapAsFunctionEmptyMap() throws {
+        #expect(try swish.eval("({} :k)") == .nil)
+    }
+
+    @Test("({0 \"zero\"} 0) key is evaluated before lookup")
+    func mapAsFunctionEvaluatedKey() throws {
+        #expect(try swish.eval("({0 \"zero\"} (+ 0 0))") == .string("zero"))
+    }
+
+    @Test("({:a 1}) throws on zero args")
+    func mapAsFunctionZeroArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "map", message: "requires 1 or 2 arguments, got 0")) {
+            try swish.eval("({:a 1})")
+        }
+    }
+
+    @Test("({:a 1} :a :b :c) throws on three args")
+    func mapAsFunctionThreeArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "map", message: "requires 1 or 2 arguments, got 3")) {
+            try swish.eval("({:a 1} :a :b :c)")
+        }
+    }
 }
