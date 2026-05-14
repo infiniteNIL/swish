@@ -1,10 +1,10 @@
 # Todo
 
+- [ ] keywords as functions
 - [ ] Add support for sets
 - [ ] vectors as functions
 - [ ] maps as functions
 - [ ] sets as functions
-- [ ] get function
 - [ ] doc strings (need maps first, and mult-arity fn?)
 - [ ] first
 - [ ] rest
@@ -20,6 +20,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] get function
 - [x] Add support for maps
 - [x] when-not macro
 - [x] when macro

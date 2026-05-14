@@ -9,4 +9,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerNamespace(into: evaluator)
     registerString(into: evaluator)
     registerSequence(into: evaluator)
+    registerMap(into: evaluator)
 }
