@@ -1,17 +1,19 @@
 # Todo
 
 - [ ] Add support for maps
-- [ ] doc strings (need maps first)
+- [ ] doc strings (need maps first, and mult-arity fn?)
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] Add support for sets
-- [ ] Add support for comment macro
-- [ ] and, or, not
+- [ ] mult-arity defn, defmacro
+- [ ] and, or (needs multi-arity)
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] not function
+- [x] Add support for comment macro
 - [x] Add support for #_ reader macro to comment out form
 - [x] Add support for single-line comments
 - [x] str function
