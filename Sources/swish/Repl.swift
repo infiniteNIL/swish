@@ -60,6 +60,7 @@ final class Repl {
             case .notACommand:
                 break
             }
+            if (try? Reader.readString(trimmed))?.isEmpty == true { continue }
             do {
                 let result = try eval(trimmed)
                 printResult(result)
@@ -90,16 +91,32 @@ final class Repl {
 
     private func readMultilineInput(initial: String, mainPrompt: String) -> String {
         var input = initial
-        var contType = continuationNeeded(input)
-        while contType != .none {
+        while true {
+            let contType = continuationNeeded(input)
+            if contType == .none && !isIncompleteByParsing(input) { break }
             let additional = computeIndent(input, mainPromptLen: mainPrompt.count)
             let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
                 + String(repeating: " ", count: additional)
             guard let continuation = readline(prompt: continuationPrompt) else { break }
             input += "\n" + continuation
-            contType = continuationNeeded(input)
         }
         return input
+    }
+
+    /// Returns true when the pre-scan says depth is balanced but parsing still needs more input —
+    /// e.g. `#_form` with nothing following, or a reader macro prefix (`'`, `` ` ``, `~`) at end of input.
+    private func isIncompleteByParsing(_ input: String) -> Bool {
+        guard !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        do {
+            _ = try Reader.readString(input)
+            return false
+        }
+        catch ParserError.unexpectedEOF {
+            return true
+        }
+        catch {
+            return false
+        }
     }
 
     // MARK: - Command handling
@@ -267,10 +284,10 @@ final class Repl {
 
         while i < input.endIndex {
             switch input[i] {
-            case "(", "[":
+            case "(", "[", "{":
                 parenDepth += 1
 
-            case ")", "]":
+            case ")", "]", "}":
                 parenDepth -= 1
 
             case "\"":
@@ -337,10 +354,10 @@ final class Repl {
             case "(":
                 stack.append(col + 2)
 
-            case "[":
+            case "[", "{":
                 stack.append(col + 1)
 
-            case ")", "]":
+            case ")", "]", "}":
                 if !stack.isEmpty {
                     stack.removeLast()
                 }

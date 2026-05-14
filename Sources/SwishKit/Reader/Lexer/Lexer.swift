@@ -66,6 +66,14 @@ public class Lexer {
             _ = advance()
             return Token(type: .rightBracket, text: "]", line: startLine, column: startColumn)
 
+        case "{":
+            _ = advance()
+            return Token(type: .leftBrace, text: "{", line: startLine, column: startColumn)
+
+        case "}":
+            _ = advance()
+            return Token(type: .rightBrace, text: "}", line: startLine, column: startColumn)
+
         case "'":
             _ = advance()
             return Token(type: .quote, text: "'", line: startLine, column: startColumn)
@@ -181,7 +189,7 @@ public class Lexer {
             return true
         }
         switch char {
-        case "(", ")", "[", "]", "\"", ":", "\\", ";":
+        case "(", ")", "[", "]", "{", "}", "\"", ":", "\\", ";":
             return true
 
         default:

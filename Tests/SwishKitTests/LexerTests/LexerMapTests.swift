@@ -1,0 +1,54 @@
+import Testing
+@testable import SwishKit
+
+@Suite("Lexer Map Tests")
+struct LexerMapTests {
+    @Test("Lexes left brace")
+    func lexLeftBrace() throws {
+        let lexer = Lexer("{")
+        let token = try lexer.nextToken()
+        #expect(token == Token(type: .leftBrace, text: "{", line: 1, column: 1))
+    }
+
+    @Test("Lexes right brace")
+    func lexRightBrace() throws {
+        let lexer = Lexer("}")
+        let token = try lexer.nextToken()
+        #expect(token == Token(type: .rightBrace, text: "}", line: 1, column: 1))
+    }
+
+    @Test("Lexes empty map")
+    func lexEmptyMap() throws {
+        let lexer = Lexer("{}")
+        let t1 = try lexer.nextToken()
+        let t2 = try lexer.nextToken()
+        let t3 = try lexer.nextToken()
+        #expect(t1 == Token(type: .leftBrace, text: "{", line: 1, column: 1))
+        #expect(t2 == Token(type: .rightBrace, text: "}", line: 1, column: 2))
+        #expect(t3.type == .eof)
+    }
+
+    @Test("Lexes map with keyword and integer")
+    func lexMapWithKeywordAndInteger() throws {
+        let lexer = Lexer("{:a 1}")
+        let tokens = try [
+            lexer.nextToken(),
+            lexer.nextToken(),
+            lexer.nextToken(),
+            lexer.nextToken(),
+        ]
+        #expect(tokens[0] == Token(type: .leftBrace, text: "{", line: 1, column: 1))
+        #expect(tokens[1] == Token(type: .keyword, text: "a", line: 1, column: 2))
+        #expect(tokens[2] == Token(type: .integer, text: "1", line: 1, column: 5))
+        #expect(tokens[3] == Token(type: .rightBrace, text: "}", line: 1, column: 6))
+    }
+
+    @Test("Braces do not interrupt number scanning")
+    func bracesTerminateNumbers() throws {
+        let lexer = Lexer("1}")
+        let t1 = try lexer.nextToken()
+        let t2 = try lexer.nextToken()
+        #expect(t1 == Token(type: .integer, text: "1", line: 1, column: 1))
+        #expect(t2 == Token(type: .rightBrace, text: "}", line: 1, column: 2))
+    }
+}

@@ -75,7 +75,10 @@ public class Parser {
         case .leftBracket:
             return try parseVector()
 
-        case .rightParen, .rightBracket:
+        case .leftBrace:
+            return try parseMap()
+
+        case .rightParen, .rightBracket, .rightBrace:
             throw ParserError.unexpectedToken(currentToken)
 
         case .eof:
@@ -303,6 +306,36 @@ public class Parser {
         return .vector(elements)
     }
 
+    private func parseMap() throws -> Expr {
+        let startToken = currentToken
+        try advance() // consume '{'
+
+        var forms: [Expr] = []
+
+        while currentToken.type != .rightBrace {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedMap(line: startToken.line, column: startToken.column)
+            }
+            if let expr = try parseFormSkipDiscards() {
+                forms.append(expr)
+            } else if currentToken.type != .rightBrace {
+                throw ParserError.unexpectedToken(currentToken)
+            }
+        }
+
+        try advance() // consume '}'
+
+        guard forms.count % 2 == 0 else {
+            throw ParserError.oddNumberOfMapForms(line: startToken.line, column: startToken.column)
+        }
+
+        var dict: [Expr: Expr] = [:]
+        for i in stride(from: 0, to: forms.count, by: 2) {
+            dict[forms[i]] = forms[i + 1]
+        }
+        return .map(dict)
+    }
+
     private func parseHexInteger(_ text: String) -> Int? {
         var str = text
         var negative = false
@@ -373,7 +406,8 @@ public class Parser {
         }
         if currentToken.type == .eof
             || currentToken.type == .rightParen
-            || currentToken.type == .rightBracket { return nil }
+            || currentToken.type == .rightBracket
+            || currentToken.type == .rightBrace { return nil }
         return try parseExpr()
     }
 

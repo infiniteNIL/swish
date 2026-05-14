@@ -13,6 +13,8 @@ public enum TokenType: Equatable, Sendable {
     case rightParen
     case leftBracket
     case rightBracket
+    case leftBrace
+    case rightBrace
     case quote
     case backtick
     case unquote

@@ -50,6 +50,9 @@ public struct Printer {
         case .vector(let elements):
             "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
 
+        case .map(let dict):
+            printMapString(dict, transform: printString)
+
         case .function(let name, _, _):
             if let name {
                 "#<fn \(name)>"
@@ -97,6 +100,9 @@ public struct Printer {
         case .vector(let elements):
             "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
 
+        case .map(let dict):
+            printMapString(dict, transform: strString)
+
         default:
             printString(expr)
         }
@@ -115,9 +121,21 @@ public struct Printer {
         case .vector(let elements):
             "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
 
+        case .map(let dict):
+            printMapString(dict, transform: sourceForm)
+
         default:
             printString(expr)
         }
+    }
+
+    private func printMapString(_ dict: [Expr: Expr], transform: (Expr) -> String) -> String {
+        let pairs = dict
+            .map { (transform($0.key), transform($0.value)) }
+            .sorted { $0.0 < $1.0 }
+            .flatMap { [$0.0, $0.1] }
+            .joined(separator: " ")
+        return pairs.isEmpty ? "{}" : "{\(pairs)}"
     }
 
     private func printCharacter(_ char: Character) -> String {

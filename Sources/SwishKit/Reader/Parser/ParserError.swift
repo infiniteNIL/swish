@@ -5,6 +5,8 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidFloat(String)
     case unterminatedList(line: Int, column: Int)
     case unterminatedVector(line: Int, column: Int)
+    case unterminatedMap(line: Int, column: Int)
+    case oddNumberOfMapForms(line: Int, column: Int)
     case invalidDef(String)
     case invalidLet(String)
     case invalidFn(String)
@@ -29,6 +31,12 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .unterminatedVector(let line, let column):
             "Unterminated vector (line \(line), column \(column))."
+
+        case .unterminatedMap(let line, let column):
+            "Unterminated map (line \(line), column \(column))."
+
+        case .oddNumberOfMapForms(let line, let column):
+            "Map literal (line \(line), column \(column)) requires an even number of forms."
 
         case .invalidDef(let message):
             message

@@ -43,6 +43,13 @@ public class Evaluator {
         case .vector(let elements):
             return .vector(try elements.map { try eval($0, in: env) })
 
+        case .map(let dict):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict {
+                result[try eval(k, in: env)] = try eval(v, in: env)
+            }
+            return .map(result)
+
         case .symbol(let name):
             if let v = try resolveQualifiedVar(name: name) {
                 return try deref(v)
@@ -422,6 +429,14 @@ public class Evaluator {
         case .vector(let elements):
             return .vector(try elements.map { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) })
 
+        case .map(let dict):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict {
+                result[try syntaxQuoteExpand(k, in: env, gensyms: &gensyms)] =
+                    try syntaxQuoteExpand(v, in: env, gensyms: &gensyms)
+            }
+            return .map(result)
+
         default:
             return expr
         }
@@ -467,6 +482,13 @@ public class Evaluator {
 
         case .vector(let elements):
             return .vector(elements.map { expandAliasesInExpr($0, locals: locals) })
+
+        case .map(let dict):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict {
+                result[expandAliasesInExpr(k, locals: locals)] = expandAliasesInExpr(v, locals: locals)
+            }
+            return .map(result)
 
         default:
             return expr
