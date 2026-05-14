@@ -12,6 +12,9 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] when macro
+- [x] cons function
+- [x] list function
 - [x] not function
 - [x] Add support for comment macro
 - [x] Add support for #_ reader macro to comment out form
