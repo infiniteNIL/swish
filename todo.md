@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Add support for maps
 - [ ] Add support for sets
 - [ ] vectors as functions
 - [ ] maps as functions
@@ -21,6 +20,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Add support for maps
 - [x] when-not macro
 - [x] when macro
 - [x] cons function
