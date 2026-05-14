@@ -24,4 +24,38 @@ struct CoreSequenceTests {
     func listMixed() throws {
         #expect(try swish.eval("(list \"a\" :b)") == .list([.string("a"), .keyword("b")]))
     }
+
+    // MARK: - cons
+
+    @Test("(cons 1 '(2 3)) prepends to list")
+    func consOntoList() throws {
+        #expect(try swish.eval("(cons 1 '(2 3))") == .list([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("(cons 1 [2 3]) prepends to vector, returns list")
+    func consOntoVector() throws {
+        #expect(try swish.eval("(cons 1 [2 3])") == .list([.integer(1), .integer(2), .integer(3)]))
+    }
+
+    @Test("(cons 1 nil) returns single-element list")
+    func consOntoNil() throws {
+        #expect(try swish.eval("(cons 1 nil)") == .list([.integer(1)]))
+    }
+
+    @Test("(cons \\a \"bc\") prepends char onto string as char seq")
+    func consOntoString() throws {
+        #expect(try swish.eval("(cons \\a \"bc\")") == .list([.character("a"), .character("b"), .character("c")]))
+    }
+
+    @Test("(cons 0 '()) returns single-element list from empty list")
+    func consOntoEmptyList() throws {
+        #expect(try swish.eval("(cons 0 '())") == .list([.integer(0)]))
+    }
+
+    @Test("(cons 1 2) throws invalidArgument")
+    func consOntoNonCollectionThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "cons", message: "cannot cons onto 2")) {
+            try swish.eval("(cons 1 2)")
+        }
+    }
 }
