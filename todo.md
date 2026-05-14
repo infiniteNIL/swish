@@ -1,5 +1,6 @@
 # Todo
 
+- [ ] better error reporting on exceptions (e.g. arith overflow)
 - [ ] vectors as functions
 - [ ] Add support for sets
 - [ ] sets as functions
@@ -17,6 +18,9 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] attr maps added to defn, defn-, and defmacro
+- [x] merge
+- [x] map?
 - [x] defn-
 - [x] assoc
 - [x] list*

@@ -332,8 +332,9 @@ public class Parser {
         guard elements.count >= 3, case .symbol = elements[1] else {
             throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
         }
-        let vectorIdx: Int
-        if case .string = elements[2] { vectorIdx = 3 } else { vectorIdx = 2 }
+        var vectorIdx = 2
+        if vectorIdx < elements.count, case .string = elements[vectorIdx] { vectorIdx += 1 }
+        if vectorIdx < elements.count, case .map = elements[vectorIdx] { vectorIdx += 1 }
         guard vectorIdx < elements.count, case .vector(let params, _) = elements[vectorIdx] else {
             throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
         }

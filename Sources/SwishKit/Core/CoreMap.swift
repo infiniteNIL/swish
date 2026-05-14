@@ -1,6 +1,32 @@
 func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "get",   arity: .variadic, body: coreGet)
     evaluator.register(name: "assoc", arity: .variadic, body: coreAssoc)
+    evaluator.register(name: "merge", arity: .variadic, body: coreMerge)
+    evaluator.register(name: "map?",  arity: .fixed(1), body: coreIsMap)
+}
+
+private func coreMerge(_ args: [Expr]) throws -> Expr {
+    var result: [Expr: Expr] = [:]
+    for arg in args {
+        switch arg {
+        case .map(let d, _):
+            for (k, v) in d { result[k] = v }
+
+        case .nil:
+            break
+
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "merge",
+                message: "arguments must be maps or nil, got \(corePrinter.printString(arg))")
+        }
+    }
+    return result.isEmpty ? .nil : .map(result, metadata: nil)
+}
+
+private func coreIsMap(_ args: [Expr]) throws -> Expr {
+    if case .map = args[0] { return .boolean(true) }
+    return .boolean(false)
 }
 
 private func coreAssoc(_ args: [Expr]) throws -> Expr {

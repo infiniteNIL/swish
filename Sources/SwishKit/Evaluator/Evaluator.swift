@@ -312,15 +312,18 @@ public class Evaluator {
         else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
-        let docString: String?
-        let vectorIdx: Int
-        if case .string(let s) = elements[2] { docString = s; vectorIdx = 3 }
-        else { docString = nil; vectorIdx = 2 }
-        guard vectorIdx < elements.count, case .vector(let paramExprs, _) = elements[vectorIdx]
+        var idx = 2
+        var docString: String? = nil
+        var attrMap: [Expr: Expr]? = nil
+        if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
+        if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
+        guard idx < elements.count, case .vector(let paramExprs, _) = elements[idx]
         else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
+        let vectorIdx = idx
         var meta: [Expr: Expr] = symMeta ?? [:]
+        if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
         if let doc = docString { meta[.keyword("doc")] = .string(doc) }
         let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta
         let params = extractParamNames(paramExprs)

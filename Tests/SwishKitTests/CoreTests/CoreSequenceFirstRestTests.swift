@@ -112,4 +112,46 @@ struct CoreSequenceFirstRestTests {
         _ = try swish2.eval("(defn double \"Doubles x\" [x] (* x 2))")
         #expect(try swish2.eval("(double 21)") == .integer(42))
     }
+
+    // MARK: - defn attr map
+
+    @Test("defn with attr map stores attributes in var metadata")
+    func defnAttrMap() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defn foo {:added \"1.0\"} [x] x)")
+        let result = try swish2.eval("(meta #'user/foo)")
+        #expect(result == .map([.keyword("added"): .string("1.0")], metadata: nil))
+    }
+
+    @Test("defn with doc string and attr map merges both")
+    func defnDocAndAttr() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defn foo \"Docs\" {:static true} [x] x)")
+        let result = try swish2.eval("(meta #'user/foo)")
+        #expect(result == .map([
+            .keyword("doc"): .string("Docs"),
+            .keyword("static"): .boolean(true)
+        ], metadata: nil))
+    }
+
+    // MARK: - defmacro attr map
+
+    @Test("defmacro with attr map stores attributes in var metadata")
+    func defmacroAttrMap() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defmacro my-mac {:added \"1.0\"} [x] x)")
+        let result = try swish2.eval("(meta #'user/my-mac)")
+        #expect(result == .map([.keyword("added"): .string("1.0")], metadata: nil))
+    }
+
+    @Test("defmacro with doc string and attr map merges both")
+    func defmacroDocAndAttr() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defmacro my-mac \"Docs\" {:static true} [x] x)")
+        let result = try swish2.eval("(meta #'user/my-mac)")
+        #expect(result == .map([
+            .keyword("doc"): .string("Docs"),
+            .keyword("static"): .boolean(true)
+        ], metadata: nil))
+    }
 }
