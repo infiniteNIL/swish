@@ -44,11 +44,7 @@ public class Evaluator {
             return .vector(try elements.map { try eval($0, in: env) })
 
         case .map(let dict):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[try eval(k, in: env)] = try eval(v, in: env)
-            }
-            return .map(result)
+            return try transformMap(dict) { try eval($0, in: env) }
 
         case .symbol(let name):
             if let v = try resolveQualifiedVar(name: name) {
@@ -430,16 +426,19 @@ public class Evaluator {
             return .vector(try elements.map { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) })
 
         case .map(let dict):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[try syntaxQuoteExpand(k, in: env, gensyms: &gensyms)] =
-                    try syntaxQuoteExpand(v, in: env, gensyms: &gensyms)
-            }
-            return .map(result)
+            return try transformMap(dict) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
 
         default:
             return expr
         }
+    }
+
+    private func transformMap(_ dict: [Expr: Expr], _ transform: (Expr) throws -> Expr) rethrows -> Expr {
+        var result: [Expr: Expr] = [:]
+        for (k, v) in dict {
+            result[try transform(k)] = try transform(v)
+        }
+        return .map(result)
     }
 
     private func extractParamNames(_ exprs: [Expr]) -> [String] {
@@ -484,11 +483,7 @@ public class Evaluator {
             return .vector(elements.map { expandAliasesInExpr($0, locals: locals) })
 
         case .map(let dict):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[expandAliasesInExpr(k, locals: locals)] = expandAliasesInExpr(v, locals: locals)
-            }
-            return .map(result)
+            return transformMap(dict) { expandAliasesInExpr($0, locals: locals) }
 
         default:
             return expr

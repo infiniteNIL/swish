@@ -45,10 +45,12 @@ final class Repl {
                 teardownCursor()
                 return
             }
+
             input = readMultilineInput(initial: input, mainPrompt: prompt)
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
             lineReader?.addHistory(input)
+
             switch handleCommand(trimmed) {
             case .exit:
                 teardownCursor()
@@ -60,7 +62,9 @@ final class Repl {
             case .notACommand:
                 break
             }
+
             if (try? Reader.readString(trimmed))?.isEmpty == true { continue }
+
             do {
                 let result = try eval(trimmed)
                 printResult(result)
@@ -68,6 +72,7 @@ final class Repl {
             catch {
                 printError(error)
             }
+
             inputCount += 1
         }
     }
@@ -275,7 +280,7 @@ final class Repl {
         case none
         case regularString
         case multilineString
-        case list
+        case form
     }
 
     private func continuationNeeded(_ input: String) -> ContinuationType {
@@ -324,7 +329,7 @@ final class Repl {
             i = input.index(after: i)
         }
 
-        return parenDepth > 0 ? .list : .none
+        return parenDepth > 0 ? .form : .none
     }
 
     // MARK: - Indent computation
