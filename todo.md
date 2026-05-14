@@ -2,6 +2,9 @@
 
 - [ ] Add support for maps
 - [ ] doc strings (need maps first, and mult-arity fn?)
+- [ ] first
+- [ ] rest
+- [ ] sequence abstraction?
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] find-ns
