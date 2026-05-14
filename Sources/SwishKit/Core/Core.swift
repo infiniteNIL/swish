@@ -8,4 +8,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerIO(into: evaluator)
     registerNamespace(into: evaluator)
     registerString(into: evaluator)
+    registerSequence(into: evaluator)
 }
