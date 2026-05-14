@@ -37,7 +37,7 @@ struct PrinterDisplayStringTests {
 
     @Test("displays list with string elements without quotes")
     func displaysListWithStrings() {
-        #expect(printer.strString(.list([.string("hello"), .string("world")])) == "(hello world)")
+        #expect(printer.strString(.list([.string("hello"), .string("world")], metadata: nil)) == "(hello world)")
     }
 
     @Test("displays integer same as printString")

@@ -7,6 +7,8 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case unterminatedVector(line: Int, column: Int)
     case unterminatedMap(line: Int, column: Int)
     case oddNumberOfMapForms(line: Int, column: Int)
+    case invalidMetadataSpec(line: Int, column: Int)
+    case metadataOnUnsupportedForm(line: Int, column: Int)
     case invalidDef(String)
     case invalidLet(String)
     case invalidFn(String)
@@ -37,6 +39,12 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .oddNumberOfMapForms(let line, let column):
             "Map literal (line \(line), column \(column)) requires an even number of forms."
+
+        case .invalidMetadataSpec(let line, let column):
+            "Invalid metadata spec (line \(line), column \(column)): must be a keyword, symbol, string, or map."
+
+        case .metadataOnUnsupportedForm(let line, let column):
+            "Metadata (line \(line), column \(column)) cannot be attached to this form."
 
         case .invalidDef(let message):
             message

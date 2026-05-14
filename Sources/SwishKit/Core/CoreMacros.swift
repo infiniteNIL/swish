@@ -16,7 +16,7 @@ private func coreGensym(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     else {
         prefix = "G__"
     }
-    return .symbol(evaluator.gensym(prefix: prefix))
+    return .symbol(evaluator.gensym(prefix: prefix), metadata: nil)
 }
 
 private func coreMacroexpand1(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {

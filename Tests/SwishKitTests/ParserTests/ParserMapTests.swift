@@ -8,7 +8,7 @@ struct ParserMapTests {
         let lexer = Lexer("{}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([:])])
+        #expect(exprs == [.map([:], metadata: nil)])
     }
 
     @Test("Parses map with single keyword-integer pair")
@@ -16,7 +16,7 @@ struct ParserMapTests {
         let lexer = Lexer("{:a 1}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([.keyword("a"): .integer(1)])])
+        #expect(exprs == [.map([.keyword("a"): .integer(1)], metadata: nil)])
     }
 
     @Test("Parses map with multiple pairs")
@@ -24,7 +24,7 @@ struct ParserMapTests {
         let lexer = Lexer("{:a 1 :b 2}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([.keyword("a"): .integer(1), .keyword("b"): .integer(2)])])
+        #expect(exprs == [.map([.keyword("a"): .integer(1), .keyword("b"): .integer(2)], metadata: nil)])
     }
 
     @Test("Parses map with mixed key types")
@@ -32,7 +32,7 @@ struct ParserMapTests {
         let lexer = Lexer("{\"name\" :rod 42 true}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([.string("name"): .keyword("rod"), .integer(42): .boolean(true)])])
+        #expect(exprs == [.map([.string("name"): .keyword("rod"), .integer(42): .boolean(true)], metadata: nil)])
     }
 
     @Test("Parses nested map")
@@ -40,7 +40,7 @@ struct ParserMapTests {
         let lexer = Lexer("{:a {:b 2}}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([.keyword("a"): .map([.keyword("b"): .integer(2)])])])
+        #expect(exprs == [.map([.keyword("a"): .map([.keyword("b"): .integer(2)], metadata: nil)], metadata: nil)])
     }
 
     @Test("Parses map inside vector")
@@ -48,7 +48,7 @@ struct ParserMapTests {
         let lexer = Lexer("[{:a 1}]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([.map([.keyword("a"): .integer(1)])])])
+        #expect(exprs == [.vector([.map([.keyword("a"): .integer(1)], metadata: nil)], metadata: nil)])
     }
 
     @Test("Throws unterminatedMap for unclosed brace")
@@ -83,6 +83,6 @@ struct ParserMapTests {
         let lexer = Lexer("{:a 1 :a 2}")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.map([.keyword("a"): .integer(2)])])
+        #expect(exprs == [.map([.keyword("a"): .integer(2)], metadata: nil)])
     }
 }

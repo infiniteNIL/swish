@@ -89,40 +89,40 @@ struct SwishKitTests {
 
     @Test("`a returns the symbol a")
     func backtickAtomReturnSymbol() throws {
-        #expect(try swish.eval("`a") == .symbol("a"))
+        #expect(try swish.eval("`a") == .symbol("a", metadata: nil))
     }
 
     @Test("`(1 2 3) returns the list unevaluated")
     func backtickPlainListUnevaluated() throws {
-        #expect(try swish.eval("`(1 2 3)") == .list([.integer(1), .integer(2), .integer(3)]))
+        #expect(try swish.eval("`(1 2 3)") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
     @Test("`(1 ~x 3) substitutes x")
     func backtickUnquoteSubstitutes() throws {
-        #expect(try swish.eval("(def x 2) `(1 ~x 3)") == .list([.integer(1), .integer(2), .integer(3)]))
+        #expect(try swish.eval("(def x 2) `(1 ~x 3)") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
     @Test("`(1 (2 ~x) 3) substitutes x recursively")
     func backtickUnquoteRecursive() throws {
         #expect(try swish.eval("(def x 5) `(1 (2 ~x) 3)") == .list([
             .integer(1),
-            .list([.integer(2), .integer(5)]),
+            .list([.integer(2), .integer(5)], metadata: nil),
             .integer(3)
-        ]))
+        ], metadata: nil))
     }
 
     @Test("`(1 ~@xs 3) splices xs into the list")
     func backtickUnquoteSplicingSplices() throws {
         #expect(try swish.eval("(def xs '(4 5)) `(1 ~@xs 3)") == .list([
             .integer(1), .integer(4), .integer(5), .integer(3)
-        ]))
+        ], metadata: nil))
     }
 
     @Test("`(~x ~@xs ~x) handles mixed unquote and splicing")
     func backtickMixedUnquoteAndSplicing() throws {
         #expect(try swish.eval("(def x 2) (def xs '(4 5)) `(~x ~@xs ~x)") == .list([
             .integer(2), .integer(4), .integer(5), .integer(2)
-        ]))
+        ], metadata: nil))
     }
 
     @Test("`~x evaluates x directly")

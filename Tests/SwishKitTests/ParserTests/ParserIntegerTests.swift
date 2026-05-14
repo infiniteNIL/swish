@@ -74,7 +74,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("foo")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo")])
+        #expect(exprs == [.symbol("foo", metadata: nil)])
     }
 
     @Test("Parses hyphenated symbol")
@@ -82,7 +82,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("foo-bar")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo-bar")])
+        #expect(exprs == [.symbol("foo-bar", metadata: nil)])
     }
 
     @Test("Parses symbol with special chars")
@@ -90,7 +90,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("*foo*")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("*foo*")])
+        #expect(exprs == [.symbol("*foo*", metadata: nil)])
     }
 
     @Test("Parses lone + as symbol")
@@ -98,7 +98,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("+")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("+")])
+        #expect(exprs == [.symbol("+", metadata: nil)])
     }
 
     @Test("Parses lone - as symbol")
@@ -106,7 +106,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("-")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("-")])
+        #expect(exprs == [.symbol("-", metadata: nil)])
     }
 
     @Test("Parses / as symbol")
@@ -114,7 +114,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("/")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("/")])
+        #expect(exprs == [.symbol("/", metadata: nil)])
     }
 
     @Test("Parses namespaced symbol")
@@ -122,7 +122,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("clojure.core/map")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("clojure.core/map")])
+        #expect(exprs == [.symbol("clojure.core/map", metadata: nil)])
     }
 
     @Test("Parses multiple symbols")
@@ -130,7 +130,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("foo bar baz")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo"), .symbol("bar"), .symbol("baz")])
+        #expect(exprs == [.symbol("foo", metadata: nil), .symbol("bar", metadata: nil), .symbol("baz", metadata: nil)])
     }
 
     @Test("Parses mixed types including symbols")
@@ -138,7 +138,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("foo 42 \"hello\" bar 1.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo"), .integer(42), .string("hello"), .symbol("bar"), .float(1.5)])
+        #expect(exprs == [.symbol("foo", metadata: nil), .integer(42), .string("hello"), .symbol("bar", metadata: nil), .float(1.5)])
     }
 
     // MARK: - Hexadecimal integer literals

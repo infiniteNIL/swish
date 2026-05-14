@@ -66,6 +66,9 @@ public class Parser {
         case .varRef:
             return try parseReaderMacro("var")
 
+        case .metadata:
+            return try parseMetadataForm()
+
         case .discard:
             throw ParserError.unexpectedToken(currentToken)
 
@@ -157,7 +160,7 @@ public class Parser {
     private func parseSymbol() throws -> Expr {
         let name = currentToken.text
         try advance()
-        return .symbol(name)
+        return .symbol(name, metadata: nil)
     }
 
     private func parseKeyword() throws -> Expr {
@@ -169,7 +172,7 @@ public class Parser {
     private func parseReaderMacro(_ symbolName: String) throws -> Expr {
         try advance()
         if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-        return .list([.symbol(symbolName), try parseExpr()])
+        return .list([.symbol(symbolName, metadata: nil), try parseExpr()], metadata: nil)
     }
 
     private func parseBacktick() throws -> Expr {
@@ -178,8 +181,73 @@ public class Parser {
         syntaxQuoteDepth += 1
         let expr = try parseExpr()
         syntaxQuoteDepth -= 1
-        return .list([.symbol("syntax-quote"), expr])
+        return .list([.symbol("syntax-quote", metadata: nil), expr], metadata: nil)
     }
+
+    // MARK: - Metadata reader macro
+
+    private func parseMetadataForm() throws -> Expr {
+        let startToken = currentToken
+        try advance()  // consume '^'
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        let spec = try parseExpr()
+        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+        let target = try parseExpr()
+        let metaMap = try specToMetaMap(spec, at: startToken)
+        return try applyMetadata(metaMap, to: target, at: startToken)
+    }
+
+    private func specToMetaMap(_ spec: Expr, at token: Token) throws -> [Expr: Expr] {
+        switch spec {
+        case .keyword(let k):
+            return [.keyword(k): .boolean(true)]
+
+        case .symbol(let s, _):
+            return [.keyword("tag"): .symbol(s, metadata: nil)]
+
+        case .string(let s):
+            return [.keyword("tag"): .string(s)]
+
+        case .map(let dict, _):
+            return dict
+
+        default:
+            throw ParserError.invalidMetadataSpec(line: token.line, column: token.column)
+        }
+    }
+
+    private func applyMetadata(_ new: [Expr: Expr], to target: Expr, at token: Token) throws -> Expr {
+        func merge(_ existing: [Expr: Expr]?, _ new: [Expr: Expr]) -> [Expr: Expr] {
+            var result = existing ?? [:]
+            for (k, v) in new { result[k] = v }
+            return result
+        }
+
+        switch target {
+        case .symbol(let n, let m):
+            return .symbol(n, metadata: merge(m, new))
+
+        case .list(let e, let m):
+            return .list(e, metadata: merge(m, new))
+
+        case .vector(let e, let m):
+            return .vector(e, metadata: merge(m, new))
+
+        case .map(let d, let m):
+            return .map(d, metadata: merge(m, new))
+
+        case .function(let n, let p, let b, let m):
+            return .function(name: n, params: p, body: b, metadata: merge(m, new))
+
+        case .macro(let n, let p, let b, let m):
+            return .macro(name: n, params: p, body: b, metadata: merge(m, new))
+
+        default:
+            throw ParserError.metadataOnUnsupportedForm(line: token.line, column: token.column)
+        }
+    }
+
+    // MARK: - Collections
 
     private func parseList() throws -> Expr {
         let startToken = currentToken
@@ -203,30 +271,30 @@ public class Parser {
         // Skip special-form validation inside syntax-quote templates — those lists
         // are data, not code to be immediately evaluated.
         guard syntaxQuoteDepth == 0 else {
-            return .list(elements)
+            return .list(elements, metadata: nil)
         }
 
-        if case .symbol("def") = elements.first {
+        if case .symbol("def", _) = elements.first {
             try validateDef(elements)
         }
-        if case .symbol("let") = elements.first {
+        if case .symbol("let", _) = elements.first {
             try validateLet(elements)
         }
-        if case .symbol("fn") = elements.first {
+        if case .symbol("fn", _) = elements.first {
             try validateFn(elements)
         }
-        if case .symbol("defmacro") = elements.first {
+        if case .symbol("defmacro", _) = elements.first {
             try validateDefmacro(elements)
         }
 
-        return .list(elements)
+        return .list(elements, metadata: nil)
     }
 
     private func validateDef(_ elements: [Expr]) throws {
         guard elements.count == 2 || elements.count == 3 else {
             throw ParserError.invalidDef("def requires 1 or 2 arguments")
         }
-        
+
         guard case .symbol = elements[1] else {
             throw ParserError.invalidDef("first argument to def must be a symbol")
         }
@@ -236,7 +304,7 @@ public class Parser {
         guard elements.count >= 2 else {
             throw ParserError.invalidLet("let requires a binding vector")
         }
-        guard case .vector(let bindings) = elements[1] else {
+        guard case .vector(let bindings, _) = elements[1] else {
             throw ParserError.invalidLet("first argument to let must be a vector")
         }
         guard bindings.count % 2 == 0 else {
@@ -254,7 +322,7 @@ public class Parser {
         if elements.count > 1, case .symbol = elements[1] {
             offset = 2
         }
-        guard elements.count > offset, case .vector(let params) = elements[offset] else {
+        guard elements.count > offset, case .vector(let params, _) = elements[offset] else {
             throw ParserError.invalidFn("fn requires a parameter vector")
         }
         try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
@@ -266,7 +334,7 @@ public class Parser {
         }
         let vectorIdx: Int
         if case .string = elements[2] { vectorIdx = 3 } else { vectorIdx = 2 }
-        guard vectorIdx < elements.count, case .vector(let params) = elements[vectorIdx] else {
+        guard vectorIdx < elements.count, case .vector(let params, _) = elements[vectorIdx] else {
             throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
         }
         try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
@@ -278,7 +346,7 @@ public class Parser {
                 throw makeError("parameters must be symbols")
             }
         }
-        if let ampIdx = params.firstIndex(of: .symbol("&")) {
+        if let ampIdx = params.firstIndex(of: .symbol("&", metadata: nil)) {
             guard ampIdx == params.count - 2 else {
                 throw makeError("& must be followed by exactly one symbol")
             }
@@ -303,7 +371,7 @@ public class Parser {
         }
 
         try advance() // consume ']'
-        return .vector(elements)
+        return .vector(elements, metadata: nil)
     }
 
     private func parseMap() throws -> Expr {
@@ -333,7 +401,7 @@ public class Parser {
         for i in stride(from: 0, to: forms.count, by: 2) {
             dict[forms[i]] = forms[i + 1]
         }
-        return .map(dict)
+        return .map(dict, metadata: nil)
     }
 
     private func parseHexInteger(_ text: String) -> Int? {

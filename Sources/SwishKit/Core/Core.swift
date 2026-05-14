@@ -10,4 +10,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerString(into: evaluator)
     registerSequence(into: evaluator)
     registerMap(into: evaluator)
+    registerMeta(into: evaluator)
 }

@@ -34,6 +34,13 @@
 
 (println "fib" m "is" (fib m))
 
+;; Maps work
+(def rod {:name "Rod"})
+(println "(get rod :name) is" (get rod :name))
+(println "(rod :name) is" (rod :name))
+(println "(:name rod) is" (:name rod))
+(println "The birthday is" (rod :dob :unknown))
+
 (comment
   5
   (fact 6)

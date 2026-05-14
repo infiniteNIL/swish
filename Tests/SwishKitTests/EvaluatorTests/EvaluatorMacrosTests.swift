@@ -10,12 +10,12 @@ struct EvaluatorMacrosTests {
         // (defmacro my-macro [x] x) => my-macro
         let swish = Swish()
         let result = try swish.eval("(defmacro my-macro [x] x)")
-        #expect(result == .symbol("my-macro"))
+        #expect(result == .symbol("my-macro", metadata: nil))
     }
 
     @Test("macro value self-evaluates")
     func macroSelfEvaluates() throws {
-        let m = Expr.macro(name: "test", params: ["x"], body: [.symbol("x")])
+        let m = Expr.macro(name: "test", params: ["x"], body: [.symbol("x", metadata: nil)], metadata: nil)
         let result = try evaluator.eval(m)
         #expect(result == m)
     }
@@ -41,7 +41,7 @@ struct EvaluatorMacrosTests {
             (defmacro get-code [x] `(quote ~x))
             (get-code (+ 1 2))
             """)
-        #expect(result == .list([.symbol("+"), .integer(1), .integer(2)]))
+        #expect(result == .list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil))
     }
 
     @Test("Macro with multiple body forms returns last expansion")
@@ -92,7 +92,7 @@ struct EvaluatorMacrosTests {
             (defmacro my-list [& items] `(quote ~items))
             (my-list 1 2 3)
             """)
-        #expect(result == .list([.integer(1), .integer(2), .integer(3)]))
+        #expect(result == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
     @Test("gensym produces unique symbols")
@@ -110,7 +110,7 @@ struct EvaluatorMacrosTests {
         // (gensym "tmp__") => a symbol starting with "tmp__"
         let swish = Swish()
         let result = try swish.eval(#"(gensym "tmp__")"#)
-        guard case .symbol(let name) = result else {
+        guard case .symbol(let name, _) = result else {
             Issue.record("expected symbol, got \(result)")
             return
         }
@@ -122,7 +122,7 @@ struct EvaluatorMacrosTests {
         // `x# should produce a unique symbol (not the literal x#)
         let swish = Swish()
         let result = try swish.eval("`x#")
-        guard case .symbol(let name) = result else {
+        guard case .symbol(let name, _) = result else {
             Issue.record("expected symbol, got \(result)")
             return
         }
@@ -135,7 +135,7 @@ struct EvaluatorMacrosTests {
         // `(x# x#) should produce (G1 G1) — both x# become the same symbol
         let swish = Swish()
         let result = try swish.eval("`(x# x#)")
-        guard case .list(let elems) = result, elems.count == 2 else {
+        guard case .list(let elems, _) = result, elems.count == 2 else {
             Issue.record("expected 2-element list, got \(result)")
             return
         }
@@ -156,7 +156,7 @@ struct EvaluatorMacrosTests {
         // `[x# x#] => [G1 G1]
         let swish = Swish()
         let result = try swish.eval("`[x# x#]")
-        guard case .vector(let elems) = result, elems.count == 2 else {
+        guard case .vector(let elems, _) = result, elems.count == 2 else {
             Issue.record("expected 2-element vector, got \(result)")
             return
         }
@@ -172,7 +172,7 @@ struct EvaluatorMacrosTests {
             (defmacro unless [cond then] `(if ~cond nil ~then))
             (macroexpand-1 '(unless false 42))
             """)
-        #expect(result == .list([.symbol("if"), .boolean(false), .nil, .integer(42)]))
+        #expect(result == .list([.symbol("if", metadata: nil), .boolean(false), .nil, .integer(42)], metadata: nil))
     }
 
     @Test("macroexpand-1 returns non-macro form unchanged")
@@ -180,7 +180,7 @@ struct EvaluatorMacrosTests {
         // (macroexpand-1 '(+ 1 2)) => (+ 1 2)
         let swish = Swish()
         let result = try swish.eval("(macroexpand-1 '(+ 1 2))")
-        #expect(result == .list([.symbol("+"), .integer(1), .integer(2)]))
+        #expect(result == .list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil))
     }
 
     @Test("macroexpand fully expands nested macros")

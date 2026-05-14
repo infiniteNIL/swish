@@ -107,50 +107,50 @@ struct EvaluatorLiteralsTests {
 
     @Test("Empty list evaluates to itself")
     func emptyListSelfEvaluates() throws {
-        let result = try evaluator.eval(.list([]))
-        #expect(result == .list([]))
+        let result = try evaluator.eval(.list([], metadata: nil))
+        #expect(result == .list([], metadata: nil))
     }
 
     @Test("List with integer head throws notAFunction")
     func listWithIntegerHeadThrows() throws {
         #expect(throws: EvaluatorError.notAFunction(.integer(1))) {
-            try evaluator.eval(.list([.integer(1), .integer(2), .integer(3)]))
+            try evaluator.eval(.list([.integer(1), .integer(2), .integer(3)], metadata: nil))
         }
     }
 
     @Test("Nested list with integer head throws notAFunction")
     func nestedListWithIntegerHeadThrows() throws {
         #expect(throws: EvaluatorError.notAFunction(.integer(1))) {
-            try evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)]))
+            try evaluator.eval(.list([.integer(1), .list([.integer(2), .integer(3)], metadata: nil), .integer(4)], metadata: nil))
         }
     }
 
     @Test("Symbol bound to non-function throws notAFunction")
     func symbolBoundToNonFunctionThrows() throws {
-        _ = try evaluator.eval(.list([.symbol("def"), .symbol("a"), .integer(5)]))
+        _ = try evaluator.eval(.list([.symbol("def", metadata: nil), .symbol("a", metadata: nil), .integer(5)], metadata: nil))
         #expect(throws: EvaluatorError.notAFunction(.integer(5))) {
-            try evaluator.eval(.list([.symbol("a")]))
+            try evaluator.eval(.list([.symbol("a", metadata: nil)], metadata: nil))
         }
     }
 
     @Test("nil as list head throws notAFunction")
     func nilAsListHeadThrows() throws {
         #expect(throws: EvaluatorError.notAFunction(.nil)) {
-            try evaluator.eval(.list([.nil]))
+            try evaluator.eval(.list([.nil], metadata: nil))
         }
     }
 
     @Test("Keyword as list head with no args throws invalidArgument")
     func keywordAsListHeadNoArgsThrows() throws {
         #expect(throws: EvaluatorError.invalidArgument(function: "keyword", message: "requires 1 or 2 arguments, got 0")) {
-            try evaluator.eval(.list([.keyword("foo")]))
+            try evaluator.eval(.list([.keyword("foo")], metadata: nil))
         }
     }
 
     @Test("List with undefined symbol throws undefinedSymbol")
     func listWithUndefinedSymbolThrows() throws {
         #expect(throws: EvaluatorError.undefinedSymbol("nope")) {
-            try evaluator.eval(.list([.symbol("nope")]))
+            try evaluator.eval(.list([.symbol("nope", metadata: nil)], metadata: nil))
         }
     }
 
@@ -180,14 +180,14 @@ struct EvaluatorLiteralsTests {
     func coreEnvironmentSymbolVisibleDuringEval() throws {
         let evaluator = Evaluator()
         evaluator.findNs("clojure.core")!.intern(name: "pi", value: .float(3.14159))
-        let result = try evaluator.eval(.symbol("pi"))
+        let result = try evaluator.eval(.symbol("pi", metadata: nil))
         #expect(result == .float(3.14159))
     }
 
     @Test("def interns into user namespace, not clojure.core")
     func defDoesNotAffectCoreEnvironment() throws {
         let evaluator = Evaluator()
-        _ = try evaluator.eval(.list([.symbol("def"), .symbol("myVar"), .integer(7)]))
+        _ = try evaluator.eval(.list([.symbol("def", metadata: nil), .symbol("myVar", metadata: nil), .integer(7)], metadata: nil))
         #expect(evaluator.findNs("clojure.core")?.findVar(name: "myVar") == nil)
 
         let v = evaluator.findNs("user")?.findVar(name: "myVar")
@@ -198,14 +198,14 @@ struct EvaluatorLiteralsTests {
 
     @Test("Empty vector evaluates to empty vector")
     func emptyVectorEvaluates() throws {
-        let result = try evaluator.eval(.vector([]))
-        #expect(result == .vector([]))
+        let result = try evaluator.eval(.vector([], metadata: nil))
+        #expect(result == .vector([], metadata: nil))
     }
 
     @Test("Vector with literals evaluates elements")
     func vectorWithLiteralsEvaluates() throws {
-        let result = try evaluator.eval(.vector([.integer(1), .boolean(true), .nil]))
-        #expect(result == .vector([.integer(1), .boolean(true), .nil]))
+        let result = try evaluator.eval(.vector([.integer(1), .boolean(true), .nil], metadata: nil))
+        #expect(result == .vector([.integer(1), .boolean(true), .nil], metadata: nil))
     }
 
     @Test("Vector elements are evaluated")
@@ -213,18 +213,18 @@ struct EvaluatorLiteralsTests {
         // (+ 1 1) inside a vector should evaluate to 2
         let result = try evaluator.eval(.vector([
             .integer(1),
-            .list([.symbol("+"), .integer(1), .integer(1)]),
+            .list([.symbol("+", metadata: nil), .integer(1), .integer(1)], metadata: nil),
             .integer(3)
-        ]))
-        #expect(result == .vector([.integer(1), .integer(2), .integer(3)]))
+        ], metadata: nil))
+        #expect(result == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
     @Test("Nested vector evaluates inner elements")
     func nestedVectorEvaluates() throws {
         let result = try evaluator.eval(.vector([
             .integer(1),
-            .vector([.integer(2), .integer(3)])
-        ]))
-        #expect(result == .vector([.integer(1), .vector([.integer(2), .integer(3)])]))
+            .vector([.integer(2), .integer(3)], metadata: nil)
+        ], metadata: nil))
+        #expect(result == .vector([.integer(1), .vector([.integer(2), .integer(3)], metadata: nil)], metadata: nil))
     }
 }

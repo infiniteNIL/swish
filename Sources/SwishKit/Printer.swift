@@ -3,6 +3,7 @@ import Foundation
 /// Printer for Swish expressions
 public struct Printer {
     private let floatFormatter: NumberFormatter
+    public var printMeta: Bool = false
 
     public init() {
         floatFormatter = NumberFormatter()
@@ -38,35 +39,35 @@ public struct Printer {
         case .nil:
             "nil"
 
-        case .symbol(let name):
-            name
+        case .symbol(let name, let meta):
+            metaPrefix(meta) + name
 
         case .keyword(let name):
             ":\(name)"
 
-        case .list(let elements):
-            "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
+        case .list(let elements, let meta):
+            metaPrefix(meta) + "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
 
-        case .vector(let elements):
-            "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
+        case .vector(let elements, let meta):
+            metaPrefix(meta) + "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
 
-        case .map(let dict):
-            printMapString(dict, transform: printString)
+        case .map(let dict, let meta):
+            metaPrefix(meta) + printMapString(dict, transform: printString)
 
-        case .function(let name, _, _):
+        case .function(let name, _, _, let meta):
             if let name {
-                "#<fn \(name)>"
+                metaPrefix(meta) + "#<fn \(name)>"
             }
             else {
-                "#<fn>"
+                metaPrefix(meta) + "#<fn>"
             }
 
-        case .macro(let name, _, _):
+        case .macro(let name, _, _, let meta):
             if let name {
-                "#<macro \(name)>"
+                metaPrefix(meta) + "#<macro \(name)>"
             }
             else {
-                "#<macro>"
+                metaPrefix(meta) + "#<macro>"
             }
 
         case .nativeFunction(let name, _, _):
@@ -94,14 +95,14 @@ public struct Printer {
         case .character(let char):
             String(char)
 
-        case .list(let elements):
-            "(" + elements.map { strString($0) }.joined(separator: " ") + ")"
+        case .list(let elements, let meta):
+            metaPrefix(meta) + "(" + elements.map { strString($0) }.joined(separator: " ") + ")"
 
-        case .vector(let elements):
-            "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
+        case .vector(let elements, let meta):
+            metaPrefix(meta) + "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
 
-        case .map(let dict):
-            printMapString(dict, transform: strString)
+        case .map(let dict, let meta):
+            metaPrefix(meta) + printMapString(dict, transform: strString)
 
         default:
             printString(expr)
@@ -115,18 +116,23 @@ public struct Printer {
         case .float(let value):
             String(value)
 
-        case .list(let elements):
+        case .list(let elements, _):
             "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
 
-        case .vector(let elements):
+        case .vector(let elements, _):
             "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
 
-        case .map(let dict):
+        case .map(let dict, _):
             printMapString(dict, transform: sourceForm)
 
         default:
             printString(expr)
         }
+    }
+
+    private func metaPrefix(_ meta: [Expr: Expr]?) -> String {
+        guard printMeta, let meta, !meta.isEmpty else { return "" }
+        return "^\(printMapString(meta, transform: printString)) "
     }
 
     private func printMapString(_ dict: [Expr: Expr], transform: (Expr) -> String) -> String {

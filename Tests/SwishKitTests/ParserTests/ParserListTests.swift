@@ -8,7 +8,7 @@ struct ParserListTests {
         let lexer = Lexer("()")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([])])
+        #expect(exprs == [.list([], metadata: nil)])
     }
 
     @Test("Parses list with single element")
@@ -16,7 +16,7 @@ struct ParserListTests {
         let lexer = Lexer("(42)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.integer(42)])])
+        #expect(exprs == [.list([.integer(42)], metadata: nil)])
     }
 
     @Test("Parses list with multiple integers")
@@ -24,7 +24,7 @@ struct ParserListTests {
         let lexer = Lexer("(1 2 3)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.integer(1), .integer(2), .integer(3)])])
+        #expect(exprs == [.list([.integer(1), .integer(2), .integer(3)], metadata: nil)])
     }
 
     @Test("Parses list with mixed types")
@@ -32,7 +32,7 @@ struct ParserListTests {
         let lexer = Lexer("(:foo \"bar\" 42)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.keyword("foo"), .string("bar"), .integer(42)])])
+        #expect(exprs == [.list([.keyword("foo"), .string("bar"), .integer(42)], metadata: nil)])
     }
 
     @Test("Parses nested lists")
@@ -40,7 +40,7 @@ struct ParserListTests {
         let lexer = Lexer("(1 (2 3) 4)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.integer(1), .list([.integer(2), .integer(3)]), .integer(4)])])
+        #expect(exprs == [.list([.integer(1), .list([.integer(2), .integer(3)], metadata: nil), .integer(4)], metadata: nil)])
     }
 
     @Test("Parses deeply nested lists")
@@ -48,7 +48,7 @@ struct ParserListTests {
         let lexer = Lexer("(((1)))")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.list([.list([.integer(1)])])])])
+        #expect(exprs == [.list([.list([.list([.integer(1)], metadata: nil)], metadata: nil)], metadata: nil)])
     }
 
     @Test("Parses multiple lists")
@@ -56,7 +56,7 @@ struct ParserListTests {
         let lexer = Lexer("(1 2) (3 4)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.integer(1), .integer(2)]), .list([.integer(3), .integer(4)])])
+        #expect(exprs == [.list([.integer(1), .integer(2)], metadata: nil), .list([.integer(3), .integer(4)], metadata: nil)])
     }
 
     @Test("Parses list with symbols")
@@ -64,7 +64,7 @@ struct ParserListTests {
         let lexer = Lexer("(+ 1 2)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.symbol("+"), .integer(1), .integer(2)])])
+        #expect(exprs == [.list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil)])
     }
 
     @Test("Parses list mixed with other expressions")
@@ -72,7 +72,7 @@ struct ParserListTests {
         let lexer = Lexer("42 (1 2) \"hello\"")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(42), .list([.integer(1), .integer(2)]), .string("hello")])
+        #expect(exprs == [.integer(42), .list([.integer(1), .integer(2)], metadata: nil), .string("hello")])
     }
 
     @Test("Throws error for unmatched right paren")
@@ -109,7 +109,7 @@ struct ParserListTests {
         let lexer = Lexer("(def x 10)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.symbol("def"), .symbol("x"), .integer(10)])])
+        #expect(exprs == [.list([.symbol("def", metadata: nil), .symbol("x", metadata: nil), .integer(10)], metadata: nil)])
     }
 
     @Test("Throws error for def with non-symbol first argument")
@@ -126,7 +126,7 @@ struct ParserListTests {
         let lexer = Lexer("(def x)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.symbol("def"), .symbol("x")])])
+        #expect(exprs == [.list([.symbol("def", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)])
     }
 
     @Test("Throws error for def with too many arguments")

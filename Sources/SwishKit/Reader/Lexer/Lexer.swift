@@ -90,6 +90,10 @@ public class Lexer {
             }
             return Token(type: .unquote, text: "~", line: startLine, column: startColumn)
 
+        case "^":
+            _ = advance()
+            return Token(type: .metadata, text: "^", line: startLine, column: startColumn)
+
         case "#":
             _ = advance()
             if peek() == "'" {

@@ -8,7 +8,7 @@ struct ParserVectorTests {
         let lexer = Lexer("[]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([])])
+        #expect(exprs == [.vector([], metadata: nil)])
     }
 
     @Test("Parses vector with single element")
@@ -16,7 +16,7 @@ struct ParserVectorTests {
         let lexer = Lexer("[42]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([.integer(42)])])
+        #expect(exprs == [.vector([.integer(42)], metadata: nil)])
     }
 
     @Test("Parses vector with multiple integers")
@@ -24,7 +24,7 @@ struct ParserVectorTests {
         let lexer = Lexer("[1 2 3]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([.integer(1), .integer(2), .integer(3)])])
+        #expect(exprs == [.vector([.integer(1), .integer(2), .integer(3)], metadata: nil)])
     }
 
     @Test("Parses vector with mixed types")
@@ -32,7 +32,7 @@ struct ParserVectorTests {
         let lexer = Lexer("[:foo \"bar\" 42]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([.keyword("foo"), .string("bar"), .integer(42)])])
+        #expect(exprs == [.vector([.keyword("foo"), .string("bar"), .integer(42)], metadata: nil)])
     }
 
     @Test("Parses nested vectors")
@@ -40,7 +40,7 @@ struct ParserVectorTests {
         let lexer = Lexer("[1 [2 3] 4]")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.vector([.integer(1), .vector([.integer(2), .integer(3)]), .integer(4)])])
+        #expect(exprs == [.vector([.integer(1), .vector([.integer(2), .integer(3)], metadata: nil), .integer(4)], metadata: nil)])
     }
 
     @Test("Parses vector inside list")
@@ -48,7 +48,7 @@ struct ParserVectorTests {
         let lexer = Lexer("(1 [2 3] 4)")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.list([.integer(1), .vector([.integer(2), .integer(3)]), .integer(4)])])
+        #expect(exprs == [.list([.integer(1), .vector([.integer(2), .integer(3)], metadata: nil), .integer(4)], metadata: nil)])
     }
 
     @Test("Throws unterminatedVector for unclosed bracket")

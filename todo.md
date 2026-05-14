@@ -1,9 +1,11 @@
 # Todo
 
-- [ ] Add support for sets
-- [ ] vectors as functions
-- [ ] sets as functions
+- [ ] add meta for vars (and thus def, defn, defmacro)
 - [ ] doc strings (need maps first, and mult-arity fn?)
+- [ ] defn-
+- [ ] vectors as functions
+- [ ] Add support for sets
+- [ ] sets as functions
 - [ ] first
 - [ ] rest
 - [ ] sequence abstraction?
@@ -18,6 +20,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] support metadata (^ reader macro, def with meta, meta, with-meta, alter-meta!, vary-meta, reset-meta!)
 - [x] keywords as functions
 - [x] maps as functions
 - [x] get function

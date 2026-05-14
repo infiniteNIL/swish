@@ -15,10 +15,10 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
     case .nil:
         return notFound
 
-    case .map(let dict):
+    case .map(let dict, _):
         return dict[args[1]] ?? notFound
 
-    case .vector(let elements):
+    case .vector(let elements, _):
         guard case .integer(let idx) = args[1], idx >= 0, idx < elements.count else {
             return notFound
         }

@@ -8,13 +8,13 @@ struct ParserSpecialFormsTests {
     @Test("Parses let with empty bindings and no body")
     func parseLetEmptyBindings() throws {
         let exprs = try Reader.readString("(let [])")
-        #expect(exprs == [.list([.symbol("let"), .vector([])])])
+        #expect(exprs == [.list([.symbol("let", metadata: nil), .vector([], metadata: nil)], metadata: nil)])
     }
 
     @Test("Parses let with bindings and body")
     func parseLetWithBindingsAndBody() throws {
         let exprs = try Reader.readString("(let [x 1] x)")
-        #expect(exprs == [.list([.symbol("let"), .vector([.symbol("x"), .integer(1)]), .symbol("x")])])
+        #expect(exprs == [.list([.symbol("let", metadata: nil), .vector([.symbol("x", metadata: nil), .integer(1)], metadata: nil), .symbol("x", metadata: nil)], metadata: nil)])
     }
 
     @Test("Throws invalidLet when binding vector is missing")
@@ -50,23 +50,23 @@ struct ParserSpecialFormsTests {
     @Test("Parses anonymous fn with params and body")
     func parsesAnonymousFn() throws {
         let result = try Reader.readString("(fn [x] x)")
-        #expect(result == [.list([.symbol("fn"), .vector([.symbol("x")]), .symbol("x")])])
+        #expect(result == [.list([.symbol("fn", metadata: nil), .vector([.symbol("x", metadata: nil)], metadata: nil), .symbol("x", metadata: nil)], metadata: nil)])
     }
 
     @Test("Parses named fn")
     func parsesNamedFn() throws {
         let result = try Reader.readString("(fn square [x] (* x x))")
         #expect(result == [.list([
-            .symbol("fn"), .symbol("square"),
-            .vector([.symbol("x")]),
-            .list([.symbol("*"), .symbol("x"), .symbol("x")])
-        ])])
+            .symbol("fn", metadata: nil), .symbol("square", metadata: nil),
+            .vector([.symbol("x", metadata: nil)], metadata: nil),
+            .list([.symbol("*", metadata: nil), .symbol("x", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("Parses fn with empty params")
     func parsesFnWithEmptyParams() throws {
         let result = try Reader.readString("(fn [] 42)")
-        #expect(result == [.list([.symbol("fn"), .vector([]), .integer(42)])])
+        #expect(result == [.list([.symbol("fn", metadata: nil), .vector([], metadata: nil), .integer(42)], metadata: nil)])
     }
 
     @Test("Throws invalidFn when parameter vector is missing")
@@ -95,69 +95,69 @@ struct ParserSpecialFormsTests {
     @Test("~x expands to (unquote x)")
     func unquoteSymbolExpands() throws {
         let result = try Reader.readString("~x")
-        #expect(result == [.list([.symbol("unquote"), .symbol("x")])])
+        #expect(result == [.list([.symbol("unquote", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)])
     }
 
     @Test("~@xs expands to (unquote-splicing xs)")
     func unquoteSplicingSymbolExpands() throws {
         let result = try Reader.readString("~@xs")
-        #expect(result == [.list([.symbol("unquote-splicing"), .symbol("xs")])])
+        #expect(result == [.list([.symbol("unquote-splicing", metadata: nil), .symbol("xs", metadata: nil)], metadata: nil)])
     }
 
     @Test("~(+ 1 2) expands to (unquote (+ 1 2))")
     func unquoteListExpands() throws {
         let result = try Reader.readString("~(+ 1 2)")
         #expect(result == [.list([
-            .symbol("unquote"),
-            .list([.symbol("+"), .integer(1), .integer(2)])
-        ])])
+            .symbol("unquote", metadata: nil),
+            .list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("`~x expands to (syntax-quote (unquote x))")
     func backtickUnquoteExpands() throws {
         let result = try Reader.readString("`~x")
         #expect(result == [.list([
-            .symbol("syntax-quote"),
-            .list([.symbol("unquote"), .symbol("x")])
-        ])])
+            .symbol("syntax-quote", metadata: nil),
+            .list([.symbol("unquote", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("`(1 ~x 3) expands to (syntax-quote (1 (unquote x) 3))")
     func backtickListWithUnquoteExpands() throws {
         let result = try Reader.readString("`(1 ~x 3)")
         #expect(result == [.list([
-            .symbol("syntax-quote"),
+            .symbol("syntax-quote", metadata: nil),
             .list([
                 .integer(1),
-                .list([.symbol("unquote"), .symbol("x")]),
+                .list([.symbol("unquote", metadata: nil), .symbol("x", metadata: nil)], metadata: nil),
                 .integer(3)
-            ])
-        ])])
+            ], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("`(1 ~@xs 3) expands to (syntax-quote (1 (unquote-splicing xs) 3))")
     func backtickListWithUnquoteSplicingExpands() throws {
         let result = try Reader.readString("`(1 ~@xs 3)")
         #expect(result == [.list([
-            .symbol("syntax-quote"),
+            .symbol("syntax-quote", metadata: nil),
             .list([
                 .integer(1),
-                .list([.symbol("unquote-splicing"), .symbol("xs")]),
+                .list([.symbol("unquote-splicing", metadata: nil), .symbol("xs", metadata: nil)], metadata: nil),
                 .integer(3)
-            ])
-        ])])
+            ], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("`(~x ~@xs) expands correctly")
     func backtickMixedUnquoteExpands() throws {
         let result = try Reader.readString("`(~x ~@xs)")
         #expect(result == [.list([
-            .symbol("syntax-quote"),
+            .symbol("syntax-quote", metadata: nil),
             .list([
-                .list([.symbol("unquote"), .symbol("x")]),
-                .list([.symbol("unquote-splicing"), .symbol("xs")])
-            ])
-        ])])
+                .list([.symbol("unquote", metadata: nil), .symbol("x", metadata: nil)], metadata: nil),
+                .list([.symbol("unquote-splicing", metadata: nil), .symbol("xs", metadata: nil)], metadata: nil)
+            ], metadata: nil)
+        ], metadata: nil)])
     }
 
     // MARK: - defmacro parsing
@@ -166,23 +166,23 @@ struct ParserSpecialFormsTests {
     func defmacroParses() throws {
         let result = try Reader.readString("(defmacro m [x] x)")
         #expect(result == [.list([
-            .symbol("defmacro"),
-            .symbol("m"),
-            .vector([.symbol("x")]),
-            .symbol("x")
-        ])])
+            .symbol("defmacro", metadata: nil),
+            .symbol("m", metadata: nil),
+            .vector([.symbol("x", metadata: nil)], metadata: nil),
+            .symbol("x", metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("defmacro with multiple body forms parses correctly")
     func defmacroMultipleBodyForms() throws {
         let result = try Reader.readString("(defmacro m [x y] x y)")
         #expect(result == [.list([
-            .symbol("defmacro"),
-            .symbol("m"),
-            .vector([.symbol("x"), .symbol("y")]),
-            .symbol("x"),
-            .symbol("y")
-        ])])
+            .symbol("defmacro", metadata: nil),
+            .symbol("m", metadata: nil),
+            .vector([.symbol("x", metadata: nil), .symbol("y", metadata: nil)], metadata: nil),
+            .symbol("x", metadata: nil),
+            .symbol("y", metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("defmacro requires a symbol name")
@@ -202,28 +202,28 @@ struct ParserSpecialFormsTests {
     @Test("defmacro with empty body parses successfully")
     func defmacroEmptyBodyParses() throws {
         let result = try Reader.readString("(defmacro m [x])")
-        #expect(result == [.list([.symbol("defmacro"), .symbol("m"), .vector([.symbol("x")])])])
+        #expect(result == [.list([.symbol("defmacro", metadata: nil), .symbol("m", metadata: nil), .vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)])
     }
 
     @Test("defmacro with docstring parses successfully")
     func defmacroWithDocstringParses() throws {
         let result = try Reader.readString("(defmacro m \"doc\" [x] x)")
         #expect(result == [.list([
-            .symbol("defmacro"), .symbol("m"),
+            .symbol("defmacro", metadata: nil), .symbol("m", metadata: nil),
             .string("doc"),
-            .vector([.symbol("x")]),
-            .symbol("x")
-        ])])
+            .vector([.symbol("x", metadata: nil)], metadata: nil),
+            .symbol("x", metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("defmacro with docstring and empty body parses successfully")
     func defmacroWithDocstringEmptyBodyParses() throws {
         let result = try Reader.readString("(defmacro m \"doc\" [x])")
         #expect(result == [.list([
-            .symbol("defmacro"), .symbol("m"),
+            .symbol("defmacro", metadata: nil), .symbol("m", metadata: nil),
             .string("doc"),
-            .vector([.symbol("x")])
-        ])])
+            .vector([.symbol("x", metadata: nil)], metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("defmacro parameters must be symbols")
@@ -237,21 +237,21 @@ struct ParserSpecialFormsTests {
     func defmacroVariadicParses() throws {
         let result = try Reader.readString("(defmacro m [x & rest] rest)")
         #expect(result == [.list([
-            .symbol("defmacro"),
-            .symbol("m"),
-            .vector([.symbol("x"), .symbol("&"), .symbol("rest")]),
-            .symbol("rest")
-        ])])
+            .symbol("defmacro", metadata: nil),
+            .symbol("m", metadata: nil),
+            .vector([.symbol("x", metadata: nil), .symbol("&", metadata: nil), .symbol("rest", metadata: nil)], metadata: nil),
+            .symbol("rest", metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("fn with & rest param parses correctly")
     func fnVariadicParses() throws {
         let result = try Reader.readString("(fn [x & rest] rest)")
         #expect(result == [.list([
-            .symbol("fn"),
-            .vector([.symbol("x"), .symbol("&"), .symbol("rest")]),
-            .symbol("rest")
-        ])])
+            .symbol("fn", metadata: nil),
+            .vector([.symbol("x", metadata: nil), .symbol("&", metadata: nil), .symbol("rest", metadata: nil)], metadata: nil),
+            .symbol("rest", metadata: nil)
+        ], metadata: nil)])
     }
 
     @Test("fn & with nothing after it throws invalidFn")
@@ -279,19 +279,19 @@ struct ParserSpecialFormsTests {
     @Test("#_ discards form inside a list")
     func discardInsideList() throws {
         let result = try Reader.readString("(+ 1 #_2 3)")
-        #expect(result == [.list([.symbol("+"), .integer(1), .integer(3)])])
+        #expect(result == [.list([.symbol("+", metadata: nil), .integer(1), .integer(3)], metadata: nil)])
     }
 
     @Test("#_ discards form inside a vector")
     func discardInsideVector() throws {
         let result = try Reader.readString("[a #_b c]")
-        #expect(result == [.vector([.symbol("a"), .symbol("c")])])
+        #expect(result == [.vector([.symbol("a", metadata: nil), .symbol("c", metadata: nil)], metadata: nil)])
     }
 
     @Test("#_ before closing paren discards last element")
     func discardBeforeClosingParen() throws {
         let result = try Reader.readString("(a #_b)")
-        #expect(result == [.list([.symbol("a")])])
+        #expect(result == [.list([.symbol("a", metadata: nil)], metadata: nil)])
     }
 
     @Test("#_ with no following form throws unexpectedEOF")

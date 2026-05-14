@@ -1,6 +1,6 @@
 func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "create-ns", arity: .fixed(1)) { [evaluator] args in
-        guard case .symbol(let name) = args[0] else {
+        guard case .symbol(let name, _) = args[0] else {
             throw EvaluatorError.invalidArgument(
                 function: "create-ns",
                 message: "expected a symbol, got \(args[0])")
@@ -9,7 +9,7 @@ func registerNamespace(into evaluator: Evaluator) {
     }
 
     evaluator.register(name: "in-ns", arity: .fixed(1)) { [evaluator] args in
-        guard case .symbol(let name) = args[0] else {
+        guard case .symbol(let name, _) = args[0] else {
             throw EvaluatorError.invalidArgument(
                 function: "in-ns",
                 message: "expected a symbol, got \(args[0])")
@@ -25,12 +25,12 @@ func registerNamespace(into evaluator: Evaluator) {
     }
 
     evaluator.register(name: "alias", arity: .fixed(2)) { [evaluator] args in
-        guard case .symbol(let aliasName) = args[0] else {
+        guard case .symbol(let aliasName, _) = args[0] else {
             throw EvaluatorError.invalidArgument(
                 function: "alias",
                 message: "first argument must be a symbol, got \(args[0])")
         }
-        guard case .symbol(let nsName) = args[1] else {
+        guard case .symbol(let nsName, _) = args[1] else {
             throw EvaluatorError.invalidArgument(
                 function: "alias",
                 message: "second argument must be a symbol, got \(args[1])")
@@ -43,7 +43,7 @@ func registerNamespace(into evaluator: Evaluator) {
     }
 
     evaluator.register(name: "refer", arity: .atLeastOne) { [evaluator] args in
-        guard case .symbol(let nsName) = args[0] else {
+        guard case .symbol(let nsName, _) = args[0] else {
             throw EvaluatorError.invalidArgument(
                 function: "refer",
                 message: "first argument must be a symbol, got \(args[0])")
@@ -61,13 +61,15 @@ func registerNamespace(into evaluator: Evaluator) {
             }
             switch key {
             case "only":
-                if case .vector(let syms) = args[i + 1] {
-                    only = Set(syms.compactMap { if case .symbol(let s) = $0 { s } else { nil } })
+                if case .vector(let syms, _) = args[i + 1] {
+                    only = Set(syms.compactMap { if case .symbol(let s, _) = $0 { s } else { nil } })
                 }
+
             case "exclude":
-                if case .vector(let syms) = args[i + 1] {
-                    exclude = Set(syms.compactMap { if case .symbol(let s) = $0 { s } else { nil } })
+                if case .vector(let syms, _) = args[i + 1] {
+                    exclude = Set(syms.compactMap { if case .symbol(let s, _) = $0 { s } else { nil } })
                 }
+
             default:
                 break
             }

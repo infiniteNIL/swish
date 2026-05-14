@@ -1,0 +1,137 @@
+// MARK: - Registration
+
+func registerMeta(into evaluator: Evaluator) {
+    evaluator.register(name: "meta",        arity: .fixed(1),  body: coreMeta)
+    evaluator.register(name: "with-meta",   arity: .fixed(2),  body: coreWithMeta)
+    evaluator.register(name: "vary-meta",   arity: .variadic)  { [evaluator] args in try coreVaryMeta(evaluator, args) }
+    evaluator.register(name: "alter-meta!", arity: .variadic)  { [evaluator] args in try coreAlterMeta(evaluator, args) }
+    evaluator.register(name: "reset-meta!", arity: .fixed(2),  body: coreResetMeta)
+}
+
+// MARK: - Implementations
+
+private func coreMeta(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .map(_, let m):
+        guard let m else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .function(_, _, _, let m), .macro(_, _, _, let m):
+        guard let m else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .varRef(let v):
+        guard let m = v.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
+    default:
+        return .nil
+    }
+}
+
+private func coreWithMeta(_ args: [Expr]) throws -> Expr {
+    let newMeta: [Expr: Expr]?
+    switch args[1] {
+    case .map(let m, _):
+        newMeta = m
+
+    case .nil:
+        newMeta = nil
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "with-meta",
+            message: "metadata must be a map or nil, got \(corePrinter.printString(args[1]))")
+    }
+
+    switch args[0] {
+    case .symbol(let n, _):
+        return .symbol(n, metadata: newMeta)
+
+    case .list(let e, _):
+        return .list(e, metadata: newMeta)
+
+    case .vector(let e, _):
+        return .vector(e, metadata: newMeta)
+
+    case .map(let d, _):
+        return .map(d, metadata: newMeta)
+
+    case .function(let n, let p, let b, _):
+        return .function(name: n, params: p, body: b, metadata: newMeta)
+
+    case .macro(let n, let p, let b, _):
+        return .macro(name: n, params: p, body: b, metadata: newMeta)
+
+    case .varRef(let v):
+        v.metadata = newMeta
+        return .varRef(v)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "with-meta",
+            message: "\(corePrinter.printString(args[0])) does not support metadata")
+    }
+}
+
+private func coreVaryMeta(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard args.count >= 2 else {
+        throw EvaluatorError.invalidArgument(
+            function: "vary-meta",
+            message: "requires at least 2 arguments, got \(args.count)")
+    }
+    let currentMeta = try coreMeta([args[0]])
+    let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
+    return try coreWithMeta([args[0], newMeta])
+}
+
+private func coreAlterMeta(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard args.count >= 2 else {
+        throw EvaluatorError.invalidArgument(
+            function: "alter-meta!",
+            message: "requires at least 2 arguments, got \(args.count)")
+    }
+    guard case .varRef(let v) = args[0] else {
+        throw EvaluatorError.invalidArgument(
+            function: "alter-meta!",
+            message: "first argument must be a var reference")
+    }
+    let currentMeta: Expr = v.metadata.map { .map($0, metadata: nil) } ?? .nil
+    let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
+    switch newMeta {
+    case .map(let m, _):
+        v.metadata = m
+        return .map(m, metadata: nil)
+
+    case .nil:
+        v.metadata = nil
+        return .nil
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "alter-meta!",
+            message: "function must return a map or nil, got \(corePrinter.printString(newMeta))")
+    }
+}
+
+private func coreResetMeta(_ args: [Expr]) throws -> Expr {
+    guard case .varRef(let v) = args[0] else {
+        throw EvaluatorError.invalidArgument(
+            function: "reset-meta!",
+            message: "first argument must be a var reference")
+    }
+    switch args[1] {
+    case .map(let m, _):
+        v.metadata = m
+        return .map(m, metadata: nil)
+
+    case .nil:
+        v.metadata = nil
+        return .nil
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "reset-meta!",
+            message: "metadata must be a map or nil, got \(corePrinter.printString(args[1]))")
+    }
+}
