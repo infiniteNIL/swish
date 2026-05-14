@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] keywords as functions
 - [ ] Add support for sets
 - [ ] vectors as functions
 - [ ] sets as functions
@@ -19,6 +18,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] keywords as functions
 - [x] maps as functions
 - [x] get function
 - [x] Add support for maps

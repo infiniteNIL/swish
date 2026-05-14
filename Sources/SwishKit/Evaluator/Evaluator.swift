@@ -324,6 +324,25 @@ public class Evaluator {
             let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
             return dict[evaluated[0]] ?? notFound
 
+        case .keyword(let name):
+            let evaluated = try args.map { try eval($0, in: env) }
+            guard evaluated.count == 1 || evaluated.count == 2 else {
+                throw EvaluatorError.invalidArgument(
+                    function: "keyword",
+                    message: "requires 1 or 2 arguments, got \(evaluated.count)")
+            }
+            let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
+            switch evaluated[0] {
+            case .map(let dict):
+                return dict[.keyword(name)] ?? notFound
+
+            case .nil:
+                return notFound
+
+            default:
+                return notFound
+            }
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }

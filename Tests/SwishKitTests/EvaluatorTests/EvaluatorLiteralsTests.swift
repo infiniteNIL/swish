@@ -140,9 +140,9 @@ struct EvaluatorLiteralsTests {
         }
     }
 
-    @Test("Keyword as list head throws notAFunction")
-    func keywordAsListHeadThrows() throws {
-        #expect(throws: EvaluatorError.notAFunction(.keyword("foo"))) {
+    @Test("Keyword as list head with no args throws invalidArgument")
+    func keywordAsListHeadNoArgsThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "keyword", message: "requires 1 or 2 arguments, got 0")) {
             try evaluator.eval(.list([.keyword("foo")]))
         }
     }

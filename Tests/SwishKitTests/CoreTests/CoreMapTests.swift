@@ -148,4 +148,50 @@ struct CoreMapTests {
             try swish.eval("({:a 1} :a :b :c)")
         }
     }
+
+    // MARK: - keyword as function
+
+    @Test("(:a {:a 1 :b 2}) returns value for existing key")
+    func keywordAsFunctionExistingKey() throws {
+        #expect(try swish.eval("(:a {:a 1 :b 2})") == .integer(1))
+    }
+
+    @Test("(:c {:a 1 :b 2}) returns nil for missing key")
+    func keywordAsFunctionMissingKey() throws {
+        #expect(try swish.eval("(:c {:a 1 :b 2})") == .nil)
+    }
+
+    @Test("(:c {:a 1 :b 2} 99) returns default for missing key")
+    func keywordAsFunctionMissingKeyWithDefault() throws {
+        #expect(try swish.eval("(:c {:a 1 :b 2} 99)") == .integer(99))
+    }
+
+    @Test("(:a nil) returns nil")
+    func keywordAsFunctionNil() throws {
+        #expect(try swish.eval("(:a nil)") == .nil)
+    }
+
+    @Test("(:a nil 42) returns default for nil map")
+    func keywordAsFunctionNilWithDefault() throws {
+        #expect(try swish.eval("(:a nil 42)") == .integer(42))
+    }
+
+    @Test("(:a \"foo\") returns nil for unsupported type")
+    func keywordAsFunctionUnsupportedType() throws {
+        #expect(try swish.eval("(:a \"foo\")") == .nil)
+    }
+
+    @Test("(:a) throws on zero args")
+    func keywordAsFunctionZeroArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "keyword", message: "requires 1 or 2 arguments, got 0")) {
+            try swish.eval("(:a)")
+        }
+    }
+
+    @Test("(:a {:a 1} :b :c) throws on three args")
+    func keywordAsFunctionThreeArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "keyword", message: "requires 1 or 2 arguments, got 3")) {
+            try swish.eval("(:a {:a 1} :b :c)")
+        }
+    }
 }
