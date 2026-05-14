@@ -1,5 +1,35 @@
 func registerMap(into evaluator: Evaluator) {
-    evaluator.register(name: "get", arity: .variadic, body: coreGet)
+    evaluator.register(name: "get",   arity: .variadic, body: coreGet)
+    evaluator.register(name: "assoc", arity: .variadic, body: coreAssoc)
+}
+
+private func coreAssoc(_ args: [Expr]) throws -> Expr {
+    guard args.count >= 3, (args.count - 1) % 2 == 0 else {
+        throw EvaluatorError.invalidArgument(
+            function: "assoc",
+            message: "requires a map and an even number of key/value pairs")
+    }
+
+    var dict: [Expr: Expr]
+    switch args[0] {
+    case .map(let d, _):
+        dict = d
+
+    case .nil:
+        dict = [:]
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "assoc",
+            message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+    }
+
+    var i = 1
+    while i < args.count {
+        dict[args[i]] = args[i + 1]
+        i += 2
+    }
+    return .map(dict, metadata: nil)
 }
 
 private func coreGet(_ args: [Expr]) throws -> Expr {

@@ -5,11 +5,23 @@
   ;{:added "1.0"}
   [& body])
 
-(defmacro defn [name params & body]
-  `(def ~name (fn ~name ~params ~@body)))
+(defmacro defn [name & args]
+  (let [has-doc (string? (first args))
+        doc     (first args)
+        params  (if has-doc (first (rest args)) (first args))
+        body    (if has-doc (rest (rest args)) (rest args))]
+    (if has-doc
+      `(def ~(with-meta name {:doc doc}) (fn ~name ~params ~@body))
+      `(def ~name (fn ~name ~params ~@body)))))
+
+(defmacro defn-
+  "same as defn, yielding non-public def"
+  ;{:added "1.0"}
+  [name & decls]
+  (list* `defn (with-meta name (assoc (meta name) :private true)) decls))
 
 (defn not
-  ;"Returns true if x is logical false, false otherwise."
+  "Returns true if x is logical false, false otherwise."
   ;{:tag Boolean
   ; :added "1.0"
   ; :static true}
