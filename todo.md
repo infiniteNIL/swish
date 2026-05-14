@@ -1,15 +1,21 @@
 # Todo
 
 - [ ] Add support for maps
+- [ ] Add support for sets
+- [ ] vectors as functions
+- [ ] maps as functions
+- [ ] sets as functions
+- [ ] get function
 - [ ] doc strings (need maps first, and mult-arity fn?)
 - [ ] first
 - [ ] rest
 - [ ] sequence abstraction?
+- [ ] loop special form
+- [ ] recur special form
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] find-ns
 - [ ] Add some builtin string functions
-- [ ] Add support for sets
 - [ ] mult-arity defn, defmacro
 - [ ] and, or (needs multi-arity)
 - [ ] Jank Clojure test suite
