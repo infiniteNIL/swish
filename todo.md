@@ -1,8 +1,8 @@
 # Todo
 
-- [ ] vectors as functions
 - [ ] Add support for sets
 - [ ] sets as functions
+- [ ] first and rest on map (needs to be ordered)
 - [ ] sequence abstraction?
 - [ ] loop special form
 - [ ] recur special form
@@ -15,6 +15,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] vectors as functions
 - [x] Handle Ctrl-C
 - [x] catch stack overflow
 - [x] catch arithmetic overflow error
