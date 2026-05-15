@@ -352,58 +352,73 @@ public class Evaluator {
             return try callUserFunction(name: name, params: params, body: body, args: evaluated, in: env)
 
         case .map(let dict, _):
-            let evaluated = try args.map { try eval($0, in: env) }
-            guard evaluated.count == 1 || evaluated.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(
-                    function: "map",
-                    message: "requires 1 or 2 arguments, got \(evaluated.count)")
-            }
-            let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
-            return dict[evaluated[0]] ?? notFound
+            return try callMap(dict, args: args, in: env)
 
         case .keyword(let name):
-            let evaluated = try args.map { try eval($0, in: env) }
-            guard evaluated.count == 1 || evaluated.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(
-                    function: "keyword",
-                    message: "requires 1 or 2 arguments, got \(evaluated.count)")
-            }
-            let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
-            switch evaluated[0] {
-            case .map(let dict, _):
-                return dict[.keyword(name)] ?? notFound
-
-            case .nil:
-                return notFound
-
-            default:
-                return notFound
-            }
+            return try callKeyword(name, args: args, in: env)
 
         case .vector(let elements, _):
-            let evaluated = try args.map { try eval($0, in: env) }
-            guard evaluated.count == 1 else {
-                throw EvaluatorError.invalidArgument(
-                    function: "vector",
-                    message: "requires 1 argument, got \(evaluated.count)")
-            }
-            guard case .integer(let idx) = evaluated[0] else {
-                throw EvaluatorError.invalidArgument(
-                    function: "vector",
-                    message: "index must be an integer")
-            }
-            guard idx >= 0, idx < elements.count else {
-                throw EvaluatorError.invalidArgument(
-                    function: "vector",
-                    message: "index \(idx) out of bounds for vector of size \(elements.count)")
-            }
-            return elements[idx]
+            return try callVector(elements, args: args, in: env)
 
         default:
             throw EvaluatorError.notAFunction(callee)
         }
+    }
+
+    private func callMap(_ dict: [Expr: Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let evaluated = try args.map { try eval($0, in: env) }
+        guard evaluated.count == 1 || evaluated.count == 2
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "map",
+                message: "requires 1 or 2 arguments, got \(evaluated.count)")
+        }
+        let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
+        return dict[evaluated[0]] ?? notFound
+    }
+
+    private func callKeyword(_ name: String, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let evaluated = try args.map { try eval($0, in: env) }
+        guard evaluated.count == 1 || evaluated.count == 2
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "keyword",
+                message: "requires 1 or 2 arguments, got \(evaluated.count)")
+        }
+        let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
+        switch evaluated[0] {
+        case .map(let dict, _):
+            return dict[.keyword(name)] ?? notFound
+
+        case .nil:
+            return notFound
+
+        default:
+            return notFound
+        }
+    }
+
+    private func callVector(_ elements: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let evaluated = try args.map { try eval($0, in: env) }
+        guard evaluated.count == 1
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "vector",
+                message: "requires 1 argument, got \(evaluated.count)")
+        }
+        guard case .integer(let idx) = evaluated[0]
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "vector",
+                message: "index must be an integer")
+        }
+        guard idx >= 0, idx < elements.count
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "vector",
+                message: "index \(idx) out of bounds for vector of size \(elements.count)")
+        }
+        return elements[idx]
     }
 
     /// Calls an already-evaluated callee with already-evaluated args. Used by meta functions.
