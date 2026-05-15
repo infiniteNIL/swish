@@ -44,10 +44,33 @@ private func coreAssoc(_ args: [Expr]) throws -> Expr {
     case .nil:
         dict = [:]
 
+    case .vector(let elements, _):
+        var result = elements
+        var i = 1
+        while i < args.count {
+            guard case .integer(let idx) = args[i] else {
+                throw EvaluatorError.invalidArgument(
+                    function: "assoc",
+                    message: "vector index must be an integer, got \(corePrinter.printString(args[i]))")
+            }
+            guard idx >= 0, idx <= result.count else {
+                throw EvaluatorError.invalidArgument(
+                    function: "assoc",
+                    message: "index \(idx) out of bounds for vector of size \(result.count)")
+            }
+            if idx == result.count {
+                result.append(args[i + 1])
+            } else {
+                result[idx] = args[i + 1]
+            }
+            i += 2
+        }
+        return .vector(result, metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "assoc",
-            message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+            message: "first argument must be a map, vector, or nil, got \(corePrinter.printString(args[0]))")
     }
 
     var i = 1

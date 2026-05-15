@@ -181,6 +181,51 @@ struct CoreMapTests {
         #expect(try swish.eval("(:a \"foo\")") == .nil)
     }
 
+    // MARK: - assoc on vector
+
+    @Test("(assoc [1 2 3] 1 :b) replaces element at index")
+    func assocVectorReplace() throws {
+        #expect(try swish.eval("(assoc [1 2 3] 1 :b)") == .vector([.integer(1), .keyword("b"), .integer(3)], metadata: nil))
+    }
+
+    @Test("(assoc [1 2 3] 0 :a 2 :c) applies multiple pairs")
+    func assocVectorMultiplePairs() throws {
+        #expect(try swish.eval("(assoc [1 2 3] 0 :a 2 :c)") == .vector([.keyword("a"), .integer(2), .keyword("c")], metadata: nil))
+    }
+
+    @Test("(assoc [1 2 3] 3 :d) appends at end")
+    func assocVectorAppend() throws {
+        #expect(try swish.eval("(assoc [1 2 3] 3 :d)") == .vector([.integer(1), .integer(2), .integer(3), .keyword("d")], metadata: nil))
+    }
+
+    @Test("(assoc [] 0 :x) appends to empty vector")
+    func assocVectorAppendToEmpty() throws {
+        #expect(try swish.eval("(assoc [] 0 :x)") == .vector([.keyword("x")], metadata: nil))
+    }
+
+    @Test("(assoc [1 2 3] -1 :x) throws on negative index")
+    func assocVectorNegativeIndex() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "assoc", message: "index -1 out of bounds for vector of size 3")) {
+            try swish.eval("(assoc [1 2 3] -1 :x)")
+        }
+    }
+
+    @Test("(assoc [1 2 3] 4 :x) throws when index skips past end")
+    func assocVectorIndexTooLarge() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "assoc", message: "index 4 out of bounds for vector of size 3")) {
+            try swish.eval("(assoc [1 2 3] 4 :x)")
+        }
+    }
+
+    @Test("(assoc [1 2 3] :k :v) throws on non-integer key")
+    func assocVectorNonIntegerKey() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "assoc", message: "vector index must be an integer, got :k")) {
+            try swish.eval("(assoc [1 2 3] :k :v)")
+        }
+    }
+
+    // MARK: - keyword as function (zero/three args)
+
     @Test("(:a) throws on zero args")
     func keywordAsFunctionZeroArgs() throws {
         #expect(throws: EvaluatorError.invalidArgument(function: "keyword", message: "requires 1 or 2 arguments, got 0")) {
