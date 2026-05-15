@@ -16,6 +16,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] catch stack overflow
 - [x] catch arithmetic overflow error
 - [x] first
 - [x] rest
