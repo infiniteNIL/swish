@@ -15,47 +15,43 @@ private func coreList(_ args: [Expr]) throws -> Expr {
     .list(args, metadata: nil)
 }
 
-private func coreFirst(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
+private func asSequence(_ expr: Expr) -> [Expr]? {
+    switch expr {
     case .list(let elements, _):
-        return elements.first ?? .nil
+        return elements
 
     case .vector(let elements, _):
-        return elements.first ?? .nil
+        return elements
 
     case .string(let s):
-        guard let c = s.first else { return .nil }
-        return .character(c)
+        return s.map { .character($0) }
 
     case .nil:
-        return .nil
+        return []
 
     default:
+        return nil
+    }
+}
+
+private func coreFirst(_ args: [Expr]) throws -> Expr {
+    guard let elements = asSequence(args[0])
+    else {
         throw EvaluatorError.invalidArgument(
             function: "first",
             message: "cannot take first of \(corePrinter.printString(args[0]))")
     }
+    return elements.first ?? .nil
 }
 
 private func coreRest(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .list(let elements, _):
-        return .list(Array(elements.dropFirst()), metadata: nil)
-
-    case .vector(let elements, _):
-        return .list(Array(elements.dropFirst()), metadata: nil)
-
-    case .string(let s):
-        return .list(s.dropFirst().map { .character($0) }, metadata: nil)
-
-    case .nil:
-        return .list([], metadata: nil)
-
-    default:
+    guard let elements = asSequence(args[0])
+    else {
         throw EvaluatorError.invalidArgument(
             function: "rest",
             message: "cannot take rest of \(corePrinter.printString(args[0]))")
     }
+    return .list(Array(elements.dropFirst()), metadata: nil)
 }
 
 private func coreIsString(_ args: [Expr]) throws -> Expr {
@@ -85,23 +81,11 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreCons(_ args: [Expr]) throws -> Expr {
-    let element = args[0]
-    switch args[1] {
-    case .list(let elements, _):
-        return .list([element] + elements, metadata: nil)
-
-    case .vector(let elements, _):
-        return .list([element] + elements, metadata: nil)
-
-    case .nil:
-        return .list([element], metadata: nil)
-
-    case .string(let s):
-        return .list([element] + s.map { .character($0) }, metadata: nil)
-
-    default:
+    guard let elements = asSequence(args[1])
+    else {
         throw EvaluatorError.invalidArgument(
             function: "cons",
             message: "cannot cons onto \(corePrinter.printString(args[1]))")
     }
+    return .list([args[0]] + elements, metadata: nil)
 }
