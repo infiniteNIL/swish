@@ -3,6 +3,8 @@ public class Evaluator {
     var namespaces: [String: Namespace] = [:]
 
     private var gensymCounter = 0
+    private var callDepth = 0
+    private let maxCallDepth = 1_000
 
     public init() {
         // 1. Create clojure.core first — register() interns into it
@@ -390,6 +392,11 @@ public class Evaluator {
     }
 
     private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        guard callDepth < maxCallDepth else {
+            throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
+        }
+        callDepth += 1
+        defer { callDepth -= 1 }
         let expanded = try expandMacro(name: name ?? "macro", params: params, body: body, args: Array(args))
         return try eval(expanded, in: env)
     }
@@ -405,6 +412,11 @@ public class Evaluator {
     }
 
     private func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr], in env: Environment) throws -> Expr {
+        guard callDepth < maxCallDepth else {
+            throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
+        }
+        callDepth += 1
+        defer { callDepth -= 1 }
         let fnEnv = Environment(parent: env)
         try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
         return try evalBody(body, in: fnEnv)

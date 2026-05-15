@@ -8,6 +8,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case cannotRedefineSystemVar(String)
     case namespaceNotFound(String)
     case integerOverflow(operation: String, lhs: Int, rhs: Int)
+    case stackOverflow(maxDepth: Int)
 
     public var description: String {
         switch self {
@@ -40,6 +41,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .integerOverflow(let op, let lhs, let rhs):
             return "Integer overflow in '\(op)': \(lhs) \(op) \(rhs)."
+
+        case .stackOverflow(let max):
+            return "Stack overflow: maximum call depth of \(max) exceeded."
 
         case .notAFunction(let expr):
             let rep: String
