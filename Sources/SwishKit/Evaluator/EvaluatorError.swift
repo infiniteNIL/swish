@@ -9,6 +9,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case namespaceNotFound(String)
     case integerOverflow(operation: String, lhs: Int, rhs: Int)
     case stackOverflow(maxDepth: Int)
+    case interrupted
 
     public var description: String {
         switch self {
@@ -44,6 +45,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .stackOverflow(let max):
             return "Stack overflow: maximum call depth of \(max) exceeded."
+
+        case .interrupted:
+            return "Evaluation interrupted."
 
         case .notAFunction(let expr):
             let rep: String

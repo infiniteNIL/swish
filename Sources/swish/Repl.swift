@@ -21,14 +21,19 @@ private let commands: [(name: String, description: String)] = [
     ("<n>", "Reference result n (e.g., /1, /2)")
 ]
 
+// MARK: - Evaluation interrupt flag (file-scope so C-compatible signal handler can write to it)
+
+nonisolated(unsafe) private var sigintReceived: Int32 = 0
+
 // MARK: - Repl
 
 final class Repl {
-    private let swish = Swish()
+    private var swish = Swish()
     private let printer = Printer()
     private var inputCount = 1
     private var results: [Int: Expr] = [:]
     private let lineReader: LineReader?
+    private var inputCancelled = false
 
     init() {
         lineReader = LineReader()
@@ -42,11 +47,19 @@ final class Repl {
         while true {
             let prompt = "\(swish.currentNamespaceName)(\(inputCount))> "
             guard var input = readline(prompt: prompt) else {
+                if inputCancelled {
+                    inputCancelled = false
+                    continue
+                }
                 teardownCursor()
                 return
             }
 
             input = readMultilineInput(initial: input, mainPrompt: prompt)
+            if inputCancelled {
+                inputCancelled = false
+                continue
+            }
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
             lineReader?.addHistory(input)
@@ -64,6 +77,15 @@ final class Repl {
             }
 
             if (try? Reader.readString(trimmed))?.isEmpty == true { continue }
+
+            sigintReceived = 0
+            swish.interruptionCheck = { sigintReceived != 0 }
+            let prevSigint = signal(SIGINT) { _ in sigintReceived = 1 }
+            defer {
+                signal(SIGINT, prevSigint)
+                sigintReceived = 0
+                swish.interruptionCheck = nil
+            }
 
             do {
                 let result = try eval(trimmed)
@@ -83,6 +105,11 @@ final class Repl {
         if let ln = lineReader {
             do {
                 return try ln.readLine(prompt: prompt, strippingNewline: true)
+            }
+            catch LineReaderError.CTRLC {
+                print("^C")
+                inputCancelled = true
+                return nil
             }
             catch {
                 return nil
@@ -153,6 +180,9 @@ final class Repl {
     }
 
     private func printError(_ error: Error) {
+        if case EvaluatorError.interrupted = error {
+            print("\r\u{1b}[K", terminator: "")
+        }
         print("❌ \(error)\n")
     }
 

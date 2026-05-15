@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] better error reporting on exceptions (e.g. arith overflow)
 - [ ] vectors as functions
 - [ ] Add support for sets
 - [ ] sets as functions
@@ -16,6 +15,7 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Handle Ctrl-C
 - [x] catch stack overflow
 - [x] catch arithmetic overflow error
 - [x] first

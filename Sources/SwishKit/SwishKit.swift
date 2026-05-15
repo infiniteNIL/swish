@@ -25,6 +25,11 @@ public struct Swish {
         evaluator.currentNamespaceName
     }
 
+    public var interruptionCheck: (() -> Bool)? {
+        get { evaluator.interruptionCheck }
+        set { evaluator.interruptionCheck = newValue }
+    }
+
     public func eval(_ source: String) throws -> Expr {
         let exprs = try Reader.readString(source)
         guard !exprs.isEmpty else { throw ParserError.unexpectedEOF }

@@ -5,6 +5,7 @@ public class Evaluator {
     private var gensymCounter = 0
     private var callDepth = 0
     private let maxCallDepth = 1_000
+    var interruptionCheck: (() -> Bool)? = nil
 
     public init() {
         // 1. Create clojure.core first — register() interns into it
@@ -414,6 +415,9 @@ public class Evaluator {
     private func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr], in env: Environment) throws -> Expr {
         guard callDepth < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
+        }
+        if interruptionCheck?() == true {
+            throw EvaluatorError.interrupted
         }
         callDepth += 1
         defer { callDepth -= 1 }
