@@ -18,8 +18,6 @@
 - [x] Handle Ctrl-C
 - [x] catch stack overflow
 - [x] catch arithmetic overflow error
-- [x] first
-- [x] rest
 - [x] attr maps added to defn, defn-, and defmacro
 - [x] merge
 - [x] map?
