@@ -4,8 +4,6 @@
 - [ ] vectors as functions
 - [ ] Add support for sets
 - [ ] sets as functions
-- [ ] first
-- [ ] rest
 - [ ] sequence abstraction?
 - [ ] loop special form
 - [ ] recur special form
@@ -18,6 +16,8 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] first
+- [x] rest
 - [x] attr maps added to defn, defn-, and defmacro
 - [x] merge
 - [x] map?
