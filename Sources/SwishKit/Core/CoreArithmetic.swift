@@ -13,9 +13,11 @@ private func coreAdd(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         return .integer(0)
     }
+
     if args.count == 1 {
         return try assertSingleNumeric(args[0], function: "+")
     }
+
     return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
 }
 
@@ -23,10 +25,13 @@ private func coreSubtract(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         throw EvaluatorError.invalidArgument(function: "-", message: "requires at least 1 argument")
     }
+
     if args.count == 1 {
         switch args[0] {
         case .integer(let x):
-            return .integer(-x)
+            let (result, overflow) = (0 as Int).subtractingReportingOverflow(x)
+            if overflow { throw EvaluatorError.integerOverflow(operation: "-", lhs: 0, rhs: x) }
+            return .integer(result)
 
         case .float(let x):
             return .float(-x)
@@ -39,6 +44,7 @@ private func coreSubtract(_ args: [Expr]) throws -> Expr {
                 function: "-", message: "expected a number, got \(corePrinter.printString(args[0]))")
         }
     }
+
     return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
 }
 
@@ -56,6 +62,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         throw EvaluatorError.invalidArgument(function: "/", message: "requires at least 1 argument")
     }
+
     if args.count == 1 {
         switch args[0] {
         case .integer(let x):
@@ -80,6 +87,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
                 function: "/", message: "expected a number, got \(corePrinter.printString(args[0]))")
         }
     }
+
     return try args.dropFirst().reduce(args[0]) { try numericDivide($0, $1) }
 }
 
@@ -147,7 +155,9 @@ private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
 private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
     switch try coerceNumericPair(a, b, function: "+") {
     case .ints(let x, let y):
-        return .integer(x + y)
+        let (result, overflow) = x.addingReportingOverflow(y)
+        if overflow { throw EvaluatorError.integerOverflow(operation: "+", lhs: x, rhs: y) }
+        return .integer(result)
 
     case .floats(let x, let y):
         return .float(x + y)
@@ -161,7 +171,9 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
 private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
     switch try coerceNumericPair(a, b, function: "-") {
     case .ints(let x, let y):
-        return .integer(x - y)
+        let (result, overflow) = x.subtractingReportingOverflow(y)
+        if overflow { throw EvaluatorError.integerOverflow(operation: "-", lhs: x, rhs: y) }
+        return .integer(result)
 
     case .floats(let x, let y):
         return .float(x - y)
@@ -175,7 +187,9 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
 private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
     switch try coerceNumericPair(a, b, function: "*") {
     case .ints(let x, let y):
-        return .integer(x * y)
+        let (result, overflow) = x.multipliedReportingOverflow(by: y)
+        if overflow { throw EvaluatorError.integerOverflow(operation: "*", lhs: x, rhs: y) }
+        return .integer(result)
 
     case .floats(let x, let y):
         return .float(x * y)

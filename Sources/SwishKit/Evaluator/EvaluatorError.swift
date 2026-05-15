@@ -7,6 +7,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case unboundVar(String)
     case cannotRedefineSystemVar(String)
     case namespaceNotFound(String)
+    case integerOverflow(operation: String, lhs: Int, rhs: Int)
 
     public var description: String {
         switch self {
@@ -36,6 +37,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .namespaceNotFound(let name):
             return "No namespace named '\(name)' found."
+
+        case .integerOverflow(let op, let lhs, let rhs):
+            return "Integer overflow in '\(op)': \(lhs) \(op) \(rhs)."
 
         case .notAFunction(let expr):
             let rep: String
