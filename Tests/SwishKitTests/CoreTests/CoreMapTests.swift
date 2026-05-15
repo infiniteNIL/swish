@@ -181,6 +181,65 @@ struct CoreMapTests {
         #expect(try swish.eval("(:a \"foo\")") == .nil)
     }
 
+    // MARK: - vector as function
+
+    @Test("([1 2 3] 0) returns first element")
+    func vectorAsFunctionFirst() throws {
+        #expect(try swish.eval("([1 2 3] 0)") == .integer(1))
+    }
+
+    @Test("([1 2 3] 2) returns last element")
+    func vectorAsFunctionLast() throws {
+        #expect(try swish.eval("([1 2 3] 2)") == .integer(3))
+    }
+
+    @Test("([:a :b :c] 1) returns middle keyword")
+    func vectorAsFunctionKeyword() throws {
+        #expect(try swish.eval("([:a :b :c] 1)") == .keyword("b"))
+    }
+
+    @Test("([1 2 3]) throws on zero args")
+    func vectorAsFunctionZeroArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "requires 1 argument, got 0")) {
+            try swish.eval("([1 2 3])")
+        }
+    }
+
+    @Test("([1 2 3] 0 99) throws on two args")
+    func vectorAsFunctionTwoArgs() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "requires 1 argument, got 2")) {
+            try swish.eval("([1 2 3] 0 99)")
+        }
+    }
+
+    @Test("([1 2 3] :k) throws on non-integer index")
+    func vectorAsFunctionNonIntegerIndex() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "index must be an integer")) {
+            try swish.eval("([1 2 3] :k)")
+        }
+    }
+
+    @Test("([1 2 3] -1) throws on negative index")
+    func vectorAsFunctionNegativeIndex() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "index -1 out of bounds for vector of size 3")) {
+            try swish.eval("([1 2 3] -1)")
+        }
+    }
+
+    @Test("([1 2 3] 3) throws on index equal to count")
+    func vectorAsFunctionIndexAtCount() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "index 3 out of bounds for vector of size 3")) {
+            try swish.eval("([1 2 3] 3)")
+        }
+    }
+
+    @Test("([] 0) throws on empty vector")
+    func vectorAsFunctionEmptyVector() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vector", message: "index 0 out of bounds for vector of size 0")) {
+            try swish.eval("([] 0)")
+        }
+    }
+
     // MARK: - assoc on vector
 
     @Test("(assoc [1 2 3] 1 :b) replaces element at index")

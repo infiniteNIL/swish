@@ -382,6 +382,25 @@ public class Evaluator {
                 return notFound
             }
 
+        case .vector(let elements, _):
+            let evaluated = try args.map { try eval($0, in: env) }
+            guard evaluated.count == 1 else {
+                throw EvaluatorError.invalidArgument(
+                    function: "vector",
+                    message: "requires 1 argument, got \(evaluated.count)")
+            }
+            guard case .integer(let idx) = evaluated[0] else {
+                throw EvaluatorError.invalidArgument(
+                    function: "vector",
+                    message: "index must be an integer")
+            }
+            guard idx >= 0, idx < elements.count else {
+                throw EvaluatorError.invalidArgument(
+                    function: "vector",
+                    message: "index \(idx) out of bounds for vector of size \(elements.count)")
+            }
+            return elements[idx]
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }
