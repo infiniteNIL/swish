@@ -33,6 +33,13 @@
    :static true}
   [x] (if x false true))
 
+(defn some?
+  "Returns true if x is not nil, false otherwise."
+  {:tag Boolean
+   :added "1.6"
+   :static true}
+  [x] (not (nil? x)))
+
 (defmacro when
   "Evaluates test. If logical true, evaluates body in an implicit do."
   {:added "1.0"}

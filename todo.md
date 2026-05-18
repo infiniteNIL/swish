@@ -7,6 +7,7 @@
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] set
+- [ ] contains?
 - [ ] clojure.set
 - [ ] find-ns
 - [ ] Add some builtin string functions
@@ -15,6 +16,10 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] some?
+- [x] list?
+- [x] nil?
+- [x] vector?
 - [x] count
 - [x] set?
 - [x] sets as functions
