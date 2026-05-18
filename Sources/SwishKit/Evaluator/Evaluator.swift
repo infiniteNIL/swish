@@ -371,6 +371,9 @@ public class Evaluator {
         case .vector(let elements, _):
             return try callVector(elements, args: args, in: env)
 
+        case .set(let elements, _):
+            return try callSet(elements, args: args, in: env)
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }
@@ -430,6 +433,17 @@ public class Evaluator {
                 message: "index \(idx) out of bounds for vector of size \(elements.count)")
         }
         return elements[idx]
+    }
+
+    private func callSet(_ set: Set<Expr>, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let evaluated = try args.map { try eval($0, in: env) }
+        guard evaluated.count == 1
+        else {
+            throw EvaluatorError.invalidArgument(
+                function: "set",
+                message: "requires 1 argument, got \(evaluated.count)")
+        }
+        return set.contains(evaluated[0]) ? evaluated[0] : .nil
     }
 
     /// Calls an already-evaluated callee with already-evaluated args. Used by meta functions.
