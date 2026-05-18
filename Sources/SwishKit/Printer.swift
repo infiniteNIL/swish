@@ -54,6 +54,9 @@ public struct Printer {
         case .map(let dict, let meta):
             metaPrefix(meta) + printMapString(dict, transform: printString)
 
+        case .set(let elements, let meta):
+            metaPrefix(meta) + printSetString(elements, transform: printString)
+
         case .function(let name, _, _, let meta):
             if let name {
                 metaPrefix(meta) + "#<fn \(name)>"
@@ -104,6 +107,9 @@ public struct Printer {
         case .map(let dict, let meta):
             metaPrefix(meta) + printMapString(dict, transform: strString)
 
+        case .set(let elements, let meta):
+            metaPrefix(meta) + printSetString(elements, transform: strString)
+
         default:
             printString(expr)
         }
@@ -125,6 +131,9 @@ public struct Printer {
         case .map(let dict, _):
             printMapString(dict, transform: sourceForm)
 
+        case .set(let elements, _):
+            printSetString(elements, transform: sourceForm)
+
         default:
             printString(expr)
         }
@@ -142,6 +151,14 @@ public struct Printer {
             .flatMap { [$0.0, $0.1] }
             .joined(separator: " ")
         return pairs.isEmpty ? "{}" : "{\(pairs)}"
+    }
+
+    private func printSetString(_ set: Set<Expr>, transform: (Expr) -> String) -> String {
+        let elements = set
+            .map { transform($0) }
+            .sorted()
+            .joined(separator: " ")
+        return elements.isEmpty ? "#{}" : "#{\(elements)}"
     }
 
     private func printCharacter(_ char: Character) -> String {

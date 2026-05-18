@@ -19,6 +19,7 @@ public indirect enum Expr: Sendable {
     case list([Expr], metadata: [Expr: Expr]?)
     case vector([Expr], metadata: [Expr: Expr]?)
     case map([Expr: Expr], metadata: [Expr: Expr]?)
+    case set(Set<Expr>, metadata: [Expr: Expr]?)
     case function(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
@@ -63,6 +64,9 @@ extension Expr: Equatable {
             return a == b
 
         case (.map(let a, _), .map(let b, _)):
+            return a == b
+
+        case (.set(let a, _), .set(let b, _)):
             return a == b
 
         case (.function(let n1, let p1, let b1, _), .function(let n2, let p2, let b2, _)):
@@ -124,6 +128,9 @@ extension Expr: Hashable {
 
         case .map(let v, _):
             hasher.combine(11); hasher.combine(v)
+
+        case .set(let v, _):
+            hasher.combine(17); hasher.combine(v)
 
         case .function(let n, let p, let b, _):
             hasher.combine(12); hasher.combine(n); hasher.combine(p); hasher.combine(b)

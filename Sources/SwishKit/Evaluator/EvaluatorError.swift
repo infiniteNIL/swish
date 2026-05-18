@@ -10,6 +10,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case integerOverflow(operation: String, lhs: Int, rhs: Int)
     case stackOverflow(maxDepth: Int)
     case interrupted
+    case duplicateSetElement(String)
 
     public var description: String {
         switch self {
@@ -49,6 +50,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
         case .interrupted:
             return "Evaluation interrupted."
 
+        case .duplicateSetElement(let key):
+            return "Duplicate key: \(key)."
+
         case .notAFunction(let expr):
             let rep: String
             switch expr {
@@ -61,6 +65,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
             case .keyword(let k):  rep = ":\(k)"
             case .vector:          rep = "a vector"
             case .list:            rep = "a list"
+            case .set:             rep = "a set"
             default:               rep = "a value"
             }
             return "'\(rep)' is not a function."

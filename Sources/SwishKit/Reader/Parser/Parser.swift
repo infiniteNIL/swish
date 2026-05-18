@@ -81,6 +81,9 @@ public class Parser {
         case .leftBrace:
             return try parseMap()
 
+        case .leftSet:
+            return try parseSet()
+
         case .rightParen, .rightBracket, .rightBrace:
             throw ParserError.unexpectedToken(currentToken)
 
@@ -235,6 +238,9 @@ public class Parser {
 
         case .map(let d, let m):
             return .map(d, metadata: merge(m, new))
+
+        case .set(let e, let m):
+            return .set(e, metadata: merge(m, new))
 
         case .function(let n, let p, let b, let m):
             return .function(name: n, params: p, body: b, metadata: merge(m, new))
@@ -403,6 +409,37 @@ public class Parser {
             dict[forms[i]] = forms[i + 1]
         }
         return .map(dict, metadata: nil)
+    }
+
+    private func parseSet() throws -> Expr {
+        let startToken = currentToken
+        try advance() // consume '#{'
+
+        var forms: [Expr] = []
+
+        while currentToken.type != .rightBrace {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedSet(line: startToken.line, column: startToken.column)
+            }
+            if let expr = try parseFormSkipDiscards() {
+                forms.append(expr)
+            }
+            else if currentToken.type != .rightBrace {
+                throw ParserError.unexpectedToken(currentToken)
+            }
+        }
+
+        try advance() // consume '}'
+
+        var set: Set<Expr> = []
+        for elem in forms {
+            let (inserted, _) = set.insert(elem)
+            if !inserted {
+                let key = Printer().printString(elem)
+                throw ParserError.duplicateSetElement(key, line: startToken.line, column: startToken.column)
+            }
+        }
+        return .set(set, metadata: nil)
     }
 
     private func parseHexInteger(_ text: String) -> Int? {

@@ -21,6 +21,7 @@ public enum TokenType: Equatable, Sendable {
     case unquoteSplicing
     case varRef
     case discard
+    case leftSet    // #{
     case metadata
     case eof
 }

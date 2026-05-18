@@ -53,6 +53,17 @@ public class Evaluator {
         case .map(let dict, let mapMeta):
             return try transformMap(dict, metadata: mapMeta) { try eval($0, in: env) }
 
+        case .set(let elements, let setMeta):
+            var result: Set<Expr> = []
+            for element in elements {
+                let evaled = try eval(element, in: env)
+                let (inserted, _) = result.insert(evaled)
+                if !inserted {
+                    throw EvaluatorError.duplicateSetElement(Printer().printString(evaled))
+                }
+            }
+            return .set(result, metadata: setMeta)
+
         case .symbol(let name, _):
             if let v = try resolveQualifiedVar(name: name) {
                 return try deref(v)
@@ -556,6 +567,13 @@ public class Evaluator {
         case .map(let dict, let mapMeta):
             return try transformMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
 
+        case .set(let elements, let setMeta):
+            var result: Set<Expr> = []
+            for element in elements {
+                result.insert(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
+            }
+            return .set(result, metadata: setMeta)
+
         default:
             return expr
         }
@@ -613,6 +631,13 @@ public class Evaluator {
 
         case .map(let dict, let mapMeta):
             return transformMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
+
+        case .set(let elements, let setMeta):
+            var result: Set<Expr> = []
+            for element in elements {
+                result.insert(expandAliasesInExpr(element, locals: locals))
+            }
+            return .set(result, metadata: setMeta)
 
         default:
             return expr

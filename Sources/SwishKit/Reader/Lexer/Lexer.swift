@@ -104,6 +104,10 @@ public class Lexer {
                 _ = advance()
                 return Token(type: .discard, text: "#_", line: startLine, column: startColumn)
             }
+            if peek() == "{" {
+                _ = advance()
+                return Token(type: .leftSet, text: "#{", line: startLine, column: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:
