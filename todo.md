@@ -1,13 +1,13 @@
 # Todo
 
-- [ ] Add support for sets
-- [ ] sets as functions
 - [ ] first and rest on map (needs to be ordered)
 - [ ] sequence abstraction?
 - [ ] loop special form
 - [ ] recur special form
 - [ ] all-ns
 - [ ] (loaded-libs)
+- [ ] set
+- [ ] clojure.set
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] mult-arity defn, defmacro
@@ -15,6 +15,10 @@
 - [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] count
+- [x] set?
+- [x] sets as functions
+- [x] Add support for sets
 - [x] vectors as functions
 - [x] Handle Ctrl-C
 - [x] catch stack overflow
