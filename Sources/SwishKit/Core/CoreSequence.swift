@@ -8,6 +8,7 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "string?", arity: .fixed(1),   body: coreIsString)
     evaluator.register(name: "list*",   arity: .atLeastOne, body: coreListStar)
     evaluator.register(name: "count",   arity: .fixed(1),   body: coreCount)
+    evaluator.register(name: "vector?", arity: .fixed(1),   body: coreIsVector)
 }
 
 // MARK: - Implementations
@@ -57,6 +58,11 @@ private func coreRest(_ args: [Expr]) throws -> Expr {
 
 private func coreIsString(_ args: [Expr]) throws -> Expr {
     if case .string = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsVector(_ args: [Expr]) throws -> Expr {
+    if case .vector = args[0] { return .boolean(true) }
     return .boolean(false)
 }
 
