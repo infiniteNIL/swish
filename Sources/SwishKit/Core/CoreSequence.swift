@@ -7,6 +7,7 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "rest",    arity: .fixed(1),   body: coreRest)
     evaluator.register(name: "string?", arity: .fixed(1),   body: coreIsString)
     evaluator.register(name: "list*",   arity: .atLeastOne, body: coreListStar)
+    evaluator.register(name: "count",   arity: .fixed(1),   body: coreCount)
 }
 
 // MARK: - Implementations
@@ -78,6 +79,33 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
             message: "last argument must be a sequence or nil, got \(corePrinter.printString(args.last!))")
     }
     return .list(prefix + tail, metadata: nil)
+}
+
+private func coreCount(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .nil:
+        return .integer(0)
+
+    case .list(let elements, _):
+        return .integer(elements.count)
+
+    case .vector(let elements, _):
+        return .integer(elements.count)
+
+    case .map(let dict, _):
+        return .integer(dict.count)
+
+    case .set(let elements, _):
+        return .integer(elements.count)
+
+    case .string(let s):
+        return .integer(s.count)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "count",
+            message: "not a countable collection, got \(corePrinter.printString(args[0]))")
+    }
 }
 
 private func coreCons(_ args: [Expr]) throws -> Expr {
