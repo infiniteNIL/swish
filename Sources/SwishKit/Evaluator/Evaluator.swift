@@ -356,6 +356,18 @@ public class Evaluator {
         throw RecurSignal(args: args)
     }
 
+    private func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool) throws -> FnArity {
+        guard case .list(let elems, _) = clause, !elems.isEmpty,
+              case .vector(let paramExprs, _) = elems[0]
+        else {
+            throw EvaluatorError.invalidArgument(function: functionName, message: "invalid arity clause")
+        }
+        let params = extractParamNames(paramExprs)
+        let rawBody = Array(elems.dropFirst())
+        if validateRecur { try validateRecurTailPosition(in: rawBody) }
+        return FnArity(params: params, body: expandAliases(in: rawBody, locals: Set(params)))
+    }
+
     // MARK: - Recur tail-position validation
 
     /// Validates that every `recur` in `body` is in tail position.
@@ -453,16 +465,7 @@ public class Evaluator {
         }
         let remaining = Array(elements.dropFirst(offset))
         if let first = remaining.first, case .list = first {
-            let arities = try remaining.map { clause -> FnArity in
-                guard case .list(let elems, _) = clause, !elems.isEmpty,
-                      case .vector(let paramExprs, _) = elems[0]
-                else { throw EvaluatorError.invalidArgument(function: "fn", message: "invalid arity clause") }
-                let params = extractParamNames(paramExprs)
-                let rawBody = Array(elems.dropFirst())
-                try validateRecurTailPosition(in: rawBody)
-                let body = expandAliases(in: rawBody, locals: Set(params))
-                return FnArity(params: params, body: body)
-            }
+            let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true) }
             return .multiArityFunction(name: name, arities: arities, metadata: nil)
         }
         guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
@@ -496,17 +499,13 @@ public class Evaluator {
         switch elements[idx] {
         case .vector(let paramExprs, _):
             let params = extractParamNames(paramExprs)
-            let body = expandAliases(in: Array(elements.dropFirst(idx + 1)))
-            macroValue = .macro(name: name, params: params, body: body, metadata: macroMeta)
+            let rawBody = Array(elements.dropFirst(idx + 1))
+            macroValue = .macro(name: name, params: params,
+                                body: expandAliases(in: rawBody, locals: Set(params)),
+                                metadata: macroMeta)
         case .list:
-            let arityForms = Array(elements.dropFirst(idx))
-            let arities = try arityForms.map { clause -> FnArity in
-                guard case .list(let elems, _) = clause, !elems.isEmpty,
-                      case .vector(let paramExprs, _) = elems[0]
-                else { throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid arity clause") }
-                let params = extractParamNames(paramExprs)
-                let body = expandAliases(in: Array(elems.dropFirst()))
-                return FnArity(params: params, body: body)
+            let arities = try Array(elements.dropFirst(idx)).map {
+                try buildFnArity(from: $0, functionName: "defmacro", validateRecur: false)
             }
             macroValue = .multiArityMacro(name: name, arities: arities, metadata: macroMeta)
         default:

@@ -19,28 +19,28 @@ struct ParserSpecialFormsTests {
 
     @Test("Throws invalidLet when binding vector is missing")
     func letMissingVectorThrows() throws {
-        #expect(throws: ParserError.invalidLet("let requires a binding vector")) {
+        #expect(throws: ParserError.invalidLet("requires a binding vector")) {
             try Reader.readString("(let)")
         }
     }
 
     @Test("Throws invalidLet when first argument is not a vector")
     func letFirstArgNotVectorThrows() throws {
-        #expect(throws: ParserError.invalidLet("first argument to let must be a vector")) {
+        #expect(throws: ParserError.invalidLet("first argument must be a vector")) {
             try Reader.readString("(let x 1)")
         }
     }
 
     @Test("Throws invalidLet when binding vector has odd number of forms")
     func letOddBindingsThrows() throws {
-        #expect(throws: ParserError.invalidLet("let binding vector requires an even number of forms")) {
+        #expect(throws: ParserError.invalidLet("binding vector requires an even number of forms")) {
             try Reader.readString("(let [x])")
         }
     }
 
     @Test("Throws invalidLet when binding target is not a symbol")
     func letNonSymbolBindingTargetThrows() throws {
-        #expect(throws: ParserError.invalidLet("binding targets in let must be symbols")) {
+        #expect(throws: ParserError.invalidLet("binding targets must be symbols")) {
             try Reader.readString("(let [1 2])")
         }
     }

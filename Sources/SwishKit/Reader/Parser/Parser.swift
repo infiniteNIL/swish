@@ -286,20 +286,15 @@ public class Parser {
             return .list(elements, metadata: nil)
         }
 
-        if case .symbol("def", _) = elements.first {
-            try validateDef(elements)
-        }
-        if case .symbol("let", _) = elements.first {
-            try validateLet(elements)
-        }
-        if case .symbol("fn", _) = elements.first {
-            try validateFn(elements)
-        }
-        if case .symbol("defmacro", _) = elements.first {
-            try validateDefmacro(elements)
-        }
-        if case .symbol("loop", _) = elements.first {
-            try validateLoop(elements)
+        if case .symbol(let name, _) = elements.first {
+            switch name {
+            case "def":      try validateDef(elements)
+            case "let":      try validateLet(elements)
+            case "fn":       try validateFn(elements)
+            case "defmacro": try validateDefmacro(elements)
+            case "loop":     try validateLoop(elements)
+            default: break
+            }
         }
 
         return .list(elements, metadata: nil)
@@ -316,35 +311,26 @@ public class Parser {
     }
 
     private func validateLet(_ elements: [Expr]) throws {
-        guard elements.count >= 2 else {
-            throw ParserError.invalidLet("let requires a binding vector")
-        }
-        guard case .vector(let bindings, _) = elements[1] else {
-            throw ParserError.invalidLet("first argument to let must be a vector")
-        }
-        guard bindings.count % 2 == 0 else {
-            throw ParserError.invalidLet("let binding vector requires an even number of forms")
-        }
-        for i in stride(from: 0, to: bindings.count, by: 2) {
-            guard case .symbol = bindings[i] else {
-                throw ParserError.invalidLet("binding targets in let must be symbols")
-            }
-        }
+        try validateBindingVector(elements, makeError: { ParserError.invalidLet($0) })
     }
 
     private func validateLoop(_ elements: [Expr]) throws {
+        try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0) })
+    }
+
+    private func validateBindingVector(_ elements: [Expr], makeError: (String) -> ParserError) throws {
         guard elements.count >= 2 else {
-            throw ParserError.invalidLoop("loop requires a binding vector")
+            throw makeError("requires a binding vector")
         }
         guard case .vector(let bindings, _) = elements[1] else {
-            throw ParserError.invalidLoop("first argument to loop must be a vector")
+            throw makeError("first argument must be a vector")
         }
         guard bindings.count % 2 == 0 else {
-            throw ParserError.invalidLoop("loop binding vector requires an even number of forms")
+            throw makeError("binding vector requires an even number of forms")
         }
         for i in stride(from: 0, to: bindings.count, by: 2) {
             guard case .symbol = bindings[i] else {
-                throw ParserError.invalidLoop("binding targets in loop must be symbols")
+                throw makeError("binding targets must be symbols")
             }
         }
     }

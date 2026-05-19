@@ -4,26 +4,11 @@ import Testing
 @Suite("Var Tests")
 struct VarTests {
     private func eval(_ source: String) throws -> Expr {
-        let lexer = Lexer(source)
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
         let evaluator = Evaluator()
+        let exprs = try Reader.readString(source)
         var result: Expr = .nil
-        for expr in exprs {
-            result = try evaluator.eval(expr)
-        }
+        for expr in exprs { result = try evaluator.eval(expr) }
         return result
-    }
-
-    private func evaluator(with source: String) throws -> Evaluator {
-        let lexer = Lexer(source)
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        let evaluator = Evaluator()
-        for expr in exprs {
-            _ = try evaluator.eval(expr)
-        }
-        return evaluator
     }
 
     @Test("def interns a Var with correct name, namespace, and value")
