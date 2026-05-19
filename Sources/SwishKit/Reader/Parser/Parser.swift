@@ -329,8 +329,9 @@ public class Parser {
             throw makeError("binding vector requires an even number of forms")
         }
         for i in stride(from: 0, to: bindings.count, by: 2) {
-            guard case .symbol = bindings[i] else {
-                throw makeError("binding targets must be symbols")
+            switch bindings[i] {
+            case .symbol, .vector, .map: break
+            default: throw makeError("binding targets must be symbols, vectors, or maps")
             }
         }
     }
@@ -402,14 +403,19 @@ public class Parser {
     }
 
     private func validateParamVector(_ params: [Expr], makeError: (String) -> ParserError) throws {
-        for param in params {
-            guard case .symbol = param else {
-                throw makeError("parameters must be symbols")
+        for param in params where param != .symbol("&", metadata: nil) {
+            switch param {
+            case .symbol, .vector, .map: break
+            default: throw makeError("parameters must be symbols, vectors, or maps")
             }
         }
         if let ampIdx = params.firstIndex(of: .symbol("&", metadata: nil)) {
             guard ampIdx == params.count - 2 else {
-                throw makeError("& must be followed by exactly one symbol")
+                throw makeError("& must be followed by exactly one binding form")
+            }
+            switch params[ampIdx + 1] {
+            case .symbol, .vector, .map: break
+            default: throw makeError("& must be followed by a symbol, vector, or map")
             }
         }
     }

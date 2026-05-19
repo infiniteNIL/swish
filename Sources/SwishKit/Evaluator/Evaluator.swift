@@ -313,9 +313,10 @@ public class Evaluator {
         }
         let letEnv = Environment(parent: env)
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
-            guard case .symbol(let name, _) = bindingVec[i]
-            else { continue }
-            letEnv.set(name, try eval(bindingVec[i + 1], in: letEnv))
+            let bindings = destructureBindings(bindingVec[i], bindingVec[i + 1])
+            for (name, expr) in bindings {
+                letEnv.set(name, try eval(expr, in: letEnv))
+            }
         }
         return try evalBody(Array(elements.dropFirst(2)), in: letEnv)
     }
@@ -328,12 +329,29 @@ public class Evaluator {
         }
         let loopEnv = Environment(parent: env)
         var names: [String] = []
+        var patternBindings: [(Expr, String)] = []  // (pattern, gensym) for destructuring slots
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
-            guard case .symbol(let name, _) = bindingVec[i] else { continue }
-            names.append(name)
-            loopEnv.set(name, try eval(bindingVec[i + 1], in: loopEnv))
+            let pattern = bindingVec[i]
+            let valueExpr = bindingVec[i + 1]
+            if case .symbol(let name, _) = pattern {
+                names.append(name)
+                loopEnv.set(name, try eval(valueExpr, in: loopEnv))
+            } else {
+                let tmp = gensym(prefix: "lp__")
+                names.append(tmp)
+                loopEnv.set(tmp, try eval(valueExpr, in: loopEnv))
+                patternBindings.append((pattern, tmp))
+            }
         }
-        let body = Array(elements.dropFirst(2))
+        var body = Array(elements.dropFirst(2))
+        if !patternBindings.isEmpty {
+            var letVec: [Expr] = []
+            for (pat, tmpName) in patternBindings {
+                letVec.append(pat)
+                letVec.append(.symbol(tmpName, metadata: nil))
+            }
+            body = [.list([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body, metadata: nil)]
+        }
         try validateRecurTailPosition(in: body)
         while true {
             if interruptionCheck?() == true { throw EvaluatorError.interrupted }
@@ -362,10 +380,10 @@ public class Evaluator {
         else {
             throw EvaluatorError.invalidArgument(function: functionName, message: "invalid arity clause")
         }
-        let params = extractParamNames(paramExprs)
-        let rawBody = Array(elems.dropFirst())
+        let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(elems.dropFirst()))
         if validateRecur { try validateRecurTailPosition(in: rawBody) }
-        return FnArity(params: params, body: expandAliases(in: rawBody, locals: Set(params)))
+        let allLocals = collectAllParamLocals(paramExprs)
+        return FnArity(params: params, body: expandAliases(in: rawBody, locals: allLocals))
     }
 
     // MARK: - Recur tail-position validation
@@ -471,10 +489,9 @@ public class Evaluator {
         guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
         }
-        let params = extractParamNames(paramExprs)
-        let rawBody = Array(remaining.dropFirst())
+        let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(remaining.dropFirst()))
         try validateRecurTailPosition(in: rawBody)
-        let body = expandAliases(in: rawBody, locals: Set(params))
+        let body = expandAliases(in: rawBody, locals: collectAllParamLocals(paramExprs))
         return .function(name: name, params: params, body: body, capturedEnv: env, metadata: nil)
     }
 
@@ -832,6 +849,174 @@ public class Evaluator {
         }
     }
 
+    /// Returns all variable names introduced by a destructuring pattern (recursively).
+    private func collectLocalNames(_ pattern: Expr) -> Set<String> {
+        switch pattern {
+        case .symbol("_", _), .symbol("&", _): return []
+        case .symbol(let name, _): return [name]
+        case .vector(let elements, _):
+            var names = Set<String>()
+            var i = 0
+            while i < elements.count {
+                if case .symbol("&", _) = elements[i] {
+                    i += 1
+                    if i < elements.count { names.formUnion(collectLocalNames(elements[i])) }
+                    break
+                }
+                names.formUnion(collectLocalNames(elements[i]))
+                i += 1
+            }
+            return names
+        case .map(let dict, _):
+            var names = Set<String>()
+            for key in [Expr.keyword("keys"), .keyword("strs"), .keyword("syms")] {
+                if let vecExpr = dict[key], case .vector(let syms, _) = vecExpr {
+                    for s in syms { if case .symbol(let n, _) = s { names.insert(n) } }
+                }
+            }
+            if let asExpr = dict[.keyword("as")], case .symbol(let n, _) = asExpr { names.insert(n) }
+            let specialKeys: Set<Expr> = [.keyword("keys"), .keyword("strs"), .keyword("syms"),
+                                          .keyword("as"), .keyword("or")]
+            for (key, val) in dict where !specialKeys.contains(key) {
+                names.formUnion(collectLocalNames(val))
+            }
+            return names
+        default: return []
+        }
+    }
+
+    /// Collects all local names introduced by a parameter list (including destructuring patterns).
+    private func collectAllParamLocals(_ paramExprs: [Expr]) -> Set<String> {
+        paramExprs.reduce(into: Set<String>()) { $0.formUnion(collectLocalNames($1)) }
+    }
+
+    /// Expands any destructuring patterns in a param vector by replacing them with gensyms
+    /// and prepending a `let` binding in the body. Returns (flat-param-names, expanded-body).
+    private func expandDestructuredParams(_ paramExprs: [Expr], body: [Expr]) -> ([String], [Expr]) {
+        var flatParams: [String] = []
+        var patternBindings: [(Expr, String)] = []  // (pattern, gensym)
+        for p in paramExprs {
+            switch p {
+            case .symbol(let name, _):
+                flatParams.append(name)
+            default:
+                let tmp = gensym(prefix: "p__")
+                flatParams.append(tmp)
+                patternBindings.append((p, tmp))
+            }
+        }
+        guard !patternBindings.isEmpty else { return (flatParams, body) }
+        var letVec: [Expr] = []
+        for (pat, tmpName) in patternBindings {
+            letVec.append(pat)
+            letVec.append(.symbol(tmpName, metadata: nil))
+        }
+        let wrappedBody = [Expr.list([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body,
+                                     metadata: nil)]
+        return (flatParams, wrappedBody)
+    }
+
+    // MARK: - Destructuring
+
+    /// Expands a single binding pair (pattern, valueExpr) into flat [(name, expr)] pairs
+    /// evaluated sequentially. Uses `nth`/`drop`/`get` from the runtime.
+    private func destructureBindings(_ pattern: Expr, _ valueExpr: Expr) -> [(String, Expr)] {
+        switch pattern {
+        case .symbol("_", _):
+            return []
+
+        case .symbol(let name, _):
+            return [(name, valueExpr)]
+
+        case .vector(let elements, _):
+            let tmpName = gensym(prefix: "ds__")
+            let tmpSym = Expr.symbol(tmpName, metadata: nil)
+            var result: [(String, Expr)] = [(tmpName, valueExpr)]
+            var pos = 0
+            var i = 0
+            while i < elements.count {
+                let elem = elements[i]
+                if case .symbol("&", _) = elem {
+                    i += 1
+                    if i < elements.count {
+                        let dropExpr = Expr.list([.symbol("drop", metadata: nil),
+                                                  .integer(pos), tmpSym], metadata: nil)
+                        result += destructureBindings(elements[i], dropExpr)
+                    }
+                    break
+                } else if case .symbol("_", _) = elem {
+                    pos += 1; i += 1; continue
+                } else {
+                    let nthExpr = Expr.list([.symbol("nth", metadata: nil),
+                                             tmpSym, .integer(pos), .nil], metadata: nil)
+                    result += destructureBindings(elem, nthExpr)
+                    pos += 1; i += 1
+                }
+            }
+            return result
+
+        case .map(let dict, _):
+            let tmpName = gensym(prefix: "ds__")
+            let tmpSym = Expr.symbol(tmpName, metadata: nil)
+            var result: [(String, Expr)] = [(tmpName, valueExpr)]
+
+            let orMap: [Expr: Expr]
+            if let orExpr = dict[.keyword("or")], case .map(let m, _) = orExpr { orMap = m } else { orMap = [:] }
+
+            func addBinding(_ name: String, _ getExpr: Expr) {
+                let keySym = Expr.symbol(name, metadata: nil)
+                if let defaultVal = orMap[keySym] {
+                    let vName = gensym(prefix: "or__")
+                    let vSym = Expr.symbol(vName, metadata: nil)
+                    let wrapped = Expr.list([
+                        .symbol("let", metadata: nil),
+                        .vector([vSym, getExpr], metadata: nil),
+                        .list([.symbol("if", metadata: nil),
+                               .list([.symbol("nil?", metadata: nil), vSym], metadata: nil),
+                               defaultVal, vSym], metadata: nil)
+                    ], metadata: nil)
+                    result.append((name, wrapped))
+                } else {
+                    result.append((name, getExpr))
+                }
+            }
+
+            if let keysExpr = dict[.keyword("keys")], case .vector(let keys, _) = keysExpr {
+                for k in keys { if case .symbol(let n, _) = k {
+                    addBinding(n, .list([.symbol("get", metadata: nil), tmpSym, .keyword(n)], metadata: nil))
+                }}
+            }
+            if let strsExpr = dict[.keyword("strs")], case .vector(let strs, _) = strsExpr {
+                for s in strs { if case .symbol(let n, _) = s {
+                    addBinding(n, .list([.symbol("get", metadata: nil), tmpSym, .string(n)], metadata: nil))
+                }}
+            }
+            if let symsExpr = dict[.keyword("syms")], case .vector(let syms, _) = symsExpr {
+                for s in syms { if case .symbol(let n, _) = s {
+                    addBinding(n, .list([.symbol("get", metadata: nil), tmpSym,
+                                        .list([.symbol("quote", metadata: nil),
+                                               .symbol(n, metadata: nil)], metadata: nil)], metadata: nil))
+                }}
+            }
+
+            // In a destructuring map {x :a}, x is the binding pattern (key) and :a is the lookup key (value)
+            let specialKeys: Set<Expr> = [.keyword("keys"), .keyword("strs"), .keyword("syms"),
+                                          .keyword("as"), .keyword("or")]
+            for (bindingPattern, lookupKey) in dict where !specialKeys.contains(bindingPattern) {
+                let getExpr = Expr.list([.symbol("get", metadata: nil), tmpSym, lookupKey], metadata: nil)
+                result += destructureBindings(bindingPattern, getExpr)
+            }
+
+            if let asExpr = dict[.keyword("as")], case .symbol(let asName, _) = asExpr {
+                result.append((asName, tmpSym))
+            }
+            return result
+
+        default:
+            return []
+        }
+    }
+
     // MARK: - Alias expansion
 
     private func expandAliases(in forms: [Expr], locals: Set<String> = []) -> [Expr] {
@@ -893,7 +1078,7 @@ public class Evaluator {
                       case .vector(let paramExprs, _) = clauseElems[0]
                 else { result.append(clause); continue }
                 var clauseLocals = outerLocals
-                clauseLocals.formUnion(extractParamNames(paramExprs))
+                for p in paramExprs { clauseLocals.formUnion(collectLocalNames(p)) }
                 let expandedBody = Array(clauseElems.dropFirst()).map { expandAliasesInExpr($0, locals: clauseLocals) }
                 result.append(.list([clauseElems[0]] + expandedBody, metadata: clauseMeta))
             }
@@ -901,7 +1086,7 @@ public class Evaluator {
         }
         var newLocals = outerLocals
         if offset < elements.count, case .vector(let paramExprs, _) = elements[offset] {
-            newLocals.formUnion(extractParamNames(paramExprs))
+            for p in paramExprs { newLocals.formUnion(collectLocalNames(p)) }
         }
         var result = Array(elements.prefix(offset + 1))
         result += Array(elements.dropFirst(offset + 1)).map { expandAliasesInExpr($0, locals: newLocals) }
@@ -919,7 +1104,7 @@ public class Evaluator {
         while i + 1 < bindings.count {
             newBindings.append(bindings[i])
             newBindings.append(expandAliasesInExpr(bindings[i + 1], locals: newLocals))
-            if case .symbol(let n, _) = bindings[i] { newLocals.insert(n) }
+            newLocals.formUnion(collectLocalNames(bindings[i]))
             i += 2
         }
         let body = Array(elements.dropFirst(2)).map { expandAliasesInExpr($0, locals: newLocals) }

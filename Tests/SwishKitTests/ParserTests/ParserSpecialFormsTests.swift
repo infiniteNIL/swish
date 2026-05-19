@@ -40,7 +40,7 @@ struct ParserSpecialFormsTests {
 
     @Test("Throws invalidLet when binding target is not a symbol")
     func letNonSymbolBindingTargetThrows() throws {
-        #expect(throws: ParserError.invalidLet("binding targets must be symbols")) {
+        #expect(throws: ParserError.invalidLet("binding targets must be symbols, vectors, or maps")) {
             try Reader.readString("(let [1 2])")
         }
     }
@@ -85,7 +85,7 @@ struct ParserSpecialFormsTests {
 
     @Test("Throws invalidFn when a parameter is not a symbol")
     func fnNonSymbolParamThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn parameters must be symbols")) {
+        #expect(throws: ParserError.invalidFn("fn parameters must be symbols, vectors, or maps")) {
             try Reader.readString("(fn [42] x)")
         }
     }
@@ -228,7 +228,7 @@ struct ParserSpecialFormsTests {
 
     @Test("defmacro parameters must be symbols")
     func defmacroParamsMustBeSymbols() throws {
-        #expect(throws: ParserError.invalidDefmacro("defmacro parameters must be symbols")) {
+        #expect(throws: ParserError.invalidDefmacro("defmacro parameters must be symbols, vectors, or maps")) {
             try Reader.readString("(defmacro m [42] 42)")
         }
     }
@@ -256,14 +256,14 @@ struct ParserSpecialFormsTests {
 
     @Test("fn & with nothing after it throws invalidFn")
     func fnAmpersandAloneThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one symbol")) {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form")) {
             try Reader.readString("(fn [x &] x)")
         }
     }
 
     @Test("fn & with more than one symbol after it throws invalidFn")
     func fnAmpersandTooManyThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one symbol")) {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form")) {
             try Reader.readString("(fn [x & a b] x)")
         }
     }

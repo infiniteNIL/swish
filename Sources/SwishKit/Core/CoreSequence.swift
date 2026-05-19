@@ -19,6 +19,8 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "hash-set", arity: .variadic,    body: coreHashSet)
     evaluator.register(name: "concat",    arity: .variadic,    body: coreConcat)
     evaluator.register(name: "contains?", arity: .fixed(2),    body: coreContains)
+    evaluator.register(name: "nth",       arity: .atLeastOne,  body: coreNth)
+    evaluator.register(name: "drop",      arity: .fixed(2),    body: coreDrop)
 }
 
 // MARK: - Implementations
@@ -228,4 +230,33 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "contains?",
             message: "\(corePrinter.printString(args[0])) is not supported")
     }
+}
+
+private func coreNth(_ args: [Expr]) throws -> Expr {
+    guard args.count >= 2, case .integer(let idx) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "nth", message: "index must be an integer")
+    }
+    let notFound: Expr = args.count >= 3 ? args[2] : .nil
+    switch args[0] {
+    case .nil:
+        return notFound
+    case .vector(let elements, _):
+        guard idx >= 0 && idx < elements.count else { return notFound }
+        return elements[idx]
+    default:
+        let elements = try seqOf(args[0], function: "nth")
+        guard idx >= 0 && idx < elements.count else { return notFound }
+        return elements[idx]
+    }
+}
+
+private func coreDrop(_ args: [Expr]) throws -> Expr {
+    guard case .integer(let n) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "drop", message: "n must be an integer")
+    }
+    let elements = try seqOf(args[1], function: "drop")
+    let count = max(0, n)
+    if count >= elements.count { return .nil }
+    let result = Array(elements.dropFirst(count))
+    return result.isEmpty ? .nil : .list(result, metadata: nil)
 }

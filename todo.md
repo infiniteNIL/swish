@@ -1,15 +1,53 @@
 # Todo
 
+- [ ] try, catch, finally, throw
+- [ ] cond
+- [ ] threading macros ->, ->>
+- [ ] when-let
+- [ ] if-let
+- [ ] dissoc
+- [ ] assoc-in
+- [ ] get-in
+- [ ] update, update-in
+- [ ] keys, vals
+- [ ] select-keys
+- [ ] merge-with
+- [ ] atoms (and deref(@), swap!, reset!)
+- [ ] Sequence Utils
+      nth, take, drop, take-while, drop-while, last, butlast,
+      reverse, flatten, partition, partition-all, group-by,
+      frequencies, sort, sort-by, distinct, interleave, interpose,
+      zipmap, keep, keep-indexed, map-indexed, doall, doseq, for
+- [ ] clojure.string
+      At minimum: join, split, trim, trim-left/right, upper-case, lower-case,
+      starts-with?, ends-with?, includes?, replace, blank?
 - [ ] Swift interop
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] set
 - [ ] clojure.set
+      union, intersection, difference, subset?, superset?
+- [ ] Better I/O
+      slurp, spit, read-string, with-open — needed for any file-touching code.
+- [ ] Embedding API
+      - Evaluator.eval(string:) — evaluate Swish source from Swift (already
+        exists, exposed?)
+      - Evaluator.call(name:args:) — call a Swish function by name from Swift
+      - Swift→Swish value conversion — Int, String, Bool, [Any], [String: Any]
+      ↔ Expr
+      - Error type — a public SwishError that Swift catch blocks can use
+      - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
+        a public API with better ergonomics
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] map destrucuring
+- [x] sequential destructuring
+- [x] fn param destructuring
+- [x] nth
+- [x] drop
 - [x] contains?
 - [x] seq, next, conj, vector, hash-map, hash-set, concat
 - [x] apply, map, filter, reduce
