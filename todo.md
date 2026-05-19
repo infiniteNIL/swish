@@ -13,9 +13,9 @@
 - [ ] clojure.set
 - [ ] find-ns
 - [ ] Add some builtin string functions
-- [ ] and, or (needs multi-arity)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] and, or (needs multi-arity)
 - [x] mult-arity fn, defn, defmacro
 - [x] some?
 - [x] list?

@@ -1,5 +1,17 @@
 (ns clojure.core)
 
+(defmacro and
+  "Evaluates exprs one at a time, from left to right. If a form
+   returns logical false (nil or false), and returns that value and
+   doesn't evaluate any of the other expressions, otherwise it returns
+   the value of the last expr. (and) returns true."
+  {:added "1.0"}
+  ([] true)
+  ([x] x)
+  ([x & next]
+  `(let [and# ~x]
+  (if and# (and ~@next) and#))))
+
 (defmacro comment
   "Ignores body, yields nil"
   {:added "1.0"}
@@ -30,6 +42,18 @@
    :added "1.0"
    :static true}
   [x] (if x false true))
+
+(defmacro or
+  "Evaluates exprs one at a time, from left to right. If a form
+   returns a logical true value, or returns that value and doesn't
+   evaluate any of the other expressions, otherwise it returns the
+   value of the last expression. (or) returns nil."
+  {:added "1.0"}
+  ([] nil)
+  ([x] x)
+  ([x & next]
+  `(let [or# ~x]
+  (if or# or# (or ~@next)))))
 
 (defn some?
   "Returns true if x is not nil, false otherwise."
