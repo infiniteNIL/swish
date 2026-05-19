@@ -12,13 +12,11 @@
         has-attr (map? (first args))
         attr     (if has-attr (first args) nil)
         args     (if has-attr (rest args) args)
-        params   (first args)
-        body     (rest args)
         m        (merge (meta name) attr)
         m        (if doc (assoc (if m m {}) :doc doc) m)]
     (if m
-      `(def ~(with-meta name m) (fn ~name ~params ~@body))
-      `(def ~name (fn ~name ~params ~@body)))))
+      `(def ~(with-meta name m) (fn ~name ~@args))
+      `(def ~name (fn ~name ~@args)))))
 
 (defmacro defn-
   "same as defn, yielding non-public def"

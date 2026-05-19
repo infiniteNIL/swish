@@ -300,4 +300,73 @@ struct ParserSpecialFormsTests {
             try Reader.readString("#_")
         }
     }
+
+    // MARK: - fn multi-arity validation
+
+    @Test("Parses fn with single arity in list syntax")
+    func fnSingleArityListSyntax() throws {
+        let exprs = try Reader.readString("(fn ([x] x))")
+        #expect(exprs.count == 1)
+    }
+
+    @Test("Parses fn with multiple arities")
+    func fnMultipleArities() throws {
+        let exprs = try Reader.readString("(fn ([x] x) ([x y] y))")
+        #expect(exprs.count == 1)
+    }
+
+    @Test("Parses named fn with multiple arities")
+    func fnNamedMultipleArities() throws {
+        let exprs = try Reader.readString("(fn add ([x] x) ([x y] y))")
+        #expect(exprs.count == 1)
+    }
+
+    @Test("Parses fn with variadic arity")
+    func fnVariadicArity() throws {
+        let exprs = try Reader.readString("(fn ([x] x) ([x & rest] rest))")
+        #expect(exprs.count == 1)
+    }
+
+    @Test("fn throws when two arities have the same fixed count")
+    func fnDuplicateFixedArityThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn can't have 2 overloads with same arity")) {
+            try Reader.readString("(fn ([x] x) ([x] y))")
+        }
+    }
+
+    @Test("fn throws when two variadic arities are specified")
+    func fnDuplicateVariadicArityThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn can only have 1 variadic overload")) {
+            try Reader.readString("(fn ([x & a] x) ([y & b] y))")
+        }
+    }
+
+    @Test("fn throws when a non-list appears in multi-arity position")
+    func fnArityClauseNotListThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn arity clause must be a list")) {
+            try Reader.readString("(fn ([x] x) 42)")
+        }
+    }
+
+    @Test("fn throws when arity clause doesn't start with a vector")
+    func fnArityClauseNoVectorThrows() throws {
+        #expect(throws: ParserError.invalidFn("fn arity clause must begin with a parameter vector")) {
+            try Reader.readString("(fn (x x))")
+        }
+    }
+
+    // MARK: - defmacro multi-arity validation
+
+    @Test("Parses defmacro with multiple arities")
+    func defmacroMultipleArities() throws {
+        let exprs = try Reader.readString("(defmacro m ([] true) ([x] x))")
+        #expect(exprs.count == 1)
+    }
+
+    @Test("defmacro throws when two arities have same fixed count")
+    func defmacroDuplicateFixedArityThrows() throws {
+        #expect(throws: ParserError.invalidDefmacro("defmacro can't have 2 overloads with same arity")) {
+            try Reader.readString("(defmacro m ([] true) ([] false))")
+        }
+    }
 }

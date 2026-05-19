@@ -20,6 +20,10 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
         guard let m else { return .nil }
         return .map(m, metadata: nil)
 
+    case .multiArityFunction(_, _, let m), .multiArityMacro(_, _, let m):
+        guard let m else { return .nil }
+        return .map(m, metadata: nil)
+
     case .varRef(let v):
         guard let m = v.metadata else { return .nil }
         return .map(m, metadata: nil)
@@ -62,6 +66,12 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
 
     case .macro(let n, let p, let b, _):
         return .macro(name: n, params: p, body: b, metadata: newMeta)
+
+    case .multiArityFunction(let n, let a, _):
+        return .multiArityFunction(name: n, arities: a, metadata: newMeta)
+
+    case .multiArityMacro(let n, let a, _):
+        return .multiArityMacro(name: n, arities: a, metadata: newMeta)
 
     case .varRef(let v):
         v.metadata = newMeta

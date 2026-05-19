@@ -73,6 +73,12 @@ public struct Printer {
                 metaPrefix(meta) + "#<macro>"
             }
 
+        case .multiArityFunction(let name, _, let meta):
+            metaPrefix(meta) + (name.map { "#<fn \($0)>" } ?? "#<fn>")
+
+        case .multiArityMacro(let name, _, let meta):
+            metaPrefix(meta) + (name.map { "#<macro \($0)>" } ?? "#<macro>")
+
         case .nativeFunction(let name, _, _):
             "#<native-fn \(name)>"
 

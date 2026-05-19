@@ -5,6 +5,12 @@ public enum Arity: Equatable, Hashable, Sendable {
     case variadic      // zero or more arguments
 }
 
+/// A single arity clause for a multi-arity function or macro.
+public struct FnArity: Sendable, Equatable, Hashable {
+    public let params: [String]
+    public let body: [Expr]
+}
+
 /// AST node types for Swish expressions
 public indirect enum Expr: Sendable {
     case integer(Int)
@@ -22,6 +28,8 @@ public indirect enum Expr: Sendable {
     case set(Set<Expr>, metadata: [Expr: Expr]?)
     case function(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
+    case multiArityFunction(name: String?, arities: [FnArity], metadata: [Expr: Expr]?)
+    case multiArityMacro(name: String?, arities: [FnArity], metadata: [Expr: Expr]?)
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
     case varRef(Var)
     case namespace(Namespace)
@@ -74,6 +82,12 @@ extension Expr: Equatable {
 
         case (.macro(let n1, let p1, let b1, _), .macro(let n2, let p2, let b2, _)):
             return n1 == n2 && p1 == p2 && b1 == b2
+
+        case (.multiArityFunction(let n1, let a1, _), .multiArityFunction(let n2, let a2, _)):
+            return n1 == n2 && a1 == a2
+
+        case (.multiArityMacro(let n1, let a1, _), .multiArityMacro(let n2, let a2, _)):
+            return n1 == n2 && a1 == a2
 
         case (.nativeFunction(let n1, let a1, _), .nativeFunction(let n2, let a2, _)):
             return n1 == n2 && a1 == a2
@@ -137,6 +151,12 @@ extension Expr: Hashable {
 
         case .macro(let n, let p, let b, _):
             hasher.combine(13); hasher.combine(n); hasher.combine(p); hasher.combine(b)
+
+        case .multiArityFunction(let n, let a, _):
+            hasher.combine(18); hasher.combine(n); hasher.combine(a)
+
+        case .multiArityMacro(let n, let a, _):
+            hasher.combine(19); hasher.combine(n); hasher.combine(a)
 
         case .nativeFunction(let n, let a, _):
             hasher.combine(14); hasher.combine(n); hasher.combine(a)

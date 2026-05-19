@@ -44,7 +44,9 @@ public class Evaluator {
 
     private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword, .function, .macro, .nativeFunction, .varRef, .namespace:
+        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword,
+             .function, .macro, .multiArityFunction, .multiArityMacro,
+             .nativeFunction, .varRef, .namespace:
             return expr
 
         case .vector(let elements, let vecMeta):
@@ -307,17 +309,28 @@ public class Evaluator {
     private func evalFn(_ elements: [Expr], in env: Environment) throws -> Expr {
         var offset = 1
         var name: String? = nil
-        if elements.count > 1, case .symbol(let n, _) = elements[1],
-           elements.count > 2, case .vector = elements[2] {
-            name = n
-            offset = 2
+        if elements.count > 2, case .symbol(let n, _) = elements[1] {
+            let next = elements[2]
+            if case .vector = next { name = n; offset = 2 }
+            else if case .list = next { name = n; offset = 2 }
         }
-        guard elements.count > offset, case .vector(let paramExprs, _) = elements[offset]
-        else {
+        let remaining = Array(elements.dropFirst(offset))
+        if let first = remaining.first, case .list = first {
+            let arities = try remaining.map { clause -> FnArity in
+                guard case .list(let elems, _) = clause, !elems.isEmpty,
+                      case .vector(let paramExprs, _) = elems[0]
+                else { throw EvaluatorError.invalidArgument(function: "fn", message: "invalid arity clause") }
+                let params = extractParamNames(paramExprs)
+                let body = expandAliases(in: Array(elems.dropFirst()), locals: Set(params))
+                return FnArity(params: params, body: body)
+            }
+            return .multiArityFunction(name: name, arities: arities, metadata: nil)
+        }
+        guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
         }
         let params = extractParamNames(paramExprs)
-        let body = expandAliases(in: Array(elements.dropFirst(offset + 1)), locals: Set(params))
+        let body = expandAliases(in: Array(remaining.dropFirst()), locals: Set(params))
         return .function(name: name, params: params, body: body, metadata: nil)
     }
 
@@ -331,28 +344,60 @@ public class Evaluator {
         var attrMap: [Expr: Expr]? = nil
         if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
         if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
-        guard idx < elements.count, case .vector(let paramExprs, _) = elements[idx]
-        else {
+        guard idx < elements.count else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
-        let vectorIdx = idx
         var meta: [Expr: Expr] = symMeta ?? [:]
         if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
         if let doc = docString { meta[.keyword("doc")] = .string(doc) }
         let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta
-        let params = extractParamNames(paramExprs)
-        let body = expandAliases(in: Array(elements.dropFirst(vectorIdx + 1)))
-        let v = currentNs().intern(name: name, value: .macro(name: name, params: params, body: body, metadata: macroMeta))
+        let macroValue: Expr
+        switch elements[idx] {
+        case .vector(let paramExprs, _):
+            let params = extractParamNames(paramExprs)
+            let body = expandAliases(in: Array(elements.dropFirst(idx + 1)))
+            macroValue = .macro(name: name, params: params, body: body, metadata: macroMeta)
+        case .list:
+            let arityForms = Array(elements.dropFirst(idx))
+            let arities = try arityForms.map { clause -> FnArity in
+                guard case .list(let elems, _) = clause, !elems.isEmpty,
+                      case .vector(let paramExprs, _) = elems[0]
+                else { throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid arity clause") }
+                let params = extractParamNames(paramExprs)
+                let body = expandAliases(in: Array(elems.dropFirst()))
+                return FnArity(params: params, body: body)
+            }
+            macroValue = .multiArityMacro(name: name, arities: arities, metadata: macroMeta)
+        default:
+            throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
+        }
+        let v = currentNs().intern(name: name, value: macroValue)
         v.metadata = macroMeta
         return .symbol(name, metadata: nil)
     }
 
     // MARK: - Function call dispatch
 
+    private func selectArity(from arities: [FnArity], argCount: Int, name: String) throws -> FnArity {
+        for arity in arities where !arity.params.contains("&") {
+            if arity.params.count == argCount { return arity }
+        }
+        for arity in arities {
+            if let ampIdx = arity.params.firstIndex(of: "&"), argCount >= ampIdx {
+                return arity
+            }
+        }
+        throw EvaluatorError.noMatchingArity(name: name, got: argCount)
+    }
+
     private func callFunction(_ callee: Expr, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
         switch callee {
         case .macro(let name, let params, let body, _):
             return try callMacro(name: name, params: params, body: body, args: args, in: env)
+
+        case .multiArityMacro(let name, let arities, _):
+            let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "macro")
+            return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args, in: env)
 
         case .nativeFunction(let name, let arity, let body):
             let evaluated = try args.map { try eval($0, in: env) }
@@ -361,6 +406,11 @@ public class Evaluator {
         case .function(let name, let params, let body, _):
             let evaluated = try args.map { try eval($0, in: env) }
             return try callUserFunction(name: name, params: params, body: body, args: evaluated, in: env)
+
+        case .multiArityFunction(let name, let arities, _):
+            let evaluated = try args.map { try eval($0, in: env) }
+            let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
+            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: env)
 
         case .map(let dict, _):
             return try callMap(dict, args: args, in: env)
@@ -493,12 +543,19 @@ public class Evaluator {
         else {
             return nil
         }
-        guard let value = resolveVar(name: name, in: currentNs())?.value,
-              case .macro(_, let params, let body, _) = value
-        else {
+        guard let value = resolveVar(name: name, in: currentNs())?.value else {
             return nil
         }
-        return try expandMacro(name: name, params: params, body: body, args: Array(elements.dropFirst()))
+        let args = Array(elements.dropFirst())
+        switch value {
+        case .macro(_, let params, let body, _):
+            return try expandMacro(name: name, params: params, body: body, args: args)
+        case .multiArityMacro(_, let arities, _):
+            let chosen = try selectArity(from: arities, argCount: args.count, name: name)
+            return try expandMacro(name: name, params: chosen.params, body: chosen.body, args: args)
+        default:
+            return nil
+        }
     }
 
     private func expandMacro(name: String, params: [String], body: [Expr], args: [Expr]) throws -> Expr {
@@ -660,8 +717,24 @@ public class Evaluator {
 
     private func expandFnForm(_ elements: [Expr], outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
         var offset = 1
-        if elements.count > 2, case .symbol = elements[1], case .vector = elements[2] {
-            offset = 2
+        if elements.count > 2, case .symbol = elements[1] {
+            let next = elements[2]
+            if case .vector = next { offset = 2 }
+            else if case .list = next { offset = 2 }
+        }
+        if offset < elements.count, case .list = elements[offset] {
+            var result = Array(elements.prefix(offset))
+            for clause in elements.dropFirst(offset) {
+                guard case .list(let clauseElems, let clauseMeta) = clause,
+                      !clauseElems.isEmpty,
+                      case .vector(let paramExprs, _) = clauseElems[0]
+                else { result.append(clause); continue }
+                var clauseLocals = outerLocals
+                clauseLocals.formUnion(extractParamNames(paramExprs))
+                let expandedBody = Array(clauseElems.dropFirst()).map { expandAliasesInExpr($0, locals: clauseLocals) }
+                result.append(.list([clauseElems[0]] + expandedBody, metadata: clauseMeta))
+            }
+            return .list(result, metadata: listMeta)
         }
         var newLocals = outerLocals
         if offset < elements.count, case .vector(let paramExprs, _) = elements[offset] {

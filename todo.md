@@ -1,9 +1,12 @@
 # Todo
 
+- [x] mult-arity fn, defn, defmacro
+- [ ] recur special form
+- [ ] loop special form
+- [ ] Jank Clojure test suite
+- [ ] Swift interop
 - [ ] first and rest on map (needs to be ordered)
 - [ ] sequence abstraction?
-- [ ] loop special form
-- [ ] recur special form
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] set
@@ -11,9 +14,7 @@
 - [ ] clojure.set
 - [ ] find-ns
 - [ ] Add some builtin string functions
-- [ ] mult-arity defn, defmacro
 - [ ] and, or (needs multi-arity)
-- [ ] Jank Clojure test suite
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
 - [x] some?

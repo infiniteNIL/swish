@@ -11,6 +11,7 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case stackOverflow(maxDepth: Int)
     case interrupted
     case duplicateSetElement(String)
+    case noMatchingArity(name: String, got: Int)
 
     public var description: String {
         switch self {
@@ -52,6 +53,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .duplicateSetElement(let key):
             return "Duplicate key: \(key)."
+
+        case .noMatchingArity(let name, let got):
+            return "Wrong number of args (\(got)) passed to: \(name)"
 
         case .notAFunction(let expr):
             let rep: String

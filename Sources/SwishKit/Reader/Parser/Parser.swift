@@ -248,6 +248,12 @@ public class Parser {
         case .macro(let n, let p, let b, let m):
             return .macro(name: n, params: p, body: b, metadata: merge(m, new))
 
+        case .multiArityFunction(let n, let a, let m):
+            return .multiArityFunction(name: n, arities: a, metadata: merge(m, new))
+
+        case .multiArityMacro(let n, let a, let m):
+            return .multiArityMacro(name: n, arities: a, metadata: merge(m, new))
+
         default:
             throw ParserError.metadataOnUnsupportedForm(line: token.line, column: token.column)
         }
@@ -325,26 +331,68 @@ public class Parser {
 
     private func validateFn(_ elements: [Expr]) throws {
         var offset = 1
-        if elements.count > 1, case .symbol = elements[1] {
+        if elements.count > 2, case .symbol = elements[1] {
             offset = 2
         }
-        guard elements.count > offset, case .vector(let params, _) = elements[offset] else {
+        guard offset < elements.count else {
             throw ParserError.invalidFn("fn requires a parameter vector")
         }
-        try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
+        switch elements[offset] {
+        case .list:
+            try validateArityForms(Array(elements.dropFirst(offset)),
+                                   makeError: { ParserError.invalidFn("fn \($0)") })
+        case .vector(let params, _):
+            try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
+        default:
+            throw ParserError.invalidFn("fn requires a parameter vector")
+        }
     }
 
     private func validateDefmacro(_ elements: [Expr]) throws {
         guard elements.count >= 3, case .symbol = elements[1] else {
             throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
         }
-        var vectorIdx = 2
-        if vectorIdx < elements.count, case .string = elements[vectorIdx] { vectorIdx += 1 }
-        if vectorIdx < elements.count, case .map = elements[vectorIdx] { vectorIdx += 1 }
-        guard vectorIdx < elements.count, case .vector(let params, _) = elements[vectorIdx] else {
+        var idx = 2
+        if idx < elements.count, case .string = elements[idx] { idx += 1 }
+        if idx < elements.count, case .map = elements[idx] { idx += 1 }
+        guard idx < elements.count else {
+            throw ParserError.invalidDefmacro("defmacro requires a parameter vector or arity clauses")
+        }
+        switch elements[idx] {
+        case .vector(let params, _):
+            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
+        case .list:
+            try validateArityForms(Array(elements.dropFirst(idx)),
+                                   makeError: { ParserError.invalidDefmacro("defmacro \($0)") })
+        default:
             throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
         }
-        try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
+    }
+
+    private func validateArityForms(_ forms: [Expr], makeError: (String) -> ParserError) throws {
+        guard !forms.isEmpty else {
+            throw makeError("multi-arity form requires at least one arity clause")
+        }
+        var fixedArities: Set<Int> = []
+        var variadicCount = 0
+        for form in forms {
+            guard case .list(let clause, _) = form else {
+                throw makeError("arity clause must be a list")
+            }
+            guard !clause.isEmpty, case .vector(let params, _) = clause[0] else {
+                throw makeError("arity clause must begin with a parameter vector")
+            }
+            try validateParamVector(params, makeError: makeError)
+            let isVariadic = params.contains(.symbol("&", metadata: nil))
+            if isVariadic {
+                variadicCount += 1
+                if variadicCount > 1 { throw makeError("can only have 1 variadic overload") }
+            } else {
+                let count = params.count
+                if fixedArities.contains(count) { throw makeError("can't have 2 overloads with same arity") }
+                fixedArities.insert(count)
+            }
+        }
     }
 
     private func validateParamVector(_ params: [Expr], makeError: (String) -> ParserError) throws {
