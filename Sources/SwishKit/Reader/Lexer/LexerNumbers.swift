@@ -47,30 +47,27 @@ extension Lexer {
     }
 
     func scanHexInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
-        var text = prefix
-        text.append(advance()) // '0'
-        text.append(advance()) // 'x'
-        try scanDigitSequence(into: &text, isDigit: isHexDigit, requiresLeadingDigit: true, startLine: startLine, startColumn: startColumn)
-        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
-        let cleanText = text.filter { $0 != "_" }
-        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+        try scanPrefixedInteger(startLine: startLine, startColumn: startColumn, prefix: prefix, isDigit: isHexDigit)
     }
 
     func scanBinaryInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
-        var text = prefix
-        text.append(advance()) // '0'
-        text.append(advance()) // 'b'
-        try scanDigitSequence(into: &text, isDigit: isBinaryDigit, requiresLeadingDigit: true, startLine: startLine, startColumn: startColumn)
-        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
-        let cleanText = text.filter { $0 != "_" }
-        return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)
+        try scanPrefixedInteger(startLine: startLine, startColumn: startColumn, prefix: prefix, isDigit: isBinaryDigit)
     }
 
     func scanOctalInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
+        try scanPrefixedInteger(startLine: startLine, startColumn: startColumn, prefix: prefix, isDigit: isOctalDigit)
+    }
+
+    private func scanPrefixedInteger(
+        startLine: Int, startColumn: Int,
+        prefix: String,
+        isDigit: (Character) -> Bool
+    ) throws -> Token {
         var text = prefix
         text.append(advance()) // '0'
-        text.append(advance()) // 'o'
-        try scanDigitSequence(into: &text, isDigit: isOctalDigit, requiresLeadingDigit: true, startLine: startLine, startColumn: startColumn)
+        text.append(advance()) // base prefix char (x / b / o)
+        try scanDigitSequence(into: &text, isDigit: isDigit, requiresLeadingDigit: true,
+                              startLine: startLine, startColumn: startColumn)
         try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
         return Token(type: .integer, text: cleanText, line: startLine, column: startColumn)

@@ -518,6 +518,10 @@ public class Evaluator {
 
     // MARK: - Function call dispatch
 
+    private func evalArgs(_ args: ArraySlice<Expr>, in env: Environment) throws -> [Expr] {
+        try args.map { try eval($0, in: env) }
+    }
+
     private func selectArity(from arities: [FnArity], argCount: Int, name: String) throws -> FnArity {
         for arity in arities where !arity.params.contains("&") {
             if arity.params.count == argCount { return arity }
@@ -540,15 +544,13 @@ public class Evaluator {
             return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args, in: env)
 
         case .nativeFunction(let name, let arity, let body):
-            let evaluated = try args.map { try eval($0, in: env) }
-            return try callNativeFunction(name: name, arity: arity, body: body, args: evaluated)
+            return try callNativeFunction(name: name, arity: arity, body: body, args: evalArgs(args, in: env))
 
         case .function(let name, let params, let body, _):
-            let evaluated = try args.map { try eval($0, in: env) }
-            return try callUserFunction(name: name, params: params, body: body, args: evaluated, in: env)
+            return try callUserFunction(name: name, params: params, body: body, args: evalArgs(args, in: env), in: env)
 
         case .multiArityFunction(let name, let arities, _):
-            let evaluated = try args.map { try eval($0, in: env) }
+            let evaluated = try evalArgs(args, in: env)
             let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
             return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: env)
 
