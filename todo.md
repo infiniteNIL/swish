@@ -4,13 +4,13 @@
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] set
-- [ ] contains?
 - [ ] clojure.set
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] contains?
 - [x] seq, next, conj, vector, hash-map, hash-set, concat
 - [x] apply, map, filter, reduce
 - [x] into, empty?, not-empty, every?, some, mapcat, complement, identity

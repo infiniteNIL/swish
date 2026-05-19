@@ -17,7 +17,8 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "vector",   arity: .variadic,    body: coreVector)
     evaluator.register(name: "hash-map", arity: .variadic,    body: coreHashMap)
     evaluator.register(name: "hash-set", arity: .variadic,    body: coreHashSet)
-    evaluator.register(name: "concat",   arity: .variadic,    body: coreConcat)
+    evaluator.register(name: "concat",    arity: .variadic,    body: coreConcat)
+    evaluator.register(name: "contains?", arity: .fixed(2),    body: coreContains)
 }
 
 // MARK: - Implementations
@@ -202,4 +203,29 @@ private func coreConcat(_ args: [Expr]) throws -> Expr {
         result.append(contentsOf: try seqOf(arg, function: "concat"))
     }
     return result.isEmpty ? .nil : .list(result, metadata: nil)
+}
+
+private func coreContains(_ args: [Expr]) throws -> Expr {
+    let key = args[1]
+    switch args[0] {
+    case .nil:
+        return .boolean(false)
+
+    case .map(let dict, _):
+        return .boolean(dict[key] != nil)
+
+    case .set(let elements, _):
+        return .boolean(elements.contains(key))
+
+    case .vector(let elements, _):
+        guard case .integer(let idx) = key else {
+            throw EvaluatorError.invalidArgument(function: "contains?",
+                message: "key for vector must be an integer")
+        }
+        return .boolean(idx >= 0 && idx < elements.count)
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "contains?",
+            message: "\(corePrinter.printString(args[0])) is not supported")
+    }
 }

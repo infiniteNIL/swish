@@ -362,6 +362,57 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(some even? [1 2 3])") == .boolean(true))
     }
 
+    // MARK: - contains?
+
+    @Test("contains? true for existing map key")
+    func containsMapKeyExists() throws {
+        #expect(try evaluator.eval("(contains? {:a 1 :b 2} :a)") == .boolean(true))
+    }
+
+    @Test("contains? false for missing map key")
+    func containsMapKeyMissing() throws {
+        #expect(try evaluator.eval("(contains? {:a 1} :b)") == .boolean(false))
+    }
+
+    @Test("contains? true for map key whose value is nil")
+    func containsMapNilValue() throws {
+        #expect(try evaluator.eval("(contains? {:a nil} :a)") == .boolean(true))
+    }
+
+    @Test("contains? true for set member")
+    func containsSetMember() throws {
+        #expect(try evaluator.eval("(contains? #{1 2 3} 2)") == .boolean(true))
+    }
+
+    @Test("contains? false for non-member set")
+    func containsSetNonMember() throws {
+        #expect(try evaluator.eval("(contains? #{1 2 3} 5)") == .boolean(false))
+    }
+
+    @Test("contains? true for valid vector index")
+    func containsVectorIndex() throws {
+        #expect(try evaluator.eval("(contains? [10 20 30] 0)") == .boolean(true))
+        #expect(try evaluator.eval("(contains? [10 20 30] 2)") == .boolean(true))
+    }
+
+    @Test("contains? false for out-of-bounds vector index")
+    func containsVectorOutOfBounds() throws {
+        #expect(try evaluator.eval("(contains? [10 20 30] 3)") == .boolean(false))
+        #expect(try evaluator.eval("(contains? [10 20 30] -1)") == .boolean(false))
+    }
+
+    @Test("contains? false for nil collection")
+    func containsNil() throws {
+        #expect(try evaluator.eval("(contains? nil :a)") == .boolean(false))
+    }
+
+    @Test("contains? throws for lists")
+    func containsListThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "contains?", message: "(1 2 3) is not supported")) {
+            try evaluator.eval("(contains? '(1 2 3) 1)")
+        }
+    }
+
     // MARK: - identity / complement
 
     @Test("identity returns its argument")
