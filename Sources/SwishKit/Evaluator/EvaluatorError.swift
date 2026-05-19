@@ -12,6 +12,8 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
     case interrupted
     case duplicateSetElement(String)
     case noMatchingArity(name: String, got: Int)
+    case recurOutsideLoop
+    case recurNotInTailPosition
 
     public var description: String {
         switch self {
@@ -56,6 +58,12 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
         case .noMatchingArity(let name, let got):
             return "Wrong number of args (\(got)) passed to: \(name)"
+
+        case .recurOutsideLoop:
+            return "recur used outside of loop or fn"
+
+        case .recurNotInTailPosition:
+            return "Can only recur from tail position"
 
         case .notAFunction(let expr):
             let rep: String

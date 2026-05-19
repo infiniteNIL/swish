@@ -15,6 +15,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidLet(String)
     case invalidFn(String)
     case invalidDefmacro(String)
+    case invalidLoop(String)
 
     public var description: String {
         switch self {
@@ -64,6 +65,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
             message
 
         case .invalidDefmacro(let message):
+            message
+
+        case .invalidLoop(let message):
             message
         }
     }

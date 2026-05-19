@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] recur special form
-- [ ] loop special form
 - [ ] Jank Clojure test suite
 - [ ] Swift interop
 - [ ] first and rest on map (needs to be ordered)
@@ -15,6 +13,8 @@
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] recur special form
+- [x] loop special form
 - [x] and, or (needs multi-arity)
 - [x] mult-arity fn, defn, defmacro
 - [x] some?

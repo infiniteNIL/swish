@@ -1,3 +1,7 @@
+private struct RecurSignal: Error {
+    let args: [Expr]
+}
+
 /// Evaluator for Swish expressions
 public class Evaluator {
     var namespaces: [String: Namespace] = [:]
@@ -39,7 +43,11 @@ public class Evaluator {
 
     /// Evaluates a Swish expression
     public func eval(_ expr: Expr) throws -> Expr {
-        try eval(expr, in: Environment())
+        do {
+            return try eval(expr, in: Environment())
+        } catch is RecurSignal {
+            throw EvaluatorError.recurOutsideLoop
+        }
     }
 
     private func eval(_ expr: Expr, in env: Environment) throws -> Expr {
@@ -109,6 +117,12 @@ public class Evaluator {
 
         case .symbol("let", _):
             return try evalLet(elements, in: env)
+
+        case .symbol("loop", _):
+            return try evalLoop(elements, in: env)
+
+        case .symbol("recur", _):
+            return try evalRecur(elements, in: env)
 
         case .symbol("fn", _):
             return try evalFn(elements, in: env)
@@ -306,6 +320,129 @@ public class Evaluator {
         return try evalBody(Array(elements.dropFirst(2)), in: letEnv)
     }
 
+    private func evalLoop(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
+        else {
+            throw EvaluatorError.invalidArgument(function: "loop",
+                message: "first argument must be a vector of bindings")
+        }
+        let loopEnv = Environment(parent: env)
+        var names: [String] = []
+        for i in stride(from: 0, to: bindingVec.count, by: 2) {
+            guard case .symbol(let name, _) = bindingVec[i] else { continue }
+            names.append(name)
+            loopEnv.set(name, try eval(bindingVec[i + 1], in: loopEnv))
+        }
+        let body = Array(elements.dropFirst(2))
+        try validateRecurTailPosition(in: body)
+        while true {
+            if interruptionCheck?() == true { throw EvaluatorError.interrupted }
+            do {
+                return try evalBody(body, in: loopEnv)
+            } catch let signal as RecurSignal {
+                guard signal.args.count == names.count else {
+                    throw EvaluatorError.arityMismatch(
+                        name: "loop", expected: .fixed(names.count), got: signal.args.count)
+                }
+                for (name, value) in zip(names, signal.args) {
+                    loopEnv.set(name, value)
+                }
+            }
+        }
+    }
+
+    private func evalRecur(_ elements: [Expr], in env: Environment) throws -> Expr {
+        let args = try elements.dropFirst().map { try eval($0, in: env) }
+        throw RecurSignal(args: args)
+    }
+
+    // MARK: - Recur tail-position validation
+
+    /// Validates that every `recur` in `body` is in tail position.
+    /// Must be called before evalBody so errors surface at definition time.
+    private func validateRecurTailPosition(in body: [Expr]) throws {
+        try validateTailForms(body)
+    }
+
+    private func validateTailForms(_ forms: [Expr]) throws {
+        for form in forms.dropLast() {
+            if recurAppears(in: form) { throw EvaluatorError.recurNotInTailPosition }
+        }
+        if let last = forms.last { try validateTailExpr(last) }
+    }
+
+    private func validateTailExpr(_ expr: Expr) throws {
+        guard case .list(let elements, _) = expr, !elements.isEmpty else {
+            if recurAppears(in: expr) { throw EvaluatorError.recurNotInTailPosition }
+            return
+        }
+        switch elements[0] {
+        case .symbol("recur", _):
+            return  // ✓ recur is the tail call
+
+        case .symbol("if", _):
+            // test is not in tail position; both branches are
+            if elements.count > 1, recurAppears(in: elements[1]) {
+                throw EvaluatorError.recurNotInTailPosition
+            }
+            if elements.count > 2 { try validateTailExpr(elements[2]) }
+            if elements.count > 3 { try validateTailExpr(elements[3]) }
+
+        case .symbol("do", _):
+            try validateTailForms(Array(elements.dropFirst()))
+
+        case .symbol("let", _):
+            // Binding values are not in tail position
+            if elements.count > 1, case .vector(let bindings, _) = elements[1] {
+                for i in stride(from: 1, to: bindings.count, by: 2) {
+                    if recurAppears(in: bindings[i]) { throw EvaluatorError.recurNotInTailPosition }
+                }
+            }
+            try validateTailForms(Array(elements.dropFirst(2)))
+
+        case .symbol("fn", _), .symbol("loop", _):
+            return  // New recur target — stop descending
+
+        case .symbol(let name, _):
+            // If this is a known macro, we can't validate post-expansion — allow it
+            if let v = resolveVar(name: name, in: currentNs())?.value {
+                switch v {
+                case .macro, .multiArityMacro: return
+                default: break
+                }
+            }
+            // Known function or unresolved symbol — recur in any arg is non-tail
+            for element in elements where recurAppears(in: element) {
+                throw EvaluatorError.recurNotInTailPosition
+            }
+
+        default:
+            for element in elements where recurAppears(in: element) {
+                throw EvaluatorError.recurNotInTailPosition
+            }
+        }
+    }
+
+    /// Returns true if a `recur` form appears anywhere in `expr`,
+    /// not descending into nested `fn` or `loop` forms (they have their own target).
+    private func recurAppears(in expr: Expr) -> Bool {
+        switch expr {
+        case .list(let elements, _):
+            guard !elements.isEmpty else { return false }
+            if case .symbol("fn", _)    = elements[0] { return false }
+            if case .symbol("loop", _)  = elements[0] { return false }
+            if case .symbol("recur", _) = elements[0] { return true }
+            return elements.contains { recurAppears(in: $0) }
+        case .vector(let elements, _):
+            return elements.contains { recurAppears(in: $0) }
+        case .map(let dict, _):
+            return dict.keys.contains { recurAppears(in: $0) }
+                || dict.values.contains { recurAppears(in: $0) }
+        default:
+            return false
+        }
+    }
+
     private func evalFn(_ elements: [Expr], in env: Environment) throws -> Expr {
         var offset = 1
         var name: String? = nil
@@ -321,7 +458,9 @@ public class Evaluator {
                       case .vector(let paramExprs, _) = elems[0]
                 else { throw EvaluatorError.invalidArgument(function: "fn", message: "invalid arity clause") }
                 let params = extractParamNames(paramExprs)
-                let body = expandAliases(in: Array(elems.dropFirst()), locals: Set(params))
+                let rawBody = Array(elems.dropFirst())
+                try validateRecurTailPosition(in: rawBody)
+                let body = expandAliases(in: rawBody, locals: Set(params))
                 return FnArity(params: params, body: body)
             }
             return .multiArityFunction(name: name, arities: arities, metadata: nil)
@@ -330,7 +469,9 @@ public class Evaluator {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
         }
         let params = extractParamNames(paramExprs)
-        let body = expandAliases(in: Array(remaining.dropFirst()), locals: Set(params))
+        let rawBody = Array(remaining.dropFirst())
+        try validateRecurTailPosition(in: rawBody)
+        let body = expandAliases(in: rawBody, locals: Set(params))
         return .function(name: name, params: params, body: body, metadata: nil)
     }
 
@@ -525,14 +666,19 @@ public class Evaluator {
         guard callDepth < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
         }
-        if interruptionCheck?() == true {
-            throw EvaluatorError.interrupted
-        }
         callDepth += 1
         defer { callDepth -= 1 }
-        let fnEnv = Environment(parent: env)
-        try bindParams(params, to: args, in: fnEnv, name: name ?? "fn")
-        return try evalBody(body, in: fnEnv)
+        var currentArgs = args
+        while true {
+            if interruptionCheck?() == true { throw EvaluatorError.interrupted }
+            let fnEnv = Environment(parent: env)
+            try bindParams(params, to: currentArgs, in: fnEnv, name: name ?? "fn")
+            do {
+                return try evalBody(body, in: fnEnv)
+            } catch let signal as RecurSignal {
+                currentArgs = signal.args
+            }
+        }
     }
 
     /// Expands a macro call one step. Returns nil if the form is not a macro call.
