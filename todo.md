@@ -1,6 +1,5 @@
 # Todo
 
-- [x] mult-arity fn, defn, defmacro
 - [ ] recur special form
 - [ ] loop special form
 - [ ] Jank Clojure test suite
@@ -17,6 +16,7 @@
 - [ ] and, or (needs multi-arity)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] mult-arity fn, defn, defmacro
 - [x] some?
 - [x] list?
 - [x] nil?
