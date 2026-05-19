@@ -137,18 +137,12 @@ private func coreCons(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreSeq(_ args: [Expr]) throws -> Expr {
-    guard let elements = asSequence(args[0]) else {
-        throw EvaluatorError.invalidArgument(function: "seq",
-            message: "don't know how to create seq from \(corePrinter.printString(args[0]))")
-    }
+    let elements = try seqOf(args[0], function: "seq")
     return elements.isEmpty ? .nil : .list(elements, metadata: nil)
 }
 
 private func coreNext(_ args: [Expr]) throws -> Expr {
-    guard let elements = asSequence(args[0]) else {
-        throw EvaluatorError.invalidArgument(function: "next",
-            message: "cannot take next of \(corePrinter.printString(args[0]))")
-    }
+    let elements = try seqOf(args[0], function: "next")
     let rest = Array(elements.dropFirst())
     return rest.isEmpty ? .nil : .list(rest, metadata: nil)
 }
@@ -205,11 +199,7 @@ private func coreHashSet(_ args: [Expr]) throws -> Expr {
 private func coreConcat(_ args: [Expr]) throws -> Expr {
     var result: [Expr] = []
     for arg in args {
-        guard let elems = asSequence(arg) else {
-            throw EvaluatorError.invalidArgument(function: "concat",
-                message: "cannot concat \(corePrinter.printString(arg))")
-        }
-        result.append(contentsOf: elems)
+        result.append(contentsOf: try seqOf(arg, function: "concat"))
     }
     return result.isEmpty ? .nil : .list(result, metadata: nil)
 }

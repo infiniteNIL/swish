@@ -16,7 +16,7 @@ private func isTruthy(_ expr: Expr) -> Bool {
     }
 }
 
-private func seqOf(_ expr: Expr, function name: String) throws -> [Expr] {
+func seqOf(_ expr: Expr, function name: String) throws -> [Expr] {
     guard let elems = asSequence(expr) else {
         throw EvaluatorError.invalidArgument(function: name,
             message: "don't know how to create seq from \(corePrinter.printString(expr))")
