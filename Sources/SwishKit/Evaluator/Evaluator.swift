@@ -1,3 +1,7 @@
+private let destructuringSpecialKeys: Set<Expr> = [
+    .keyword("keys"), .keyword("strs"), .keyword("syms"), .keyword("as"), .keyword("or")
+]
+
 private struct RecurSignal: Error {
     let args: [Expr]
 }
@@ -875,10 +879,8 @@ public class Evaluator {
                 }
             }
             if let asExpr = dict[.keyword("as")], case .symbol(let n, _) = asExpr { names.insert(n) }
-            let specialKeys: Set<Expr> = [.keyword("keys"), .keyword("strs"), .keyword("syms"),
-                                          .keyword("as"), .keyword("or")]
-            for (key, val) in dict where !specialKeys.contains(key) {
-                names.formUnion(collectLocalNames(val))
+            for (key, _) in dict where !destructuringSpecialKeys.contains(key) {
+                names.formUnion(collectLocalNames(key))
             }
             return names
         default: return []
@@ -1000,9 +1002,7 @@ public class Evaluator {
             }
 
             // In a destructuring map {x :a}, x is the binding pattern (key) and :a is the lookup key (value)
-            let specialKeys: Set<Expr> = [.keyword("keys"), .keyword("strs"), .keyword("syms"),
-                                          .keyword("as"), .keyword("or")]
-            for (bindingPattern, lookupKey) in dict where !specialKeys.contains(bindingPattern) {
+            for (bindingPattern, lookupKey) in dict where !destructuringSpecialKeys.contains(bindingPattern) {
                 let getExpr = Expr.list([.symbol("get", metadata: nil), tmpSym, lookupKey], metadata: nil)
                 result += destructureBindings(bindingPattern, getExpr)
             }
