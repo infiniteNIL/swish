@@ -57,7 +57,7 @@ public struct Printer {
         case .set(let elements, let meta):
             metaPrefix(meta) + printSetString(elements, transform: printString)
 
-        case .function(let name, _, _, let meta):
+        case .function(let name, _, _, _, let meta):
             if let name {
                 metaPrefix(meta) + "#<fn \(name)>"
             }
@@ -73,7 +73,7 @@ public struct Printer {
                 metaPrefix(meta) + "#<macro>"
             }
 
-        case .multiArityFunction(let name, _, let meta):
+        case .multiArityFunction(let name, _, _, let meta):
             metaPrefix(meta) + (name.map { "#<fn \($0)>" } ?? "#<fn>")
 
         case .multiArityMacro(let name, _, let meta):

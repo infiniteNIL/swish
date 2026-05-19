@@ -466,7 +466,7 @@ public class Evaluator {
         let remaining = Array(elements.dropFirst(offset))
         if let first = remaining.first, case .list = first {
             let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true) }
-            return .multiArityFunction(name: name, arities: arities, metadata: nil)
+            return .multiArityFunction(name: name, arities: arities, capturedEnv: env, metadata: nil)
         }
         guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
             throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
@@ -475,7 +475,7 @@ public class Evaluator {
         let rawBody = Array(remaining.dropFirst())
         try validateRecurTailPosition(in: rawBody)
         let body = expandAliases(in: rawBody, locals: Set(params))
-        return .function(name: name, params: params, body: body, metadata: nil)
+        return .function(name: name, params: params, body: body, capturedEnv: env, metadata: nil)
     }
 
     private func evalDefmacro(_ elements: [Expr]) throws -> Expr {
@@ -546,13 +546,13 @@ public class Evaluator {
         case .nativeFunction(let name, let arity, let body):
             return try callNativeFunction(name: name, arity: arity, body: body, args: evalArgs(args, in: env))
 
-        case .function(let name, let params, let body, _):
-            return try callUserFunction(name: name, params: params, body: body, args: evalArgs(args, in: env), in: env)
+        case .function(let name, let params, let body, let capturedEnv, _):
+            return try callUserFunction(name: name, params: params, body: body, args: evalArgs(args, in: env), in: capturedEnv ?? env)
 
-        case .multiArityFunction(let name, let arities, _):
+        case .multiArityFunction(let name, let arities, let capturedEnv, _):
             let evaluated = try evalArgs(args, in: env)
             let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
-            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: env)
+            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: capturedEnv ?? env)
 
         case .map(let dict, _):
             return try callMap(dict, args: args, in: env)
@@ -638,9 +638,25 @@ public class Evaluator {
         return set.contains(evaluated[0]) ? evaluated[0] : .nil
     }
 
-    /// Calls an already-evaluated callee with already-evaluated args. Used by meta functions.
+    /// Calls an already-evaluated callee with already-evaluated args. Used by HOFs and meta functions.
+    /// Does NOT re-evaluate args — use callFunction for unevaluated args.
     func call(_ callee: Expr, args: [Expr]) throws -> Expr {
-        try callFunction(callee, args: args[...], in: Environment())
+        switch callee {
+        case .nativeFunction(let name, let arity, let body):
+            return try callNativeFunction(name: name, arity: arity, body: body, args: args)
+        case .function(let name, let params, let body, let capturedEnv, _):
+            return try callUserFunction(name: name, params: params, body: body, args: args, in: capturedEnv ?? Environment())
+        case .multiArityFunction(let name, let arities, let capturedEnv, _):
+            let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "fn")
+            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: args, in: capturedEnv ?? Environment())
+        case .macro(let name, let params, let body, _):
+            return try callMacro(name: name, params: params, body: body, args: args[...], in: Environment())
+        case .multiArityMacro(let name, let arities, _):
+            let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "macro")
+            return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args[...], in: Environment())
+        default:
+            throw EvaluatorError.notAFunction(callee)
+        }
     }
 
     private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {

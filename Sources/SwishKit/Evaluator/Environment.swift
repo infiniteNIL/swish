@@ -1,5 +1,5 @@
 /// Stores variable bindings for the evaluator
-public class Environment {
+public class Environment: @unchecked Sendable {
     private var bindings: [String: Expr] = [:]
     private let parent: Environment?
 

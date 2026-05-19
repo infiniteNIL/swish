@@ -9,6 +9,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerNamespace(into: evaluator)
     registerString(into: evaluator)
     registerSequence(into: evaluator)
+    registerHOF(into: evaluator)
     registerMap(into: evaluator)
     registerSet(into: evaluator)
     registerMeta(into: evaluator)

@@ -73,3 +73,97 @@
   {:added "1.0"}
   [test & body]
   (list 'if test nil (cons 'do body)))
+
+(defn inc
+  "Returns a number one greater than num."
+  {:added "1.0"}
+  [x] (+ x 1))
+
+(defn dec
+  "Returns a number one less than num."
+  {:added "1.0"}
+  [x] (- x 1))
+
+(defn zero?
+  "Returns true if num is zero, else false."
+  {:added "1.0"}
+  [x] (= x 0))
+
+(defn pos?
+  "Returns true if num is greater than zero, else false."
+  {:added "1.0"}
+  [x] (> x 0))
+
+(defn neg?
+  "Returns true if num is less than zero, else false."
+  {:added "1.0"}
+  [x] (< x 0))
+
+(defn even?
+  "Returns true if n is even, throws if n is not an integer."
+  {:added "1.0"}
+  [n] (= 0 (mod n 2)))
+
+(defn odd?
+  "Returns true if n is odd, throws if n is not an integer."
+  {:added "1.0"}
+  [n] (not (even? n)))
+
+(defn identity
+  "Returns its argument."
+  {:added "1.0"}
+  [x] x)
+
+(defn complement
+  "Takes a fn f and returns a fn that takes the same arguments as f,
+   has the same effects, if any, and returns the opposite truth value."
+  {:added "1.0"}
+  [f]
+  (fn [& args] (not (apply f args))))
+
+(defn into
+  "Returns a new coll consisting of to-coll with all items of from-coll conjoined."
+  {:added "1.0"}
+  [to from]
+  (reduce conj to from))
+
+(defn empty?
+  "Returns true if coll has no items - same as (not (seq coll))."
+  {:added "1.0"}
+  [coll]
+  (nil? (seq coll)))
+
+(defn not-empty
+  "If coll is empty, returns nil, else coll."
+  {:added "1.0"}
+  [coll]
+  (when (seq coll) coll))
+
+(defn every?
+  "Returns true if (pred x) is logical true for every x in coll, else false."
+  {:added "1.0"}
+  [pred coll]
+  (loop [s (seq coll)]
+    (if (nil? s)
+      true
+      (if (pred (first s))
+        (recur (next s))
+        false))))
+
+(defn some
+  "Returns the first logical true value of (pred x) for any x in coll,
+   else nil."
+  {:added "1.0"}
+  [pred coll]
+  (loop [s (seq coll)]
+    (if s
+      (let [v (pred (first s))]
+        (if v v (recur (next s))))
+      nil)))
+
+(defn mapcat
+  "Returns the result of applying concat to the result of applying map
+   to f and coll."
+  {:added "1.0"}
+  [f coll]
+  (apply concat (map f coll)))

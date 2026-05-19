@@ -78,9 +78,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
             case .vector:          rep = "a vector"
             case .list:            rep = "a list"
             case .set:             rep = "a set"
-            case .function(let name, _, _, _), .macro(let name, _, _, _):
+            case .function(let name, _, _, _, _), .macro(let name, _, _, _):
                 rep = name.map { "#<fn \($0)>" } ?? "#<fn>"
-            case .multiArityFunction(let name, _, _), .multiArityMacro(let name, _, _):
+            case .multiArityFunction(let name, _, _, _), .multiArityMacro(let name, _, _):
                 rep = name.map { "#<fn \($0)>" } ?? "#<fn>"
             case .nativeFunction(let name, _, _):
                 rep = "#<native-fn \(name)>"

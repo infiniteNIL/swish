@@ -1,9 +1,8 @@
 # Todo
 
-- [ ] Jank Clojure test suite
-- [ ] Swift interop
 - [ ] first and rest on map (needs to be ordered)
 - [ ] sequence abstraction?
+- [ ] Swift interop
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] set
@@ -12,7 +11,14 @@
 - [ ] find-ns
 - [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
+- [ ] Jank Clojure test suite
 
+- [x] seq, next, conj, vector, hash-map, hash-set, concat
+- [x] apply, map, filter, reduce
+- [x] into, empty?, not-empty, every?, some, mapcat, complement, identity
+- [x] inc, dec, zero?, pos?, neg?, even?, odd?
+- [x] mod, rem, quot, number?, integer?, float?, ratio?
+- [x] first/rest now work on maps (return [k v] vectors) and sets
 - [x] recur special form
 - [x] loop special form
 - [x] and, or (needs multi-arity)

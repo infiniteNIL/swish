@@ -242,14 +242,14 @@ public class Parser {
         case .set(let e, let m):
             return .set(e, metadata: merge(m, new))
 
-        case .function(let n, let p, let b, let m):
-            return .function(name: n, params: p, body: b, metadata: merge(m, new))
+        case .function(let n, let p, let b, let capturedEnv, let m):
+            return .function(name: n, params: p, body: b, capturedEnv: capturedEnv, metadata: merge(m, new))
 
         case .macro(let n, let p, let b, let m):
             return .macro(name: n, params: p, body: b, metadata: merge(m, new))
 
-        case .multiArityFunction(let n, let a, let m):
-            return .multiArityFunction(name: n, arities: a, metadata: merge(m, new))
+        case .multiArityFunction(let n, let a, let capturedEnv, let m):
+            return .multiArityFunction(name: n, arities: a, capturedEnv: capturedEnv, metadata: merge(m, new))
 
         case .multiArityMacro(let n, let a, let m):
             return .multiArityMacro(name: n, arities: a, metadata: merge(m, new))

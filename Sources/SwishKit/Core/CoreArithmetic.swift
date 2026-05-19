@@ -1,10 +1,17 @@
 // MARK: - Registration
 
 func registerArithmetic(into evaluator: Evaluator) {
-    evaluator.register(name: "+", arity: .variadic, body: coreAdd)
-    evaluator.register(name: "-", arity: .variadic, body: coreSubtract)
-    evaluator.register(name: "*", arity: .variadic, body: coreMultiply)
-    evaluator.register(name: "/", arity: .variadic, body: coreDivide)
+    evaluator.register(name: "+",    arity: .variadic,  body: coreAdd)
+    evaluator.register(name: "-",    arity: .variadic,  body: coreSubtract)
+    evaluator.register(name: "*",    arity: .variadic,  body: coreMultiply)
+    evaluator.register(name: "/",    arity: .variadic,  body: coreDivide)
+    evaluator.register(name: "mod",  arity: .fixed(2),  body: coreMod)
+    evaluator.register(name: "rem",  arity: .fixed(2),  body: coreRem)
+    evaluator.register(name: "quot", arity: .fixed(2),  body: coreQuot)
+    evaluator.register(name: "number?",  arity: .fixed(1), body: coreIsNumber)
+    evaluator.register(name: "integer?", arity: .fixed(1), body: coreIsInteger)
+    evaluator.register(name: "float?",   arity: .fixed(1), body: coreIsFloat)
+    evaluator.register(name: "ratio?",   arity: .fixed(1), body: coreIsRatio)
 }
 
 // MARK: - Implementations
@@ -216,4 +223,52 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
         }
         return ratioExpr(Ratio(x.numerator * y.denominator, x.denominator * y.numerator))
     }
+}
+
+private func coreIntPair(_ args: [Expr], function name: String) throws -> (Int, Int) {
+    guard case .integer(let a) = args[0], case .integer(let b) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: name, message: "arguments must be integers")
+    }
+    return (a, b)
+}
+
+private func coreMod(_ args: [Expr]) throws -> Expr {
+    let (a, b) = try coreIntPair(args, function: "mod")
+    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "mod", message: "division by zero") }
+    let r = a % b
+    return .integer(r == 0 ? 0 : (r < 0) != (b < 0) ? r + b : r)
+}
+
+private func coreRem(_ args: [Expr]) throws -> Expr {
+    let (a, b) = try coreIntPair(args, function: "rem")
+    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+    return .integer(a % b)
+}
+
+private func coreQuot(_ args: [Expr]) throws -> Expr {
+    let (a, b) = try coreIntPair(args, function: "quot")
+    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+    return .integer(a / b)
+}
+
+private func coreIsNumber(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer, .float, .ratio: return .boolean(true)
+    default: return .boolean(false)
+    }
+}
+
+private func coreIsInteger(_ args: [Expr]) throws -> Expr {
+    if case .integer = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsFloat(_ args: [Expr]) throws -> Expr {
+    if case .float = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsRatio(_ args: [Expr]) throws -> Expr {
+    if case .ratio = args[0] { return .boolean(true) }
+    return .boolean(false)
 }
