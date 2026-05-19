@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] first and rest on map (needs to be ordered)
-- [ ] sequence abstraction?
 - [ ] Swift interop
 - [ ] all-ns
 - [ ] (loaded-libs)
