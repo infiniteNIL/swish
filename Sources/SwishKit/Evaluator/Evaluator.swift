@@ -947,8 +947,13 @@ public class Evaluator {
                                                              message: "requires exactly 1 argument")
                     }
                     let spliced = try eval(sub[1], in: env)
-                    guard case .list(let splicedElements, _) = spliced
-                    else {
+                    let splicedElements: [Expr]
+                    switch spliced {
+                    case .list(let elems, _):
+                        splicedElements = elems
+                    case .nil:
+                        splicedElements = []
+                    default:
                         throw EvaluatorError.invalidArgument(
                             function: "unquote-splicing",
                             message: "value must be a list")
