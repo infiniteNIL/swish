@@ -266,6 +266,21 @@ struct EvaluatorSpecialFormsTests {
         #expect(result == .integer(3))
     }
 
+    // MARK: - quote special form
+
+    @Test("(quote x) returns symbol unevaluated")
+    func quoteReturnsSymbolUnevaluated() throws {
+        let result = try evaluator.eval(.list([.symbol("quote", metadata: nil), .symbol("x", metadata: nil)], metadata: nil))
+        #expect(result == .symbol("x", metadata: nil))
+    }
+
+    @Test("(quote) with no argument throws")
+    func quoteNoArgumentThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "quote", message: "requires exactly 1 argument")) {
+            try evaluator.eval(.list([.symbol("quote", metadata: nil)], metadata: nil))
+        }
+    }
+
     // MARK: - Native functions
 
     @Test("Native function self-evaluates")

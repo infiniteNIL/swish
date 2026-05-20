@@ -7,9 +7,11 @@ func registerMap(into evaluator: Evaluator) {
 
 private func coreMerge(_ args: [Expr]) throws -> Expr {
     var result: [Expr: Expr] = [:]
+    var hadMapArg = false
     for arg in args {
         switch arg {
         case .map(let d, _):
+            hadMapArg = true
             for (k, v) in d { result[k] = v }
 
         case .nil:
@@ -21,7 +23,7 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
                 message: "arguments must be maps or nil, got \(corePrinter.printString(arg))")
         }
     }
-    return result.isEmpty ? .nil : .map(result, metadata: nil)
+    return hadMapArg ? .map(result, metadata: nil) : .nil
 }
 
 private func coreIsMap(_ args: [Expr]) throws -> Expr {

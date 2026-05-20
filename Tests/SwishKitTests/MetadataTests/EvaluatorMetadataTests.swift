@@ -12,6 +12,17 @@ struct EvaluatorMetadataTests {
         #expect(try swish.eval("(meta [1 2 3])") == .nil)
     }
 
+    @Test("meta on set with metadata returns the metadata map")
+    func metaOnSetWithMetadata() throws {
+        let result = try swish.eval("(meta (with-meta #{1 2} {:x 1}))")
+        #expect(result == .map([.keyword("x"): .integer(1)], metadata: nil))
+    }
+
+    @Test("meta on set with no metadata returns nil")
+    func metaOnSetNoMetadata() throws {
+        #expect(try swish.eval("(meta #{1 2})") == .nil)
+    }
+
     @Test("with-meta attaches metadata, meta retrieves it")
     func withMetaRoundTrip() throws {
         let result = try swish.eval("(meta (with-meta [1 2] {:a 1}))")

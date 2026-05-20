@@ -111,6 +111,11 @@ public class Evaluator {
         else { return .list([], metadata: nil) }
         switch head {
         case .symbol("quote", _):
+            guard elements.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "quote",
+                                                     message: "requires exactly 1 argument")
+            }
             return elements[1]
 
         case .symbol("syntax-quote", _):
@@ -737,9 +742,6 @@ public class Evaluator {
         case .map(let dict, _):
             return dict[.keyword(name)] ?? notFound
 
-        case .nil:
-            return notFound
-
         default:
             return notFound
         }
@@ -915,12 +917,22 @@ public class Evaluator {
 
         case .list(let elements, let listMeta):
             if case .symbol("unquote", _) = elements.first {
+                guard elements.count == 2
+                else {
+                    throw EvaluatorError.invalidArgument(function: "unquote",
+                                                         message: "requires exactly 1 argument")
+                }
                 return try eval(elements[1], in: env)
             }
             var result: [Expr] = []
             for element in elements {
                 if case .list(let sub, _) = element,
                    case .symbol("unquote-splicing", _) = sub.first {
+                    guard sub.count == 2
+                    else {
+                        throw EvaluatorError.invalidArgument(function: "unquote-splicing",
+                                                             message: "requires exactly 1 argument")
+                    }
                     let spliced = try eval(sub[1], in: env)
                     guard case .list(let splicedElements, _) = spliced
                     else {

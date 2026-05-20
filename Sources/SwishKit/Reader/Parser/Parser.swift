@@ -510,63 +510,30 @@ public class Parser {
         return .set(set, metadata: nil)
     }
 
+    private func stripSign(_ text: String) -> (negative: Bool, rest: String) {
+        if text.hasPrefix("-") { return (true, String(text.dropFirst())) }
+        if text.hasPrefix("+") { return (false, String(text.dropFirst())) }
+        return (false, text)
+    }
+
     private func parseHexInteger(_ text: String) -> Int? {
-        var str = text
-        var negative = false
-
-        if str.hasPrefix("-") {
-            negative = true
-            str = String(str.dropFirst())
-        }
-        else if str.hasPrefix("+") {
-            str = String(str.dropFirst())
-        }
-
+        let (negative, str) = stripSign(text)
         guard str.hasPrefix("0x") else { return nil }
-
-        let hexPart = String(str.dropFirst(2))
-        guard let magnitude = Int(hexPart, radix: 16) else { return nil }
-
+        guard let magnitude = Int(str.dropFirst(2), radix: 16) else { return nil }
         return negative ? -magnitude : magnitude
     }
 
     private func parseBinaryInteger(_ text: String) -> Int? {
-        var str = text
-        var negative = false
-
-        if str.hasPrefix("-") {
-            negative = true
-            str = String(str.dropFirst())
-        }
-        else if str.hasPrefix("+") {
-            str = String(str.dropFirst())
-        }
-
+        let (negative, str) = stripSign(text)
         guard str.hasPrefix("0b") else { return nil }
-
-        let binaryPart = String(str.dropFirst(2))
-        guard let magnitude = Int(binaryPart, radix: 2) else { return nil }
-
+        guard let magnitude = Int(str.dropFirst(2), radix: 2) else { return nil }
         return negative ? -magnitude : magnitude
     }
 
     private func parseOctalInteger(_ text: String) -> Int? {
-        var str = text
-        var negative = false
-
-        if str.hasPrefix("-") {
-            negative = true
-            str = String(str.dropFirst())
-        }
-        else if str.hasPrefix("+") {
-            str = String(str.dropFirst())
-        }
-
+        let (negative, str) = stripSign(text)
         guard str.hasPrefix("0o") else { return nil }
-
-        let octalPart = String(str.dropFirst(2)) // drop "0o"
-        guard let magnitude = Int(octalPart, radix: 8) else { return nil }
-
+        guard let magnitude = Int(str.dropFirst(2), radix: 8) else { return nil }
         return negative ? -magnitude : magnitude
     }
 

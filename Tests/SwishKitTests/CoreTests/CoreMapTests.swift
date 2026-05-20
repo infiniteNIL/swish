@@ -298,4 +298,42 @@ struct CoreMapTests {
             try swish.eval("(:a {:a 1} :b :c)")
         }
     }
+
+    // MARK: - merge
+
+    @Test("(merge) returns nil")
+    func mergeNoArgs() throws {
+        #expect(try swish.eval("(merge)") == .nil)
+    }
+
+    @Test("(merge nil) returns nil")
+    func mergeNilReturnsNil() throws {
+        #expect(try swish.eval("(merge nil)") == .nil)
+    }
+
+    @Test("(merge nil nil) returns nil")
+    func mergeAllNilReturnsNil() throws {
+        #expect(try swish.eval("(merge nil nil)") == .nil)
+    }
+
+    @Test("(merge {} {}) returns empty map, not nil")
+    func mergeTwoEmptyMapsReturnsEmptyMap() throws {
+        #expect(try swish.eval("(merge {} {})") == .map([:], metadata: nil))
+    }
+
+    @Test("(merge nil {}) returns empty map")
+    func mergeNilAndEmptyMapReturnsEmptyMap() throws {
+        #expect(try swish.eval("(merge nil {})") == .map([:], metadata: nil))
+    }
+
+    @Test("(merge {:a 1} {:b 2}) merges both maps")
+    func mergeTwoMaps() throws {
+        let result = try swish.eval("(merge {:a 1} {:b 2})")
+        #expect(result == .map([.keyword("a"): .integer(1), .keyword("b"): .integer(2)], metadata: nil))
+    }
+
+    @Test("(merge {:a 1} {:a 2}) later value wins")
+    func mergeLaterValueWins() throws {
+        #expect(try swish.eval("(merge {:a 1} {:a 2})") == .map([.keyword("a"): .integer(2)], metadata: nil))
+    }
 }

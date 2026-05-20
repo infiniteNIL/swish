@@ -14,7 +14,7 @@ extension Evaluator {
         namespaces[name] = ns
         if name != "clojure.core", let core = findNs("clojure.core") {
             for (_, v) in core.mappings {
-                try! ns.refer(v)
+                try? ns.refer(v)
             }
         }
         return ns
