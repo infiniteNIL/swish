@@ -170,8 +170,13 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x + y)
 
     case .ratios(let x, let y):
-        return ratioExpr(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
-                               x.denominator * y.denominator))
+        let (n1, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
+        let (n2, o2) = y.numerator.multipliedReportingOverflow(by: x.denominator)
+        let (num, o3) = n1.addingReportingOverflow(n2)
+        let (den, o4) = x.denominator.multipliedReportingOverflow(by: y.denominator)
+        guard !o1 && !o2 && !o3 && !o4
+        else { throw EvaluatorError.invalidArgument(function: "+", message: "integer overflow in ratio arithmetic") }
+        return ratioExpr(Ratio(num, den))
     }
 }
 
@@ -186,8 +191,13 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x - y)
 
     case .ratios(let x, let y):
-        return ratioExpr(Ratio(x.numerator * y.denominator - y.numerator * x.denominator,
-                               x.denominator * y.denominator))
+        let (n1, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
+        let (n2, o2) = y.numerator.multipliedReportingOverflow(by: x.denominator)
+        let (num, o3) = n1.subtractingReportingOverflow(n2)
+        let (den, o4) = x.denominator.multipliedReportingOverflow(by: y.denominator)
+        guard !o1 && !o2 && !o3 && !o4
+        else { throw EvaluatorError.invalidArgument(function: "-", message: "integer overflow in ratio arithmetic") }
+        return ratioExpr(Ratio(num, den))
     }
 }
 
@@ -202,7 +212,11 @@ private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x * y)
 
     case .ratios(let x, let y):
-        return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
+        let (num, o1) = x.numerator.multipliedReportingOverflow(by: y.numerator)
+        let (den, o2) = x.denominator.multipliedReportingOverflow(by: y.denominator)
+        guard !o1 && !o2
+        else { throw EvaluatorError.invalidArgument(function: "*", message: "integer overflow in ratio arithmetic") }
+        return ratioExpr(Ratio(num, den))
     }
 }
 
@@ -221,7 +235,11 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
         if y.numerator == 0 {
             throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
         }
-        return ratioExpr(Ratio(x.numerator * y.denominator, x.denominator * y.numerator))
+        let (num, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
+        let (den, o2) = x.denominator.multipliedReportingOverflow(by: y.numerator)
+        guard !o1 && !o2
+        else { throw EvaluatorError.invalidArgument(function: "/", message: "integer overflow in ratio arithmetic") }
+        return ratioExpr(Ratio(num, den))
     }
 }
 

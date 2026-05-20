@@ -7,12 +7,16 @@ func registerIO(into evaluator: Evaluator) {
 
 // MARK: - Implementations
 
+private func printArgs(_ args: [Expr], terminator: String) {
+    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "), terminator: terminator)
+}
+
 private func corePrint(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "), terminator: "")
+    printArgs(args, terminator: "")
     return .nil
 }
 
 private func corePrintln(_ args: [Expr]) throws -> Expr {
-    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "))
+    printArgs(args, terminator: "\n")
     return .nil
 }

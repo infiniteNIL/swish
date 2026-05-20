@@ -144,28 +144,28 @@ extension Expr: Hashable {
             hasher.combine(11); hasher.combine(v)
 
         case .set(let v, _):
-            hasher.combine(17); hasher.combine(v)
+            hasher.combine(12); hasher.combine(v)
 
         case .function(let n, let p, let b, _, _):
-            hasher.combine(12); hasher.combine(n); hasher.combine(p); hasher.combine(b)
-
-        case .macro(let n, let p, let b, _):
             hasher.combine(13); hasher.combine(n); hasher.combine(p); hasher.combine(b)
 
+        case .macro(let n, let p, let b, _):
+            hasher.combine(14); hasher.combine(n); hasher.combine(p); hasher.combine(b)
+
         case .multiArityFunction(let n, let a, _, _):
-            hasher.combine(18); hasher.combine(n); hasher.combine(a)
+            hasher.combine(15); hasher.combine(n); hasher.combine(a)
 
         case .multiArityMacro(let n, let a, _):
-            hasher.combine(19); hasher.combine(n); hasher.combine(a)
+            hasher.combine(16); hasher.combine(n); hasher.combine(a)
 
         case .nativeFunction(let n, let a, _):
-            hasher.combine(14); hasher.combine(n); hasher.combine(a)
+            hasher.combine(17); hasher.combine(n); hasher.combine(a)
 
         case .varRef(let v):
-            hasher.combine(15); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(18); hasher.combine(ObjectIdentifier(v))
 
         case .namespace(let v):
-            hasher.combine(16); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(19); hasher.combine(ObjectIdentifier(v))
         }
     }
 }
