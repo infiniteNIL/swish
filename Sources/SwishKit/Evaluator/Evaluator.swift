@@ -192,14 +192,26 @@ public class Evaluator {
     }
 
     private func evalNs(_ elements: [Expr]) throws -> Expr {
-        guard elements.count >= 2, case .symbol(let name, _) = elements[1]
+        guard elements.count >= 2, case .symbol(let name, let symMeta) = elements[1]
         else {
             throw EvaluatorError.invalidArgument(function: "ns",
                 message: "requires at least one symbol argument")
         }
+        var idx = 2
+        var docString: String? = nil
+        var attrMap: [Expr: Expr]? = nil
+        if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
+        if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
+
+        var meta: [Expr: Expr] = symMeta ?? [:]
+        if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
+        if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+
         let ns = findOrCreateNs(name)
         setCurrentNs(ns)
-        for directive in elements.dropFirst(2) {
+        ns.metadata = meta.isEmpty ? nil : meta
+
+        for directive in elements.dropFirst(idx) {
             guard case .list(let parts, _) = directive,
                   !parts.isEmpty,
                   case .keyword(let kind) = parts[0]

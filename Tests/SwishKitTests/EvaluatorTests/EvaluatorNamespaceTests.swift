@@ -279,4 +279,78 @@ struct EvaluatorNamespaceTests {
         let result = try swish.eval("(ns-a/call-b)")
         #expect(result == .string("hello"))
     }
+
+    // MARK: - ns metadata
+
+    @Test("ns with doc string stores :doc in metadata")
+    func nsDocString() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns meta-doc-ns \"a doc string\")")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .map([.keyword("doc"): .string("a doc string")], metadata: nil))
+    }
+
+    @Test("ns with attr map stores metadata")
+    func nsAttrMap() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns meta-attr-ns {:author \"Rod\"})")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .map([.keyword("author"): .string("Rod")], metadata: nil))
+    }
+
+    @Test("ns with doc string and attr map merges both")
+    func nsDocAndAttrMap() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns meta-both-ns \"the doc\" {:author \"Rod\"})")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .map([
+            .keyword("doc"): .string("the doc"),
+            .keyword("author"): .string("Rod")
+        ], metadata: nil))
+    }
+
+    @Test("doc string wins over :doc key in attr map")
+    func nsDocStringWinsOverAttrDoc() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns meta-doc-win-ns \"real doc\" {:doc \"ignored\"})")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .map([.keyword("doc"): .string("real doc")], metadata: nil))
+    }
+
+    @Test("ns with no doc or attr has nil metadata")
+    func nsNoMetaIsNil() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns plain-meta-ns)")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .nil)
+    }
+
+    // MARK: - find-ns
+
+    @Test("find-ns returns nil for unknown namespace")
+    func findNsUnknownReturnsNil() throws {
+        let swish = Swish()
+        #expect(try swish.eval("(find-ns 'no.such.namespace.xyz)") == .nil)
+    }
+
+    @Test("find-ns returns the namespace for a known namespace")
+    func findNsKnownReturnsNamespace() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns find-ns-test)")
+        let result = try swish.eval("(find-ns 'find-ns-test)")
+        guard case .namespace(let ns) = result else {
+            Issue.record("Expected .namespace, got \(result)")
+            return
+        }
+        #expect(ns.name == "find-ns-test")
+    }
+
+    @Test("meta via find-ns returns namespace metadata")
+    func metaViaFindNs() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns find-ns-meta-test \"hello from find-ns\")")
+        _ = try swish.eval("(ns user)")
+        let result = try swish.eval("(meta (find-ns 'find-ns-meta-test))")
+        #expect(result == .map([.keyword("doc"): .string("hello from find-ns")], metadata: nil))
+    }
 }

@@ -2,6 +2,7 @@
 
 func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "create-ns", arity: .fixed(1))   { [evaluator] args in try coreCreateNs(evaluator, args) }
+    evaluator.register(name: "find-ns",   arity: .fixed(1))   { [evaluator] args in try coreFindNs(evaluator, args) }
     evaluator.register(name: "in-ns",     arity: .fixed(1))   { [evaluator] args in try coreInNs(evaluator, args) }
     evaluator.register(name: "require",   arity: .atLeastOne) { [evaluator] args in try coreRequire(evaluator, args) }
     evaluator.register(name: "alias",     arity: .fixed(2))   { [evaluator] args in try coreAlias(evaluator, args) }
@@ -9,6 +10,18 @@ func registerNamespace(into evaluator: Evaluator) {
 }
 
 // MARK: - Implementations
+
+private func coreFindNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .symbol(let name, _) = args[0]
+    else {
+        throw EvaluatorError.invalidArgument(
+            function: "find-ns",
+            message: "expected a symbol, got \(corePrinter.printString(args[0]))")
+    }
+    guard let ns = evaluator.findNs(name)
+    else { return .nil }
+    return .namespace(ns)
+}
 
 private func coreCreateNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .symbol(let name, _) = args[0] else {

@@ -28,6 +28,10 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
         guard let m = v.metadata else { return .nil }
         return .map(m, metadata: nil)
 
+    case .namespace(let ns):
+        guard let m = ns.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
     default:
         return .nil
     }

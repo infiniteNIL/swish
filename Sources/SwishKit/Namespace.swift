@@ -3,6 +3,7 @@ public final class Namespace: @unchecked Sendable {
     public let name: String
     public private(set) var mappings: [String: Var] = [:]
     public private(set) var aliases: [String: Namespace] = [:]
+    public var metadata: [Expr: Expr]? = nil
 
     public init(name: String) {
         self.name = name
