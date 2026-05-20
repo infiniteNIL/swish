@@ -1,7 +1,7 @@
 # Todo
 
-- [ ] try, catch, finally, throw
 - [ ] cond
+- [ ] ns doc string
 - [ ] threading macros ->, ->>
 - [ ] when-let
 - [ ] if-let
@@ -43,6 +43,7 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] try, catch, finally, throw
 - [x] map destrucuring
 - [x] sequential destructuring
 - [x] fn param destructuring
