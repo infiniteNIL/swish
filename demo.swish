@@ -1,4 +1,6 @@
 (ns demo
+  "Demo for Swish"
+  {:author "Rod Schmidt"}
   (:require [clojure.string :as str]
             [test]))
 

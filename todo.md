@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] ns doc string
 - [ ] threading macros ->, ->>
 - [ ] when-let
 - [ ] if-let
@@ -37,11 +36,11 @@
       - Error type — a public SwishError that Swift catch blocks can use
       - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
         a public API with better ergonomics
-- [ ] find-ns
-- [ ] Add some builtin string functions
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] find-ns
+- [x] ns doc string
 - [x] second
 - [x] cond
 - [x] try, catch, finally, throw
