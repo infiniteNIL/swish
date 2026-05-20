@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] threading macros ->, ->>
 - [ ] when-let
 - [ ] if-let
 - [ ] dissoc
@@ -39,6 +38,8 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] threading macros ->, ->>
+- [x] seq?
 - [x] find-ns
 - [x] ns doc string
 - [x] second
