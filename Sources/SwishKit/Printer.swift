@@ -214,6 +214,12 @@ public struct Printer {
             case "\0":
                 result.append("\\0")
 
+            case "\u{0008}":
+                result.append("\\u{0008}")
+
+            case "\u{000C}":
+                result.append("\\u{000C}")
+
             default:
                 result.append(char)
             }

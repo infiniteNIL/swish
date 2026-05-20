@@ -42,22 +42,12 @@ func asSequence(_ expr: Expr) -> [Expr]? {
 }
 
 private func coreFirst(_ args: [Expr]) throws -> Expr {
-    guard let elements = asSequence(args[0])
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "first",
-            message: "cannot take first of \(corePrinter.printString(args[0]))")
-    }
+    let elements = try seqOf(args[0], function: "first")
     return elements.first ?? .nil
 }
 
 private func coreRest(_ args: [Expr]) throws -> Expr {
-    guard let elements = asSequence(args[0])
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "rest",
-            message: "cannot take rest of \(corePrinter.printString(args[0]))")
-    }
+    let elements = try seqOf(args[0], function: "rest")
     return .list(Array(elements.dropFirst()), metadata: nil)
 }
 
@@ -233,7 +223,13 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreNth(_ args: [Expr]) throws -> Expr {
-    guard args.count >= 2, case .integer(let idx) = args[1] else {
+    guard args.count >= 2
+    else {
+        throw EvaluatorError.invalidArgument(function: "nth",
+                                             message: "requires at least 2 arguments")
+    }
+    guard case .integer(let idx) = args[1]
+    else {
         throw EvaluatorError.invalidArgument(function: "nth", message: "index must be an integer")
     }
     let notFound: Expr = args.count >= 3 ? args[2] : .nil
