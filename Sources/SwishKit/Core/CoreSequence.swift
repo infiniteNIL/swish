@@ -11,7 +11,7 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "vector?",  arity: .fixed(1),    body: coreIsVector)
     evaluator.register(name: "nil?",     arity: .fixed(1),    body: coreIsNil)
     evaluator.register(name: "list?",    arity: .fixed(1),    body: coreIsList)
-    evaluator.register(name: "seq?",     arity: .fixed(1),    body: coreIsSeq)
+    evaluator.register(name: "seq?",     arity: .fixed(1),    body: coreIsList)
     evaluator.register(name: "seq",      arity: .fixed(1),    body: coreSeq)
     evaluator.register(name: "next",     arity: .fixed(1),    body: coreNext)
     evaluator.register(name: "conj",     arity: .variadic,    body: coreConj)
@@ -68,11 +68,6 @@ private func coreIsNil(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreIsList(_ args: [Expr]) throws -> Expr {
-    if case .list = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsSeq(_ args: [Expr]) throws -> Expr {
     if case .list = args[0] { return .boolean(true) }
     return .boolean(false)
 }

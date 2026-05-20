@@ -112,6 +112,9 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
         else { return notFound }
         return .character(s[i])
 
+    case .set(let elements, _):
+        return elements.contains(args[1]) ? args[1] : notFound
+
     default:
         return notFound
     }
