@@ -79,6 +79,9 @@
 (println "(cond-test 1) is" (cond-test 1))
 (println "(cond-test 5) is" (cond-test 5))
 
+(println "Threaded inc:" (-> 5 inc))
+(println "Threaded inc again:" (->> 5 inc inc))
+
 (comment
   5
   (fact 6)
