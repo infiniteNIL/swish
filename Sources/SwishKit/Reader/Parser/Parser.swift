@@ -293,6 +293,7 @@ public class Parser {
             case "fn":       try validateFn(elements)
             case "defmacro": try validateDefmacro(elements)
             case "loop":     try validateLoop(elements)
+            case "throw":    try validateThrow(elements)
             default: break
             }
         }
@@ -316,6 +317,13 @@ public class Parser {
 
     private func validateLoop(_ elements: [Expr]) throws {
         try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0) })
+    }
+
+    private func validateThrow(_ elements: [Expr]) throws {
+        guard elements.count == 2
+        else {
+            throw ParserError.invalidThrow("throw requires exactly 1 argument")
+        }
     }
 
     private func validateBindingVector(_ elements: [Expr], makeError: (String) -> ParserError) throws {
