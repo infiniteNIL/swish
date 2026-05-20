@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] when-let
-- [ ] if-let
 - [ ] dissoc
 - [ ] assoc-in
 - [ ] get-in
@@ -38,6 +36,8 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] if-let
+- [x] when-let
 - [x] threading macros ->, ->>
 - [x] seq?
 - [x] find-ns
