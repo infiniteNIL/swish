@@ -74,6 +74,25 @@
   [test & body]
   (list 'if test nil (cons 'do body)))
 
+(defn second
+  "Same as (first (next x))"
+  {:added "1.0"}
+  [x] (first (next x)))
+
+(defmacro cond
+  "Takes a set of test/expr pairs. It evaluates each test one at a
+   time. If a test returns logical true, cond evaluates and returns
+   the value of the corresponding expr and doesn't evaluate any of the
+   other tests or exprs. (cond) returns nil."
+  {:added "1.0"}
+  [& clauses]
+  (when (seq clauses)
+    (list 'if (first clauses)
+          (if (next clauses)
+            (second clauses)
+            (throw "cond requires an even number of forms"))
+          (cons 'cond (next (next clauses))))))
+
 (defn inc
   "Returns a number one greater than num."
   {:added "1.0"}
