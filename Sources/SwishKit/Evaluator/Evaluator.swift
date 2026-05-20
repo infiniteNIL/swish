@@ -405,7 +405,6 @@ public class Evaluator {
         var body: [Expr] = []
         var catches: [CatchClause] = []
         var finallyExprs: [Expr] = []
-        var inCatchOrFinally = false
         var seenFinally = false
 
         for elem in elements.dropFirst() {
@@ -423,7 +422,6 @@ public class Evaluator {
                         throw EvaluatorError.invalidArgument(function: "catch",
                                                              message: "requires a type and binding name")
                     }
-                    inCatchOrFinally = true
                     catches.append(CatchClause(typeName: typeName,
                                                bindingName: bindingName,
                                                body: Array(inner.dropFirst(3))))
@@ -437,13 +435,12 @@ public class Evaluator {
                                                              message: "multiple finally clauses")
                     }
                     seenFinally = true
-                    inCatchOrFinally = true
                     finallyExprs = Array(inner.dropFirst())
                     continue
                 }
             }
 
-            guard !inCatchOrFinally
+            guard catches.isEmpty && !seenFinally
             else {
                 throw EvaluatorError.invalidArgument(function: "try",
                                                      message: "body forms must appear before catch/finally")
@@ -498,7 +495,7 @@ public class Evaluator {
         if let e = error as? SwishException {
             return e.value
         }
-        return .string((error as CustomStringConvertible).description)
+        return .string("\(error)")
     }
 
     private func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool) throws -> FnArity {
