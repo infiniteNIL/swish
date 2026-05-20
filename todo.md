@@ -14,7 +14,7 @@
 - [ ] merge-with
 - [ ] atoms (and deref(@), swap!, reset!)
 - [ ] Sequence Utils
-      nth, take, drop, take-while, drop-while, last, butlast,
+      take, take-while, drop-while, last, butlast,
       reverse, flatten, partition, partition-all, group-by,
       frequencies, sort, sort-by, distinct, interleave, interpose,
       zipmap, keep, keep-indexed, map-indexed, doall, doseq, for
