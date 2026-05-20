@@ -84,6 +84,10 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
         v.metadata = newMeta
         return .varRef(v)
 
+    case .namespace(let ns):
+        ns.metadata = newMeta
+        return .namespace(ns)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "with-meta",

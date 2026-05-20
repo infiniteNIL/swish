@@ -188,4 +188,34 @@ struct EvaluatorMetadataTests {
         let result = try swish.eval("*print-meta*")
         #expect(result == .boolean(false))
     }
+
+    // MARK: - namespace with-meta
+
+    @Test("with-meta on a namespace updates its metadata")
+    func withMetaOnNamespace() throws {
+        _ = try swish.eval("(with-meta (find-ns 'user) {:x 1})")
+        let result = try swish.eval("(meta (find-ns 'user))")
+        #expect(result == .map([.keyword("x"): .integer(1)], metadata: nil))
+        _ = try swish.eval("(with-meta (find-ns 'user) nil)")
+    }
+
+    @Test("with-meta nil clears namespace metadata")
+    func withMetaNilClearsNamespaceMeta() throws {
+        _ = try swish.eval("(with-meta (find-ns 'user) {:k 1})")
+        _ = try swish.eval("(with-meta (find-ns 'user) nil)")
+        let result = try swish.eval("(meta (find-ns 'user))")
+        #expect(result == .nil)
+    }
+
+    @Test("vary-meta on a namespace works")
+    func varyMetaOnNamespace() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns vmeta-test \"original\")")
+        _ = try swish.eval("(vary-meta *ns* assoc :extra \"value\")")
+        let result = try swish.eval("(meta *ns*)")
+        #expect(result == .map([
+            .keyword("doc"): .string("original"),
+            .keyword("extra"): .string("value")
+        ], metadata: nil))
+    }
 }
