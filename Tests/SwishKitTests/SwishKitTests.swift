@@ -140,7 +140,7 @@ struct SwishKitTests {
     @Test("unquote-splicing a non-list throws invalidArgument")
     func backtickUnquoteSplicingNonListThrows() throws {
         #expect(throws: EvaluatorError.invalidArgument(
-            function: "unquote-splicing", message: "value must be a list"
+            function: "unquote-splicing", message: "value must be a list or vector"
         )) {
             _ = try swish.eval("(def v 99) `(1 ~@v 3)")
         }

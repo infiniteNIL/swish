@@ -951,12 +951,14 @@ public class Evaluator {
                     switch spliced {
                     case .list(let elems, _):
                         splicedElements = elems
+                    case .vector(let elems, _):
+                        splicedElements = elems
                     case .nil:
                         splicedElements = []
                     default:
                         throw EvaluatorError.invalidArgument(
                             function: "unquote-splicing",
-                            message: "value must be a list")
+                            message: "value must be a list or vector")
                     }
                     result.append(contentsOf: splicedElements)
                 }

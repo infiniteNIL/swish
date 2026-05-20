@@ -123,7 +123,7 @@ struct EvaluatorSyntaxQuoteTests {
     func unquoteSplicingNonListThrows() throws {
         _ = try evaluator.eval(.list([.symbol("def", metadata: nil), .symbol("v", metadata: nil), .integer(99)], metadata: nil))
         #expect(throws: EvaluatorError.invalidArgument(
-            function: "unquote-splicing", message: "value must be a list"
+            function: "unquote-splicing", message: "value must be a list or vector"
         )) {
             try evaluator.eval(.list([
                 .symbol("syntax-quote", metadata: nil),
@@ -248,6 +248,20 @@ struct EvaluatorSyntaxQuoteTests {
         #expect(throws: EvaluatorError.undefinedSymbol("zs")) {
             try evaluator.eval(.list([fn], metadata: nil))
         }
+    }
+
+    @Test("unquote-splicing nil produces empty splice")
+    func unquoteSplicingNilProducesEmptySplice() throws {
+        _ = try evaluator.eval(Reader.readString("(def x nil)")[0])
+        let result = try evaluator.eval(Reader.readString("`(1 ~@x 3)")[0])
+        #expect(result == .list([.integer(1), .integer(3)], metadata: nil))
+    }
+
+    @Test("unquote-splicing a vector splices its elements")
+    func unquoteSplicingVectorSplicesElements() throws {
+        _ = try evaluator.eval(Reader.readString("(def v [2 3])")[0])
+        let result = try evaluator.eval(Reader.readString("`(1 ~@v 4)")[0])
+        #expect(result == .list([.integer(1), .integer(2), .integer(3), .integer(4)], metadata: nil))
     }
 
     @Test("fn body with plain syntax-quote does not check symbols inside it")
