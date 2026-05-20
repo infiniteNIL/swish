@@ -270,13 +270,13 @@ struct EvaluatorFnTests {
         #expect(result == .list([.integer(2), .integer(3)], metadata: nil))
     }
 
-    @Test("fn with & rest and no extra args binds empty list")
-    func fnVariadicRestBindsEmptyList() throws {
+    @Test("fn with & rest and no extra args binds nil (like Clojure)")
+    func fnVariadicRestBindsNilWhenEmpty() throws {
         // (def f (fn [x & rest] rest))
-        // (f 1) => ()
+        // (f 1) => nil  (matches Clojure — no rest args → nil, not '())
         let swish = Swish()
         let result = try swish.eval("(def f (fn [x & rest] rest)) (f 1)")
-        #expect(result == .list([], metadata: nil))
+        #expect(result == .nil)
     }
 
     @Test("fn with only & rest param collects all args")
@@ -288,13 +288,13 @@ struct EvaluatorFnTests {
         #expect(result == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
-    @Test("fn with only & rest param called with no args binds empty list")
+    @Test("fn with only & rest param called with no args binds nil (like Clojure)")
     func fnOnlyRestParamNoArgs() throws {
         // (def f (fn [& args] args))
-        // (f) => ()
+        // (f) => nil  (matches Clojure — no rest args → nil, not '())
         let swish = Swish()
         let result = try swish.eval("(def f (fn [& args] args)) (f)")
-        #expect(result == .list([], metadata: nil))
+        #expect(result == .nil)
     }
 
     @Test("fn with & rest too few fixed args throws arityMismatch")

@@ -93,6 +93,38 @@
             (throw "cond requires an even number of forms"))
           (cons 'cond (next (next clauses))))))
 
+(defmacro ->
+  "Threads the expr through the forms. Inserts x as the
+   second item in the first form, making a list of it if it is not a
+   list already. If there are more forms, inserts the first form as the
+   second item in second form, etc."
+  {:added "1.0"}
+  [x & forms]
+  (loop [x x, forms forms]
+    (if forms
+      (let [form     (first forms)
+            threaded (if (seq? form)
+                       `(~(first form) ~x ~@(next form))
+                       (list form x))]
+        (recur threaded (next forms)))
+      x)))
+
+(defmacro ->>
+  "Threads the expr through the forms. Inserts x as the
+   last item in the first form, making a list of it if it is not a
+   list already. If there are more forms, inserts the first form as the
+   last item in second form, etc."
+  {:added "1.1"}
+  [x & forms]
+  (loop [x x, forms forms]
+    (if forms
+      (let [form     (first forms)
+            threaded (if (seq? form)
+                       `(~(first form) ~@(next form) ~x)
+                       (list form x))]
+        (recur threaded (next forms)))
+      x)))
+
 (defn inc
   "Returns a number one greater than num."
   {:added "1.0"}

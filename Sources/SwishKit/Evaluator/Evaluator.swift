@@ -903,7 +903,8 @@ public class Evaluator {
             for (param, arg) in zip(fixedParams, args) {
                 env.set(param, arg)
             }
-            env.set(restParam, .list(Array(args.dropFirst(fixedParams.count)), metadata: nil))
+            let restArgs = Array(args.dropFirst(fixedParams.count))
+            env.set(restParam, restArgs.isEmpty ? .nil : .list(restArgs, metadata: nil))
         }
         else {
             guard args.count == params.count
