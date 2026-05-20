@@ -334,7 +334,7 @@ public class Evaluator {
         }
         let letEnv = Environment(parent: env)
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
-            let bindings = destructureBindings(bindingVec[i], bindingVec[i + 1])
+            let bindings = try destructureBindings(bindingVec[i], bindingVec[i + 1])
             for (name, expr) in bindings {
                 letEnv.set(name, try eval(expr, in: letEnv))
             }
@@ -1054,7 +1054,7 @@ public class Evaluator {
 
     /// Expands a single binding pair (pattern, valueExpr) into flat [(name, expr)] pairs
     /// evaluated sequentially. Uses `nth`/`drop`/`get` from the runtime.
-    private func destructureBindings(_ pattern: Expr, _ valueExpr: Expr) -> [(String, Expr)] {
+    private func destructureBindings(_ pattern: Expr, _ valueExpr: Expr) throws -> [(String, Expr)] {
         switch pattern {
         case .symbol("_", _):
             return []
@@ -1072,18 +1072,21 @@ public class Evaluator {
                 let elem = elements[i]
                 if case .symbol("&", _) = elem {
                     i += 1
-                    if i < elements.count {
-                        let dropExpr = Expr.list([.symbol("drop", metadata: nil),
-                                                  .integer(pos), tmpSym], metadata: nil)
-                        result += destructureBindings(elements[i], dropExpr)
+                    guard i < elements.count
+                    else {
+                        throw EvaluatorError.invalidArgument(function: "destructure",
+                                                             message: "& must be followed by exactly one binding form")
                     }
+                    let dropExpr = Expr.list([.symbol("drop", metadata: nil),
+                                              .integer(pos), tmpSym], metadata: nil)
+                    result += try destructureBindings(elements[i], dropExpr)
                     break
                 } else if case .symbol("_", _) = elem {
                     pos += 1; i += 1; continue
                 } else {
                     let nthExpr = Expr.list([.symbol("nth", metadata: nil),
                                              tmpSym, .integer(pos), .nil], metadata: nil)
-                    result += destructureBindings(elem, nthExpr)
+                    result += try destructureBindings(elem, nthExpr)
                     pos += 1; i += 1
                 }
             }
@@ -1136,7 +1139,7 @@ public class Evaluator {
             // In a destructuring map {x :a}, x is the binding pattern (key) and :a is the lookup key (value)
             for (bindingPattern, lookupKey) in dict where !destructuringSpecialKeys.contains(bindingPattern) {
                 let getExpr = Expr.list([.symbol("get", metadata: nil), tmpSym, lookupKey], metadata: nil)
-                result += destructureBindings(bindingPattern, getExpr)
+                result += try destructureBindings(bindingPattern, getExpr)
             }
 
             if let asExpr = dict[.keyword("as")], case .symbol(let asName, _) = asExpr {

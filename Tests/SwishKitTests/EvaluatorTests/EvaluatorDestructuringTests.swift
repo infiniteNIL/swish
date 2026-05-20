@@ -169,6 +169,15 @@ struct EvaluatorDestructuringTests {
     func seqReferenceEarlier() throws {
         #expect(try evaluator.eval("(let [[a b] [1 2] c (+ a b)] c)") == .integer(3))
     }
+
+    // MARK: - Malformed destructuring
+
+    @Test("& with no following binding form throws")
+    func ampWithNoBindingThrows() throws {
+        #expect(throws: EvaluatorError.self) {
+            try evaluator.eval("(let [[a &] [1 2 3]] a)")
+        }
+    }
 }
 
 // MARK: - Helper
