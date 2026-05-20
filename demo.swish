@@ -62,6 +62,21 @@
 (println "(:name rod) is" (:name rod))
 (println "The birthday is" (rod :dob :unknown))
 
+(defn cond-test [x]
+  (cond
+    (> x 5)
+    "x is > 5."
+
+    (< x 5)
+    "x is < 5."
+
+    :else
+    "x is 5."))
+
+(println "(cond-test 6) is" (cond-test 6))
+(println "(cond-test 1) is" (cond-test 1))
+(println "(cond-test 5) is" (cond-test 5))
+
 (comment
   5
   (fact 6)
