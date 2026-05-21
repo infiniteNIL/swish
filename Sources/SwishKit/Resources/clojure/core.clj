@@ -17,6 +17,12 @@
   {:added "1.0"}
   [& body])
 
+(defmacro lazy-seq
+  "Returns a lazy sequence. In Swish, evaluates body eagerly."
+  {:added "1.0"}
+  [& body]
+  (cons 'do body))
+
 (defmacro defn [name & args]
   (let [has-doc  (string? (first args))
         doc      (if has-doc (first args) nil)

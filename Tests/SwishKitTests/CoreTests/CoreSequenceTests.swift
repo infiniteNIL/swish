@@ -58,4 +58,53 @@ struct CoreSequenceTests {
             try swish.eval("(cons 1 2)")
         }
     }
+
+    // MARK: - take
+
+    @Test("(take 3 [1 2 3 4 5]) returns first 3 elements")
+    func takeFromVector() throws {
+        #expect(try swish.eval("(take 3 [1 2 3 4 5])") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("(take 0 [1 2 3]) returns nil")
+    func takeZeroReturnsNil() throws {
+        #expect(try swish.eval("(take 0 [1 2 3])") == .nil)
+    }
+
+    @Test("(take 10 [1 2]) returns all when n exceeds length")
+    func takeBeyondLength() throws {
+        #expect(try swish.eval("(take 10 [1 2])") == .list([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("(take 3 nil) returns nil")
+    func takeFromNil() throws {
+        #expect(try swish.eval("(take 3 nil)") == .nil)
+    }
+
+    @Test("(take 3 '(1 2 3 4)) works on lists")
+    func takeFromList() throws {
+        #expect(try swish.eval("(take 3 '(1 2 3 4))") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    // MARK: - take-while
+
+    @Test("(take-while even? [2 4 6 1 2]) takes while pred is true")
+    func takeWhileEven() throws {
+        #expect(try swish.eval("(take-while even? [2 4 6 1 2])") == .list([.integer(2), .integer(4), .integer(6)], metadata: nil))
+    }
+
+    @Test("(take-while odd? [2 4 6]) returns nil when pred fails immediately")
+    func takeWhileFailsImmediately() throws {
+        #expect(try swish.eval("(take-while odd? [2 4 6])") == .nil)
+    }
+
+    @Test("(take-while even? nil) returns nil")
+    func takeWhileOnNil() throws {
+        #expect(try swish.eval("(take-while even? nil)") == .nil)
+    }
+
+    @Test("(take-while pos? [-1 2 3]) returns nil when first fails")
+    func takeWhileFirstFails() throws {
+        #expect(try swish.eval("(take-while pos? [-1 2 3])") == .nil)
+    }
 }

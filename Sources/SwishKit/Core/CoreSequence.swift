@@ -21,7 +21,9 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "concat",    arity: .variadic,    body: coreConcat)
     evaluator.register(name: "contains?", arity: .fixed(2),    body: coreContains)
     evaluator.register(name: "nth",       arity: .atLeastOne,  body: coreNth)
-    evaluator.register(name: "drop",      arity: .fixed(2),    body: coreDrop)
+    evaluator.register(name: "drop",       arity: .fixed(2),    body: coreDrop)
+    evaluator.register(name: "take",       arity: .fixed(2),    body: coreTake)
+    evaluator.register(name: "take-while", arity: .fixed(2))    { [evaluator] args in try coreTakeWhile(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -255,5 +257,26 @@ private func coreDrop(_ args: [Expr]) throws -> Expr {
     let count = max(0, n)
     if count >= elements.count { return .nil }
     let result = Array(elements.dropFirst(count))
+    return result.isEmpty ? .nil : .list(result, metadata: nil)
+}
+
+private func coreTake(_ args: [Expr]) throws -> Expr {
+    guard case .integer(let n) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "take", message: "n must be an integer")
+    }
+    let elements = try seqOf(args[1], function: "take")
+    if n <= 0 || elements.isEmpty { return .nil }
+    let result = Array(elements.prefix(n))
+    return .list(result, metadata: nil)
+}
+
+private func coreTakeWhile(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let elements = try seqOf(args[1], function: "take-while")
+    var result: [Expr] = []
+    for elem in elements {
+        let keep = try evaluator.call(args[0], args: [elem])
+        if keep == .nil || keep == .boolean(false) { break }
+        result.append(elem)
+    }
     return result.isEmpty ? .nil : .list(result, metadata: nil)
 }

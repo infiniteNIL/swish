@@ -1,10 +1,12 @@
 # Todo
 
 - [ ] Sequence Utils
-      take, take-while, drop-while, last, butlast,
+      drop-while, last, butlast,
       reverse, flatten, partition, partition-all, group-by,
       frequencies, sort, sort-by, distinct, interleave, interpose,
       zipmap, keep, keep-indexed, map-indexed, doall, doseq, for
+- [ ] Implement lazy-seq properly (currently an eager no-op; needed for infinite sequences and true Clojure compatibility)
+- [ ] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [ ] clojure.string
       At minimum: join, split, trim, trim-left/right, upper-case, lower-case,
       starts-with?, ends-with?, includes?, replace, blank?
@@ -29,6 +31,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] take, take-while
 - [x] atoms (and deref(@), swap!, reset!. no synchronization)
 - [x] merge-with
 - [x] select-keys

@@ -90,6 +90,20 @@ We deferred these when adding sequence foundation. Now needed:
 `frequencies`, `sort`, `sort-by`, `distinct`, `interleave`, `interpose`,
 `zipmap`, `keep`, `keep-indexed`, `map-indexed`, `doall`, `doseq`, `for`
 
+### Lazy sequences
+Currently `lazy-seq` is an eager no-op macro, sufficient for finite collections.
+True lazy sequences are needed for: infinite sequences (`range`, `iterate`, `repeat`,
+`cycle`), memory-efficient processing of large collections, and full Clojure
+compatibility. Implementing this properly requires a new `LazySeq` reference type
+(similar to `SwishAtom`) that wraps a thunk and caches its realized value.
+
+### Transducers
+Clojure 1.7 added transducers: composable reducing-function transformers. The 1-arity
+forms of `map`, `filter`, `take`, `take-while`, `drop`, `drop-while`, etc. each
+return a transducer rather than a sequence. Useful with `transduce`, `sequence`, and
+`into`. Requires implementing the full protocol as a cohesive unit — adding 1-arity
+forms to individual functions without `transduce`/`sequence` would be useless.
+
 ### clojure.string
 At minimum: `join`, `split`, `trim`, `trim-left/right`, `upper-case`, `lower-case`,
 `starts-with?`, `ends-with?`, `includes?`, `replace`, `blank?`
