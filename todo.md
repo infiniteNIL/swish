@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] merge-with
 - [ ] atoms (and deref(@), swap!, reset!)
 - [ ] Sequence Utils
       take, take-while, drop-while, last, butlast,
@@ -30,6 +29,7 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] merge-with
 - [x] select-keys
 - [x] keys, vals
 - [x] update, update-in

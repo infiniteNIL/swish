@@ -551,6 +551,18 @@ struct CoreMapTests {
         }
     }
 
+    // MARK: - key / val
+
+    @Test("(key [:a 1]) returns the key")
+    func keyReturnsKey() throws {
+        #expect(try swish.eval("(key [:a 1])") == .keyword("a"))
+    }
+
+    @Test("(val [:a 1]) returns the value")
+    func valReturnsVal() throws {
+        #expect(try swish.eval("(val [:a 1])") == .integer(1))
+    }
+
     // MARK: - select-keys
 
     @Test("(select-keys {:a 1 :b 2 :c 3} [:a :c]) returns subset map")
@@ -571,5 +583,37 @@ struct CoreMapTests {
     @Test("(select-keys nil [:a]) returns empty map for nil map")
     func selectKeysNilMap() throws {
         #expect(try swish.eval("(select-keys nil [:a])") == .map([:], metadata: nil))
+    }
+
+    // MARK: - merge-with
+
+    @Test("(merge-with + {:a 1} {:a 2}) merges with combining fn")
+    func mergeWithCombines() throws {
+        #expect(try swish.eval("(merge-with + {:a 1} {:a 2})") == .map([.keyword("a"): .integer(3)], metadata: nil))
+    }
+
+    @Test("(merge-with + {:a 1 :b 2} {:a 3}) combines only overlapping keys")
+    func mergeWithPartialOverlap() throws {
+        #expect(try swish.eval("(merge-with + {:a 1 :b 2} {:a 3})") == .map([.keyword("a"): .integer(4), .keyword("b"): .integer(2)], metadata: nil))
+    }
+
+    @Test("(merge-with + {:a 1} {:b 2}) passes through non-overlapping keys")
+    func mergeWithNoOverlap() throws {
+        #expect(try swish.eval("(merge-with + {:a 1} {:b 2})") == .map([.keyword("a"): .integer(1), .keyword("b"): .integer(2)], metadata: nil))
+    }
+
+    @Test("(merge-with + {:a 1} nil) treats nil map as absent")
+    func mergeWithNilSecond() throws {
+        #expect(try swish.eval("(merge-with + {:a 1} nil)") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("(merge-with + nil {:a 1}) treats nil first map as empty")
+    func mergeWithNilFirst() throws {
+        #expect(try swish.eval("(merge-with + nil {:a 1})") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("(merge-with + nil nil) returns nil")
+    func mergeWithAllNil() throws {
+        #expect(try swish.eval("(merge-with + nil nil)") == .nil)
     }
 }
