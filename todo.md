@@ -31,7 +31,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
-- [x] doc
+- [x] doc (with doc strings for builtins)
 - [x] take, take-while
 - [x] atoms (and deref(@), swap!, reset!. no synchronization)
 - [x] merge-with
