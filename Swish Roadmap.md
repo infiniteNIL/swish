@@ -71,6 +71,14 @@ The simplest concurrency primitive and the one real Clojure apps use most.
 ```
 Needs `atom`, `deref` (`@`), `swap!`, `reset!`.
 
+**Note — CAS semantics (future):** The current `swap!` implementation uses simple
+assignment, which is correct for single-threaded use. True Clojure-style `swap!`
+uses Compare-and-Set with retry: read current value, compute new value, atomically
+swap only if the value hasn't changed (retry if it has). This matters for concurrent
+mutation from multiple threads. Implementing it properly requires making the
+Evaluator itself concurrency-safe first — locking atoms in isolation provides false
+safety. Address when multi-threaded Swish evaluation becomes a concrete requirement.
+
 ---
 
 ## Tier 2 — Standard library (needed for practical code)
