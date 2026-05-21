@@ -45,17 +45,8 @@ public struct Printer {
         case .keyword(let name):
             ":\(name)"
 
-        case .list(let elements, let meta):
-            metaPrefix(meta) + "(" + elements.map { printString($0) }.joined(separator: " ") + ")"
-
-        case .vector(let elements, let meta):
-            metaPrefix(meta) + "[" + elements.map { printString($0) }.joined(separator: " ") + "]"
-
-        case .map(let dict, let meta):
-            metaPrefix(meta) + printMapString(dict, transform: printString)
-
-        case .set(let elements, let meta):
-            metaPrefix(meta) + printSetString(elements, transform: printString)
+        case .list, .vector, .map, .set:
+            formatCollection(expr, transform: printString, includeMeta: true) ?? ""
 
         case .function(let name, _, _, _, let meta):
             if let name {
@@ -104,17 +95,8 @@ public struct Printer {
         case .character(let char):
             String(char)
 
-        case .list(let elements, let meta):
-            metaPrefix(meta) + "(" + elements.map { strString($0) }.joined(separator: " ") + ")"
-
-        case .vector(let elements, let meta):
-            metaPrefix(meta) + "[" + elements.map { strString($0) }.joined(separator: " ") + "]"
-
-        case .map(let dict, let meta):
-            metaPrefix(meta) + printMapString(dict, transform: strString)
-
-        case .set(let elements, let meta):
-            metaPrefix(meta) + printSetString(elements, transform: strString)
+        case .list, .vector, .map, .set:
+            formatCollection(expr, transform: strString, includeMeta: true) ?? ""
 
         default:
             printString(expr)
@@ -128,20 +110,30 @@ public struct Printer {
         case .float(let value):
             String(value)
 
-        case .list(let elements, _):
-            "(" + elements.map { sourceForm($0) }.joined(separator: " ") + ")"
-
-        case .vector(let elements, _):
-            "[" + elements.map { sourceForm($0) }.joined(separator: " ") + "]"
-
-        case .map(let dict, _):
-            printMapString(dict, transform: sourceForm)
-
-        case .set(let elements, _):
-            printSetString(elements, transform: sourceForm)
+        case .list, .vector, .map, .set:
+            formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
 
         default:
             printString(expr)
+        }
+    }
+
+    private func formatCollection(_ expr: Expr, transform: (Expr) -> String, includeMeta: Bool) -> String? {
+        switch expr {
+        case .list(let elements, let meta):
+            return (includeMeta ? metaPrefix(meta) : "") + "(" + elements.map(transform).joined(separator: " ") + ")"
+
+        case .vector(let elements, let meta):
+            return (includeMeta ? metaPrefix(meta) : "") + "[" + elements.map(transform).joined(separator: " ") + "]"
+
+        case .map(let dict, let meta):
+            return (includeMeta ? metaPrefix(meta) : "") + printMapString(dict, transform: transform)
+
+        case .set(let elements, let meta):
+            return (includeMeta ? metaPrefix(meta) : "") + printSetString(elements, transform: transform)
+
+        default:
+            return nil
         }
     }
 
