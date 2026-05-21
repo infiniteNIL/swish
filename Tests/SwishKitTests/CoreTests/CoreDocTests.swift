@@ -41,4 +41,32 @@ struct CoreDocTests {
     func docMapDoesNotThrow() throws {
         #expect(throws: Never.self) { try swish.eval("(doc map)") }
     }
+
+    // MARK: - namespace doc
+
+    @Test("(doc clojure.core) does not throw")
+    func docClojureCoreDoesNotThrow() throws {
+        #expect(throws: Never.self) { try swish.eval("(doc clojure.core)") }
+    }
+
+    @Test("(doc clojure.core) returns nil")
+    func docClojureCoreReturnsNil() throws {
+        #expect(try swish.eval("(doc clojure.core)") == .nil)
+    }
+
+    @Test("(doc user-ns) works for namespace with docstring")
+    func docNamespaceWithDocstring() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(ns my-lib \"A documented library\")")
+        _ = try swish2.eval("(ns user)")
+        #expect(throws: Never.self) { try swish2.eval("(doc my-lib)") }
+    }
+
+    @Test("(doc user-ns) works for namespace without docstring")
+    func docNamespaceWithoutDocstring() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(ns bare-ns)")
+        _ = try swish2.eval("(ns user)")
+        #expect(throws: Never.self) { try swish2.eval("(doc bare-ns)") }
+    }
 }

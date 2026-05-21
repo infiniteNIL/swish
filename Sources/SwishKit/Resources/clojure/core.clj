@@ -1,4 +1,5 @@
-(ns clojure.core)
+(ns clojure.core
+  "Fundamental library of the Clojure language")
 
 (defmacro and
   "Evaluates exprs one at a time, from left to right. If a form

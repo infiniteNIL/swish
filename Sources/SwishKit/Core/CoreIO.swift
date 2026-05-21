@@ -37,10 +37,20 @@ private func corePrintDoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
             function: "print-doc",
             message: "argument must be a symbol")
     }
+    if let ns = evaluator.findNs(name) {
+        Swift.print(String(repeating: "-", count: 25))
+        Swift.print(ns.name)
+        if let meta = ns.metadata, case .string(let doc) = meta[.keyword("doc")] {
+            for line in doc.components(separatedBy: "\n") {
+                Swift.print("  \(line)")
+            }
+        }
+        return .nil
+    }
     let v = (try? evaluator.resolveQualifiedVar(name: name)) ?? nil
               ?? evaluator.resolveVar(name: name, in: evaluator.currentNs())
     guard let v else {
-        Swift.print("No var \(name) found")
+        Swift.print("No doc found for \(name)")
         return .nil
     }
     Swift.print(String(repeating: "-", count: 25))
