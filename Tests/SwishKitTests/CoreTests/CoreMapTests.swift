@@ -521,4 +521,55 @@ struct CoreMapTests {
             try swish.eval("(vals 42)")
         }
     }
+
+    // MARK: - find
+
+    @Test("(find {:a 1} :a) returns entry vector")
+    func findExistingKey() throws {
+        #expect(try swish.eval("(find {:a 1} :a)") == .vector([.keyword("a"), .integer(1)], metadata: nil))
+    }
+
+    @Test("(find {:a 1} :b) returns nil for missing key")
+    func findMissingKey() throws {
+        #expect(try swish.eval("(find {:a 1} :b)") == .nil)
+    }
+
+    @Test("(find {} :a) returns nil for empty map")
+    func findEmptyMap() throws {
+        #expect(try swish.eval("(find {} :a)") == .nil)
+    }
+
+    @Test("(find nil :a) returns nil")
+    func findNilMap() throws {
+        #expect(try swish.eval("(find nil :a)") == .nil)
+    }
+
+    @Test("(find 42 :a) throws on non-map")
+    func findNonMapThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "find", message: "first argument must be a map or nil, got 42")) {
+            try swish.eval("(find 42 :a)")
+        }
+    }
+
+    // MARK: - select-keys
+
+    @Test("(select-keys {:a 1 :b 2 :c 3} [:a :c]) returns subset map")
+    func selectKeysSubset() throws {
+        #expect(try swish.eval("(select-keys {:a 1 :b 2 :c 3} [:a :c])") == .map([.keyword("a"): .integer(1), .keyword("c"): .integer(3)], metadata: nil))
+    }
+
+    @Test("(select-keys {:a 1} [:b]) returns empty map for no matches")
+    func selectKeysNoMatch() throws {
+        #expect(try swish.eval("(select-keys {:a 1} [:b])") == .map([:], metadata: nil))
+    }
+
+    @Test("(select-keys {:a 1} []) returns empty map for empty keys")
+    func selectKeysEmptyKeys() throws {
+        #expect(try swish.eval("(select-keys {:a 1} [])") == .map([:], metadata: nil))
+    }
+
+    @Test("(select-keys nil [:a]) returns empty map for nil map")
+    func selectKeysNilMap() throws {
+        #expect(try swish.eval("(select-keys nil [:a])") == .map([:], metadata: nil))
+    }
 }

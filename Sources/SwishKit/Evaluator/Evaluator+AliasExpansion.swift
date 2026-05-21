@@ -26,6 +26,7 @@ extension Evaluator {
             if case .symbol("syntax-quote", _) = head { return expr }
             if case .symbol("fn", _) = head { return expandFnForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("let", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
+            if case .symbol("loop", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
             return .list(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: listMeta)
 
         case .vector(let elements, let vecMeta):

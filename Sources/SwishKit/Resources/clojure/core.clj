@@ -258,6 +258,21 @@
                   (assoc m k (apply f (get m k) args)))))]
      (up m ks f args))))
 
+(defn select-keys
+  "Returns a map containing only those entries in map whose key is in keys"
+  {:added "1.0"
+   :static true}
+  [map keyseq]
+  (loop [ret {} keys (seq keyseq)]
+    (if keys
+      (let [entry (find map (first keys))]
+        (recur
+          (if entry
+            (conj ret entry)
+            ret)
+          (next keys)))
+      (with-meta ret (meta map)))))
+
 (defn empty?
   "Returns true if coll has no items - same as (not (seq coll))."
   {:added "1.0"}

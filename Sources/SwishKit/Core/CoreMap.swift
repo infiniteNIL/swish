@@ -1,12 +1,29 @@
 func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "get",    arity: .variadic, body: coreGet)
     evaluator.register(name: "get-in", arity: .variadic, body: coreGetIn)
+    evaluator.register(name: "find",   arity: .fixed(2), body: coreFind)
     evaluator.register(name: "assoc",  arity: .variadic, body: coreAssoc)
     evaluator.register(name: "dissoc", arity: .variadic, body: coreDissoc)
     evaluator.register(name: "merge",  arity: .variadic, body: coreMerge)
     evaluator.register(name: "keys",   arity: .fixed(1), body: coreKeys)
     evaluator.register(name: "vals",   arity: .fixed(1), body: coreVals)
     evaluator.register(name: "map?",   arity: .fixed(1), body: coreIsMap)
+}
+
+private func coreFind(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .nil:
+        return .nil
+
+    case .map(let dict, _):
+        guard let value = dict[args[1]] else { return .nil }
+        return .vector([args[1], value], metadata: nil)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "find",
+            message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+    }
 }
 
 private func coreGetIn(_ args: [Expr]) throws -> Expr {
