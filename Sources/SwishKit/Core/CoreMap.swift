@@ -1,8 +1,32 @@
 func registerMap(into evaluator: Evaluator) {
-    evaluator.register(name: "get",   arity: .variadic, body: coreGet)
-    evaluator.register(name: "assoc", arity: .variadic, body: coreAssoc)
-    evaluator.register(name: "merge", arity: .variadic, body: coreMerge)
-    evaluator.register(name: "map?",  arity: .fixed(1), body: coreIsMap)
+    evaluator.register(name: "get",    arity: .variadic, body: coreGet)
+    evaluator.register(name: "assoc",  arity: .variadic, body: coreAssoc)
+    evaluator.register(name: "dissoc", arity: .variadic, body: coreDissoc)
+    evaluator.register(name: "merge",  arity: .variadic, body: coreMerge)
+    evaluator.register(name: "map?",   arity: .fixed(1), body: coreIsMap)
+}
+
+private func coreDissoc(_ args: [Expr]) throws -> Expr {
+    guard !args.isEmpty else {
+        throw EvaluatorError.invalidArgument(
+            function: "dissoc",
+            message: "requires at least 1 argument")
+    }
+    switch args[0] {
+    case .nil:
+        return .nil
+
+    case .map(var dict, _):
+        for key in args.dropFirst() {
+            dict.removeValue(forKey: key)
+        }
+        return .map(dict, metadata: nil)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "dissoc",
+            message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+    }
 }
 
 private func coreMerge(_ args: [Expr]) throws -> Expr {

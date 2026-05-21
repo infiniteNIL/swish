@@ -336,4 +336,43 @@ struct CoreMapTests {
     func mergeLaterValueWins() throws {
         #expect(try swish.eval("(merge {:a 1} {:a 2})") == .map([.keyword("a"): .integer(2)], metadata: nil))
     }
+
+    // MARK: - dissoc
+
+    @Test("(dissoc {:a 1 :b 2} :a) removes one key")
+    func dissocOneKey() throws {
+        #expect(try swish.eval("(dissoc {:a 1 :b 2} :a)") == .map([.keyword("b"): .integer(2)], metadata: nil))
+    }
+
+    @Test("(dissoc {:a 1 :b 2} :a :b) removes multiple keys")
+    func dissocMultipleKeys() throws {
+        #expect(try swish.eval("(dissoc {:a 1 :b 2} :a :b)") == .map([:], metadata: nil))
+    }
+
+    @Test("(dissoc {:a 1} :missing) returns map unchanged for absent key")
+    func dissocMissingKey() throws {
+        #expect(try swish.eval("(dissoc {:a 1} :missing)") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("(dissoc {:a 1}) returns map unchanged when no keys given")
+    func dissocNoKeys() throws {
+        #expect(try swish.eval("(dissoc {:a 1})") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("(dissoc nil :a) returns nil")
+    func dissocNilReturnsNil() throws {
+        #expect(try swish.eval("(dissoc nil :a)") == .nil)
+    }
+
+    @Test("(dissoc nil) returns nil")
+    func dissocNilNoKeysReturnsNil() throws {
+        #expect(try swish.eval("(dissoc nil)") == .nil)
+    }
+
+    @Test("(dissoc 42 :a) throws on non-map first arg")
+    func dissocNonMapThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "dissoc", message: "first argument must be a map or nil, got 42")) {
+            try swish.eval("(dissoc 42 :a)")
+        }
+    }
 }
