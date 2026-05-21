@@ -473,4 +473,52 @@ struct CoreMapTests {
     func updateInExtraArg() throws {
         #expect(try swish.eval("(update-in {:a {:b 1}} [:a :b] + 10)") == .map([.keyword("a"): .map([.keyword("b"): .integer(11)], metadata: nil)], metadata: nil))
     }
+
+    // MARK: - keys
+
+    @Test("(keys {:a 1}) returns list of keys")
+    func keysReturnsKeys() throws {
+        #expect(try swish.eval("(keys {:a 1})") == .list([.keyword("a")], metadata: nil))
+    }
+
+    @Test("(keys {}) returns nil for empty map")
+    func keysEmptyMapReturnsNil() throws {
+        #expect(try swish.eval("(keys {})") == .nil)
+    }
+
+    @Test("(keys nil) returns nil")
+    func keysNilReturnsNil() throws {
+        #expect(try swish.eval("(keys nil)") == .nil)
+    }
+
+    @Test("(keys 42) throws on non-map")
+    func keysNonMapThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "keys", message: "argument must be a map or nil, got 42")) {
+            try swish.eval("(keys 42)")
+        }
+    }
+
+    // MARK: - vals
+
+    @Test("(vals {:a 1}) returns list of values")
+    func valsReturnsVals() throws {
+        #expect(try swish.eval("(vals {:a 1})") == .list([.integer(1)], metadata: nil))
+    }
+
+    @Test("(vals {}) returns nil for empty map")
+    func valsEmptyMapReturnsNil() throws {
+        #expect(try swish.eval("(vals {})") == .nil)
+    }
+
+    @Test("(vals nil) returns nil")
+    func valsNilReturnsNil() throws {
+        #expect(try swish.eval("(vals nil)") == .nil)
+    }
+
+    @Test("(vals 42) throws on non-map")
+    func valsNonMapThrows() throws {
+        #expect(throws: EvaluatorError.invalidArgument(function: "vals", message: "argument must be a map or nil, got 42")) {
+            try swish.eval("(vals 42)")
+        }
+    }
 }

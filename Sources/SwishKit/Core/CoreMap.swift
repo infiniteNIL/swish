@@ -4,6 +4,8 @@ func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "assoc",  arity: .variadic, body: coreAssoc)
     evaluator.register(name: "dissoc", arity: .variadic, body: coreDissoc)
     evaluator.register(name: "merge",  arity: .variadic, body: coreMerge)
+    evaluator.register(name: "keys",   arity: .fixed(1), body: coreKeys)
+    evaluator.register(name: "vals",   arity: .fixed(1), body: coreVals)
     evaluator.register(name: "map?",   arity: .fixed(1), body: coreIsMap)
 }
 
@@ -71,6 +73,38 @@ private func coreDissoc(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(
             function: "dissoc",
             message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreKeys(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .nil:
+        return .nil
+
+    case .map(let dict, _):
+        let keys = Array(dict.keys)
+        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "keys",
+            message: "argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreVals(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .nil:
+        return .nil
+
+    case .map(let dict, _):
+        let vals = Array(dict.values)
+        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "vals",
+            message: "argument must be a map or nil, got \(corePrinter.printString(args[0]))")
     }
 }
 
