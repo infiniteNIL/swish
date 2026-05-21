@@ -230,6 +230,34 @@
     (assoc m k (assoc-in (get m k) ks v))
     (assoc m k v)))
 
+(defn update
+  "Updates a value in an associative structure, where k is a
+  key and f is a function that will take the old value
+  and any supplied args and return the new value, and returns a new
+  structure. If the key does not exist, nil is supplied as the old value."
+  {:added "1.7"
+   :static true}
+  ([m k f] (assoc m k (f (get m k))))
+  ([m k f x] (assoc m k (f (get m k) x)))
+  ([m k f x y] (assoc m k (f (get m k) x y)))
+  ([m k f x y z] (assoc m k (f (get m k) x y z)))
+  ([m k f x y z & more] (assoc m k (apply f (get m k) x y z more))))
+
+(defn update-in
+  "Updates a value in a nested associative structure, where ks is a
+  sequence of keys and f is a function that will take the old value
+  and any supplied args and return the new value, and returns a new
+  nested structure. If any levels do not exist, hash-maps will be created."
+  {:added "1.0"
+   :static true}
+  ([m ks f & args]
+   (let [up (fn up [m ks f args]
+              (let [[k & ks] ks]
+                (if ks
+                  (assoc m k (up (get m k) ks f args))
+                  (assoc m k (apply f (get m k) args)))))]
+     (up m ks f args))))
+
 (defn empty?
   "Returns true if coll has no items - same as (not (seq coll))."
   {:added "1.0"}

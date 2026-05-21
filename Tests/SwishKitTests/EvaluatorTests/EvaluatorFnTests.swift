@@ -316,4 +316,13 @@ struct EvaluatorFnTests {
         let result = try swish.eval("(def f (fn [a b & rest] (+ a b))) (f 3 4 5 6)")
         #expect(result == .integer(7))
     }
+
+    // MARK: - Named fn self-recursion
+
+    @Test("named fn can call itself by name")
+    func namedFnSelfRecursion() throws {
+        let swish = Swish()
+        let result = try swish.eval("((fn fact [n] (if (= n 0) 1 (* n (fact (- n 1))))) 5)")
+        #expect(result == .integer(120))
+    }
 }

@@ -845,6 +845,10 @@ public class Evaluator {
             if interruptionCheck?() == true { throw EvaluatorError.interrupted }
             let fnEnv = Environment(parent: env)
             try bindParams(params, to: currentArgs, in: fnEnv, name: name ?? "fn")
+            if let fnName = name {
+                fnEnv.set(fnName, .function(name: name, params: params, body: body,
+                                            capturedEnv: env, metadata: nil))
+            }
             do {
                 return try evalBody(body, in: fnEnv)
             } catch let signal as RecurSignal {

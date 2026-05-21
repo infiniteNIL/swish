@@ -439,4 +439,38 @@ struct CoreMapTests {
     func assocInNilRoot() throws {
         #expect(try swish.eval("(assoc-in nil [:a :b] 1)") == .map([.keyword("a"): .map([.keyword("b"): .integer(1)], metadata: nil)], metadata: nil))
     }
+
+    // MARK: - update
+
+    @Test("(update {:a 1} :a inc) applies f to existing value")
+    func updateInc() throws {
+        #expect(try swish.eval("(update {:a 1} :a inc)") == .map([.keyword("a"): .integer(2)], metadata: nil))
+    }
+
+    @Test("(update {:a 1} :a + 10) passes extra arg to f")
+    func updateExtraArg() throws {
+        #expect(try swish.eval("(update {:a 1} :a + 10)") == .map([.keyword("a"): .integer(11)], metadata: nil))
+    }
+
+    @Test("(update {:a 1} :b str) passes nil to f for missing key")
+    func updateMissingKey() throws {
+        #expect(try swish.eval("(update {:a 1} :b str)") == .map([.keyword("a"): .integer(1), .keyword("b"): .string("")], metadata: nil))
+    }
+
+    @Test("(update {:a 0} :a + 1 2 3) uses apply arity for many extra args")
+    func updateManyExtraArgs() throws {
+        #expect(try swish.eval("(update {:a 0} :a + 1 2 3)") == .map([.keyword("a"): .integer(6)], metadata: nil))
+    }
+
+    // MARK: - update-in
+
+    @Test("(update-in {:a {:b 1}} [:a :b] inc) updates nested value")
+    func updateInNested() throws {
+        #expect(try swish.eval("(update-in {:a {:b 1}} [:a :b] inc)") == .map([.keyword("a"): .map([.keyword("b"): .integer(2)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("(update-in {:a {:b 1}} [:a :b] + 10) passes extra arg to f")
+    func updateInExtraArg() throws {
+        #expect(try swish.eval("(update-in {:a {:b 1}} [:a :b] + 10)") == .map([.keyword("a"): .map([.keyword("b"): .integer(11)], metadata: nil)], metadata: nil))
+    }
 }
