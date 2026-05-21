@@ -15,7 +15,7 @@ struct SwishKitTests {
     @Test("Throws error for invalid input")
     func throwsErrorForInvalidInput() {
         #expect(throws: LexerError.self) {
-            _ = try swish.eval("@invalid")
+            _ = try swish.eval("¡invalid")
         }
     }
 

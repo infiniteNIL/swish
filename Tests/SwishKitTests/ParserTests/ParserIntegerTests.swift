@@ -61,8 +61,8 @@ struct ParserIntegerTests {
 
     @Test("Lexer error propagates through parser init")
     func lexerErrorPropagates() throws {
-        let lexer = Lexer("@")
-        #expect(throws: LexerError.illegalCharacter("@", line: 1, column: 1)) {
+        let lexer = Lexer("¡")
+        #expect(throws: LexerError.illegalCharacter("¡", line: 1, column: 1)) {
             try Parser(lexer)
         }
     }

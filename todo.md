@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] atoms (and deref(@), swap!, reset!)
 - [ ] Sequence Utils
       take, take-while, drop-while, last, butlast,
       reverse, flatten, partition, partition-all, group-by,
@@ -9,14 +8,12 @@
 - [ ] clojure.string
       At minimum: join, split, trim, trim-left/right, upper-case, lower-case,
       starts-with?, ends-with?, includes?, replace, blank?
-- [ ] Swift interop
-- [ ] all-ns
-- [ ] (loaded-libs)
 - [ ] set
 - [ ] clojure.set
       union, intersection, difference, subset?, superset?
 - [ ] Better I/O
       slurp, spit, read-string, with-open — needed for any file-touching code.
+- [ ] Jank Clojure test suite
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
@@ -26,9 +23,13 @@
       - Error type — a public SwishError that Swift catch blocks can use
       - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
         a public API with better ergonomics
+- [ ] atom synchronization (sendable)
+- [ ] Swift interop
+- [ ] all-ns
+- [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
-- [ ] Jank Clojure test suite
 
+- [x] atoms (and deref(@), swap!, reset!. no synchronization)
 - [x] merge-with
 - [x] select-keys
 - [x] keys, vals

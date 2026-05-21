@@ -88,8 +88,8 @@ struct LexerIntegerTests {
 
     @Test("Throws error for illegal character")
     func illegalCharacterThrows() throws {
-        let lexer = Lexer("@")
-        #expect(throws: LexerError.illegalCharacter("@", line: 1, column: 1)) {
+        let lexer = Lexer("¡")
+        #expect(throws: LexerError.illegalCharacter("¡", line: 1, column: 1)) {
             try lexer.nextToken()
         }
     }

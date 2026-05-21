@@ -66,6 +66,9 @@ public class Parser {
         case .varRef:
             return try parseReaderMacro("var")
 
+        case .deref:
+            return try parseReaderMacro("deref")
+
         case .metadata:
             return try parseMetadataForm()
 

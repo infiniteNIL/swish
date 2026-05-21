@@ -13,4 +13,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerMap(into: evaluator)
     registerSet(into: evaluator)
     registerMeta(into: evaluator)
+    registerAtom(into: evaluator)
 }

@@ -33,6 +33,7 @@ public indirect enum Expr: Sendable {
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
     case varRef(Var)
     case namespace(Namespace)
+    case atom(SwishAtom)
 }
 
 extension Expr: Equatable {
@@ -96,6 +97,9 @@ extension Expr: Equatable {
             return a === b
 
         case (.namespace(let a), .namespace(let b)):
+            return a === b
+
+        case (.atom(let a), .atom(let b)):
             return a === b
 
         default:
@@ -166,6 +170,9 @@ extension Expr: Hashable {
 
         case .namespace(let v):
             hasher.combine(19); hasher.combine(ObjectIdentifier(v))
+
+        case .atom(let v):
+            hasher.combine(20); hasher.combine(ObjectIdentifier(v))
         }
     }
 }

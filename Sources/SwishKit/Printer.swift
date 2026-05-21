@@ -78,6 +78,9 @@ public struct Printer {
 
         case .namespace(let ns):
             "#<Namespace \(ns.name)>"
+
+        case .atom(let a):
+            "#<Atom: \(printString(a.value))>"
         }
     }
 
