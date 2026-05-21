@@ -170,6 +170,33 @@ struct EvaluatorDestructuringTests {
         #expect(try evaluator.eval("(let [[a b] [1 2] c (+ a b)] c)") == .integer(3))
     }
 
+    // MARK: - :as in sequential destructuring
+
+    @Test("sequential: :as binds the whole collection")
+    func seqAs() throws {
+        #expect(try evaluator.eval("(let [[a b :as all] [1 2 3]] all)") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("sequential: :as alongside positional bindings")
+    func seqAsWithPositional() throws {
+        #expect(try evaluator.eval("(let [[a b :as all] [1 2 3]] [a b all])") == .vector([.integer(1), .integer(2), .vector([.integer(1), .integer(2), .integer(3)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("sequential: :as after & rest")
+    func seqAsAfterRest() throws {
+        #expect(try evaluator.eval("(let [[a & r :as all] [1 2 3]] all)") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("sequential: :as after & rest alongside bindings")
+    func seqAsAfterRestWithBindings() throws {
+        #expect(try evaluator.eval("(let [[a & r :as all] [1 2 3]] [a r all])") == .vector([.integer(1), .list([.integer(2), .integer(3)], metadata: nil), .vector([.integer(1), .integer(2), .integer(3)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("fn param: :as binds the whole argument")
+    func fnParamAs() throws {
+        #expect(try evaluator.eval("((fn [[a b :as all]] all) [1 2])") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
     // MARK: - Malformed destructuring
 
     @Test("& with no following binding form throws")

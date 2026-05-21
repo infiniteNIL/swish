@@ -1086,11 +1086,25 @@ public class Evaluator {
             let tmpName = gensym(prefix: "ds__")
             let tmpSym = Expr.symbol(tmpName, metadata: nil)
             var result: [(String, Expr)] = [(tmpName, valueExpr)]
+            for idx in 0..<elements.count {
+                if case .keyword("as") = elements[idx] {
+                    guard idx + 1 < elements.count, case .symbol(let asName, _) = elements[idx + 1]
+                    else {
+                        throw EvaluatorError.invalidArgument(function: "destructure",
+                                                             message: ":as must be followed by a symbol")
+                    }
+                    result.append((asName, tmpSym))
+                    break
+                }
+            }
             var pos = 0
             var i = 0
             while i < elements.count {
                 let elem = elements[i]
-                if case .symbol("&", _) = elem {
+                if case .keyword("as") = elem {
+                    i += 2
+                }
+                else if case .symbol("&", _) = elem {
                     i += 1
                     guard i < elements.count
                     else {
@@ -1101,13 +1115,17 @@ public class Evaluator {
                                               .integer(pos), tmpSym], metadata: nil)
                     result += try destructureBindings(elements[i], dropExpr)
                     break
-                } else if case .symbol("_", _) = elem {
-                    pos += 1; i += 1; continue
-                } else {
+                }
+                else if case .symbol("_", _) = elem {
+                    pos += 1
+                    i += 1
+                }
+                else {
                     let nthExpr = Expr.list([.symbol("nth", metadata: nil),
                                              tmpSym, .integer(pos), .nil], metadata: nil)
                     result += try destructureBindings(elem, nthExpr)
-                    pos += 1; i += 1
+                    pos += 1
+                    i += 1
                 }
             }
             return result

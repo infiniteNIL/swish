@@ -375,4 +375,26 @@ struct CoreMapTests {
             try swish.eval("(dissoc 42 :a)")
         }
     }
+
+    // MARK: - assoc-in
+
+    @Test("(assoc-in {:a 1} [:a] 99) single key — same as assoc")
+    func assocInSingleKey() throws {
+        #expect(try swish.eval("(assoc-in {:a 1} [:a] 99)") == .map([.keyword("a"): .integer(99)], metadata: nil))
+    }
+
+    @Test("(assoc-in {:a {:b 1}} [:a :b] 99) updates nested key")
+    func assocInNestedKey() throws {
+        #expect(try swish.eval("(assoc-in {:a {:b 1}} [:a :b] 99)") == .map([.keyword("a"): .map([.keyword("b"): .integer(99)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("(assoc-in {} [:a :b] 42) creates intermediate maps")
+    func assocInCreatesIntermediates() throws {
+        #expect(try swish.eval("(assoc-in {} [:a :b] 42)") == .map([.keyword("a"): .map([.keyword("b"): .integer(42)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("(assoc-in nil [:a :b] 1) treats nil root as empty map")
+    func assocInNilRoot() throws {
+        #expect(try swish.eval("(assoc-in nil [:a :b] 1)") == .map([.keyword("a"): .map([.keyword("b"): .integer(1)], metadata: nil)], metadata: nil))
+    }
 }

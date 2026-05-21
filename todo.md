@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] dissoc
-- [ ] assoc-in
 - [ ] get-in
 - [ ] update, update-in
 - [ ] keys, vals
@@ -36,6 +34,8 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 - [ ] Jank Clojure test suite
 
+- [x] assoc-in
+- [x] dissoc
 - [x] if-let
 - [x] when-let
 - [x] threading macros ->, ->>
