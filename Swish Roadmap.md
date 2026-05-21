@@ -114,6 +114,13 @@ At minimum: `join`, `split`, `trim`, `trim-left/right`, `upper-case`, `lower-cas
 ### Better I/O
 `slurp`, `spit`, `read-string`, `with-open` — needed for any file-touching code.
 
+### `source` function
+Prints the source of a Swish-defined function, similar to `clojure.repl/source`.
+Approach: store a reconstructed `(defn ...)` form in `:src` var metadata at
+definition time; expose `sourceForm` (already in the Printer) as a callable Swish
+function; `source` macro looks up `:src` via `resolve`/`meta`. Limitation: comments
+lost (not in AST), and native Swift functions show "Source not available".
+
 ---
 
 ## Tier 3 — Embedding API (the "for Swift" part, short-term)
