@@ -1,9 +1,54 @@
 func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "get",    arity: .variadic, body: coreGet)
+    evaluator.register(name: "get-in", arity: .variadic, body: coreGetIn)
     evaluator.register(name: "assoc",  arity: .variadic, body: coreAssoc)
     evaluator.register(name: "dissoc", arity: .variadic, body: coreDissoc)
     evaluator.register(name: "merge",  arity: .variadic, body: coreMerge)
     evaluator.register(name: "map?",   arity: .fixed(1), body: coreIsMap)
+}
+
+private func coreGetIn(_ args: [Expr]) throws -> Expr {
+    guard args.count == 2 || args.count == 3 else {
+        throw EvaluatorError.invalidArgument(
+            function: "get-in",
+            message: "requires 2 or 3 arguments, got \(args.count)")
+    }
+    let notFound: Expr = args.count == 3 ? args[2] : .nil
+    let keys: [Expr]
+    switch args[1] {
+    case .vector(let elems, _):
+        keys = elems
+
+    case .list(let elems, _):
+        keys = elems
+
+    case .nil:
+        keys = []
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "get-in",
+            message: "ks must be a sequential collection")
+    }
+    var current = args[0]
+    for key in keys {
+        switch current {
+        case .map(let dict, _):
+            guard let value = dict[key] else { return notFound }
+            current = value
+
+        case .vector(let elems, _):
+            guard case .integer(let idx) = key, idx >= 0, idx < elems.count else { return notFound }
+            current = elems[idx]
+
+        case .nil:
+            return notFound
+
+        default:
+            return notFound
+        }
+    }
+    return current
 }
 
 private func coreDissoc(_ args: [Expr]) throws -> Expr {

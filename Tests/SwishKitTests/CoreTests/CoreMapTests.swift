@@ -376,6 +376,48 @@ struct CoreMapTests {
         }
     }
 
+    // MARK: - get-in
+
+    @Test("(get-in {:a {:b 1}} [:a :b]) returns nested value")
+    func getInBasic() throws {
+        #expect(try swish.eval("(get-in {:a {:b 1}} [:a :b])") == .integer(1))
+    }
+
+    @Test("(get-in {:a {:b 1}} [:a :c]) returns nil for missing key")
+    func getInMissingKey() throws {
+        #expect(try swish.eval("(get-in {:a {:b 1}} [:a :c])") == .nil)
+    }
+
+    @Test("(get-in {:a {:b 1}} [:a :c] 42) returns not-found for missing key")
+    func getInNotFound() throws {
+        #expect(try swish.eval("(get-in {:a {:b 1}} [:a :c] 42)") == .integer(42))
+    }
+
+    @Test("(get-in {:a nil} [:a :b] :nf) returns not-found when intermediate is nil")
+    func getInFoundNilIntermediate() throws {
+        #expect(try swish.eval("(get-in {:a nil} [:a :b] :nf)") == .keyword("nf"))
+    }
+
+    @Test("(get-in {:a 1} []) returns m for empty path")
+    func getInEmptyPath() throws {
+        #expect(try swish.eval("(get-in {:a 1} [])") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("(get-in nil [:a]) returns nil")
+    func getInNilRoot() throws {
+        #expect(try swish.eval("(get-in nil [:a])") == .nil)
+    }
+
+    @Test("(get-in nil [:a] 99) returns not-found for nil root")
+    func getInNilRootNotFound() throws {
+        #expect(try swish.eval("(get-in nil [:a] 99)") == .integer(99))
+    }
+
+    @Test("(get-in [[1 2] [3 4]] [1 0]) traverses vectors by index")
+    func getInVectorPath() throws {
+        #expect(try swish.eval("(get-in [[1 2] [3 4]] [1 0])") == .integer(3))
+    }
+
     // MARK: - assoc-in
 
     @Test("(assoc-in {:a 1} [:a] 99) single key — same as assoc")
