@@ -79,9 +79,6 @@ public class Evaluator {
                 return try deref(v)
             }
             if let value = env.get(name) {
-                if case .varRef(let v) = value {
-                    return try deref(v)
-                }
                 return value
             }
             if let v = resolveVar(name: name, in: currentNs()) {

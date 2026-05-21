@@ -7,6 +7,7 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "require",   arity: .atLeastOne) { [evaluator] args in try coreRequire(evaluator, args) }
     evaluator.register(name: "alias",     arity: .fixed(2))   { [evaluator] args in try coreAlias(evaluator, args) }
     evaluator.register(name: "refer",     arity: .atLeastOne) { [evaluator] args in try coreRefer(evaluator, args) }
+    evaluator.register(name: "resolve",   arity: .fixed(1))   { [evaluator] args in try coreResolve(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -108,5 +109,12 @@ private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             try currentNs.refer(v)
         }
     }
+    return .nil
+}
+
+private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .symbol(let name, _) = args[0] else { return .nil }
+    if let v = try evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
+    if let v = evaluator.resolveVar(name: name, in: evaluator.currentNs()) { return .varRef(v) }
     return .nil
 }

@@ -120,20 +120,27 @@ struct EvaluatorMetadataTests {
 
     // MARK: - defn doc string and attr map
 
-    @Test("defn with doc string stores :doc in var metadata")
+    @Test("defn with doc string stores :doc and :arglists in var metadata")
     func defnDocString() throws {
         let swish2 = Swish()
         _ = try swish2.eval("(defn greet \"Says hi\" [name] (str \"hi \" name))")
         let result = try swish2.eval("(meta #'user/greet)")
-        #expect(result == .map([.keyword("doc"): .string("Says hi")], metadata: nil))
+        let expected: Expr = .map([
+            .keyword("doc"): .string("Says hi"),
+            .keyword("arglists"): .list([.vector([.symbol("name", metadata: nil)], metadata: nil)], metadata: nil)
+        ], metadata: nil)
+        #expect(result == expected)
     }
 
-    @Test("defn without doc string has no metadata")
+    @Test("defn without doc string stores :arglists in var metadata")
     func defnNoDocString() throws {
         let swish2 = Swish()
         _ = try swish2.eval("(defn greet [name] name)")
         let result = try swish2.eval("(meta #'user/greet)")
-        #expect(result == .nil)
+        let expected: Expr = .map([
+            .keyword("arglists"): .list([.vector([.symbol("name", metadata: nil)], metadata: nil)], metadata: nil)
+        ], metadata: nil)
+        #expect(result == expected)
     }
 
     @Test("defn with doc string evaluates correctly")
@@ -143,12 +150,15 @@ struct EvaluatorMetadataTests {
         #expect(try swish2.eval("(double 21)") == .integer(42))
     }
 
-    @Test("defn with attr map stores attributes in var metadata")
+    @Test("defn with attr map stores attributes and arglists in var metadata")
     func defnAttrMap() throws {
         let swish2 = Swish()
         _ = try swish2.eval("(defn foo {:added \"1.0\"} [x] x)")
         let result = try swish2.eval("(meta #'user/foo)")
-        #expect(result == .map([.keyword("added"): .string("1.0")], metadata: nil))
+        #expect(result == .map([
+            .keyword("added"): .string("1.0"),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
+        ], metadata: nil))
     }
 
     @Test("defn with doc string and attr map merges both")
@@ -158,7 +168,8 @@ struct EvaluatorMetadataTests {
         let result = try swish2.eval("(meta #'user/foo)")
         #expect(result == .map([
             .keyword("doc"): .string("Docs"),
-            .keyword("static"): .boolean(true)
+            .keyword("static"): .boolean(true),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
         ], metadata: nil))
     }
 
@@ -217,5 +228,39 @@ struct EvaluatorMetadataTests {
             .keyword("doc"): .string("original"),
             .keyword("extra"): .string("value")
         ], metadata: nil))
+    }
+
+    // MARK: - resolve
+
+    @Test("resolve returns varRef for known symbol")
+    func resolveKnownSymbol() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defn foo [x] x)")
+        let result = try swish2.eval("(resolve 'foo)")
+        guard case .varRef(let v) = result else {
+            Issue.record("Expected varRef"); return
+        }
+        #expect(v.name == "foo")
+    }
+
+    @Test("resolve returns nil for unknown symbol")
+    func resolveUnknownSymbol() throws {
+        let swish2 = Swish()
+        #expect(try swish2.eval("(resolve 'no-such-var)") == .nil)
+    }
+
+    // MARK: - doc (smoke tests — doc prints to stdout)
+
+    @Test("doc does not throw for known var")
+    func docKnownVar() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(defn add \"Adds two numbers\" [a b] (+ a b))")
+        #expect(throws: Never.self) { try swish2.eval("(doc add)") }
+    }
+
+    @Test("doc returns nil for unknown var without throwing")
+    func docUnknownVar() throws {
+        let swish2 = Swish()
+        #expect(try swish2.eval("(doc no-such-var)") == .nil)
     }
 }

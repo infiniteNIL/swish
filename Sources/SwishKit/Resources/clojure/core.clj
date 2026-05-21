@@ -23,6 +23,12 @@
   [& body]
   (cons 'do body))
 
+(defmacro doc
+  "Prints documentation for the var named by name."
+  {:added "1.0"}
+  [name]
+  `(print-doc '~name))
+
 (defmacro defn [name & args]
   (let [has-doc  (string? (first args))
         doc      (if has-doc (first args) nil)
@@ -30,8 +36,12 @@
         has-attr (map? (first args))
         attr     (if has-attr (first args) nil)
         args     (if has-attr (rest args) args)
+        arglists (if (vector? (first args))
+                   (list (first args))
+                   (map first args))
         m        (merge (meta name) attr)
-        m        (if doc (assoc (if m m {}) :doc doc) m)]
+        m        (if doc (assoc (if m m {}) :doc doc) m)
+        m        (assoc (if m m {}) :arglists arglists)]
     (if m
       `(def ~(with-meta name m) (fn ~name ~@args))
       `(def ~name (fn ~name ~@args)))))
