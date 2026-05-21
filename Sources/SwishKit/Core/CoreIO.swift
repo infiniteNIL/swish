@@ -1,9 +1,17 @@
 // MARK: - Registration
 
 func registerIO(into evaluator: Evaluator) {
-    evaluator.register(name: "print",     arity: .variadic, body: corePrint)
-    evaluator.register(name: "println",   arity: .variadic, body: corePrintln)
-    evaluator.register(name: "print-doc", arity: .fixed(1)) { [evaluator] args in try corePrintDoc(evaluator, args) }
+    evaluator.register(name: "print", arity: .variadic,
+        doc: "Prints the object(s) to the output stream that is the current value of *out*. print and println produce output for human consumption.",
+        arglists: [["&", "more"]],
+        body: corePrint)
+    evaluator.register(name: "println", arity: .variadic,
+        doc: "Same as print followed by (newline)",
+        arglists: [["&", "more"]],
+        body: corePrintln)
+    evaluator.register(name: "print-doc", arity: .fixed(1),
+        doc: "Prints formatted documentation for the var named by symbol to *out*.",
+        arglists: [["sym"]]) { [evaluator] args in try corePrintDoc(evaluator, args) }
 }
 
 // MARK: - Implementations

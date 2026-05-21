@@ -68,7 +68,21 @@ extension Evaluator {
     // MARK: - Native function registration
 
     /// Registers a native Swift function in the clojure.core namespace.
-    public func register(name: String, arity: Arity, body: @escaping @Sendable ([Expr]) throws -> Expr) {
-        findNs("clojure.core")!.intern(name: name, value: .nativeFunction(name: name, arity: arity, body: body))
+    public func register(
+        name: String,
+        arity: Arity,
+        doc: String? = nil,
+        arglists: [[String]]? = nil,
+        body: @escaping @Sendable ([Expr]) throws -> Expr
+    ) {
+        let v = findNs("clojure.core")!.intern(name: name, value: .nativeFunction(name: name, arity: arity, body: body))
+        var meta: [Expr: Expr] = [:]
+        if let doc { meta[.keyword("doc")] = .string(doc) }
+        if let arglists {
+            meta[.keyword("arglists")] = .list(arglists.map { params in
+                .vector(params.map { .symbol($0, metadata: nil) }, metadata: nil)
+            }, metadata: nil)
+        }
+        if !meta.isEmpty { v.metadata = meta }
     }
 }

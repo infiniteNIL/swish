@@ -1,5 +1,8 @@
 func registerSet(into evaluator: Evaluator) {
-    evaluator.register(name: "set?", arity: .fixed(1), body: coreIsSet)
+    evaluator.register(name: "set?", arity: .fixed(1),
+        doc: "Returns true if x implements IPersistentSet",
+        arglists: [["x"]],
+        body: coreIsSet)
 }
 
 private func coreIsSet(_ args: [Expr]) throws -> Expr {

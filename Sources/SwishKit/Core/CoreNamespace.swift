@@ -1,13 +1,27 @@
 // MARK: - Registration
 
 func registerNamespace(into evaluator: Evaluator) {
-    evaluator.register(name: "create-ns", arity: .fixed(1))   { [evaluator] args in try coreCreateNs(evaluator, args) }
-    evaluator.register(name: "find-ns",   arity: .fixed(1))   { [evaluator] args in try coreFindNs(evaluator, args) }
-    evaluator.register(name: "in-ns",     arity: .fixed(1))   { [evaluator] args in try coreInNs(evaluator, args) }
-    evaluator.register(name: "require",   arity: .atLeastOne) { [evaluator] args in try coreRequire(evaluator, args) }
-    evaluator.register(name: "alias",     arity: .fixed(2))   { [evaluator] args in try coreAlias(evaluator, args) }
-    evaluator.register(name: "refer",     arity: .atLeastOne) { [evaluator] args in try coreRefer(evaluator, args) }
-    evaluator.register(name: "resolve",   arity: .fixed(1))   { [evaluator] args in try coreResolve(evaluator, args) }
+    evaluator.register(name: "create-ns", arity: .fixed(1),
+        doc: "Create a new namespace named by the symbol if one doesn't already exist, returns it or the already-existing namespace of the same name.",
+        arglists: [["sym"]]) { [evaluator] args in try coreCreateNs(evaluator, args) }
+    evaluator.register(name: "find-ns", arity: .fixed(1),
+        doc: "Returns the namespace named by the symbol or nil if it doesn't exist.",
+        arglists: [["sym"]]) { [evaluator] args in try coreFindNs(evaluator, args) }
+    evaluator.register(name: "in-ns", arity: .fixed(1),
+        doc: "Sets *ns* to the namespace named by the symbol, creating it if needed.",
+        arglists: [["name"]]) { [evaluator] args in try coreInNs(evaluator, args) }
+    evaluator.register(name: "require", arity: .atLeastOne,
+        doc: "Loads libs, skipping any that are already loaded. Each argument is a libspec that identifies a lib, its load options and its loading environment.",
+        arglists: [["&", "args"]]) { [evaluator] args in try coreRequire(evaluator, args) }
+    evaluator.register(name: "alias", arity: .fixed(2),
+        doc: "Add an alias in the current namespace to another namespace. Arguments are two symbols: the alias and the namespace name.",
+        arglists: [["alias", "namespace-sym"]]) { [evaluator] args in try coreAlias(evaluator, args) }
+    evaluator.register(name: "refer", arity: .atLeastOne,
+        doc: "refers to all public vars of ns, subject to filters. filters can include at most one each of: :exclude list-of-symbols, :only list-of-symbols, :rename map-of-fromsym-tosym",
+        arglists: [["ns-sym", "&", "filters"]]) { [evaluator] args in try coreRefer(evaluator, args) }
+    evaluator.register(name: "resolve", arity: .fixed(1),
+        doc: "Returns the var or Class to which a symbol will be resolved in the current namespace, else nil.",
+        arglists: [["sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
 }
 
 // MARK: - Implementations

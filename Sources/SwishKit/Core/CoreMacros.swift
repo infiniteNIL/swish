@@ -1,9 +1,15 @@
 // MARK: - Registration
 
 func registerMacros(into evaluator: Evaluator) {
-    evaluator.register(name: "gensym",        arity: .variadic) { [evaluator] args in try coreGensym(evaluator, args) }
-    evaluator.register(name: "macroexpand-1", arity: .fixed(1)) { [evaluator] args in try coreMacroexpand1(evaluator, args) }
-    evaluator.register(name: "macroexpand",   arity: .fixed(1)) { [evaluator] args in try coreMacroexpand(evaluator, args) }
+    evaluator.register(name: "gensym", arity: .variadic,
+        doc: "Returns a new symbol with a unique name. If a prefix string is supplied, the name is prefix# where # is some unique number. If prefix is not supplied, the prefix is 'G__'.",
+        arglists: [[], ["prefix-string"]]) { [evaluator] args in try coreGensym(evaluator, args) }
+    evaluator.register(name: "macroexpand-1", arity: .fixed(1),
+        doc: "If form represents a macro form, returns its expansion, else returns form.",
+        arglists: [["form"]]) { [evaluator] args in try coreMacroexpand1(evaluator, args) }
+    evaluator.register(name: "macroexpand", arity: .fixed(1),
+        doc: "Repeatedly calls macroexpand-1 on form until it no longer represents a macro form, then returns it. Note neither macroexpand-1 nor macroexpand expand macros in subforms.",
+        arglists: [["form"]]) { [evaluator] args in try coreMacroexpand(evaluator, args) }
 }
 
 // MARK: - Implementations

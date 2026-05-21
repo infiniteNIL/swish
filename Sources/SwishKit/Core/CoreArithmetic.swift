@@ -1,17 +1,50 @@
 // MARK: - Registration
 
 func registerArithmetic(into evaluator: Evaluator) {
-    evaluator.register(name: "+",    arity: .variadic,  body: coreAdd)
-    evaluator.register(name: "-",    arity: .variadic,  body: coreSubtract)
-    evaluator.register(name: "*",    arity: .variadic,  body: coreMultiply)
-    evaluator.register(name: "/",    arity: .variadic,  body: coreDivide)
-    evaluator.register(name: "mod",  arity: .fixed(2),  body: coreMod)
-    evaluator.register(name: "rem",  arity: .fixed(2),  body: coreRem)
-    evaluator.register(name: "quot", arity: .fixed(2),  body: coreQuot)
-    evaluator.register(name: "number?",  arity: .fixed(1), body: coreIsNumber)
-    evaluator.register(name: "integer?", arity: .fixed(1), body: coreIsInteger)
-    evaluator.register(name: "float?",   arity: .fixed(1), body: coreIsFloat)
-    evaluator.register(name: "ratio?",   arity: .fixed(1), body: coreIsRatio)
+    evaluator.register(name: "+", arity: .variadic,
+        doc: "Returns the sum of nums. (+) returns 0. Does not auto-promote longs, will throw on overflow. See also: +'",
+        arglists: [[], ["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreAdd)
+    evaluator.register(name: "-", arity: .variadic,
+        doc: "If no ys are supplied, returns the negation of x, else subtracts the ys from x and returns the result. Does not auto-promote longs, will throw on overflow. See also: -'",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreSubtract)
+    evaluator.register(name: "*", arity: .variadic,
+        doc: "Returns the product of nums. (*) returns 1. Does not auto-promote longs, will throw on overflow. See also: *'",
+        arglists: [[], ["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreMultiply)
+    evaluator.register(name: "/", arity: .variadic,
+        doc: "If no denominators are supplied, returns 1/numerator, else returns numerator divided by all of the denominators.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreDivide)
+    evaluator.register(name: "mod", arity: .fixed(2),
+        doc: "Modulus of num and div. Truncates toward negative infinity.",
+        arglists: [["num", "div"]],
+        body: coreMod)
+    evaluator.register(name: "rem", arity: .fixed(2),
+        doc: "remainder of dividing numerator by denominator.",
+        arglists: [["num", "div"]],
+        body: coreRem)
+    evaluator.register(name: "quot", arity: .fixed(2),
+        doc: "quot[ient] of dividing numerator by denominator.",
+        arglists: [["num", "div"]],
+        body: coreQuot)
+    evaluator.register(name: "number?", arity: .fixed(1),
+        doc: "Returns true if x is a Number",
+        arglists: [["x"]],
+        body: coreIsNumber)
+    evaluator.register(name: "integer?", arity: .fixed(1),
+        doc: "Returns true if n is an integer",
+        arglists: [["n"]],
+        body: coreIsInteger)
+    evaluator.register(name: "float?", arity: .fixed(1),
+        doc: "Returns true if n is a floating point number",
+        arglists: [["n"]],
+        body: coreIsFloat)
+    evaluator.register(name: "ratio?", arity: .fixed(1),
+        doc: "Returns true if n is a Ratio",
+        arglists: [["n"]],
+        body: coreIsRatio)
 }
 
 // MARK: - Implementations

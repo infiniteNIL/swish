@@ -1,12 +1,30 @@
 // MARK: - Registration
 
 func registerComparison(into evaluator: Evaluator) {
-    evaluator.register(name: "<",    arity: .atLeastOne, body: coreLessThan)
-    evaluator.register(name: ">",    arity: .atLeastOne, body: coreGreaterThan)
-    evaluator.register(name: "<=",   arity: .atLeastOne, body: coreLessOrEqual)
-    evaluator.register(name: ">=",   arity: .atLeastOne, body: coreGreaterOrEqual)
-    evaluator.register(name: "=",    arity: .atLeastOne, body: coreEqual)
-    evaluator.register(name: "not=", arity: .atLeastOne, body: coreNotEqual)
+    evaluator.register(name: "<", arity: .atLeastOne,
+        doc: "Returns non-nil if nums are in monotonically increasing order, otherwise false.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreLessThan)
+    evaluator.register(name: ">", arity: .atLeastOne,
+        doc: "Returns non-nil if nums are in monotonically decreasing order, otherwise false.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreGreaterThan)
+    evaluator.register(name: "<=", arity: .atLeastOne,
+        doc: "Returns non-nil if nums are in monotonically non-decreasing order, otherwise false.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreLessOrEqual)
+    evaluator.register(name: ">=", arity: .atLeastOne,
+        doc: "Returns non-nil if nums are in monotonically non-increasing order, otherwise false.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreGreaterOrEqual)
+    evaluator.register(name: "=", arity: .atLeastOne,
+        doc: "Equality. Returns true if x equals y, false if not. Same as Java x.equals(y) except it also works for nil, and compares numbers and collections in a type-independent manner. Clojure's immutable data structures define equals() (and thus =) as a value, not an identity, comparison.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreEqual)
+    evaluator.register(name: "not=", arity: .atLeastOne,
+        doc: "Same as (not (= obj1 obj2))",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreNotEqual)
 }
 
 // MARK: - Implementations

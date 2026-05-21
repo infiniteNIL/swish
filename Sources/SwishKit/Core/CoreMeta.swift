@@ -1,11 +1,24 @@
 // MARK: - Registration
 
 func registerMeta(into evaluator: Evaluator) {
-    evaluator.register(name: "meta",        arity: .fixed(1),  body: coreMeta)
-    evaluator.register(name: "with-meta",   arity: .fixed(2),  body: coreWithMeta)
-    evaluator.register(name: "vary-meta",   arity: .variadic)  { [evaluator] args in try coreVaryMeta(evaluator, args) }
-    evaluator.register(name: "alter-meta!", arity: .variadic)  { [evaluator] args in try coreAlterMeta(evaluator, args) }
-    evaluator.register(name: "reset-meta!", arity: .fixed(2),  body: coreResetMeta)
+    evaluator.register(name: "meta", arity: .fixed(1),
+        doc: "Returns the metadata of obj, returns nil if there is no metadata.",
+        arglists: [["obj"]],
+        body: coreMeta)
+    evaluator.register(name: "with-meta", arity: .fixed(2),
+        doc: "Returns an object of the same type and value as obj, with map m as its metadata.",
+        arglists: [["obj", "m"]],
+        body: coreWithMeta)
+    evaluator.register(name: "vary-meta", arity: .variadic,
+        doc: "Returns an object of the same type and value as obj, with (apply f (meta obj) args) as its metadata.",
+        arglists: [["obj", "f", "&", "args"]]) { [evaluator] args in try coreVaryMeta(evaluator, args) }
+    evaluator.register(name: "alter-meta!", arity: .variadic,
+        doc: "Atomically sets the metadata for a namespace/var/ref/agent/atom to be: (apply f its-current-meta args) f must be free of side-effects.",
+        arglists: [["iref", "f", "&", "args"]]) { [evaluator] args in try coreAlterMeta(evaluator, args) }
+    evaluator.register(name: "reset-meta!", arity: .fixed(2),
+        doc: "Atomically resets the metadata for a namespace/var/ref/agent/atom.",
+        arglists: [["iref", "m"]],
+        body: coreResetMeta)
 }
 
 // MARK: - Implementations
