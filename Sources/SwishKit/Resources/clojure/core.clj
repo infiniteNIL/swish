@@ -156,6 +156,13 @@
       (recur (conj ret (first s)) (next s))
       (seq ret))))
 
+(defn reverse
+  "Returns a seq of the items in coll in reverse order. Not lazy."
+  {:added "1.0"
+   :static true}
+  [coll]
+  (reduce conj () coll))
+
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
   first item for which (pred item) returns logical false."

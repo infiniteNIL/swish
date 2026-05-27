@@ -96,6 +96,33 @@ struct CoreSequenceFirstRestTests {
         #expect(try swish.eval("(butlast nil)") == .nil)
     }
 
+    // MARK: - reverse
+
+    @Test("(reverse '(1 2 3)) returns (3 2 1)")
+    func reverseOnList() throws {
+        #expect(try swish.eval("(reverse '(1 2 3))") == .list([.integer(3), .integer(2), .integer(1)], metadata: nil))
+    }
+
+    @Test("(reverse [1 2 3]) returns (3 2 1)")
+    func reverseOnVector() throws {
+        #expect(try swish.eval("(reverse [1 2 3])") == .list([.integer(3), .integer(2), .integer(1)], metadata: nil))
+    }
+
+    @Test("(reverse '(1)) returns (1)")
+    func reverseSingleElement() throws {
+        #expect(try swish.eval("(reverse '(1))") == .list([.integer(1)], metadata: nil))
+    }
+
+    @Test("(reverse '()) returns empty list")
+    func reverseOnEmptyList() throws {
+        #expect(try swish.eval("(reverse '())") == .list([], metadata: nil))
+    }
+
+    @Test("(reverse nil) returns empty list")
+    func reverseOnNil() throws {
+        #expect(try swish.eval("(reverse nil)") == .list([], metadata: nil))
+    }
+
     // MARK: - rest
 
     @Test("(rest '(1 2 3)) returns (2 3)")
