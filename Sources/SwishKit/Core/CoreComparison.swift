@@ -21,6 +21,10 @@ func registerComparison(into evaluator: Evaluator) {
         doc: "Equality. Returns true if x equals y, false if not. Same as Java x.equals(y) except it also works for nil, and compares numbers and collections in a type-independent manner. Clojure's immutable data structures define equals() (and thus =) as a value, not an identity, comparison.",
         arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
         body: coreEqual)
+    evaluator.register(name: "compare", arity: .fixed(2),
+        doc: "Comparator. Returns a negative number, zero, or a positive number when x is logically 'less than', 'equal to', or 'greater than' y.",
+        arglists: [["x", "y"]],
+        body: coreCompare)
 }
 
 // MARK: - Implementations
@@ -45,6 +49,10 @@ private func coreEqual(_ args: [Expr]) throws -> Expr {
     try compareConsecutivePairs(args, singleArgResult: true) { $0 == $1 }
 }
 
+private func coreCompare(_ args: [Expr]) throws -> Expr {
+    .integer(try compareExprValue(args[0], args[1]))
+}
+
 // MARK: - Numeric helper
 
 private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
@@ -57,6 +65,44 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
 
     case .ratios(let x, let y):
         return x.numerator * y.denominator < y.numerator * x.denominator
+    }
+}
+
+func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
+    switch (x, y) {
+    case (.nil, .nil):
+        return 0
+
+    case (.nil, _):
+        return -1
+
+    case (_, .nil):
+        return 1
+
+    case (.boolean(let a), .boolean(let b)):
+        if a == b { return 0 }
+        return a ? 1 : -1
+
+    case (.integer, .integer), (.float, .float),
+         (.integer, .float), (.float, .integer),
+         (.ratio, _), (_, .ratio):
+        if try numericLessThan(x, y, function: "compare") { return -1 }
+        if try numericLessThan(y, x, function: "compare") { return 1 }
+        return 0
+
+    case (.string(let a), .string(let b)):
+        return a < b ? -1 : a > b ? 1 : 0
+
+    case (.keyword(let a), .keyword(let b)):
+        return a < b ? -1 : a > b ? 1 : 0
+
+    case (.character(let a), .character(let b)):
+        return a < b ? -1 : a > b ? 1 : 0
+
+    default:
+        if x == y { return 0 }
+        throw EvaluatorError.invalidArgument(function: "compare",
+            message: "cannot compare \(corePrinter.printString(x)) and \(corePrinter.printString(y))")
     }
 }
 

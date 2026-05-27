@@ -583,3 +583,15 @@
              (assoc! counts x (inc (get counts x 0))))
            (transient {})
            coll)))
+
+(defn sort-by
+  "Returns a sorted sequence of the items in coll, where the sort
+  order is determined by comparing (keyfn item). comp can be
+  boolean-valued comparison function, or a -/0/+ valued comparator.
+  Comp defaults to compare."
+  {:added "1.0"
+   :static true}
+  ([keyfn coll]
+   (sort-by keyfn compare coll))
+  ([keyfn comp coll]
+   (sort (fn [x y] (comp (keyfn x) (keyfn y))) coll)))
