@@ -19,10 +19,11 @@
   [& body])
 
 (defmacro lazy-seq
-  "Returns a lazy sequence. In Swish, evaluates body eagerly."
+  "Takes a body of expressions that returns an ISeq or nil, and yields
+  a Seqable object. In Swish, evaluates eagerly and coerces nil to ()."
   {:added "1.0"}
   [& body]
-  (cons 'do body))
+  (list 'or (cons 'do body) (quote ())))
 
 (defmacro doc
   "Prints documentation for the var named by name."
@@ -199,10 +200,12 @@
   {:added "1.0"
    :static true}
   [n coll]
-  (let [s (seq coll)]
-    (if (and (pos? n) s)
-      (recur (dec n) (rest s))
-      s)))
+  (let [step (fn step [n coll]
+               (let [s (seq coll)]
+                 (if (and (pos? n) s)
+                   (recur (dec n) (rest s))
+                   s)))]
+    (lazy-seq (step n coll))))
 
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
@@ -210,10 +213,12 @@
   {:added "1.0"
    :static true}
   [pred coll]
-  (let [s (seq coll)]
-    (if (and s (pred (first s)))
-      (recur pred (rest s))
-      s)))
+  (let [step (fn step [pred coll]
+               (let [s (seq coll)]
+                 (if (and s (pred (first s)))
+                   (recur pred (rest s))
+                   s)))]
+    (lazy-seq (step pred coll))))
 
 (defmacro cond
   "Takes a set of test/expr pairs. It evaluates each test one at a
@@ -595,3 +600,18 @@
    (sort-by keyfn compare coll))
   ([keyfn comp coll]
    (sort (fn [x y] (comp (keyfn x) (keyfn y))) coll)))
+
+(defn distinct
+  "Returns a lazy sequence of the elements of coll with duplicates removed."
+  {:added "1.0"
+   :static true}
+  [coll]
+  (let [step (fn step [xs seen]
+               (lazy-seq
+                ((fn [[f :as xs] seen]
+                   (when (seq xs)
+                     (if (contains? seen f)
+                       (recur (rest xs) seen)
+                       (cons f (step (rest xs) (conj seen f))))))
+                 xs seen)))]
+    (step coll #{})))

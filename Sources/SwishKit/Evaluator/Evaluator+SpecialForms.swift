@@ -466,7 +466,8 @@ extension Evaluator {
             return
 
         case .symbol(let name, _):
-            if let v = resolveVar(name: name, in: currentNs())?.value {
+            let resolved = (try? resolveQualifiedVar(name: name)) ?? resolveVar(name: name, in: currentNs())
+            if let v = resolved?.value {
                 switch v {
                 case .macro, .multiArityMacro: return
                 default: break

@@ -66,9 +66,9 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(take 3 [1 2 3 4 5])") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
-    @Test("(take 0 [1 2 3]) returns nil")
+    @Test("(take 0 [1 2 3]) returns empty list")
     func takeZeroReturnsNil() throws {
-        #expect(try swish.eval("(take 0 [1 2 3])") == .nil)
+        #expect(try swish.eval("(take 0 [1 2 3])") == .list([], metadata: nil))
     }
 
     @Test("(take 10 [1 2]) returns all when n exceeds length")
@@ -76,9 +76,9 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(take 10 [1 2])") == .list([.integer(1), .integer(2)], metadata: nil))
     }
 
-    @Test("(take 3 nil) returns nil")
+    @Test("(take 3 nil) returns empty list")
     func takeFromNil() throws {
-        #expect(try swish.eval("(take 3 nil)") == .nil)
+        #expect(try swish.eval("(take 3 nil)") == .list([], metadata: nil))
     }
 
     @Test("(take 3 '(1 2 3 4)) works on lists")
@@ -93,19 +93,19 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(take-while even? [2 4 6 1 2])") == .list([.integer(2), .integer(4), .integer(6)], metadata: nil))
     }
 
-    @Test("(take-while odd? [2 4 6]) returns nil when pred fails immediately")
+    @Test("(take-while odd? [2 4 6]) returns empty list when pred fails immediately")
     func takeWhileFailsImmediately() throws {
-        #expect(try swish.eval("(take-while odd? [2 4 6])") == .nil)
+        #expect(try swish.eval("(take-while odd? [2 4 6])") == .list([], metadata: nil))
     }
 
-    @Test("(take-while even? nil) returns nil")
+    @Test("(take-while even? nil) returns empty list")
     func takeWhileOnNil() throws {
-        #expect(try swish.eval("(take-while even? nil)") == .nil)
+        #expect(try swish.eval("(take-while even? nil)") == .list([], metadata: nil))
     }
 
-    @Test("(take-while pos? [-1 2 3]) returns nil when first fails")
+    @Test("(take-while pos? [-1 2 3]) returns empty list when first fails")
     func takeWhileFirstFails() throws {
-        #expect(try swish.eval("(take-while pos? [-1 2 3])") == .nil)
+        #expect(try swish.eval("(take-while pos? [-1 2 3])") == .list([], metadata: nil))
     }
 
     // MARK: - drop-while
@@ -120,14 +120,14 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(drop-while odd? [2 4 6])") == .list([.integer(2), .integer(4), .integer(6)], metadata: nil))
     }
 
-    @Test("(drop-while even? [2 4 6]) returns nil when pred always true")
+    @Test("(drop-while even? [2 4 6]) returns empty list when pred always true")
     func dropWhileAlwaysTrue() throws {
-        #expect(try swish.eval("(drop-while even? [2 4 6])") == .nil)
+        #expect(try swish.eval("(drop-while even? [2 4 6])") == .list([], metadata: nil))
     }
 
-    @Test("(drop-while even? nil) returns nil")
+    @Test("(drop-while even? nil) returns empty list")
     func dropWhileOnNil() throws {
-        #expect(try swish.eval("(drop-while even? nil)") == .nil)
+        #expect(try swish.eval("(drop-while even? nil)") == .list([], metadata: nil))
     }
 
     @Test("(drop-while pos? [1 2 -1 3]) drops leading positives")
@@ -231,14 +231,14 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(partition 3 3 [0 0] [1 2 3 4])") == expected)
     }
 
-    @Test("(partition 2 []) returns nil")
+    @Test("(partition 2 []) returns empty list")
     func partitionEmpty() throws {
-        #expect(try swish.eval("(partition 2 [])") == .nil)
+        #expect(try swish.eval("(partition 2 [])") == .list([], metadata: nil))
     }
 
-    @Test("(partition 2 nil) returns nil")
+    @Test("(partition 2 nil) returns empty list")
     func partitionNil() throws {
-        #expect(try swish.eval("(partition 2 nil)") == .nil)
+        #expect(try swish.eval("(partition 2 nil)") == .list([], metadata: nil))
     }
 
     // MARK: - partition-all
@@ -271,14 +271,14 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(partition-all 2 1 [1 2 3])") == expected)
     }
 
-    @Test("(partition-all 2 []) returns nil")
+    @Test("(partition-all 2 []) returns empty list")
     func partitionAllEmpty() throws {
-        #expect(try swish.eval("(partition-all 2 [])") == .nil)
+        #expect(try swish.eval("(partition-all 2 [])") == .list([], metadata: nil))
     }
 
-    @Test("(partition-all 2 nil) returns nil")
+    @Test("(partition-all 2 nil) returns empty list")
     func partitionAllNil() throws {
-        #expect(try swish.eval("(partition-all 2 nil)") == .nil)
+        #expect(try swish.eval("(partition-all 2 nil)") == .list([], metadata: nil))
     }
 
     // MARK: - group-by

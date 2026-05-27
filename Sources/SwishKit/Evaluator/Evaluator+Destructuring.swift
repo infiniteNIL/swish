@@ -200,7 +200,8 @@ extension Evaluator {
                     }
                     let dropExpr = Expr.list([.symbol("drop", metadata: nil),
                                               .integer(pos), tmpSym], metadata: nil)
-                    result += try destructureBindings(elements[i], dropExpr)
+                    let seqExpr = Expr.list([.symbol("seq", metadata: nil), dropExpr], metadata: nil)
+                    result += try destructureBindings(elements[i], seqExpr)
                     break
                 }
                 else if case .symbol("_", _) = elem {

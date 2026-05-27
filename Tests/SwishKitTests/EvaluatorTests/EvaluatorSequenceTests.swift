@@ -146,9 +146,9 @@ struct EvaluatorSequenceTests {
 
     // MARK: - concat
 
-    @Test("concat with no args returns nil")
+    @Test("concat with no args returns empty list")
     func concatNone() throws {
-        #expect(try evaluator.eval("(concat)") == .nil)
+        #expect(try evaluator.eval("(concat)") == .list([], metadata: nil))
     }
 
     @Test("concat two lists")

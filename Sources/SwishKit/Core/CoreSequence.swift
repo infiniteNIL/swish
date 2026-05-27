@@ -254,7 +254,7 @@ private func coreConcat(_ args: [Expr]) throws -> Expr {
     for arg in args {
         result.append(contentsOf: try seqOf(arg, function: "concat"))
     }
-    return result.isEmpty ? .nil : .list(result, metadata: nil)
+    return .list(result, metadata: nil)
 }
 
 private func coreContains(_ args: [Expr]) throws -> Expr {
