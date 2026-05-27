@@ -319,4 +319,35 @@ struct CoreSequenceTests {
     func groupByNil() throws {
         #expect(try swish.eval("(group-by even? nil)") == .map([:], metadata: nil))
     }
+
+    // MARK: - frequencies
+
+    @Test("(frequencies [1 2 2 3 3 3]) counts occurrences")
+    func frequenciesBasic() throws {
+        let expected = Expr.map([
+            .integer(1): .integer(1),
+            .integer(2): .integer(2),
+            .integer(3): .integer(3)
+        ], metadata: nil)
+        #expect(try swish.eval("(frequencies [1 2 2 3 3 3])") == expected)
+    }
+
+    @Test("(frequencies [:a :b :a]) counts keywords")
+    func frequenciesKeywords() throws {
+        let expected = Expr.map([
+            .keyword("a"): .integer(2),
+            .keyword("b"): .integer(1)
+        ], metadata: nil)
+        #expect(try swish.eval("(frequencies [:a :b :a])") == expected)
+    }
+
+    @Test("(frequencies []) returns empty map")
+    func frequenciesEmpty() throws {
+        #expect(try swish.eval("(frequencies [])") == .map([:], metadata: nil))
+    }
+
+    @Test("(frequencies nil) returns empty map")
+    func frequenciesNil() throws {
+        #expect(try swish.eval("(frequencies nil)") == .map([:], metadata: nil))
+    }
 }
