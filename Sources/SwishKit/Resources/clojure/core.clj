@@ -633,3 +633,13 @@
     (let [ss (map seq (cons c1 (cons c2 colls)))]
       (when (every? identity ss)
         (concat (map first ss) (apply interleave (map rest ss))))))))
+
+(defn interpose
+  "Returns a lazy seq of the elements of coll separated by sep."
+  {:added "1.0"
+   :static true}
+  [sep coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (cons (first s)
+           (mapcat (fn [x] [sep x]) (rest s))))))
