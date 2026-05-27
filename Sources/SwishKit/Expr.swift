@@ -11,6 +11,11 @@ public struct FnArity: Sendable, Equatable, Hashable {
     public let body: [Expr]
 }
 
+public final class TransientCollection: @unchecked Sendable {
+    public var value: Expr
+    public init(_ value: Expr) { self.value = value }
+}
+
 /// AST node types for Swish expressions
 public indirect enum Expr: Sendable {
     case integer(Int)
@@ -34,6 +39,7 @@ public indirect enum Expr: Sendable {
     case varRef(Var)
     case namespace(Namespace)
     case atom(SwishAtom)
+    case transient(TransientCollection)
 }
 
 extension Expr: Equatable {
@@ -100,6 +106,9 @@ extension Expr: Equatable {
             return a === b
 
         case (.atom(let a), .atom(let b)):
+            return a === b
+
+        case (.transient(let a), .transient(let b)):
             return a === b
 
         default:
@@ -173,6 +182,9 @@ extension Expr: Hashable {
 
         case .atom(let v):
             hasher.combine(20); hasher.combine(ObjectIdentifier(v))
+
+        case .transient(let v):
+            hasher.combine(21); hasher.combine(ObjectIdentifier(v))
         }
     }
 }

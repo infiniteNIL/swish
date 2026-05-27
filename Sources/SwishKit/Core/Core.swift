@@ -14,4 +14,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerSet(into: evaluator)
     registerMeta(into: evaluator)
     registerAtom(into: evaluator)
+    registerTransient(into: evaluator)
 }

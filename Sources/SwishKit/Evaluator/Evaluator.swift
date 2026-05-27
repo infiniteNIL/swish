@@ -54,7 +54,7 @@ public class Evaluator {
         switch expr {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
-             .nativeFunction, .varRef, .namespace, .atom:
+             .nativeFunction, .varRef, .namespace, .atom, .transient:
             return expr
 
         case .vector(let elements, let vecMeta):

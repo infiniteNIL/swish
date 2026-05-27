@@ -280,4 +280,43 @@ struct CoreSequenceTests {
     func partitionAllNil() throws {
         #expect(try swish.eval("(partition-all 2 nil)") == .nil)
     }
+
+    // MARK: - group-by
+
+    @Test("(group-by even? [1 2 3 4]) groups by predicate")
+    func groupByEven() throws {
+        let expected = Expr.map([
+            .boolean(false): .vector([.integer(1), .integer(3)], metadata: nil),
+            .boolean(true): .vector([.integer(2), .integer(4)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(group-by even? [1 2 3 4])") == expected)
+    }
+
+    @Test("(group-by count [\"a\" \"bb\" \"cc\"]) groups by string length")
+    func groupByCount() throws {
+        let expected = Expr.map([
+            .integer(1): .vector([.string("a")], metadata: nil),
+            .integer(2): .vector([.string("bb"), .string("cc")], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(group-by count [\"a\" \"bb\" \"cc\"])") == expected)
+    }
+
+    @Test("(group-by identity [:a :b :a]) groups duplicate keys into same vector")
+    func groupByIdentity() throws {
+        let expected = Expr.map([
+            .keyword("a"): .vector([.keyword("a"), .keyword("a")], metadata: nil),
+            .keyword("b"): .vector([.keyword("b")], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(group-by identity [:a :b :a])") == expected)
+    }
+
+    @Test("(group-by even? []) returns empty map")
+    func groupByEmpty() throws {
+        #expect(try swish.eval("(group-by even? [])") == .map([:], metadata: nil))
+    }
+
+    @Test("(group-by even? nil) returns empty map")
+    func groupByNil() throws {
+        #expect(try swish.eval("(group-by even? nil)") == .map([:], metadata: nil))
+    }
 }

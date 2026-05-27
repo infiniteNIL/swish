@@ -81,6 +81,9 @@ public struct Printer {
 
         case .atom(let a):
             "#<Atom: \(printString(a.value))>"
+
+        case .transient(let tc):
+            "#<transient \(printString(tc.value))>"
         }
     }
 
@@ -101,6 +104,9 @@ public struct Printer {
         case .list, .vector, .map, .set:
             formatCollection(expr, transform: strString, includeMeta: true) ?? ""
 
+        case .transient:
+            printString(expr)
+
         default:
             printString(expr)
         }
@@ -115,6 +121,9 @@ public struct Printer {
 
         case .list, .vector, .map, .set:
             formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
+
+        case .transient:
+            printString(expr)
 
         default:
             printString(expr)

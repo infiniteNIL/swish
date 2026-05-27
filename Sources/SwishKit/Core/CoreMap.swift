@@ -97,7 +97,7 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     return current
 }
 
-private func coreDissoc(_ args: [Expr]) throws -> Expr {
+func coreDissoc(_ args: [Expr]) throws -> Expr {
     guard !args.isEmpty else {
         throw EvaluatorError.invalidArgument(
             function: "dissoc",
@@ -178,7 +178,7 @@ private func coreIsMap(_ args: [Expr]) throws -> Expr {
     return .boolean(false)
 }
 
-private func coreAssoc(_ args: [Expr]) throws -> Expr {
+func coreAssoc(_ args: [Expr]) throws -> Expr {
     guard args.count >= 3, (args.count - 1) % 2 == 0 else {
         throw EvaluatorError.invalidArgument(
             function: "assoc",
@@ -261,6 +261,9 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
 
     case .set(let elements, _):
         return elements.contains(args[1]) ? args[1] : notFound
+
+    case .transient(let tc):
+        return try coreGet([tc.value] + Array(args.dropFirst()))
 
     default:
         return notFound

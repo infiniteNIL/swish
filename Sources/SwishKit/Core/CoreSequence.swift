@@ -218,7 +218,7 @@ private func coreConj(_ args: [Expr]) throws -> Expr {
     return result
 }
 
-private func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
+func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     switch coll {
     case .nil:
         return .list([item], metadata: nil)
