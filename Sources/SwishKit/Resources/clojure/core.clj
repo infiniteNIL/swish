@@ -430,3 +430,57 @@
   [x]
   (filter (complement sequential?)
           (rest (tree-seq sequential? seq x))))
+
+(defn dorun
+  "When lazy sequences are produced via functions that have side
+  effects, any effects other than those needed to produce the first
+  element in the seq do not occur until the seq is realized. dorun can
+  be used to force any effects. Walks through the successive nexts of
+  the seq, does not retain the head and returns nil."
+  {:added "1.0"
+   :static true}
+  ([coll]
+   (when (seq coll)
+     (recur (next coll))))
+  ([n coll]
+   (when (and (seq coll) (pos? n))
+     (recur (dec n) (next coll)))))
+
+(defn doall
+  "When lazy sequences are produced via functions that have side
+  effects, any effects other than those needed to produce the first
+  element in the seq do not occur until the seq is realized. doall can
+  be used to force any effects. Walks through the successive nexts of
+  the seq, retains the head and returns it, thus causing the entire
+  seq to be realized. dorun can be used to realize a seq without
+  retaining the head. Returns the seq."
+  {:added "1.0"
+   :static true}
+  ([coll]
+   (dorun coll) coll)
+  ([n coll]
+   (dorun n coll) coll))
+
+(defn partition
+  "Returns a lazy sequence of lists of n items each, at offsets step
+  apart. If step is not supplied, defaults to n, i.e. the partitions
+  do not overlap. If a pad collection is supplied, use its elements as
+  necessary to complete last partition upto n items. In case there are
+  not enough padding elements, return a partition with less than n items."
+  {:added "1.0"
+   :static true}
+  ([n coll]
+   (partition n n coll))
+  ([n step coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (doall (take n s))]
+         (when (= n (count p))
+           (cons p (partition n step (drop step s))))))))
+  ([n step pad coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (take n s)]
+         (if (= n (count p))
+           (cons p (partition n step pad (drop step s)))
+           (list (take n (concat p pad)))))))))

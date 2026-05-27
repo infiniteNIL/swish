@@ -193,4 +193,51 @@ struct CoreSequenceTests {
     func flattenEmpty() throws {
         #expect(try swish.eval("(flatten '())") == .list([], metadata: nil))
     }
+
+    // MARK: - partition
+
+    @Test("(partition 2 [1 2 3 4]) returns non-overlapping pairs")
+    func partitionBasic() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil),
+            .list([.integer(3), .integer(4)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition 2 [1 2 3 4])") == expected)
+    }
+
+    @Test("(partition 2 [1 2 3]) drops incomplete last chunk")
+    func partitionDropsIncomplete() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition 2 [1 2 3])") == expected)
+    }
+
+    @Test("(partition 2 1 [1 2 3]) returns overlapping partitions")
+    func partitionWithStep() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil),
+            .list([.integer(2), .integer(3)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition 2 1 [1 2 3])") == expected)
+    }
+
+    @Test("(partition 3 3 [0 0] [1 2 3 4]) pads last chunk")
+    func partitionWithPad() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2), .integer(3)], metadata: nil),
+            .list([.integer(4), .integer(0), .integer(0)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition 3 3 [0 0] [1 2 3 4])") == expected)
+    }
+
+    @Test("(partition 2 []) returns nil")
+    func partitionEmpty() throws {
+        #expect(try swish.eval("(partition 2 [])") == .nil)
+    }
+
+    @Test("(partition 2 nil) returns nil")
+    func partitionNil() throws {
+        #expect(try swish.eval("(partition 2 nil)") == .nil)
+    }
 }
