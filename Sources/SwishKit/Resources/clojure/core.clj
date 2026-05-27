@@ -146,6 +146,16 @@
     (recur (next s))
     (first s)))
 
+(defn butlast
+  "Return a seq of all but the last item in coll, in linear time"
+  {:added "1.0"
+   :static true}
+  [s]
+  (loop [ret [] s s]
+    (if (next s)
+      (recur (conj ret (first s)) (next s))
+      (seq ret))))
+
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
   first item for which (pred item) returns logical false."

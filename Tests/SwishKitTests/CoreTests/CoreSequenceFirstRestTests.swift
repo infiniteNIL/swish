@@ -69,6 +69,33 @@ struct CoreSequenceFirstRestTests {
         #expect(try swish.eval("(last nil)") == .nil)
     }
 
+    // MARK: - butlast
+
+    @Test("(butlast '(1 2 3)) returns (1 2)")
+    func butlastOnList() throws {
+        #expect(try swish.eval("(butlast '(1 2 3))") == .list([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("(butlast [1 2 3]) returns (1 2)")
+    func butlastOnVector() throws {
+        #expect(try swish.eval("(butlast [1 2 3])") == .list([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("(butlast '(1)) returns nil")
+    func butlastSingleElement() throws {
+        #expect(try swish.eval("(butlast '(1))") == .nil)
+    }
+
+    @Test("(butlast '()) returns nil")
+    func butlastOnEmptyList() throws {
+        #expect(try swish.eval("(butlast '())") == .nil)
+    }
+
+    @Test("(butlast nil) returns nil")
+    func butlastOnNil() throws {
+        #expect(try swish.eval("(butlast nil)") == .nil)
+    }
+
     // MARK: - rest
 
     @Test("(rest '(1 2 3)) returns (2 3)")
