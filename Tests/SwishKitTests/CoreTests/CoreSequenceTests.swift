@@ -139,4 +139,58 @@ struct CoreSequenceTests {
     func dropWhileOnList() throws {
         #expect(try swish.eval("(drop-while even? '(2 4 1 3))") == .list([.integer(1), .integer(3)], metadata: nil))
     }
+
+    // MARK: - sequential?
+
+    @Test("(sequential? '(1 2)) returns true for list")
+    func sequentialList() throws {
+        #expect(try swish.eval("(sequential? '(1 2))") == .boolean(true))
+    }
+
+    @Test("(sequential? [1 2]) returns true for vector")
+    func sequentialVector() throws {
+        #expect(try swish.eval("(sequential? [1 2])") == .boolean(true))
+    }
+
+    @Test("(sequential? {:a 1}) returns false for map")
+    func sequentialMap() throws {
+        #expect(try swish.eval("(sequential? {:a 1})") == .boolean(false))
+    }
+
+    @Test("(sequential? nil) returns false")
+    func sequentialNil() throws {
+        #expect(try swish.eval("(sequential? nil)") == .boolean(false))
+    }
+
+    // MARK: - flatten
+
+    @Test("(flatten '(1 2 3)) returns flat list unchanged")
+    func flattenFlat() throws {
+        #expect(try swish.eval("(flatten '(1 2 3))") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("(flatten '(1 (2 3) 4)) flattens one level")
+    func flattenOneLevel() throws {
+        #expect(try swish.eval("(flatten '(1 (2 3) 4))") == .list([.integer(1), .integer(2), .integer(3), .integer(4)], metadata: nil))
+    }
+
+    @Test("(flatten '(1 (2 (3 4)) 5)) flattens deeply nested")
+    func flattenDeep() throws {
+        #expect(try swish.eval("(flatten '(1 (2 (3 4)) 5))") == .list([.integer(1), .integer(2), .integer(3), .integer(4), .integer(5)], metadata: nil))
+    }
+
+    @Test("(flatten [[1 2] [3 4]]) flattens vectors")
+    func flattenVectors() throws {
+        #expect(try swish.eval("(flatten [[1 2] [3 4]])") == .list([.integer(1), .integer(2), .integer(3), .integer(4)], metadata: nil))
+    }
+
+    @Test("(flatten nil) returns empty list")
+    func flattenNil() throws {
+        #expect(try swish.eval("(flatten nil)") == .list([], metadata: nil))
+    }
+
+    @Test("(flatten '()) returns empty list")
+    func flattenEmpty() throws {
+        #expect(try swish.eval("(flatten '())") == .list([], metadata: nil))
+    }
 }
