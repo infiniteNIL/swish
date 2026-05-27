@@ -107,4 +107,36 @@ struct CoreSequenceTests {
     func takeWhileFirstFails() throws {
         #expect(try swish.eval("(take-while pos? [-1 2 3])") == .nil)
     }
+
+    // MARK: - drop-while
+
+    @Test("(drop-while even? [2 4 6 1 2]) drops while pred is true")
+    func dropWhileEven() throws {
+        #expect(try swish.eval("(drop-while even? [2 4 6 1 2])") == .list([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("(drop-while odd? [2 4 6]) returns full sequence when pred fails immediately")
+    func dropWhileFailsImmediately() throws {
+        #expect(try swish.eval("(drop-while odd? [2 4 6])") == .list([.integer(2), .integer(4), .integer(6)], metadata: nil))
+    }
+
+    @Test("(drop-while even? [2 4 6]) returns nil when pred always true")
+    func dropWhileAlwaysTrue() throws {
+        #expect(try swish.eval("(drop-while even? [2 4 6])") == .nil)
+    }
+
+    @Test("(drop-while even? nil) returns nil")
+    func dropWhileOnNil() throws {
+        #expect(try swish.eval("(drop-while even? nil)") == .nil)
+    }
+
+    @Test("(drop-while pos? [1 2 -1 3]) drops leading positives")
+    func dropWhilePos() throws {
+        #expect(try swish.eval("(drop-while pos? [1 2 -1 3])") == .list([.integer(-1), .integer(3)], metadata: nil))
+    }
+
+    @Test("(drop-while even? '(2 4 1 3)) works on lists")
+    func dropWhileOnList() throws {
+        #expect(try swish.eval("(drop-while even? '(2 4 1 3))") == .list([.integer(1), .integer(3)], metadata: nil))
+    }
 }

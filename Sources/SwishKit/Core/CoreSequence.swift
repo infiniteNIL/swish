@@ -92,6 +92,9 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "take-while", arity: .fixed(2),
         doc: "Returns a lazy sequence of successive items from coll while (pred item) returns logical true. pred must be free of side-effects. Returns a transducer when no collection is provided.",
         arglists: [["pred", "coll"]]) { [evaluator] args in try coreTakeWhile(evaluator, args) }
+    evaluator.register(name: "drop-while", arity: .fixed(2),
+        doc: "Returns a lazy sequence of the items in coll starting from the first item for which (pred item) returns logical false. pred must be free of side-effects. Returns a stateful transducer when no collection is provided.",
+        arglists: [["pred", "coll"]]) { [evaluator] args in try coreDropWhile(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -346,5 +349,17 @@ private func coreTakeWhile(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
         if keep == .nil || keep == .boolean(false) { break }
         result.append(elem)
     }
+    return result.isEmpty ? .nil : .list(result, metadata: nil)
+}
+
+private func coreDropWhile(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let elements = try seqOf(args[1], function: "drop-while")
+    var index = 0
+    for elem in elements {
+        let skip = try evaluator.call(args[0], args: [elem])
+        if skip == .nil || skip == .boolean(false) { break }
+        index += 1
+    }
+    let result = Array(elements.dropFirst(index))
     return result.isEmpty ? .nil : .list(result, metadata: nil)
 }
