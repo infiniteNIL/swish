@@ -240,4 +240,44 @@ struct CoreSequenceTests {
     func partitionNil() throws {
         #expect(try swish.eval("(partition 2 nil)") == .nil)
     }
+
+    // MARK: - partition-all
+
+    @Test("(partition-all 2 [1 2 3 4]) returns even partitions")
+    func partitionAllEven() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil),
+            .list([.integer(3), .integer(4)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition-all 2 [1 2 3 4])") == expected)
+    }
+
+    @Test("(partition-all 2 [1 2 3]) keeps incomplete last chunk")
+    func partitionAllKeepsIncomplete() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil),
+            .list([.integer(3)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition-all 2 [1 2 3])") == expected)
+    }
+
+    @Test("(partition-all 2 1 [1 2 3]) returns overlapping partitions including tail")
+    func partitionAllWithStep() throws {
+        let expected = Expr.list([
+            .list([.integer(1), .integer(2)], metadata: nil),
+            .list([.integer(2), .integer(3)], metadata: nil),
+            .list([.integer(3)], metadata: nil)
+        ], metadata: nil)
+        #expect(try swish.eval("(partition-all 2 1 [1 2 3])") == expected)
+    }
+
+    @Test("(partition-all 2 []) returns nil")
+    func partitionAllEmpty() throws {
+        #expect(try swish.eval("(partition-all 2 [])") == .nil)
+    }
+
+    @Test("(partition-all 2 nil) returns nil")
+    func partitionAllNil() throws {
+        #expect(try swish.eval("(partition-all 2 nil)") == .nil)
+    }
 }
