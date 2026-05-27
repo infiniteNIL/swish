@@ -163,6 +163,38 @@
   [coll]
   (reduce conj () coll))
 
+(defn take
+  "Returns a lazy sequence of the first n items in coll, or all items if
+  there are fewer than n."
+  {:added "1.0"
+   :static true}
+  [n coll]
+  (lazy-seq
+   (when (pos? n)
+     (when-let [s (seq coll)]
+       (cons (first s) (take (dec n) (rest s)))))))
+
+(defn take-while
+  "Returns a lazy sequence of successive items from coll while
+  (pred item) returns logical true. pred must be free of side-effects."
+  {:added "1.0"
+   :static true}
+  [pred coll]
+  (lazy-seq
+   (when-let [s (seq coll)]
+     (when (pred (first s))
+       (cons (first s) (take-while pred (rest s)))))))
+
+(defn drop
+  "Returns a lazy sequence of all but the first n items in coll."
+  {:added "1.0"
+   :static true}
+  [n coll]
+  (let [s (seq coll)]
+    (if (and (pos? n) s)
+      (recur (dec n) (rest s))
+      s)))
+
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
   first item for which (pred item) returns logical false."

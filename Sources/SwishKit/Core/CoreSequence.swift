@@ -81,17 +81,6 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns the value at the index. get returns nil if index out of bounds, nth throws an exception unless not-found is supplied. nth also works for strings, Java arrays, regex Matchers and Lists, and, in O(n) time, for sequences.",
         arglists: [["coll", "index"], ["coll", "index", "not-found"]],
         body: coreNth)
-    evaluator.register(name: "drop", arity: .fixed(2),
-        doc: "Returns a lazy sequence of all but the first n items in coll. Returns a stateful transducer when no collection is provided.",
-        arglists: [["n"], ["n", "coll"]],
-        body: coreDrop)
-    evaluator.register(name: "take", arity: .fixed(2),
-        doc: "Returns a lazy sequence of the first n items in coll, or all items if there are fewer than n. Returns a stateful transducer when no collection is provided.",
-        arglists: [["n", "coll"]],
-        body: coreTake)
-    evaluator.register(name: "take-while", arity: .fixed(2),
-        doc: "Returns a lazy sequence of successive items from coll while (pred item) returns logical true. pred must be free of side-effects. Returns a transducer when no collection is provided.",
-        arglists: [["pred", "coll"]]) { [evaluator] args in try coreTakeWhile(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -317,34 +306,4 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreDrop(_ args: [Expr]) throws -> Expr {
-    guard case .integer(let n) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "drop", message: "n must be an integer")
-    }
-    let elements = try seqOf(args[1], function: "drop")
-    let count = max(0, n)
-    if count >= elements.count { return .nil }
-    let result = Array(elements.dropFirst(count))
-    return result.isEmpty ? .nil : .list(result, metadata: nil)
-}
 
-private func coreTake(_ args: [Expr]) throws -> Expr {
-    guard case .integer(let n) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "take", message: "n must be an integer")
-    }
-    let elements = try seqOf(args[1], function: "take")
-    if n <= 0 || elements.isEmpty { return .nil }
-    let result = Array(elements.prefix(n))
-    return .list(result, metadata: nil)
-}
-
-private func coreTakeWhile(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    let elements = try seqOf(args[1], function: "take-while")
-    var result: [Expr] = []
-    for elem in elements {
-        let keep = try evaluator.call(args[0], args: [elem])
-        if keep == .nil || keep == .boolean(false) { break }
-        result.append(elem)
-    }
-    return result.isEmpty ? .nil : .list(result, metadata: nil)
-}
