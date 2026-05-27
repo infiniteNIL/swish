@@ -37,6 +37,38 @@ struct CoreSequenceFirstRestTests {
         #expect(try swish.eval("(first nil)") == .nil)
     }
 
+    // MARK: - last
+
+    @Test("(last '(1 2 3)) returns 3")
+    func lastOnList() throws {
+        #expect(try swish.eval("(last '(1 2 3))") == .integer(3))
+    }
+
+    @Test("(last [1 2 3]) returns 3")
+    func lastOnVector() throws {
+        #expect(try swish.eval("(last [1 2 3])") == .integer(3))
+    }
+
+    @Test("(last \"hello\") returns \\o")
+    func lastOnString() throws {
+        #expect(try swish.eval("(last \"hello\")") == .character("o"))
+    }
+
+    @Test("(last '()) returns nil")
+    func lastOnEmptyList() throws {
+        #expect(try swish.eval("(last '())") == .nil)
+    }
+
+    @Test("(last []) returns nil")
+    func lastOnEmptyVector() throws {
+        #expect(try swish.eval("(last [])") == .nil)
+    }
+
+    @Test("(last nil) returns nil")
+    func lastOnNil() throws {
+        #expect(try swish.eval("(last nil)") == .nil)
+    }
+
     // MARK: - rest
 
     @Test("(rest '(1 2 3)) returns (2 3)")

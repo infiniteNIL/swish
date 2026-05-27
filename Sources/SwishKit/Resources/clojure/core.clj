@@ -137,6 +137,15 @@
   {:added "1.0"}
   [x] (first (next x)))
 
+(defn last
+  "Return the last item in coll, in linear time"
+  {:added "1.0"
+   :static true}
+  [s]
+  (if (next s)
+    (recur (next s))
+    (first s)))
+
 (defmacro cond
   "Takes a set of test/expr pairs. It evaluates each test one at a
    time. If a test returns logical true, cond evaluates and returns

@@ -1,7 +1,7 @@
 # Todo
 
 - [ ] Sequence Utils
-      drop-while, last, butlast,
+      butlast,
       reverse, flatten, partition, partition-all, group-by,
       frequencies, sort, sort-by, distinct, interleave, interpose,
       zipmap, keep, keep-indexed, map-indexed, doall, doseq, for
@@ -31,6 +31,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] drop-while, last
 - [x] doc (with doc strings for builtins)
 - [x] take, take-while
 - [x] atoms (and deref(@), swap!, reset!. no synchronization)
