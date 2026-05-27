@@ -21,10 +21,6 @@ func registerComparison(into evaluator: Evaluator) {
         doc: "Equality. Returns true if x equals y, false if not. Same as Java x.equals(y) except it also works for nil, and compares numbers and collections in a type-independent manner. Clojure's immutable data structures define equals() (and thus =) as a value, not an identity, comparison.",
         arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
         body: coreEqual)
-    evaluator.register(name: "not=", arity: .atLeastOne,
-        doc: "Same as (not (= obj1 obj2))",
-        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
-        body: coreNotEqual)
 }
 
 // MARK: - Implementations
@@ -47,11 +43,6 @@ private func coreGreaterOrEqual(_ args: [Expr]) throws -> Expr {
 
 private func coreEqual(_ args: [Expr]) throws -> Expr {
     try compareConsecutivePairs(args, singleArgResult: true) { $0 == $1 }
-}
-
-private func coreNotEqual(_ args: [Expr]) throws -> Expr {
-    if args.count == 1 { return .boolean(false) }
-    return .boolean(!zip(args, args.dropFirst()).allSatisfy { $0 == $1 })
 }
 
 // MARK: - Numeric helper

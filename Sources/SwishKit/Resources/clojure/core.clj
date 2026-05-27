@@ -60,6 +60,15 @@
    :static true}
   [x] (if x false true))
 
+(defn not=
+  "Same as (not (= obj1 obj2))"
+  {:tag Boolean
+   :added "1.0"
+   :static true}
+  ([x] false)
+  ([x y] (not (= x y)))
+  ([x y & more] (not (apply = x y more))))
+
 (defmacro or
   "Evaluates exprs one at a time, from left to right. If a form
    returns a logical true value, or returns that value and doesn't
@@ -276,6 +285,24 @@
   "Returns true if num is less than zero, else false."
   {:added "1.0"}
   [x] (< x 0))
+
+(defn max
+  "Returns the greatest of its arguments."
+  {:added "1.0"
+   :static true}
+  ([x] x)
+  ([x y] (if (> x y) x y))
+  ([x y & more]
+   (reduce (fn [m n] (if (> m n) m n)) (if (> x y) x y) more)))
+
+(defn min
+  "Returns the least of its arguments."
+  {:added "1.0"
+   :static true}
+  ([x] x)
+  ([x y] (if (< x y) x y))
+  ([x y & more]
+   (reduce (fn [m n] (if (< m n) m n)) (if (< x y) x y) more)))
 
 (defn even?
   "Returns true if n is even, throws if n is not an integer."

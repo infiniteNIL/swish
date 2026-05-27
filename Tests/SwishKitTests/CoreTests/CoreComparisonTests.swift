@@ -217,9 +217,9 @@ struct CoreComparisonTests {
 
     // MARK: - not=
 
-    @Test("(not=) throws arityMismatch")
+    @Test("(not=) throws no matching arity")
     func notEqNoArgs() throws {
-        #expect(throws: EvaluatorError.arityMismatch(name: "not=", expected: .atLeastOne, got: 0)) {
+        #expect(throws: EvaluatorError.noMatchingArity(name: "not=", got: 0)) {
             try swish.eval("(not=)")
         }
     }
@@ -247,5 +247,39 @@ struct CoreComparisonTests {
     @Test("(not= 1 1 1) returns false (all equal)")
     func notEqChainedFalse() throws {
         #expect(try swish.eval("(not= 1 1 1)") == .boolean(false))
+    }
+
+    // MARK: - max
+
+    @Test("(max 3) returns 3")
+    func maxSingle() throws {
+        #expect(try swish.eval("(max 3)") == .integer(3))
+    }
+
+    @Test("(max 1 2) returns 2")
+    func maxTwo() throws {
+        #expect(try swish.eval("(max 1 2)") == .integer(2))
+    }
+
+    @Test("(max 1 3 2) returns 3")
+    func maxMultiple() throws {
+        #expect(try swish.eval("(max 1 3 2)") == .integer(3))
+    }
+
+    // MARK: - min
+
+    @Test("(min 3) returns 3")
+    func minSingle() throws {
+        #expect(try swish.eval("(min 3)") == .integer(3))
+    }
+
+    @Test("(min 1 2) returns 1")
+    func minTwo() throws {
+        #expect(try swish.eval("(min 1 2)") == .integer(1))
+    }
+
+    @Test("(min 1 3 2) returns 1")
+    func minMultiple() throws {
+        #expect(try swish.eval("(min 1 3 2)") == .integer(1))
     }
 }

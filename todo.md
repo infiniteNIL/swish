@@ -29,6 +29,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] max, min
 - [x] Sequence Utils:
       drop-while, last, butlast, reverse, flatten, partition, partition-all,
       group-by
