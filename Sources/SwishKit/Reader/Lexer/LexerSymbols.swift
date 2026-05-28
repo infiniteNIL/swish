@@ -39,55 +39,16 @@ extension Lexer {
     }
 
     private func resolveNamedCharacter(_ name: String) -> Character? {
-        switch name {
-        case "newline":
-            return "\n"
-
-        case "tab":
-            return "\t"
-
-        case "space":
-            return " "
-
-        case "return":
-            return "\r"
-
-        case "backspace":
-            return "\u{0008}"
-
-        case "formfeed":
-            return "\u{000C}"
-
-        default:
-            return nil
-        }
+        namedCharacters.first(where: { $0.key == name })?.value
     }
 
     private func scanUnicodeCharacter(startLine: Int, startColumn: Int) throws -> Token {
         advance()  // consume 'u'
         advance()  // consume '{'
-
-        var hexDigits = ""
-        while !isAtEnd && peek() != "}" {
-            guard let char = peek(), char.isHexDigit else {
-                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
-            }
-            hexDigits.append(advance())
-        }
-
-        guard !isAtEnd else {
-            throw LexerError.invalidCharacterLiteral("unterminated unicode escape", line: startLine, column: startColumn)
-        }
-        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
-            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
-        }
-        guard let codePoint = UInt32(hexDigits, radix: 16),
-              let scalar = Unicode.Scalar(codePoint) else {
-            throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
-        }
-
-        advance()  // consume '}'
-        return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
+        let char = try parseUnicodeHexContent(
+            unterminated: .invalidCharacterLiteral("unterminated unicode escape", line: startLine, column: startColumn),
+            startLine: startLine, startColumn: startColumn)
+        return Token(type: .character, text: String(char), line: startLine, column: startColumn)
     }
 
     func scanSymbol(startLine: Int, startColumn: Int) -> Token {

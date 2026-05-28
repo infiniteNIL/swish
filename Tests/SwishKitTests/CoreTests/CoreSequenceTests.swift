@@ -350,4 +350,82 @@ struct CoreSequenceTests {
     func frequenciesNil() throws {
         #expect(try swish.eval("(frequencies nil)") == .map([:], metadata: nil))
     }
+
+    // MARK: - second
+
+    @Test("(second [1 2 3]) returns 2")
+    func secondOfVector() throws {
+        #expect(try swish.eval("(second [1 2 3])") == .integer(2))
+    }
+
+    @Test("(second '(10 20)) returns 20")
+    func secondOfList() throws {
+        #expect(try swish.eval("(second '(10 20))") == .integer(20))
+    }
+
+    @Test("(second '(1)) returns nil")
+    func secondOfSingleton() throws {
+        #expect(try swish.eval("(second '(1))") == .nil)
+    }
+
+    @Test("(second nil) returns nil")
+    func secondOfNil() throws {
+        #expect(try swish.eval("(second nil)") == .nil)
+    }
+
+    // MARK: - nnext
+
+    @Test("(nnext [1 2 3]) returns (3)")
+    func nnextThreeElems() throws {
+        #expect(try swish.eval("(nnext [1 2 3])") == .list([.integer(3)], metadata: nil))
+    }
+
+    @Test("(nnext [1 2]) returns nil")
+    func nnextTwoElems() throws {
+        #expect(try swish.eval("(nnext [1 2])") == .nil)
+    }
+
+    @Test("(nnext [1]) returns nil")
+    func nnextOneElem() throws {
+        #expect(try swish.eval("(nnext [1])") == .nil)
+    }
+
+    // MARK: - empty?
+
+    @Test("(empty? []) returns true")
+    func emptyVector() throws {
+        #expect(try swish.eval("(empty? [])") == .boolean(true))
+    }
+
+    @Test("(empty? [1]) returns false")
+    func emptyNonEmptyVector() throws {
+        #expect(try swish.eval("(empty? [1])") == .boolean(false))
+    }
+
+    @Test("(empty? nil) returns true")
+    func emptyNil() throws {
+        #expect(try swish.eval("(empty? nil)") == .boolean(true))
+    }
+
+    @Test("(empty? '()) returns true")
+    func emptyList() throws {
+        #expect(try swish.eval("(empty? '())") == .boolean(true))
+    }
+
+    // MARK: - not-empty
+
+    @Test("(not-empty [1 2]) returns [1 2]")
+    func notEmptyVector() throws {
+        #expect(try swish.eval("(not-empty [1 2])") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("(not-empty []) returns nil")
+    func notEmptyEmptyVector() throws {
+        #expect(try swish.eval("(not-empty [])") == .nil)
+    }
+
+    @Test("(not-empty nil) returns nil")
+    func notEmptyNil() throws {
+        #expect(try swish.eval("(not-empty nil)") == .nil)
+    }
 }

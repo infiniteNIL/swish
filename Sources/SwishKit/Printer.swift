@@ -172,28 +172,10 @@ public struct Printer {
     }
 
     private func printCharacter(_ char: Character) -> String {
-        switch char {
-        case "\n":
-            return "\\newline"
-
-        case "\t":
-            return "\\tab"
-
-        case " ":
-            return "\\space"
-
-        case "\r":
-            return "\\return"
-
-        case "\u{0008}":
-            return "\\backspace"
-
-        case "\u{000C}":
-            return "\\formfeed"
-
-        default:
-            return "\\\(char)"
+        if let pair = namedCharacters.first(where: { $0.value == char }) {
+            return "\\\(pair.key)"
         }
+        return "\\\(char)"
     }
 
     private func escapeString(_ s: String) -> String {

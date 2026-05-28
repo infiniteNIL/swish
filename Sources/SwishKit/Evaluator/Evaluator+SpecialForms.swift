@@ -8,6 +8,13 @@ extension Evaluator {
 
     // MARK: - Special forms
 
+    private func buildMeta(from symMeta: [Expr: Expr]?, attrMap: [Expr: Expr]?, docString: String?) -> [Expr: Expr] {
+        var meta: [Expr: Expr] = symMeta ?? [:]
+        if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
+        if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+        return meta
+    }
+
     func evalVar(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard elements.count == 2, case .symbol(let name, _) = elements[1]
         else {
@@ -38,9 +45,7 @@ extension Evaluator {
         if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
         if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
 
-        var meta: [Expr: Expr] = symMeta ?? [:]
-        if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
-        if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+        let meta = buildMeta(from: symMeta, attrMap: attrMap, docString: docString)
 
         let ns = findOrCreateNs(name)
         setCurrentNs(ns)
@@ -426,9 +431,7 @@ extension Evaluator {
         guard idx < elements.count else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
-        var meta: [Expr: Expr] = symMeta ?? [:]
-        if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
-        if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+        var meta = buildMeta(from: symMeta, attrMap: attrMap, docString: docString)
         let restElems = Array(elements.dropFirst(idx))
         if meta[.keyword("arglists")] == nil {
             if case .vector(let paramExprs, _) = restElems.first {

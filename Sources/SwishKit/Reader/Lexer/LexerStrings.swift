@@ -76,28 +76,9 @@ extension Lexer {
         }
         advance()  // consume 'u'
         advance()  // consume '{'
-
-        var hexDigits = ""
-        while !isAtEnd && peek() != "}" {
-            guard let char = peek(), char.isHexDigit else {
-                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: line, column: column)
-            }
-            hexDigits.append(advance())
-        }
-
-        guard !isAtEnd else {
-            throw LexerError.unterminatedString(line: startLine, column: startColumn)
-        }
-        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
-            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: line, column: column)
-        }
-        guard let codePoint = UInt32(hexDigits, radix: 16),
-              let scalar = Unicode.Scalar(codePoint) else {
-            throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
-        }
-
-        advance()  // consume '}'
-        return Character(scalar)
+        return try parseUnicodeHexContent(
+            unterminated: .unterminatedString(line: startLine, column: startColumn),
+            startLine: startLine, startColumn: startColumn)
     }
 
     // MARK: - Multiline string helpers

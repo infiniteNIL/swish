@@ -215,4 +215,38 @@ struct CoreMathTests {
             try swish.eval("(/ 1 0)")
         }
     }
+
+    // MARK: - inc
+
+    @Test("(inc 0) returns 1")
+    func incZero() throws {
+        #expect(try swish.eval("(inc 0)") == .integer(1))
+    }
+
+    @Test("(inc -1) returns 0")
+    func incNegOne() throws {
+        #expect(try swish.eval("(inc -1)") == .integer(0))
+    }
+
+    @Test("(inc 1.5) returns 2.5")
+    func incFloat() throws {
+        #expect(try swish.eval("(inc 1.5)") == .float(2.5))
+    }
+
+    // MARK: - dec
+
+    @Test("(dec 1) returns 0")
+    func decOne() throws {
+        #expect(try swish.eval("(dec 1)") == .integer(0))
+    }
+
+    @Test("(dec 0) returns -1")
+    func decZero() throws {
+        #expect(try swish.eval("(dec 0)") == .integer(-1))
+    }
+
+    @Test("(dec 1.5) returns 0.5")
+    func decFloat() throws {
+        #expect(try swish.eval("(dec 1.5)") == .float(0.5))
+    }
 }

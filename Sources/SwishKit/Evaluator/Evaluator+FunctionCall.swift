@@ -55,33 +55,25 @@ extension Evaluator {
         }
     }
 
-    private func callMap(_ dict: [Expr: Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+    private func evalLookupArgs(_ args: ArraySlice<Expr>, function: String, in env: Environment) throws -> (key: Expr, notFound: Expr) {
         let evaluated = try args.map { try eval($0, in: env) }
-        guard evaluated.count == 1 || evaluated.count == 2
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "map",
+        guard evaluated.count == 1 || evaluated.count == 2 else {
+            throw EvaluatorError.invalidArgument(function: function,
                 message: "requires 1 or 2 arguments, got \(evaluated.count)")
         }
-        let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
-        return dict[evaluated[0]] ?? notFound
+        return (evaluated[0], evaluated.count == 2 ? evaluated[1] : .nil)
+    }
+
+    private func callMap(_ dict: [Expr: Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
+        let (key, notFound) = try evalLookupArgs(args, function: "map", in: env)
+        return dict[key] ?? notFound
     }
 
     private func callKeyword(_ name: String, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let evaluated = try args.map { try eval($0, in: env) }
-        guard evaluated.count == 1 || evaluated.count == 2
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "keyword",
-                message: "requires 1 or 2 arguments, got \(evaluated.count)")
-        }
-        let notFound: Expr = evaluated.count == 2 ? evaluated[1] : .nil
-        switch evaluated[0] {
-        case .map(let dict, _):
-            return dict[.keyword(name)] ?? notFound
-
-        default:
-            return notFound
+        let (key, notFound) = try evalLookupArgs(args, function: "keyword", in: env)
+        switch key {
+        case .map(let dict, _): return dict[.keyword(name)] ?? notFound
+        default:                return notFound
         }
     }
 

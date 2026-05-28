@@ -4,7 +4,6 @@ import Testing
 @Suite("Evaluator Map Tests")
 struct EvaluatorMapTests {
     let evaluator = Evaluator()
-    let swish = Swish()
 
     @Test("Empty map evaluates to itself")
     func emptyMapSelfEvaluates() throws {
@@ -42,7 +41,7 @@ struct EvaluatorMapTests {
 
     @Test("Map round-trips through reader")
     func mapRoundTripsFromSource() throws {
-        let result = try swish.eval("{:x 10 :y 20}")
+        let result = try evaluator.eval("{:x 10 :y 20}")
         #expect(result == .map([.keyword("x"): .integer(10), .keyword("y"): .integer(20)], metadata: nil))
     }
 }
