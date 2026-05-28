@@ -687,3 +687,17 @@
                    (keepi (inc idx) (rest s))
                    (cons x (keepi (inc idx) (rest s))))))))]
     (keepi 0 coll)))
+
+(defn map-indexed
+  "Returns a lazy sequence consisting of the result of applying f to 0
+  and the first item of coll, followed by applying f to 1 and the second
+  item in coll, etc, until coll is exhausted. Thus function f should
+  accept 2 arguments, index and item."
+  {:added "1.2"
+   :static true}
+  [f coll]
+  (letfn [(mapi [idx coll]
+            (lazy-seq
+             (when-let [s (seq coll)]
+               (cons (f idx (first s)) (mapi (inc idx) (rest s))))))]
+    (mapi 0 coll)))

@@ -487,4 +487,26 @@ struct EvaluatorSequenceTests {
     func keepIndexedIndexStartsAt0() throws {
         #expect(try evaluator.eval("(keep-indexed (fn [i x] i) [:a :b :c])") == .list([.integer(0), .integer(1), .integer(2)], metadata: nil))
     }
+
+    // MARK: - map-indexed
+
+    @Test("map-indexed applies f with index and item")
+    func mapIndexedBasic() throws {
+        #expect(try evaluator.eval("(map-indexed (fn [i x] (* i x)) [1 2 3])") == .list([.integer(0), .integer(2), .integer(6)], metadata: nil))
+    }
+
+    @Test("map-indexed index starts at 0")
+    func mapIndexedIndexStartsAt0() throws {
+        #expect(try evaluator.eval("(map-indexed (fn [i x] i) [:a :b :c])") == .list([.integer(0), .integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("map-indexed on empty collection returns empty list")
+    func mapIndexedEmpty() throws {
+        #expect(try evaluator.eval("(map-indexed (fn [i x] x) [])") == .list([], metadata: nil))
+    }
+
+    @Test("map-indexed works on a list")
+    func mapIndexedOnList() throws {
+        #expect(try evaluator.eval("(map-indexed (fn [i x] (+ i x)) '(10 20 30))") == .list([.integer(10), .integer(21), .integer(32)], metadata: nil))
+    }
 }
