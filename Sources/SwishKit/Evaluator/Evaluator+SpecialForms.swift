@@ -429,17 +429,30 @@ extension Evaluator {
         var meta: [Expr: Expr] = symMeta ?? [:]
         if let attr = attrMap { for (k, v) in attr { meta[k] = v } }
         if let doc = docString { meta[.keyword("doc")] = .string(doc) }
+        let restElems = Array(elements.dropFirst(idx))
+        if meta[.keyword("arglists")] == nil {
+            if case .vector(let paramExprs, _) = restElems.first {
+                meta[.keyword("arglists")] = .list([.vector(paramExprs, metadata: nil)], metadata: nil)
+            }
+            else {
+                let vecs = restElems.compactMap { form -> Expr? in
+                    guard case .list(let parts, _) = form, case .vector(let p, _) = parts.first else { return nil }
+                    return .vector(p, metadata: nil)
+                }
+                if !vecs.isEmpty { meta[.keyword("arglists")] = .list(vecs, metadata: nil) }
+            }
+        }
         let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta
         let macroValue: Expr
-        switch elements[idx] {
+        switch restElems.first {
         case .vector(let paramExprs, _):
             let params = extractParamNames(paramExprs)
-            let rawBody = Array(elements.dropFirst(idx + 1))
+            let rawBody = Array(restElems.dropFirst())
             macroValue = .macro(name: name, params: params,
                                 body: expandAliases(in: rawBody, locals: Set(params)),
                                 metadata: macroMeta)
         case .list:
-            let arities = try Array(elements.dropFirst(idx)).map {
+            let arities = try restElems.map {
                 try buildFnArity(from: $0, functionName: "defmacro", validateRecur: false)
             }
             macroValue = .multiArityMacro(name: name, arities: arities, metadata: macroMeta)

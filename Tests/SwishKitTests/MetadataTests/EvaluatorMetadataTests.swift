@@ -93,7 +93,10 @@ struct EvaluatorMetadataTests {
         let swish2 = Swish()
         _ = try swish2.eval("(defmacro my-mac \"Does a thing\" [x] x)")
         let result = try swish2.eval("(meta #'user/my-mac)")
-        #expect(result == .map([.keyword("doc"): .string("Does a thing")], metadata: nil))
+        #expect(result == .map([
+            .keyword("doc"): .string("Does a thing"),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
+        ], metadata: nil))
     }
 
     @Test("defmacro ^-metadata and doc string are merged")
@@ -103,7 +106,8 @@ struct EvaluatorMetadataTests {
         let result = try swish2.eval("(meta #'user/my-mac)")
         #expect(result == .map([
             .keyword("private"): .boolean(true),
-            .keyword("doc"): .string("Docs")
+            .keyword("doc"): .string("Docs"),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
         ], metadata: nil))
     }
 
@@ -178,7 +182,10 @@ struct EvaluatorMetadataTests {
         let swish2 = Swish()
         _ = try swish2.eval("(defmacro my-mac {:added \"1.0\"} [x] x)")
         let result = try swish2.eval("(meta #'user/my-mac)")
-        #expect(result == .map([.keyword("added"): .string("1.0")], metadata: nil))
+        #expect(result == .map([
+            .keyword("added"): .string("1.0"),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
+        ], metadata: nil))
     }
 
     @Test("defmacro with doc string and attr map merges both")
@@ -188,7 +195,8 @@ struct EvaluatorMetadataTests {
         let result = try swish2.eval("(meta #'user/my-mac)")
         #expect(result == .map([
             .keyword("doc"): .string("Docs"),
-            .keyword("static"): .boolean(true)
+            .keyword("static"): .boolean(true),
+            .keyword("arglists"): .list([.vector([.symbol("x", metadata: nil)], metadata: nil)], metadata: nil)
         ], metadata: nil))
     }
 
