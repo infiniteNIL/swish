@@ -37,6 +37,12 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns true if x is nil, false otherwise.",
         arglists: [["x"]],
         body: coreIsNil)
+    evaluator.register(name: "keyword?", arity: .fixed(1),
+        doc: "Returns true if x is a keyword, false otherwise.",
+        arglists: [["x"]]) { args in
+        if case .keyword = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
     evaluator.register(name: "list?", arity: .fixed(1),
         doc: "Returns true if x implements IPersistentList",
         arglists: [["x"]],

@@ -101,6 +101,13 @@
   [test & body]
   (list 'if test nil (cons 'do body)))
 
+(defmacro if-not
+  "Evaluates test. If logical false, evaluates and returns then expr,
+  otherwise else expr, if supplied, else nil."
+  {:added "1.0"}
+  ([test then] `(if (not ~test) ~then nil))
+  ([test then else] `(if (not ~test) ~then ~else)))
+
 (defmacro assert-args
   [& pairs]
   (when pairs
@@ -146,6 +153,11 @@
   "Same as (first (next x))"
   {:added "1.0"}
   [x] (first (next x)))
+
+(defn nnext
+  "Same as (next (next x))"
+  {:added "1.1"}
+  [x] (next (next x)))
 
 (defn last
   "Return the last item in coll, in linear time"
@@ -701,3 +713,47 @@
              (when-let [s (seq coll)]
                (cons (f idx (first s)) (mapi (inc idx) (rest s))))))]
     (mapi 0 coll)))
+
+(defmacro doseq
+  "Repeatedly executes body (presumably for side-effects) with
+  bindings and filtering as provided by \"for\".  Does not retain
+  the head of the sequence. Returns nil."
+  {:added "1.0"}
+  [seq-exprs & body]
+  (assert-args
+   (vector? seq-exprs) "a vector for its binding"
+   (even? (count seq-exprs)) "an even number of forms in binding vector")
+  (let [step (fn step [recform exprs]
+               (if-not exprs
+                 [true `(do ~@body)]
+                 (let [k (first exprs)
+                       v (second exprs)]
+                   (if (keyword? k)
+                     (let [steppair (step recform (nnext exprs))
+                           needrec  (first steppair)
+                           subform  (second steppair)]
+                       (cond
+                         (= k :let)
+                         [needrec `(let ~v ~subform)]
+
+                         (= k :while)
+                         [false `(when ~v
+                                   ~subform
+                                   ~@(when needrec [recform]))]
+
+                         (= k :when)
+                         [false `(if ~v
+                                    (do ~subform
+                                        ~@(when needrec [recform]))
+                                    ~recform)]))
+                     (let [sq       (gensym "sq")
+                           recform2 `(recur (next ~sq))
+                           steppair (step recform2 (nnext exprs))
+                           needrec  (first steppair)
+                           subform  (second steppair)]
+                       [true `(loop [~sq (seq ~v)]
+                                (when ~sq
+                                  (let [~k (first ~sq)]
+                                    ~subform)
+                                  ~@(when needrec [recform2])))])))))]
+    (second (step nil (seq seq-exprs)))))
