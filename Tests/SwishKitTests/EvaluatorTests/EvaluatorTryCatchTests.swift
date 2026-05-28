@@ -5,51 +5,46 @@ import Testing
 struct EvaluatorTryCatchTests {
     let evaluator = Evaluator()
 
-    private func eval(_ source: String) throws -> Expr {
-        let exprs = try Reader.readString(source)
-        return try evaluator.eval(exprs[0])
-    }
-
     // MARK: - try
 
     @Test("(try) returns nil")
     func tryNoBodyReturnsNil() throws {
-        #expect(try eval("(try)") == .nil)
+        #expect(try evaluator.eval("(try)") == .nil)
     }
 
     @Test("(try expr) returns expr")
     func tryWithBodyReturnsValue() throws {
-        #expect(try eval("(try 42)") == .integer(42))
+        #expect(try evaluator.eval("(try 42)") == .integer(42))
     }
 
     @Test("try returns last body expression")
     func tryReturnsLastBodyExpr() throws {
-        #expect(try eval("(try 1 2 3)") == .integer(3))
+        #expect(try evaluator.eval("(try 1 2 3)") == .integer(3))
     }
 
     // MARK: - throw / catch
 
     @Test("caught throw value is bound in catch")
     func caughtThrowValueBound() throws {
-        #expect(try eval("(try (throw \"oops\") (catch Exception e e))") == .string("oops"))
+        #expect(try evaluator.eval("(try (throw \"oops\") (catch Exception e e))") == .string("oops"))
     }
 
     @Test("throw a map and extract a key in catch")
     func throwMapExtractKey() throws {
-        #expect(try eval("(try (throw {:code 42}) (catch Exception e (:code e)))") == .integer(42))
+        #expect(try evaluator.eval("(try (throw {:code 42}) (catch Exception e (:code e)))") == .integer(42))
     }
 
     @Test("uncaught throw propagates as SwishException")
     func uncaughtThrowPropagates() throws {
         #expect(throws: SwishException.self) {
-            try eval("(try (throw \"boom\"))")
+            try evaluator.eval("(try (throw \"boom\"))")
         }
     }
 
     @Test("uncaught throw carries the thrown value")
     func uncaughtThrowCarriesValue() throws {
         do {
-            _ = try eval("(try (throw \"boom\"))")
+            _ = try evaluator.eval("(try (throw \"boom\"))")
         }
         catch let e as SwishException {
             #expect(e.value == .string("boom"))
@@ -58,22 +53,22 @@ struct EvaluatorTryCatchTests {
 
     @Test("evaluator error is catchable")
     func evaluatorErrorIsCatchable() throws {
-        #expect(try eval("(try (/ 1 0) (catch Exception e \"got-it\"))") == .string("got-it"))
+        #expect(try evaluator.eval("(try (/ 1 0) (catch Exception e \"got-it\"))") == .string("got-it"))
     }
 
     @Test("catch body result is returned")
     func catchBodyResultReturned() throws {
-        #expect(try eval("(try (throw 1) (catch Exception e (+ e 10)))") == .integer(11))
+        #expect(try evaluator.eval("(try (throw 1) (catch Exception e (+ e 10)))") == .integer(11))
     }
 
     @Test("first matching catch wins")
     func firstMatchingCatchWins() throws {
-        #expect(try eval("(try (throw \"x\") (catch Exception e \"first\") (catch Exception e \"second\"))") == .string("first"))
+        #expect(try evaluator.eval("(try (throw \"x\") (catch Exception e \"first\") (catch Exception e \"second\"))") == .string("first"))
     }
 
     @Test("nested try rethrow reaches outer catch")
     func nestedTryRethrowReachesOuter() throws {
-        let result = try eval("""
+        let result = try evaluator.eval("""
             (try
               (try (throw "inner") (catch Exception e (throw "outer")))
               (catch Exception e e))
@@ -85,18 +80,18 @@ struct EvaluatorTryCatchTests {
 
     @Test("finally runs, result is from try body")
     func finallyRunsResultIsFromTryBody() throws {
-        #expect(try eval("(try 1 (finally 99))") == .integer(1))
+        #expect(try evaluator.eval("(try 1 (finally 99))") == .integer(1))
     }
 
     @Test("finally runs after catch, result is from catch")
     func finallyRunsAfterCatch() throws {
-        #expect(try eval("(try (throw \"x\") (catch Exception e \"caught\") (finally \"fin\"))") == .string("caught"))
+        #expect(try evaluator.eval("(try (throw \"x\") (catch Exception e \"caught\") (finally \"fin\"))") == .string("caught"))
     }
 
     @Test("finally exception masks uncaught try exception")
     func finallyExceptionMasksTryException() throws {
         do {
-            _ = try eval("(try (throw \"try-err\") (finally (throw \"finally-err\")))")
+            _ = try evaluator.eval("(try (throw \"try-err\") (finally (throw \"finally-err\")))")
             Issue.record("Expected exception")
         }
         catch let e as SwishException {
@@ -107,7 +102,7 @@ struct EvaluatorTryCatchTests {
     @Test("finally exception masks successful try result")
     func finallyExceptionMasksTryResult() throws {
         #expect(throws: SwishException.self) {
-            try eval("(try 1 (finally (throw \"oops\")))")
+            try evaluator.eval("(try 1 (finally (throw \"oops\")))")
         }
     }
 
@@ -132,14 +127,14 @@ struct EvaluatorTryCatchTests {
     @Test("catch after finally is an error")
     func catchAfterFinallyIsError() throws {
         #expect(throws: EvaluatorError.self) {
-            try eval("(try 1 (finally 2) (catch Exception e e))")
+            try evaluator.eval("(try 1 (finally 2) (catch Exception e e))")
         }
     }
 
     @Test("body form after catch is an error")
     func bodyAfterCatchIsError() throws {
         #expect(throws: EvaluatorError.self) {
-            try eval("(try 1 (catch Exception e e) 2)")
+            try evaluator.eval("(try 1 (catch Exception e e) 2)")
         }
     }
 }

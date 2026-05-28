@@ -3,17 +3,11 @@ import Testing
 
 @Suite("Var Tests")
 struct VarTests {
-    private func eval(_ source: String) throws -> Expr {
-        let evaluator = Evaluator()
-        let exprs = try Reader.readString(source)
-        var result: Expr = .nil
-        for expr in exprs { result = try evaluator.eval(expr) }
-        return result
-    }
+    let evaluator = Evaluator()
 
     @Test("def interns a Var with correct name, namespace, and value")
     func defInternsVar() throws {
-        let result = try eval("(def foo 42)")
+        let result = try evaluator.eval("(def foo 42)")
         guard case .varRef(let v) = result else {
             Issue.record("Expected .varRef, got \(result)")
             return
@@ -25,7 +19,7 @@ struct VarTests {
 
     @Test("Symbol lookup auto-dereferences a var")
     func symbolAutoDeref() throws {
-        let result = try eval("(def foo 42) foo")
+        let result = try evaluator.eval("(def foo 42) foo")
         #expect(result == .integer(42))
     }
 
@@ -50,7 +44,7 @@ struct VarTests {
 
     @Test("(var foo) returns the varRef itself, not the value")
     func varFormReturnsVarRef() throws {
-        let result = try eval("(def foo 42) (var foo)")
+        let result = try evaluator.eval("(def foo 42) (var foo)")
         guard case .varRef(let v) = result else {
             Issue.record("Expected .varRef, got \(result)")
             return
@@ -61,7 +55,7 @@ struct VarTests {
 
     @Test("#'foo reader syntax expands to (var foo) and evaluates to the varRef")
     func hashQuoteReaderSyntax() throws {
-        let result = try eval("(def foo 42) #'foo")
+        let result = try evaluator.eval("(def foo 42) #'foo")
         guard case .varRef(let v) = result else {
             Issue.record("Expected .varRef, got \(result)")
             return
@@ -72,14 +66,14 @@ struct VarTests {
 
     @Test("Printer renders a var as #'namespace/name")
     func printerRendersVar() throws {
-        let result = try eval("(def foo 42) (var foo)")
+        let result = try evaluator.eval("(def foo 42) (var foo)")
         let printer = Printer()
         #expect(printer.printString(result) == "#'user/foo")
     }
 
     @Test("(def foo) with no value creates an unbound var")
     func defWithNoValueCreatesUnboundVar() throws {
-        let result = try eval("(def foo)")
+        let result = try evaluator.eval("(def foo)")
         guard case .varRef(let v) = result else {
             Issue.record("Expected .varRef, got \(result)")
             return

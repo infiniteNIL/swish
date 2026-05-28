@@ -1,7 +1,7 @@
 # Todo
 
 - [ ] Sequence Utils
-      zipmap, keep, keep-indexed, map-indexed, doall, doseq, for
+      , keep, keep-indexed, map-indexed, doall, doseq, for
 - [ ] Implement lazy-seq properly (currently an eager no-op; needed for infinite sequences and true Clojure compatibility)
 - [ ] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [ ] clojure.string
@@ -32,6 +32,7 @@
 - [x] Sequence Utils:
       drop-while, last, butlast, reverse, flatten, partition, partition-all,
       group-by, frequencies, sort, sort-by, distinct, interleave, interpose,
+      zipmap
 - [x] doc (with doc strings for builtins)
 - [x] take, take-while
 - [x] atoms (and deref(@), swap!, reset!. no synchronization)

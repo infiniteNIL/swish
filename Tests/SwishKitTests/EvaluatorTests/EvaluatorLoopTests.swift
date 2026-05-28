@@ -202,14 +202,3 @@ struct EvaluatorLoopTests {
         _ = try evaluator.eval("(defn f [n] (when (> n 0) (recur (- n 1))))")
     }
 }
-
-// MARK: - Helper
-
-private extension Evaluator {
-    func eval(_ source: String) throws -> Expr {
-        let exprs = try Reader.readString(source)
-        var result: Expr = .nil
-        for expr in exprs { result = try eval(expr) }
-        return result
-    }
-}

@@ -434,14 +434,3 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(mapcat (fn [x] [x x]) [1 2 3])") == .list([.integer(1), .integer(1), .integer(2), .integer(2), .integer(3), .integer(3)], metadata: nil))
     }
 }
-
-// MARK: - Helper
-
-private extension Evaluator {
-    func eval(_ source: String) throws -> Expr {
-        let exprs = try Reader.readString(source)
-        var result: Expr = .nil
-        for expr in exprs { result = try eval(expr) }
-        return result
-    }
-}
