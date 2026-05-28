@@ -149,6 +149,17 @@
             ~then)
           ~else)))))
 
+(defmacro when-first
+  "bindings => x xs
+
+  Roughly the same as (when (seq xs) (let [x (first xs)] body)) but xs is evaluated only once"
+  {:added "1.0"}
+  [bindings & body]
+  (let [form (bindings 0) xs (bindings 1)]
+    `(when-let [xs# (seq ~xs)]
+       (let [~form (first xs#)]
+         ~@body))))
+
 (defn second
   "Same as (first (next x))"
   {:added "1.0"}
@@ -757,3 +768,70 @@
                                     ~subform)
                                   ~@(when needrec [recform2])))])))))]
     (second (step nil (seq seq-exprs)))))
+
+(defmacro for
+  "List comprehension. Takes a vector of one or more
+  binding-form/collection-expr pairs, each followed by zero or more
+  modifiers, and yields a lazy sequence of evaluations of expr.
+  Collections are iterated in a nested fashion, rightmost fastest,
+  and nested coll-exprs can refer to bindings created in prior
+  binding-forms.  Supported modifiers are: :let [binding-form expr ...],
+  :while test, :when test."
+  {:added "1.0"}
+  [seq-exprs body-expr]
+  (assert-args
+   (vector? seq-exprs) "a vector for its binding"
+   (even? (count seq-exprs)) "an even number of forms in binding vector")
+  (let [to-groups (fn [seq-exprs]
+                    (reduce (fn [groups pair]
+                              (let [k (first pair)
+                                    v (second pair)]
+                                (if (keyword? k)
+                                  (conj (pop groups) (conj (peek groups) [k v]))
+                                  (conj groups [k v]))))
+                            [] (partition 2 seq-exprs)))
+        emit-bind (fn emit-bind [groups]
+                    (let [group       (first groups)
+                          bind        (first group)
+                          expr        (second group)
+                          mod-pairs   (next (next group))
+                          next-groups (next groups)
+                          next-expr   (when next-groups
+                                        (second (first next-groups)))
+                          giter (gensym "iter")
+                          gxs   (gensym "s")
+                          do-mod (fn do-mod [pairs]
+                                   (if-not (seq pairs)
+                                     (if next-groups
+                                       (let [gnext (gensym "niter")
+                                             gfs   (gensym "fs")]
+                                         `(let [~gnext ~(emit-bind next-groups)
+                                                ~gfs   (seq (~gnext ~next-expr))]
+                                            (if ~gfs
+                                              (concat ~gfs (~giter (rest ~gxs)))
+                                              (recur (rest ~gxs)))))
+                                       `(cons ~body-expr (~giter (rest ~gxs))))
+                                     (let [pair (first pairs)
+                                           k    (first pair)
+                                           v    (second pair)
+                                           etc  (rest pairs)]
+                                       (cond
+                                         (= k :let)   `(let ~v ~(do-mod etc))
+                                         (= k :while) `(when ~v ~(do-mod etc))
+                                         (= k :when)  `(if ~v
+                                                          ~(do-mod etc)
+                                                          (recur (rest ~gxs)))))))]
+                      (if next-groups
+                        `(fn ~giter [~gxs]
+                           (lazy-seq
+                             (loop [~gxs ~gxs]
+                               (when-first [~bind ~gxs]
+                                 ~(do-mod mod-pairs)))))
+                        `(fn ~giter [~gxs]
+                           (lazy-seq
+                             (loop [~gxs ~gxs]
+                               (when-let [~gxs (seq ~gxs)]
+                                 (let [~bind (first ~gxs)]
+                                   ~(do-mod mod-pairs)))))))))]
+    `(let [iter# ~(emit-bind (to-groups seq-exprs))]
+       (or (iter# ~(second seq-exprs)) (list)))))

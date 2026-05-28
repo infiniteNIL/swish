@@ -43,6 +43,35 @@ func registerSequence(into evaluator: Evaluator) {
         if case .keyword = args[0] { return .boolean(true) }
         return .boolean(false)
     }
+    evaluator.register(name: "peek", arity: .fixed(1),
+        doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
+        arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .vector(let elems, _): return elems.last ?? .nil
+        case .list(let elems, _):   return elems.first ?? .nil
+        case .nil:                  return .nil
+        default:
+            throw EvaluatorError.invalidArgument(function: "peek", message: "not a vector or list")
+        }
+    }
+    evaluator.register(name: "pop", arity: .fixed(1),
+        doc: "For a vector, returns a new vector without the last element. For a list, returns a new list without the first element.",
+        arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .vector(let elems, _):
+            guard !elems.isEmpty else {
+                throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
+            }
+            return .vector(Array(elems.dropLast()), metadata: nil)
+        case .list(let elems, _):
+            guard !elems.isEmpty else {
+                throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty list")
+            }
+            return .list(Array(elems.dropFirst()), metadata: nil)
+        default:
+            throw EvaluatorError.invalidArgument(function: "pop", message: "not a vector or list")
+        }
+    }
     evaluator.register(name: "list?", arity: .fixed(1),
         doc: "Returns true if x implements IPersistentList",
         arglists: [["x"]],
