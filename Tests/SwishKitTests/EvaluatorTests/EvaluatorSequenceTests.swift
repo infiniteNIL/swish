@@ -433,4 +433,31 @@ struct EvaluatorSequenceTests {
     func mapcatBasic() throws {
         #expect(try evaluator.eval("(mapcat (fn [x] [x x]) [1 2 3])") == .list([.integer(1), .integer(1), .integer(2), .integer(2), .integer(3), .integer(3)], metadata: nil))
     }
+
+    // MARK: - keep
+
+    @Test("keep returns non-nil results")
+    func keepBasic() throws {
+        #expect(try evaluator.eval("(keep (fn [x] (when (odd? x) x)) [1 2 3 4 5])") == .list([.integer(1), .integer(3), .integer(5)], metadata: nil))
+    }
+
+    @Test("keep includes false results")
+    func keepIncludesFalse() throws {
+        #expect(try evaluator.eval("(keep (fn [x] (odd? x)) [1 2 3])") == .list([.boolean(true), .boolean(false), .boolean(true)], metadata: nil))
+    }
+
+    @Test("keep excludes nil results")
+    func keepExcludesNil() throws {
+        #expect(try evaluator.eval("(keep (fn [x] (when (> x 3) x)) [1 2 3 4 5])") == .list([.integer(4), .integer(5)], metadata: nil))
+    }
+
+    @Test("keep on empty collection returns empty list")
+    func keepEmpty() throws {
+        #expect(try evaluator.eval("(keep identity [])") == .list([], metadata: nil))
+    }
+
+    @Test("keep works on a list")
+    func keepOnList() throws {
+        #expect(try evaluator.eval("(keep (fn [x] (when (even? x) x)) '(1 2 3 4))") == .list([.integer(2), .integer(4)], metadata: nil))
+    }
 }
