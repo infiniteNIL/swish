@@ -509,4 +509,43 @@ struct EvaluatorSequenceTests {
     func mapIndexedOnList() throws {
         #expect(try evaluator.eval("(map-indexed (fn [i x] (+ i x)) '(10 20 30))") == .list([.integer(10), .integer(21), .integer(32)], metadata: nil))
     }
+
+    // MARK: - dorun
+
+    @Test("dorun on empty collection returns nil")
+    func dorunEmpty() throws {
+        #expect(try evaluator.eval("(dorun [])") == .nil)
+    }
+
+    @Test("dorun returns nil, not the seq")
+    func dorunReturnsNil() throws {
+        #expect(try evaluator.eval("(dorun [1 2 3])") == .nil)
+    }
+
+    @Test("dorun with count returns nil")
+    func dorunWithCount() throws {
+        #expect(try evaluator.eval("(dorun 2 [1 2 3 4 5])") == .nil)
+    }
+
+    // MARK: - doall
+
+    @Test("doall on empty collection returns empty vector")
+    func doallEmpty() throws {
+        #expect(try evaluator.eval("(doall [])") == .vector([], metadata: nil))
+    }
+
+    @Test("doall returns the collection itself")
+    func doallVector() throws {
+        #expect(try evaluator.eval("(doall [1 2 3])") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("doall works on a list")
+    func doallList() throws {
+        #expect(try evaluator.eval("(doall '(1 2 3))") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("doall with count returns full collection")
+    func doallWithCount() throws {
+        #expect(try evaluator.eval("(doall 2 [1 2 3])") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
 }
