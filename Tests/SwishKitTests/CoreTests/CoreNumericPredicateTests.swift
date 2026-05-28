@@ -109,4 +109,14 @@ struct CoreNumericPredicateTests {
     func zeroNegOne() throws {
         #expect(try swish.eval("(zero? -1)") == .boolean(false))
     }
+
+    @Test("(zero? 0.0) returns true")
+    func zeroFloat() throws {
+        #expect(try swish.eval("(zero? 0.0)") == .boolean(true))
+    }
+
+    @Test("(zero? 0.5) returns false")
+    func zeroNonZeroFloat() throws {
+        #expect(try swish.eval("(zero? 0.5)") == .boolean(false))
+    }
 }
