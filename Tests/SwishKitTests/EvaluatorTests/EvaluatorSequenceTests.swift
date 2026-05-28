@@ -460,4 +460,31 @@ struct EvaluatorSequenceTests {
     func keepOnList() throws {
         #expect(try evaluator.eval("(keep (fn [x] (when (even? x) x)) '(1 2 3 4))") == .list([.integer(2), .integer(4)], metadata: nil))
     }
+
+    // MARK: - keep-indexed
+
+    @Test("keep-indexed passes index and item to f")
+    func keepIndexedBasic() throws {
+        #expect(try evaluator.eval("(keep-indexed (fn [i x] (when (even? i) x)) [:a :b :c :d :e])") == .list([.keyword("a"), .keyword("c"), .keyword("e")], metadata: nil))
+    }
+
+    @Test("keep-indexed includes false results")
+    func keepIndexedIncludesFalse() throws {
+        #expect(try evaluator.eval("(keep-indexed (fn [i x] (even? i)) [10 20 30])") == .list([.boolean(true), .boolean(false), .boolean(true)], metadata: nil))
+    }
+
+    @Test("keep-indexed excludes nil results")
+    func keepIndexedExcludesNil() throws {
+        #expect(try evaluator.eval("(keep-indexed (fn [i x] (when (odd? i) x)) [:a :b :c :d])") == .list([.keyword("b"), .keyword("d")], metadata: nil))
+    }
+
+    @Test("keep-indexed on empty collection returns empty list")
+    func keepIndexedEmpty() throws {
+        #expect(try evaluator.eval("(keep-indexed (fn [i x] x) [])") == .list([], metadata: nil))
+    }
+
+    @Test("keep-indexed index starts at 0")
+    func keepIndexedIndexStartsAt0() throws {
+        #expect(try evaluator.eval("(keep-indexed (fn [i x] i) [:a :b :c])") == .list([.integer(0), .integer(1), .integer(2)], metadata: nil))
+    }
 }

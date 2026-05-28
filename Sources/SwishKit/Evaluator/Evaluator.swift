@@ -120,6 +120,9 @@ public class Evaluator {
         case .symbol("let", _):
             return try evalLet(elements, in: env)
 
+        case .symbol("letfn", _):
+            return try evalLetfn(elements, in: env)
+
         case .symbol("loop", _):
             return try evalLoop(elements, in: env)
 

@@ -189,6 +189,35 @@ extension Evaluator {
         return try evalBody(Array(elements.dropFirst(2)), in: letEnv)
     }
 
+    func evalLetfn(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count >= 2, case .vector(let specs, _) = elements[1]
+        else {
+            throw EvaluatorError.invalidArgument(function: "letfn",
+                message: "first argument must be a vector of function specs")
+        }
+        let letfnEnv = Environment(parent: env)
+        var bindings: [(String, Expr)] = []
+        for spec in specs {
+            guard case .list(let specElems, _) = spec,
+                  !specElems.isEmpty,
+                  case .symbol(let fnName, _) = specElems[0]
+            else {
+                throw EvaluatorError.invalidArgument(function: "letfn",
+                    message: "each spec must be a list starting with a name symbol")
+            }
+            // Transform (fname params body...) → (fn fname params body...)
+            let fnElements = [Expr.symbol("fn", metadata: nil),
+                              Expr.symbol(fnName, metadata: nil)]
+                             + Array(specElems.dropFirst())
+            bindings.append((fnName, try evalFn(fnElements, in: letfnEnv)))
+        }
+        // Second pass: bind all fns into the shared env so they see each other
+        for (name, fnValue) in bindings {
+            letfnEnv.set(name, fnValue)
+        }
+        return try evalBody(Array(elements.dropFirst(2)), in: letfnEnv)
+    }
+
     func evalLoop(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
         else {
