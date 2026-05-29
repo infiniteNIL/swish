@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Shortcut fn syntax
 - [ ] Implement lazy-seq properly (currently an eager no-op; needed for infinite sequences and true Clojure compatibility)
 - [ ] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [ ] clojure.string
@@ -27,6 +26,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] #() functions
 - [x] letfn, peek, pop, when-first
 - [x] max, min
 - [x] Sequence Utils:
