@@ -59,4 +59,11 @@ struct EvaluatorAnonymousFnTests {
         let result = try swish.eval("(#(str %2) \"ignored\" \"hello\")")
         #expect(result == .string("hello"))
     }
+
+    @Test("% outside anonymous fn is an unbound symbol")
+    func barePercentOutsideAnonFn() throws {
+        #expect(throws: EvaluatorError.self) {
+            try swish.eval("%")
+        }
+    }
 }

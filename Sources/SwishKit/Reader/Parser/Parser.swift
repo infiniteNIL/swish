@@ -609,9 +609,9 @@ public class Parser {
         case .vector(let elems, let meta):
             return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)
         case .map(let dict, let meta):
-            return .map(
-                Dictionary(uniqueKeysWithValues: dict.map { (normalizeAnonFnArgRef($0), normalizeAnonFnArgRef($1)) }),
-                metadata: meta)
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
+            return .map(result, metadata: meta)
         case .set(let elems, let meta):
             return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), metadata: meta)
         default:
