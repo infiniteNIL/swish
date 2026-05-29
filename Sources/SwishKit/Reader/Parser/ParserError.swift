@@ -17,6 +17,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidDefmacro(String)
     case invalidLoop(String)
     case invalidThrow(String)
+    case nestedAnonymousFunction(line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -73,6 +74,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .invalidThrow(let message):
             message
+
+        case .nestedAnonymousFunction(let line, let column):
+            "Anonymous function literals cannot be nested (line \(line), column \(column))."
         }
     }
 }

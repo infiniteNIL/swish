@@ -112,6 +112,10 @@ public class Lexer {
                 _ = advance()
                 return Token(type: .leftSet, text: "#{", line: startLine, column: startColumn)
             }
+            if peek() == "(" {
+                _ = advance()
+                return Token(type: .anonymousFn, text: "#(", line: startLine, column: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:
@@ -230,7 +234,7 @@ public class Lexer {
             return true
         }
         switch char {
-        case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&":
+        case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&", "%":
             return true
 
         default:

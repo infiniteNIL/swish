@@ -4,6 +4,7 @@ public class Parser {
     private let lexer: Lexer
     private var currentToken: Token
     private var syntaxQuoteDepth = 0
+    private var anonymousFnDepth = 0
 
     public init(_ lexer: Lexer) throws {
         self.lexer = lexer
@@ -86,6 +87,9 @@ public class Parser {
 
         case .leftSet:
             return try parseSet()
+
+        case .anonymousFn:
+            return try parseAnonymousFn()
 
         case .rightParen, .rightBracket, .rightBrace:
             throw ParserError.unexpectedToken(currentToken)
@@ -511,6 +515,108 @@ public class Parser {
             }
         }
         return .set(set, metadata: nil)
+    }
+
+    // MARK: - Anonymous function literal
+
+    private func parseAnonymousFn() throws -> Expr {
+        let startToken = currentToken
+        guard anonymousFnDepth == 0 else {
+            throw ParserError.nestedAnonymousFunction(line: startToken.line, column: startToken.column)
+        }
+        anonymousFnDepth += 1
+        defer { anonymousFnDepth -= 1 }
+
+        try advance()  // consume '#('
+
+        var bodyForms: [Expr] = []
+        while currentToken.type != .rightParen {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
+            }
+            if let expr = try parseFormSkipDiscards() {
+                bodyForms.append(expr)
+            }
+            else if currentToken.type != .rightParen {
+                throw ParserError.unexpectedToken(currentToken)
+            }
+        }
+        try advance()  // consume ')'
+
+        let paramVector = buildAnonFnParamVector(from: bodyForms)
+        let normalizedBody = normalizeAnonFnArgRefs(bodyForms)
+        let bodyExpr: Expr = normalizedBody.isEmpty ? .nil : .list(normalizedBody, metadata: nil)
+
+        return .list([.symbol("fn", metadata: nil), paramVector, bodyExpr], metadata: nil)
+    }
+
+    private func buildAnonFnParamVector(from bodyForms: [Expr]) -> Expr {
+        var refs = Set<String>()
+        collectAnonFnRefs(bodyForms, into: &refs)
+        let hasRest = refs.contains("%&")
+        var maxIndex = 0
+        for ref in refs {
+            let name = ref == "%" ? "%1" : ref
+            if name.hasPrefix("%"), name != "%&", let n = Int(name.dropFirst()), n > maxIndex {
+                maxIndex = n
+            }
+        }
+        var params: [Expr] = []
+        if maxIndex >= 1 {
+            params = (1...maxIndex).map { .symbol("%\($0)", metadata: nil) }
+        }
+        if hasRest {
+            params.append(.symbol("&", metadata: nil))
+            params.append(.symbol("%&", metadata: nil))
+        }
+        return .vector(params, metadata: nil)
+    }
+
+    private func collectAnonFnRefs(_ exprs: [Expr], into refs: inout Set<String>) {
+        for expr in exprs { collectAnonFnRefsInExpr(expr, into: &refs) }
+    }
+
+    private func collectAnonFnRefsInExpr(_ expr: Expr, into refs: inout Set<String>) {
+        switch expr {
+        case .symbol(let name, _) where name == "%" || name.hasPrefix("%"):
+            refs.insert(name)
+        case .list(let elems, _):
+            collectAnonFnRefs(elems, into: &refs)
+        case .vector(let elems, _):
+            collectAnonFnRefs(elems, into: &refs)
+        case .map(let dict, _):
+            for (k, v) in dict {
+                collectAnonFnRefsInExpr(k, into: &refs)
+                collectAnonFnRefsInExpr(v, into: &refs)
+            }
+        case .set(let elems, _):
+            collectAnonFnRefs(Array(elems), into: &refs)
+        default:
+            break
+        }
+    }
+
+    private func normalizeAnonFnArgRefs(_ exprs: [Expr]) -> [Expr] {
+        exprs.map { normalizeAnonFnArgRef($0) }
+    }
+
+    private func normalizeAnonFnArgRef(_ expr: Expr) -> Expr {
+        switch expr {
+        case .symbol("%", let meta):
+            return .symbol("%1", metadata: meta)
+        case .list(let elems, let meta):
+            return .list(normalizeAnonFnArgRefs(elems), metadata: meta)
+        case .vector(let elems, let meta):
+            return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)
+        case .map(let dict, let meta):
+            return .map(
+                Dictionary(uniqueKeysWithValues: dict.map { (normalizeAnonFnArgRef($0), normalizeAnonFnArgRef($1)) }),
+                metadata: meta)
+        case .set(let elems, let meta):
+            return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), metadata: meta)
+        default:
+            return expr
+        }
     }
 
     private func stripSign(_ text: String) -> (negative: Bool, rest: String) {

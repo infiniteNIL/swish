@@ -23,6 +23,7 @@ public enum TokenType: Equatable, Sendable {
     case deref
     case discard
     case leftSet    // #{
+    case anonymousFn // #(
     case metadata
     case eof
 }
