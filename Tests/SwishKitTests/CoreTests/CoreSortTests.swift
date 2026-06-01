@@ -97,4 +97,18 @@ struct CoreSortTests {
             .vector([.integer(3), .keyword("c")], metadata: nil)
         ], metadata: nil))
     }
+
+    @Test("(sort-by (fn [x] x) [3 1 2]) sorts by identity")
+    func sortByIdentity() throws {
+        #expect(try swish.eval("(sort-by (fn [x] x) [3 1 2])") == .list(
+            [.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("(sort-by #(%1) [1 2 3 4]) errors naming the first element")
+    func sortByAnonFnErrors() throws {
+        let error = #expect(throws: EvaluatorError.self) {
+            try swish.eval("(sort-by #(%1) [1 2 3 4])")
+        }
+        #expect(error?.description.contains("'1'") == true)
+    }
 }

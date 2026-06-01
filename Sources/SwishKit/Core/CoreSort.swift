@@ -24,13 +24,13 @@ private func coreSort(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let elements = try seqOf(collExpr, function: "sort")
     let sorted = try elements.sorted { a, b in
         if let comp = compExpr {
-            let result = try evaluator.call(comp, args: [a, b])
+            let result = try evaluator.call(comp, args: [b, a])
             switch result {
             case .integer(let n):
-                return n < 0
+                return n > 0
 
             case .boolean(let v):
-                return v
+                return !v
 
             default:
                 throw EvaluatorError.invalidArgument(function: "sort",

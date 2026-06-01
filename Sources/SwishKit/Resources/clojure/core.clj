@@ -622,7 +622,7 @@
   ([keyfn coll]
    (sort-by keyfn compare coll))
   ([keyfn comp coll]
-   (sort (fn [x y] (comp (keyfn x) (keyfn y))) coll)))
+   (sort #(comp (keyfn %1) (keyfn %2)) coll)))
 
 (defn distinct
   "Returns a lazy sequence of the elements of coll with duplicates removed."
