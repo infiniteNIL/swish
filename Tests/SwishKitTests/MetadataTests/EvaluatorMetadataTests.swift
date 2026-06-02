@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Metadata Tests")
+@Suite("Evaluator Metadata Tests", .serialized)
 struct EvaluatorMetadataTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - meta / with-meta round-trip
 

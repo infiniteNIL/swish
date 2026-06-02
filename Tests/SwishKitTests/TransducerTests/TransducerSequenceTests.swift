@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Transducer: sequence / eduction")
+@Suite("Transducer: sequence / eduction", .serialized)
 struct TransducerSequenceTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - sequence 1-arity (coerce to seq)
 

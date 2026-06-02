@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core nth and list* Tests")
+@Suite("Core nth and list* Tests", .serialized)
 struct CoreNthListStarTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - nth
 

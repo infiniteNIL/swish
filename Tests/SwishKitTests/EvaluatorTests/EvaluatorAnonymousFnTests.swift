@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Anonymous Fn Tests")
+@Suite("Evaluator Anonymous Fn Tests", .serialized)
 struct EvaluatorAnonymousFnTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("Single arg with %")
     func singleArgBarePercent() throws {

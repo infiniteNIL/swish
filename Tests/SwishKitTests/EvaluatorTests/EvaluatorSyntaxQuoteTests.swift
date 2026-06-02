@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Syntax Quote Tests")
+@Suite("Evaluator Syntax Quote Tests", .serialized)
 struct EvaluatorSyntaxQuoteTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("syntax-quote returns atom as-is")
     func syntaxQuoteAtomReturnsItself() throws {

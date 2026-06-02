@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core String Tests")
+@Suite("Core String Tests", .serialized)
 struct CoreStringTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("str with no args returns empty string")
     func strNoArgs() throws {

@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator zipmap Tests")
+@Suite("Evaluator zipmap Tests", .serialized)
 struct EvaluatorZipmapTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("zipmap with matching keys and vals")
     func zipmapBasic() throws {

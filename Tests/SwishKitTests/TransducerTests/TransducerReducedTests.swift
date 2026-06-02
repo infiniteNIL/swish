@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Transducer: reduced")
+@Suite("Transducer: reduced", .serialized)
 struct TransducerReducedTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - reduced?
 

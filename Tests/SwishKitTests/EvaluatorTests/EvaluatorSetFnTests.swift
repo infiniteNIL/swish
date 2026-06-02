@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Set-as-Function Tests")
+@Suite("Evaluator Set-as-Function Tests", .serialized)
 struct EvaluatorSetFnTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("Member element returns itself")
     func memberReturnsItself() throws {

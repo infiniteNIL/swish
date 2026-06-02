@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Sort Tests")
+@Suite("Core Sort Tests", .serialized)
 struct CoreSortTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - compare
 

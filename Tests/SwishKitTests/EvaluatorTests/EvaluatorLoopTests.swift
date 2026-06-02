@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Loop/Recur Tests")
+@Suite("Evaluator Loop/Recur Tests", .serialized)
 struct EvaluatorLoopTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - Basic loop
 

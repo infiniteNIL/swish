@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Interleave Tests")
+@Suite("Core Interleave Tests", .serialized)
 struct CoreInterleaveTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("(interleave) returns empty list")
     func interleaveNoArgs() throws {

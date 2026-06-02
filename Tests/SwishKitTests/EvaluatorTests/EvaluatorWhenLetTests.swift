@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator when-let Tests")
+@Suite("Evaluator when-let Tests", .serialized)
 struct EvaluatorWhenLetTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - when-let basics
 

@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Multi-Arity Tests")
+@Suite("Evaluator Multi-Arity Tests", .serialized)
 struct EvaluatorMultiArityTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - fn multi-arity construction
 

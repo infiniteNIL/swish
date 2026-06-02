@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Literals Tests")
+@Suite("Evaluator Literals Tests", .serialized)
 struct EvaluatorLiteralsTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("Integer evaluates to itself")
     func integerSelfEvaluates() throws {

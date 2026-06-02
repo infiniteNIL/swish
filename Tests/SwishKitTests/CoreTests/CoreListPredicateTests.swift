@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core list? Tests")
+@Suite("Core list? Tests", .serialized)
 struct CoreListPredicateTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("list? returns true for a non-empty list")
     func listPredicateNonEmpty() throws {

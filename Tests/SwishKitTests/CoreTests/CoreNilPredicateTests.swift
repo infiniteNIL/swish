@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core nil? Tests")
+@Suite("Core nil? Tests", .serialized)
 struct CoreNilPredicateTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("nil? returns true for nil")
     func nilPredicateNil() throws {

@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Sequence Tests")
+@Suite("Core Sequence Tests", .serialized)
 struct CoreSequenceTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("(list) returns empty list")
     func listNoArgs() throws {

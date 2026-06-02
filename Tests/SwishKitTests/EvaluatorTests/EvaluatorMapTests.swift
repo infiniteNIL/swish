@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Map Tests")
+@Suite("Evaluator Map Tests", .serialized)
 struct EvaluatorMapTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("Empty map evaluates to itself")
     func emptyMapSelfEvaluates() throws {

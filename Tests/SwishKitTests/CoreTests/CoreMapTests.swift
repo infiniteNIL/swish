@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Map Tests")
+@Suite("Core Map Tests", .serialized)
 struct CoreMapTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     // MARK: - get on map
 

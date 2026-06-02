@@ -1,10 +1,12 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Set Tests")
+@Suite("Evaluator Set Tests", .serialized)
 struct EvaluatorSetTests {
-    let evaluator = Evaluator()
-    let swish = Swish()
+    static let _sharedEvaluator = Evaluator()
+    var evaluator: Evaluator { Self._sharedEvaluator }
+    nonisolated(unsafe) static let _sharedSwish = Swish()
+    var swish: Swish { Self._sharedSwish }
 
     @Test("Empty set evaluates to itself")
     func emptySetSelfEvaluates() throws {

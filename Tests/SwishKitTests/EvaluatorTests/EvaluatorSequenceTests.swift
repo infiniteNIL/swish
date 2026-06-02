@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Sequence Tests")
+@Suite("Evaluator Sequence Tests", .serialized)
 struct EvaluatorSequenceTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - seq
 
@@ -329,39 +330,6 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(not-empty [1 2])") == .vector([.integer(1), .integer(2)], metadata: nil))
     }
 
-    // MARK: - every? / some
-
-    @Test("every? returns true when all match")
-    func everyTrue() throws {
-        #expect(try evaluator.eval("(every? number? [1 2 3])") == .boolean(true))
-    }
-
-    @Test("every? returns false when any don't match")
-    func everyFalse() throws {
-        #expect(try evaluator.eval("(every? number? [1 \"x\" 3])") == .boolean(false))
-    }
-
-    @Test("every? returns true for empty collection")
-    func everyEmpty() throws {
-        #expect(try evaluator.eval("(every? number? [])") == .boolean(true))
-    }
-
-    @Test("some returns first truthy result")
-    func someFinds() throws {
-        #expect(try evaluator.eval("(some number? [\"a\" 2 \"b\"])") == .boolean(true))
-    }
-
-    @Test("some returns nil when none match")
-    func someNil() throws {
-        #expect(try evaluator.eval("(some number? [\"a\" \"b\"])") == .nil)
-    }
-
-    @Test("some returns the truthy value itself")
-    func someValue() throws {
-        _ = try evaluator.eval("(defn even? [x] (= 0 (mod x 2)))")
-        #expect(try evaluator.eval("(some even? [1 2 3])") == .boolean(true))
-    }
-
     // MARK: - contains?
 
     @Test("contains? true for existing map key")
@@ -411,20 +379,6 @@ struct EvaluatorSequenceTests {
         #expect(throws: EvaluatorError.invalidArgument(function: "contains?", message: "(1 2 3) is not supported")) {
             try evaluator.eval("(contains? '(1 2 3) 1)")
         }
-    }
-
-    // MARK: - identity / complement
-
-    @Test("identity returns its argument")
-    func identityFn() throws {
-        #expect(try evaluator.eval("(identity 42)") == .integer(42))
-        #expect(try evaluator.eval("(identity nil)") == .nil)
-    }
-
-    @Test("complement inverts a predicate")
-    func complementFn() throws {
-        #expect(try evaluator.eval("((complement nil?) 1)") == .boolean(true))
-        #expect(try evaluator.eval("((complement nil?) nil)") == .boolean(false))
     }
 
     // MARK: - mapcat

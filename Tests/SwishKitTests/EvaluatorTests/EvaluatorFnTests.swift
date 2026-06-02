@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Fn Tests")
+@Suite("Evaluator Fn Tests", .serialized)
 struct EvaluatorFnTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("fn evaluates to a function value")
     func fnEvaluatesToFunction() throws {

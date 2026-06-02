@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator try/catch/finally/throw Tests")
+@Suite("Evaluator try/catch/finally/throw Tests", .serialized)
 struct EvaluatorTryCatchTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - try
 

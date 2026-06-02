@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Doc Tests")
+@Suite("Core Doc Tests", .serialized)
 struct CoreDocTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("native map has :doc in metadata")
     func mapHasDoc() throws {

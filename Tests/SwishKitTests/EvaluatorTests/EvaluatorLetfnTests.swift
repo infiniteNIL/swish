@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator letfn Tests")
+@Suite("Evaluator letfn Tests", .serialized)
 struct EvaluatorLetfnTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("letfn binds a single function usable in body")
     func letfnBasic() throws {

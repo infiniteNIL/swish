@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Destructuring Tests")
+@Suite("Evaluator Destructuring Tests", .serialized)
 struct EvaluatorDestructuringTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - Sequential destructuring in let
 

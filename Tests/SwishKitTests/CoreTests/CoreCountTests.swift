@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Core Count Tests")
+@Suite("Core Count Tests", .serialized)
 struct CoreCountTests {
-    let swish = Swish()
+    nonisolated(unsafe) static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("(count nil) returns 0")
     func countNil() throws {
