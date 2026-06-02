@@ -6,7 +6,7 @@ public struct Printer {
     public var printMeta: Bool = false
     /// Maximum number of lazy-seq elements to realize when printing.
     /// `nil` means no limit (only safe for finite seqs).
-    public var printLengthCap: Int? = 100
+    public var printLengthCap: Int? = 1000
 
     public init() {
         floatFormatter = NumberFormatter()

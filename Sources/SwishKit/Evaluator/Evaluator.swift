@@ -28,7 +28,7 @@ public class Evaluator {
         pmVar.isSystem = true
 
         // *print-length* caps how many lazy-seq elements the printer realizes.
-        _ = coreNs.intern(name: "*print-length*", value: .integer(100))
+        _ = coreNs.intern(name: "*print-length*", value: .integer(1000))
 
         // 5. Load clojure/core.clj — defines Clojure-level macros (defn, etc.) into clojure.core
         loadCoreLibrary()
