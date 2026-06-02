@@ -82,6 +82,30 @@
 (println "Threaded inc:" (-> 5 inc))
 (println "Threaded inc again:" (->> 5 inc inc))
 
+
+; Demo the sequence utils
+
+(drop-while even? [2 4 6 8 9 10])
+(last [1 2 3])
+(butlast [1 2 3])
+(apply str (reverse "hello"))
+(flatten [1 2 [3 4] 5])
+(partition 2 [1 2 3 4 5 6])
+(partition-all 2 [1 2 3 4 5 6 7])
+(group-by even? [1 2 3 4 5 6])
+(frequencies "hello")
+(sort [ 5 5 5 1 2 3 4])
+(sort-by :name [{:name "Rod"} {:name "Charlie"}])
+(distinct [1 1 2 2 3 3 4 4])
+(interleave [1 3 5] [2 4 6])
+(apply str (interpose \- "hello"))
+(zipmap [:one :two] [1 2])
+(keep #(if (even? %) % nil) [1 2 3 4 5 6])
+(keep-indexed #(if (even? %2) %1 nil) [1 2 3 4 5 6])
+(map-indexed (fn [ndx item] (inc ndx)) [1 2 3 4 5 6])
+(doseq [x '(1 2 3 4)] (println x))
+(for [x '(1 2 3) y '(2 4 5)] (* x y))
+
 (comment
   5
   (fact 6)

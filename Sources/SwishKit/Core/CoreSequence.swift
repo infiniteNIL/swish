@@ -47,9 +47,15 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
         switch args[0] {
-        case .vector(let elems, _): return elems.last ?? .nil
-        case .list(let elems, _):   return elems.first ?? .nil
-        case .nil:                  return .nil
+        case .vector(let elems, _):
+            return elems.last ?? .nil
+
+        case .list(let elems, _):
+            return elems.first ?? .nil
+
+        case .nil:
+            return .nil
+
         default:
             throw EvaluatorError.invalidArgument(function: "peek", message: "not a vector or list")
         }
@@ -59,15 +65,19 @@ func registerSequence(into evaluator: Evaluator) {
         arglists: [["coll"]]) { args in
         switch args[0] {
         case .vector(let elems, _):
-            guard !elems.isEmpty else {
+            guard !elems.isEmpty
+            else {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
             }
             return .vector(Array(elems.dropLast()), metadata: nil)
+
         case .list(let elems, _):
-            guard !elems.isEmpty else {
+            guard !elems.isEmpty
+            else {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty list")
             }
             return .list(Array(elems.dropFirst()), metadata: nil)
+
         default:
             throw EvaluatorError.invalidArgument(function: "pop", message: "not a vector or list")
         }
@@ -79,7 +89,7 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "seq?", arity: .fixed(1),
         doc: "Returns true if x implements ISeq",
         arglists: [["x"]],
-        body: coreIsList)
+        body: coreIsSeq)
     evaluator.register(name: "seq", arity: .fixed(1),
         doc: "Returns a seq on the collection. If the collection is empty, returns nil. (seq nil) returns nil. seq also works on Strings, native Java arrays (of reference types) and any objects that implement Iterable. Note that seqs cache values, thus seq should not be used on any Iterable whose iterator repeatedly returns the same mutable object.",
         arglists: [["coll"]],
@@ -126,22 +136,65 @@ private func coreList(_ args: [Expr]) throws -> Expr {
 
 func asSequence(_ expr: Expr) -> [Expr]? {
     switch expr {
-    case .list(let elements, _):   return elements
-    case .vector(let elements, _): return elements
-    case .string(let s):           return s.map { .character($0) }
-    case .nil:                     return []
-    case .map(let dict, _):        return dict.map { .vector([$0.key, $0.value], metadata: nil) }
-    case .set(let elements, _):    return Array(elements)
-    default:                       return nil
+    case .list(let elements, _):
+        return elements
+
+    case .vector(let elements, _):
+        return elements
+
+    case .string(let s):
+        return s.map { .character($0) }
+
+    case .nil:
+        return []
+
+    case .map(let dict, _):
+        return dict.map { .vector([$0.key, $0.value], metadata: nil) }
+
+    case .set(let elements, _):
+        return Array(elements)
+
+    case .lazySeq:
+        // Iteratively realize the full lazy seq into an array.
+        // Never call this on a known-infinite seq.
+        var result: [Expr] = []
+        var current = expr
+        while true {
+            switch current {
+            case .lazySeq(let box):
+                guard let head = try? box.forceHead() else { return result }
+                result.append(head)
+                current = (try? box.forceTail()) ?? .nil
+
+            case .list(let rest, _):
+                result += rest
+                return result
+
+            case .nil:
+                return result
+
+            default:
+                return result
+            }
+        }
+
+    default:
+        return nil
     }
 }
 
 private func coreFirst(_ args: [Expr]) throws -> Expr {
+    if case .lazySeq(let box) = args[0] {
+        return (try box.forceHead()) ?? .nil
+    }
     let elements = try seqOf(args[0], function: "first")
     return elements.first ?? .nil
 }
 
 private func coreRest(_ args: [Expr]) throws -> Expr {
+    if case .lazySeq(let box) = args[0] {
+        return try box.forceTail()
+    }
     let elements = try seqOf(args[0], function: "rest")
     return .list(Array(elements.dropFirst()), metadata: nil)
 }
@@ -166,6 +219,16 @@ private func coreIsList(_ args: [Expr]) throws -> Expr {
     return .boolean(false)
 }
 
+private func coreIsSeq(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .list, .lazySeq:
+        return .boolean(true)
+
+    default:
+        return .boolean(false)
+    }
+}
+
 private func coreListStar(_ args: [Expr]) throws -> Expr {
     let prefix = Array(args.dropLast())
     let tail: [Expr]
@@ -178,6 +241,9 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
 
     case .nil:
         tail = []
+
+    case .lazySeq:
+        tail = try seqOf(args.last!, function: "list*")
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -207,6 +273,10 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .string(let s):
         return .integer(s.count)
 
+    case .lazySeq:
+        let elements = try seqOf(args[0], function: "count")
+        return .integer(elements.count)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "count",
@@ -215,6 +285,10 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreCons(_ args: [Expr]) throws -> Expr {
+    // When the tail is a lazy seq, create a pre-realized lazy cons so we never force the tail.
+    if case .lazySeq = args[1] {
+        return .lazySeq(LazySeqBox(head: args[0], tail: args[1]))
+    }
     guard let elements = asSequence(args[1])
     else {
         throw EvaluatorError.invalidArgument(
@@ -225,11 +299,21 @@ private func coreCons(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreSeq(_ args: [Expr]) throws -> Expr {
+    if case .lazySeq(let box) = args[0] {
+        guard let head = try box.forceHead() else { return .nil }
+        let tail = try box.forceTail()
+        return .lazySeq(LazySeqBox(head: head, tail: tail))
+    }
     let elements = try seqOf(args[0], function: "seq")
     return elements.isEmpty ? .nil : .list(elements, metadata: nil)
 }
 
 private func coreNext(_ args: [Expr]) throws -> Expr {
+    if case .lazySeq(let box) = args[0] {
+        let tail = try box.forceTail()
+        // next returns nil when the tail is empty
+        return try coreSeq([tail])
+    }
     let elements = try seqOf(args[0], function: "next")
     let rest = Array(elements.dropFirst())
     return rest.isEmpty ? .nil : .list(rest, metadata: nil)
@@ -246,20 +330,30 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     switch coll {
     case .nil:
         return .list([item], metadata: nil)
+
     case .list(let elems, let meta):
         return .list([item] + elems, metadata: meta)
+
     case .vector(let elems, let meta):
         return .vector(elems + [item], metadata: meta)
+
     case .map(var dict, let meta):
-        guard case .vector(let entry, _) = item, entry.count == 2 else {
+        guard case .vector(let entry, _) = item, entry.count == 2
+        else {
             throw EvaluatorError.invalidArgument(function: "conj",
                 message: "map conj requires a [key val] vector")
         }
         dict[entry[0]] = entry[1]
         return .map(dict, metadata: meta)
+
     case .set(var elems, let meta):
         elems.insert(item)
         return .set(elems, metadata: meta)
+
+    case .lazySeq:
+        let elems = try seqOf(coll, function: "conj")
+        return .list([item] + elems, metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(function: "conj",
             message: "cannot conj onto \(corePrinter.printString(coll))")

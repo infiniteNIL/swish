@@ -15,6 +15,30 @@ extension Evaluator {
         return meta
     }
 
+    /// `(lazy-seq body...)` — special form.
+    ///
+    /// Captures the body and the current lexical environment inside a thunk.
+    /// Returns a `.lazySeq` immediately without evaluating the body. The body
+    /// is evaluated at most once, on first demand, and must return a seq or nil.
+    func evalLazySeq(_ elements: [Expr], in env: Environment) throws -> Expr {
+        let body = Array(elements.dropFirst())
+        let capturedEnv = env
+        let box = LazySeqBox { [self] in
+            let result = try self.evalBody(body, in: capturedEnv)
+            switch result {
+            case .nil:
+                return .nil
+
+            case .list(let e, _) where e.isEmpty:
+                return .nil
+
+            default:
+                return result
+            }
+        }
+        return .lazySeq(box)
+    }
+
     func evalVar(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard elements.count == 2, case .symbol(let name, _) = elements[1]
         else {

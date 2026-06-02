@@ -40,6 +40,8 @@ public indirect enum Expr: Sendable {
     case namespace(Namespace)
     case atom(SwishAtom)
     case transient(TransientCollection)
+    /// A thunk-backed lazy sequence. Realizes elements on demand.
+    case lazySeq(LazySeqBox)
 }
 
 extension Expr: Equatable {
@@ -111,8 +113,64 @@ extension Expr: Equatable {
         case (.transient(let a), .transient(let b)):
             return a === b
 
+        // Lazy seqs with the same identity are trivially equal.
+        // Cross-type: a lazy seq and a list (or two different lazy seqs) compare
+        // element-by-element up to 1 000 elements for safety on infinite seqs.
+        case (.lazySeq(let a), .lazySeq(let b)):
+            if a === b { return true }
+            return seqEqual(lhs, rhs)
+
+        case (.lazySeq, .list), (.list, .lazySeq):
+            return seqEqual(lhs, rhs)
+
         default:
             return false
+        }
+    }
+
+    // MARK: - Seq equality helpers
+
+    private static func seqEqual(_ lhs: Expr, _ rhs: Expr) -> Bool {
+        var l = lhs
+        var r = rhs
+        for _ in 0..<1_000 {
+            let lh = advanceSeq(&l)
+            let rh = advanceSeq(&r)
+            switch (lh, rh) {
+            case (.some(let le), .some(let re)):
+                if le != re { return false }
+
+            case (nil, nil):
+                return true
+
+            default:
+                return false
+            }
+        }
+        return false  // cap exceeded — conservative: not equal
+    }
+
+    /// Advances `expr` one step through a seq, returning the head (or `nil` for empty).
+    private static func advanceSeq(_ expr: inout Expr) -> Expr? {
+        switch expr {
+        case .nil:
+            return nil
+
+        case .list(let elems, _):
+            if elems.isEmpty { return nil }
+            expr = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
+            return elems[0]
+
+        case .lazySeq(let box):
+            guard let head = try? box.forceHead() else {
+                expr = .nil
+                return nil
+            }
+            expr = (try? box.forceTail()) ?? .nil
+            return head
+
+        default:
+            return nil
         }
     }
 }
@@ -185,6 +243,11 @@ extension Expr: Hashable {
 
         case .transient(let v):
             hasher.combine(21); hasher.combine(ObjectIdentifier(v))
+
+        // Identity hash. Lazy seqs can be == to lists via element comparison but
+        // the hash contract is maintained within the lazy-seq type (same box → same hash).
+        case .lazySeq(let box):
+            hasher.combine(22); hasher.combine(ObjectIdentifier(box))
         }
     }
 }

@@ -46,6 +46,9 @@ extension Evaluator {
                     case .nil:
                         splicedElements = []
 
+                    case .lazySeq:
+                        splicedElements = try seqOf(spliced, function: "unquote-splicing")
+
                     default:
                         throw EvaluatorError.invalidArgument(
                             function: "unquote-splicing",

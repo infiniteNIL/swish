@@ -13,7 +13,7 @@ struct EvaluatorForTests {
 
     @Test("for returns a list not nil")
     func forReturnsList() throws {
-        let result = try swish.eval("(list? (for [x [1 2 3]] x))")
+        let result = try swish.eval("(seq? (for [x [1 2 3]] x))")
         #expect(result == .boolean(true))
     }
 

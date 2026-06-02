@@ -4,6 +4,9 @@ import Foundation
 public struct Printer {
     private let floatFormatter: NumberFormatter
     public var printMeta: Bool = false
+    /// Maximum number of lazy-seq elements to realize when printing.
+    /// `nil` means no limit (only safe for finite seqs).
+    public var printLengthCap: Int? = 100
 
     public init() {
         floatFormatter = NumberFormatter()
@@ -84,6 +87,9 @@ public struct Printer {
 
         case .transient(let tc):
             "#<transient \(printString(tc.value))>"
+
+        case .lazySeq(let box):
+            formatLazySeq(box, transform: printString)
         }
     }
 
@@ -104,6 +110,9 @@ public struct Printer {
         case .list, .vector, .map, .set:
             formatCollection(expr, transform: strString, includeMeta: true) ?? ""
 
+        case .lazySeq(let box):
+            formatLazySeq(box, transform: strString)
+
         case .transient:
             printString(expr)
 
@@ -121,6 +130,9 @@ public struct Printer {
 
         case .list, .vector, .map, .set:
             formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
+
+        case .lazySeq(let box):
+            formatLazySeq(box, transform: sourceForm)
 
         case .transient:
             printString(expr)
@@ -147,6 +159,46 @@ public struct Printer {
         default:
             return nil
         }
+    }
+
+    /// Prints a lazy seq, realizing at most `printLengthCap` elements.
+    /// Appends `...` when the seq extends past the cap.
+    private func formatLazySeq(_ box: LazySeqBox, transform: (Expr) -> String) -> String {
+        var parts: [String] = []
+        var current: Expr = .lazySeq(box)
+        let cap = printLengthCap ?? Int.max
+
+        // Advance through the chain one element at a time.
+        stepLoop: while true {
+            switch current {
+            case .nil:
+                break stepLoop
+
+            case .lazySeq(let b):
+                guard let head = try? b.forceHead() else {
+                    break stepLoop
+                }
+                if parts.count >= cap {
+                    // Have head but already at cap — truncated.
+                    return "(\(parts.joined(separator: " ")) ...)"
+                }
+                parts.append(transform(head))
+                current = (try? b.forceTail()) ?? .nil
+
+            case .list(let elems, _):
+                let remaining = cap - parts.count
+                for e in elems.prefix(remaining) { parts.append(transform(e)) }
+                if elems.count > remaining {
+                    return "(\(parts.joined(separator: " ")) ...)"
+                }
+                break stepLoop
+
+            default:
+                break stepLoop
+            }
+        }
+
+        return "(\(parts.joined(separator: " ")))"
     }
 
     private func metaPrefix(_ meta: [Expr: Expr]?) -> String {

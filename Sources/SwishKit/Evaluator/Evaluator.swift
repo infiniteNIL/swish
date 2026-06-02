@@ -27,6 +27,9 @@ public class Evaluator {
         let pmVar = coreNs.intern(name: "*print-meta*", value: .boolean(false))
         pmVar.isSystem = true
 
+        // *print-length* caps how many lazy-seq elements the printer realizes.
+        _ = coreNs.intern(name: "*print-length*", value: .integer(100))
+
         // 5. Load clojure/core.clj — defines Clojure-level macros (defn, etc.) into clojure.core
         loadCoreLibrary()
 
@@ -54,7 +57,7 @@ public class Evaluator {
         switch expr {
         case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
-             .nativeFunction, .varRef, .namespace, .atom, .transient:
+             .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq:
             return expr
 
         case .vector(let elements, let vecMeta):
@@ -140,6 +143,9 @@ public class Evaluator {
 
         case .symbol("ns", _):
             return try evalNs(elements)
+
+        case .symbol("lazy-seq", _):
+            return try evalLazySeq(elements, in: env)
 
         case .symbol("throw", _):
             return try evalThrow(elements, in: env)

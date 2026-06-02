@@ -18,12 +18,8 @@
   {:added "1.0"}
   [& body])
 
-(defmacro lazy-seq
-  "Takes a body of expressions that returns an ISeq or nil, and yields
-  a Seqable object. In Swish, evaluates eagerly and coerces nil to ()."
-  {:added "1.0"}
-  [& body]
-  (list 'or (cons 'do body) (quote ())))
+; lazy-seq is a special form handled in Evaluator+SpecialForms.swift.
+; It captures the body and lexical environment without evaluating them.
 
 (defmacro doc
   "Prints documentation for the var named by name."
@@ -242,6 +238,128 @@
                    (recur pred (rest s))
                    s)))]
     (lazy-seq (step pred coll))))
+
+(defn iterate
+  "Returns a lazy sequence of x, (f x), (f (f x)) etc."
+  {:added "1.0"
+   :static true}
+  [f x]
+  (lazy-seq (cons x (iterate f (f x)))))
+
+(defn range
+  "Returns a lazy sequence of nums from start (inclusive) to end
+  (exclusive) by step. start defaults to 0, step defaults to 1.
+  With no args, returns an infinite lazy seq starting at 0."
+  {:added "1.0"
+   :static true}
+  ([] (iterate inc 0))
+  ([end] (take-while #(< % end) (iterate inc 0)))
+  ([start end] (take-while #(< % end) (iterate inc start)))
+  ([start end step]
+   (lazy-seq
+     (let [pred (if (pos? step) #(< % end) #(> % end))]
+       (when (pred start)
+         (cons start (range (+ start step) end step)))))))
+
+(defn repeat
+  "Returns a lazy (infinite, or length n if supplied) sequence of xs."
+  {:added "1.0"
+   :static true}
+  ([x]
+   (lazy-seq (cons x (repeat x))))
+  ([n x]
+   (take n (repeat x))))
+
+(defn repeatedly
+  "Takes a function of no args, presumably with side effects, and
+  returns an infinite (or length n if supplied) lazy sequence of calls
+  to it."
+  {:added "1.0"
+   :static true}
+  ([f]
+   (lazy-seq (cons (f) (repeatedly f))))
+  ([n f]
+   (take n (repeatedly f))))
+
+(defn cycle
+  "Returns a lazy (infinite) sequence cycling through the items in coll."
+  {:added "1.0"
+   :static true}
+  [coll]
+  (lazy-seq
+    (let [s (seq coll)]
+      (when s
+        (concat s (cycle coll))))))
+
+(defn concat
+  "Returns a lazy seq representing the concatenation of the elements in
+  the supplied colls."
+  {:added "1.0"
+   :static true}
+  ([] ())
+  ([x] (lazy-seq x))
+  ([x y]
+   (lazy-seq
+     (let [s (seq x)]
+       (if s
+         (cons (first s) (concat (rest s) y))
+         y))))
+  ([x y & zs]
+   (let [cat (fn cat [xys zs]
+               (lazy-seq
+                 (let [xys (seq xys)]
+                   (if xys
+                     (cons (first xys) (cat (rest xys) zs))
+                     (when-let [zs (seq zs)]
+                       (cat (first zs) (rest zs)))))))]
+     (cat (concat x y) zs))))
+
+(defn map
+  "Returns a lazy sequence consisting of the result of applying f to
+  the set of first items of each coll, followed by applying f to the
+  set of second items in each coll, until any one of the colls is
+  exhausted."
+  {:added "1.0"
+   :static true}
+  ([f coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (cons (f (first s)) (map f (rest s))))))
+  ([f c1 c2]
+   (lazy-seq
+     (let [s1 (seq c1) s2 (seq c2)]
+       (when (and s1 s2)
+         (cons (f (first s1) (first s2))
+               (map f (rest s1) (rest s2)))))))
+  ([f c1 c2 & colls]
+   (let [step (fn step [cs]
+                (lazy-seq
+                  (let [ss (map seq cs)]
+                    (when (every? identity ss)
+                      (cons (apply f (map first ss))
+                            (step (map rest ss)))))))]
+     (step (list* c1 c2 colls)))))
+
+(defn filter
+  "Returns a lazy sequence of the items in coll for which (pred item)
+  returns logical true. pred must be free of side-effects."
+  {:added "1.0"
+   :static true}
+  ([pred coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [f (first s) r (rest s)]
+         (if (pred f)
+           (cons f (filter pred r))
+           (filter pred r)))))))
+
+(defmacro lazy-cat
+  "Expands to code which yields a lazy sequence of the concatenation
+  of the supplied colls. Each coll expr is not evaluated until it is
+  needed."
+  {:added "1.0"}
+  [& colls]
+  `(concat ~@(map (fn [c] `(lazy-seq ~c)) colls)))
 
 (defmacro cond
   "Takes a set of test/expr pairs. It evaluates each test one at a
@@ -480,17 +598,17 @@
 
 (defn mapcat
   "Returns the result of applying concat to the result of applying map
-   to f and coll."
+   to f and colls. Thus function f should return a collection."
   {:added "1.0"}
-  [f coll]
-  (apply concat (map f coll)))
+  [f & colls]
+  (apply concat (apply map f colls)))
 
 (defn sequential?
   "Returns true if coll implements Sequential"
   {:added "1.0"
    :static true}
   [coll]
-  (or (list? coll) (vector? coll)))
+  (or (seq? coll) (vector? coll)))
 
 (defn tree-seq
   "Returns a lazy sequence of the nodes in a tree, via a depth-first walk.
