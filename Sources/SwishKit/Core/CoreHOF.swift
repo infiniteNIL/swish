@@ -4,8 +4,8 @@ func registerHOF(into evaluator: Evaluator) {
     evaluator.register(name: "apply", arity: .atLeastOne,
         doc: "Applies fn f to the argument list formed by prepending intervening arguments to args.",
         arglists: [["f", "args"], ["f", "x", "args"], ["f", "x", "y", "args"], ["f", "x", "y", "z", "args"], ["f", "a", "b", "c", "d", "&", "args"]]) { [evaluator] args in try coreApply(evaluator, args) }
-    // map, filter, keep, and mapcat are defined lazily in clojure/core.clj
-    // and shadow these bootstrap registrations once core.clj loads.
+    // map and filter are defined lazily in clojure/core.clj and shadow
+    // these bootstrap registrations once core.clj loads.
     evaluator.register(name: "map", arity: .atLeastOne,
         doc: "Returns a lazy sequence consisting of the result of applying f to the set of first items of each coll, followed by applying f to the set of second items in each coll, until any one of the colls is exhausted. Any remaining items in other colls are ignored. Function f should accept number-of-colls arguments.",
         arglists: [["f"], ["f", "coll"], ["f", "c1", "c2"], ["f", "c1", "c2", "c3"], ["f", "c1", "c2", "c3", "&", "colls"]]) { [evaluator] args in try coreMap(evaluator, args) }

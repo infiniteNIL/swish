@@ -413,9 +413,32 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .nil:
         return notFound
+
     case .vector(let elements, _):
         guard idx >= 0 && idx < elements.count else { return notFound }
         return elements[idx]
+
+    case .lazySeq:
+        var current: Expr = args[0]
+        var i = 0
+        while true {
+            switch current {
+            case .lazySeq(let box):
+                guard let head = try box.forceHead() else { return notFound }
+                if i == idx { return head }
+                current = try box.forceTail()
+                i += 1
+
+            case .list(let elems, _):
+                let remaining = idx - i
+                guard remaining >= 0 && remaining < elems.count else { return notFound }
+                return elems[remaining]
+
+            default:
+                return notFound
+            }
+        }
+
     default:
         let elements = try seqOf(args[0], function: "nth")
         guard idx >= 0 && idx < elements.count else { return notFound }

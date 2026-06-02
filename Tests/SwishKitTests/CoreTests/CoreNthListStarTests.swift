@@ -53,6 +53,21 @@ struct CoreNthListStarTests {
         }
     }
 
+    @Test("(nth (range) 5) walks lazy seq without materializing")
+    func nthLazySeq() throws {
+        #expect(try swish.eval("(nth (range) 5)") == .integer(5))
+    }
+
+    @Test("(nth (range) 1000) walks deep into lazy seq")
+    func nthLazySeqDeep() throws {
+        #expect(try swish.eval("(nth (range) 1000)") == .integer(1000))
+    }
+
+    @Test("(nth (take 3 (range)) 10 :missing) returns default when lazy seq exhausted")
+    func nthLazySeqNotFound() throws {
+        #expect(try swish.eval("(nth (take 3 (range)) 10 :missing)") == .keyword("missing"))
+    }
+
     // MARK: - list*
 
     @Test("(list* '(1 2 3)) with just a tail returns the tail as a list")
