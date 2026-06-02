@@ -271,4 +271,39 @@ struct EvaluatorMetadataTests {
         let swish2 = Swish()
         #expect(try swish2.eval("(doc no-such-var)") == .nil)
     }
+
+    // MARK: - def docstring
+
+    @Test("def with docstring stores :doc in var metadata")
+    func defDocstring() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(def pi \"The ratio of a circle's circumference.\" 3.14159)")
+        let result = try swish2.eval("(-> #'pi meta :doc)")
+        #expect(result == .string("The ratio of a circle's circumference."))
+    }
+
+    @Test("def with docstring and no value creates unbound var with doc")
+    func defDocstringNoValue() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(def placeholder \"Not yet defined.\")")
+        let result = try swish2.eval("(-> #'placeholder meta :doc)")
+        #expect(result == .string("Not yet defined."))
+    }
+
+    @Test("def with docstring and symbol metadata merges both")
+    func defDocstringWithSymMeta() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(def ^:private pi \"Ratio of circumference to diameter.\" 3.14159)")
+        let result = try swish2.eval("[(-> #'pi meta :doc) (-> #'pi meta :private)]")
+        #expect(result == .vector([.string("Ratio of circumference to diameter."), .boolean(true)], metadata: nil))
+    }
+
+    @Test("plain def re-bind preserves existing metadata")
+    func defPreservesMetadata() throws {
+        let swish2 = Swish()
+        _ = try swish2.eval("(def ^{:doc \"original\"} x 1)")
+        _ = try swish2.eval("(def x 2)")
+        let result = try swish2.eval("(-> #'x meta :doc)")
+        #expect(result == .string("original"))
+    }
 }

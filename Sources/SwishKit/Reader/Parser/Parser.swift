@@ -309,8 +309,8 @@ public class Parser {
     }
 
     private func validateDef(_ elements: [Expr]) throws {
-        guard elements.count == 2 || elements.count == 3 else {
-            throw ParserError.invalidDef("def requires 1 or 2 arguments")
+        guard elements.count >= 2 && elements.count <= 4 else {
+            throw ParserError.invalidDef("def requires 1 to 3 arguments")
         }
 
         guard case .symbol = elements[1] else {

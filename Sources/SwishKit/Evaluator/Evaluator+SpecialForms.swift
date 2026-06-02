@@ -165,7 +165,7 @@ extension Evaluator {
     }
 
     func evalDef(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard case .symbol(let name, let symMeta) = elements[1]
+        guard elements.count >= 2, case .symbol(let name, let symMeta) = elements[1]
         else {
             throw EvaluatorError.undefinedSymbol("def")
         }
@@ -173,12 +173,21 @@ extension Evaluator {
         if let existing = resolveVar(name: name, in: ns), existing.isSystem {
             throw EvaluatorError.cannotRedefineSystemVar(name)
         }
-        let v = ns.intern(name: name)
-        if elements.count == 3 {
-            v.value = try eval(elements[2], in: env)
+        var idx = 2
+        var docString: String? = nil
+        if idx < elements.count, case .string(let s) = elements[idx] {
+            docString = s
+            idx += 1
         }
-        if let m = symMeta {
-            v.metadata = m
+        guard idx >= elements.count - 1 else {
+            throw EvaluatorError.invalidArgument(function: "def", message: "too many arguments")
+        }
+        let v = ns.intern(name: name)
+        if idx < elements.count {
+            v.value = try eval(elements[idx], in: env)
+        }
+        if symMeta != nil || docString != nil {
+            v.metadata = buildMeta(from: symMeta, attrMap: nil, docString: docString)
         }
         return .varRef(v)
     }

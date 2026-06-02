@@ -131,9 +131,9 @@ struct ParserListTests {
 
     @Test("Throws error for def with too many arguments")
     func defWithTooManyArgumentsThrows() throws {
-        let lexer = Lexer("(def x 1 2)")
+        let lexer = Lexer("(def x \"doc\" 1 2)")
         let parser = try Parser(lexer)
-        #expect(throws: ParserError.invalidDef("def requires 1 or 2 arguments")) {
+        #expect(throws: ParserError.invalidDef("def requires 1 to 3 arguments")) {
             try parser.parse()
         }
     }
