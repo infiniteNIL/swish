@@ -38,6 +38,9 @@ private func coreDeref(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         else { throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)") }
         return value
 
+    case .reduced(let v):
+        return v
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "deref",

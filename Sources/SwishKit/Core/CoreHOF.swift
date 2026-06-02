@@ -15,6 +15,27 @@ func registerHOF(into evaluator: Evaluator) {
     evaluator.register(name: "reduce", arity: .atLeastOne,
         doc: "f should be a function of 2 arguments. If val is not supplied, returns the result of applying f to the first 2 items in coll, then applying f to that result and the 3rd item, etc. If coll contains no items, f must accept no arguments as well, and reduce returns the result of calling f with no arguments. If coll has only 1 item, it is returned and f is not called. If val is supplied, returns the result of applying f to val and the first item in coll, then applying f to that result and the 2nd item, etc. If coll contains no items, returns val and f is not called.",
         arglists: [["f", "coll"], ["f", "val", "coll"]]) { [evaluator] args in try coreReduce(evaluator, args) }
+    evaluator.register(name: "reduced", arity: .fixed(1),
+        doc: "Wraps x in a way that will cause a reduce to terminate early.",
+        arglists: [["x"]]) { args in .reduced(args[0]) }
+    evaluator.register(name: "reduced?", arity: .fixed(1),
+        doc: "Returns true if x is the result of a call to reduced.",
+        arglists: [["x"]]) { args in
+        if case .reduced = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
+    evaluator.register(name: "unreduced", arity: .fixed(1),
+        doc: "If x is already reduced?, returns (deref x), else returns x.",
+        arglists: [["x"]]) { args in
+        if case .reduced(let v) = args[0] { return v }
+        return args[0]
+    }
+    evaluator.register(name: "ensure-reduced", arity: .fixed(1),
+        doc: "If x is already reduced?, returns it, else returns (reduced x).",
+        arglists: [["x"]]) { args in
+        if case .reduced = args[0] { return args[0] }
+        return .reduced(args[0])
+    }
 }
 
 // MARK: - Implementations
@@ -94,30 +115,72 @@ private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "reduce", message: "requires 2 or 3 args")
     }
     let f = args[0]
-    let init_: Expr?
-    let elems: [Expr]
-    if args.count == 2 {
-        init_ = nil
-        elems = try seqOf(args[1], function: "reduce")
-    } else {
-        init_ = args[1]
-        elems = try seqOf(args[2], function: "reduce")
+    var acc: Expr?
+    var current: Expr
+
+    if args.count == 3 {
+        acc = args[1]
+        current = args[2]
     }
-    if elems.isEmpty {
-        if let v = init_ { return v }
-        return try evaluator.call(f, args: [])
+    else {
+        acc = nil
+        current = args[1]
     }
-    var acc: Expr
-    let rest: ArraySlice<Expr>
-    if let v = init_ {
-        acc  = v
-        rest = elems[...]
-    } else if elems.count == 1 {
-        return elems[0]
-    } else {
-        acc  = elems[0]
-        rest = elems[1...]
+
+    // Normalise non-lazy, non-list collections once upfront.
+    switch current {
+    case .nil, .list, .lazySeq:
+        break
+
+    default:
+        if let elems = asSequence(current) {
+            current = .list(elems, metadata: nil)
+        }
+        else {
+            current = .nil
+        }
     }
-    for elem in rest { acc = try evaluator.call(f, args: [acc, elem]) }
-    return acc
+
+    while true {
+        // Peel one element from the front of current.
+        let head: Expr?
+        let tail: Expr
+        switch current {
+        case .nil:
+            head = nil
+            tail = .nil
+
+        case .list(let elems, _) where elems.isEmpty:
+            head = nil
+            tail = .nil
+
+        case .list(let elems, _):
+            head = elems[0]
+            tail = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
+
+        case .lazySeq(let box):
+            head = try box.forceHead()
+            tail = head != nil ? ((try? box.forceTail()) ?? .nil) : .nil
+
+        default:
+            head = nil
+            tail = .nil
+        }
+
+        guard let h = head else {
+            // Exhausted — return accumulator or call 0-arity f.
+            if let a = acc { return a }
+            return try evaluator.call(f, args: [])
+        }
+
+        if acc == nil {
+            acc = h
+        }
+        else {
+            let result = try evaluator.call(f, args: [acc!, h])
+            if case .reduced(let v) = result { return v }
+            acc = result
+        }
+        current = tail
+    }
 }

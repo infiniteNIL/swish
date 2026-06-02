@@ -14,4 +14,11 @@ public class Environment: @unchecked Sendable {
     public func set(_ name: String, _ value: Expr) {
         bindings[name] = value
     }
+
+    /// Returns all names bound at any level of the environment chain.
+    public func allNames() -> Set<String> {
+        var names = Set(bindings.keys)
+        if let p = parent { names.formUnion(p.allNames()) }
+        return names
+    }
 }

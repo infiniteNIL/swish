@@ -114,10 +114,6 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns a new hash set with supplied keys. Any equal keys are handled as if by repeated uses of conj.",
         arglists: [["&", "keys"]],
         body: coreHashSet)
-    evaluator.register(name: "concat", arity: .variadic,
-        doc: "Returns a lazy seq representing the concatenation of the elements in the supplied colls.",
-        arglists: [[], ["x"], ["x", "y"], ["x", "y", "&", "zs"]],
-        body: coreConcat)
     evaluator.register(name: "contains?", arity: .fixed(2),
         doc: "Returns true if key is present in the given collection, otherwise returns false. Note that for numerically indexed collections like vectors and Java arrays, this tests if the numeric key is within the range of indexes. 'contains?' operates constant or logarithmic time; it will not perform a linear search for a value. See also 'some'.",
         arglists: [["coll", "key"]],
@@ -376,14 +372,6 @@ private func coreHashMap(_ args: [Expr]) throws -> Expr {
 
 private func coreHashSet(_ args: [Expr]) throws -> Expr {
     .set(Set(args), metadata: nil)
-}
-
-private func coreConcat(_ args: [Expr]) throws -> Expr {
-    var result: [Expr] = []
-    for arg in args {
-        result.append(contentsOf: try seqOf(arg, function: "concat"))
-    }
-    return .list(result, metadata: nil)
 }
 
 private func coreContains(_ args: [Expr]) throws -> Expr {

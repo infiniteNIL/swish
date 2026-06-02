@@ -49,11 +49,16 @@ extension Evaluator {
 
     private func expandFnForm(_ elements: [Expr], outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
         var offset = 1
-        if elements.count > 2, case .symbol = elements[1] {
+        var fnName: String? = nil
+        if elements.count > 2, case .symbol(let n, _) = elements[1] {
             let next = elements[2]
-            if case .vector = next { offset = 2 }
-            else if case .list = next { offset = 2 }
+            if case .vector = next { offset = 2; fnName = n }
+            else if case .list = next { offset = 2; fnName = n }
         }
+        // Include fn name so recursive self-calls aren't expanded to qualified globals.
+        var baseLocals = outerLocals
+        if let n = fnName { baseLocals.insert(n) }
+
         if offset < elements.count, case .list = elements[offset] {
             var result = Array(elements.prefix(offset))
             for clause in elements.dropFirst(offset) {
@@ -61,14 +66,14 @@ extension Evaluator {
                       !clauseElems.isEmpty,
                       case .vector(let paramExprs, _) = clauseElems[0]
                 else { result.append(clause); continue }
-                var clauseLocals = outerLocals
+                var clauseLocals = baseLocals
                 for p in paramExprs { clauseLocals.formUnion(collectLocalNames(p)) }
                 let expandedBody = Array(clauseElems.dropFirst()).map { expandAliasesInExpr($0, locals: clauseLocals) }
                 result.append(.list([clauseElems[0]] + expandedBody, metadata: clauseMeta))
             }
             return .list(result, metadata: listMeta)
         }
-        var newLocals = outerLocals
+        var newLocals = baseLocals
         if offset < elements.count, case .vector(let paramExprs, _) = elements[offset] {
             for p in paramExprs { newLocals.formUnion(collectLocalNames(p)) }
         }

@@ -408,7 +408,7 @@ extension Evaluator {
         return .string("\(error)")
     }
 
-    func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool) throws -> FnArity {
+    func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool, outerLocals: Set<String> = []) throws -> FnArity {
         guard case .list(let elems, _) = clause, !elems.isEmpty,
               case .vector(let paramExprs, _) = elems[0]
         else {
@@ -416,7 +416,7 @@ extension Evaluator {
         }
         let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(elems.dropFirst()))
         if validateRecur { try validateRecurTailPosition(in: rawBody) }
-        let allLocals = collectAllParamLocals(paramExprs)
+        let allLocals = collectAllParamLocals(paramExprs).union(outerLocals)
         return FnArity(params: params, body: expandAliases(in: rawBody, locals: allLocals))
     }
 
@@ -430,7 +430,8 @@ extension Evaluator {
         }
         let remaining = Array(elements.dropFirst(offset))
         if let first = remaining.first, case .list = first {
-            let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true) }
+            let outerLocals = env.allNames()
+            let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true, outerLocals: outerLocals) }
             return .multiArityFunction(name: name, arities: arities, capturedEnv: env, metadata: nil)
         }
         guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
@@ -438,7 +439,9 @@ extension Evaluator {
         }
         let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(remaining.dropFirst()))
         try validateRecurTailPosition(in: rawBody)
-        let body = expandAliases(in: rawBody, locals: collectAllParamLocals(paramExprs))
+        let ownLocals = collectAllParamLocals(paramExprs)
+        let allLocals = ownLocals.union(env.allNames())
+        let body = expandAliases(in: rawBody, locals: allLocals)
         return .function(name: name, params: params, body: body, capturedEnv: env, metadata: nil)
     }
 

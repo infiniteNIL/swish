@@ -90,6 +90,9 @@ public struct Printer {
 
         case .lazySeq(let box):
             formatLazySeq(box, transform: printString)
+
+        case .reduced(let v):
+            "#<reduced \(printString(v))>"
         }
     }
 
@@ -113,6 +116,9 @@ public struct Printer {
         case .lazySeq(let box):
             formatLazySeq(box, transform: strString)
 
+        case .reduced:
+            printString(expr)
+
         case .transient:
             printString(expr)
 
@@ -133,6 +139,9 @@ public struct Printer {
 
         case .lazySeq(let box):
             formatLazySeq(box, transform: sourceForm)
+
+        case .reduced:
+            printString(expr)
 
         case .transient:
             printString(expr)

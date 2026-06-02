@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [ ] clojure.string
       At minimum: join, split, trim, trim-left/right, upper-case, lower-case,
       starts-with?, ends-with?, includes?, replace, blank?
@@ -25,6 +24,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [x] Implement lazy-seq properly (currently an eager no-op; needed for infinite sequences and true Clojure compatibility)
 - [x] #() functions
 - [x] letfn, peek, pop, when-first

@@ -194,50 +194,98 @@
 
 (defn take
   "Returns a lazy sequence of the first n items in coll, or all items if
-  there are fewer than n."
+  there are fewer than n. Returns a stateful transducer when no collection
+  is provided."
   {:added "1.0"
    :static true}
-  [n coll]
-  (lazy-seq
-   (when (pos? n)
-     (when-let [s (seq coll)]
-       (cons (first s) (take (dec n) (rest s)))))))
+  ([n]
+   (fn [rf]
+     (let [nv (volatile! n)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [n @nv
+                nn (vswap! nv dec)
+                result (if (pos? n) (rf result input) result)]
+            (if (pos? nn)
+              result
+              (reduced result))))))))
+  ([n coll]
+   (lazy-seq
+    (when (pos? n)
+      (when-let [s (seq coll)]
+        (cons (first s) (take (dec n) (rest s))))))))
 
 (defn take-while
   "Returns a lazy sequence of successive items from coll while
-  (pred item) returns logical true. pred must be free of side-effects."
+  (pred item) returns logical true. pred must be free of side-effects.
+  Returns a transducer when no collection is provided."
   {:added "1.0"
    :static true}
-  [pred coll]
-  (lazy-seq
-   (when-let [s (seq coll)]
-     (when (pred (first s))
-       (cons (first s) (take-while pred (rest s)))))))
+  ([pred]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result] (rf result))
+       ([result input]
+        (if (pred input)
+          (rf result input)
+          (reduced result))))))
+  ([pred coll]
+   (lazy-seq
+    (when-let [s (seq coll)]
+      (when (pred (first s))
+        (cons (first s) (take-while pred (rest s))))))))
 
 (defn drop
-  "Returns a lazy sequence of all but the first n items in coll."
+  "Returns a lazy sequence of all but the first n items in coll.
+  Returns a stateful transducer when no collection is provided."
   {:added "1.0"
    :static true}
-  [n coll]
-  (let [step (fn step [n coll]
-               (let [s (seq coll)]
-                 (if (and (pos? n) s)
-                   (recur (dec n) (rest s))
-                   s)))]
-    (lazy-seq (step n coll))))
+  ([n]
+   (fn [rf]
+     (let [nv (volatile! n)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [n @nv]
+            (if (pos? n)
+              (do (vswap! nv dec) result)
+              (rf result input))))))))
+  ([n coll]
+   (let [step (fn step [n coll]
+                (let [s (seq coll)]
+                  (if (and (pos? n) s)
+                    (recur (dec n) (rest s))
+                    s)))]
+     (lazy-seq (step n coll)))))
 
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
-  first item for which (pred item) returns logical false."
+  first item for which (pred item) returns logical false. Returns a
+  stateful transducer when no collection is provided."
   {:added "1.0"
    :static true}
-  [pred coll]
-  (let [step (fn step [pred coll]
-               (let [s (seq coll)]
-                 (if (and s (pred (first s)))
-                   (recur pred (rest s))
-                   s)))]
-    (lazy-seq (step pred coll))))
+  ([pred]
+   (fn [rf]
+     (let [dv (volatile! true)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [drop? @dv]
+            (if (and drop? (pred input))
+              result
+              (do (vreset! dv false) (rf result input)))))))))
+  ([pred coll]
+   (let [step (fn step [pred coll]
+                (let [s (seq coll)]
+                  (if (and s (pred (first s)))
+                    (recur pred (rest s))
+                    s)))]
+     (lazy-seq (step pred coll)))))
 
 (defn iterate
   "Returns a lazy sequence of x, (f x), (f (f x)) etc."
@@ -305,22 +353,28 @@
          (cons (first s) (concat (rest s) y))
          y))))
   ([x y & zs]
-   (let [cat (fn cat [xys zs]
-               (lazy-seq
-                 (let [xys (seq xys)]
-                   (if xys
-                     (cons (first xys) (cat (rest xys) zs))
-                     (when-let [zs (seq zs)]
-                       (cat (first zs) (rest zs)))))))]
-     (cat (concat x y) zs))))
+   (let [step (fn step [xys zs]
+                (lazy-seq
+                  (let [xys (seq xys)]
+                    (if xys
+                      (cons (first xys) (step (rest xys) zs))
+                      (when-let [zs (seq zs)]
+                        (step (first zs) (rest zs)))))))]
+     (step (concat x y) zs))))
 
 (defn map
   "Returns a lazy sequence consisting of the result of applying f to
   the set of first items of each coll, followed by applying f to the
   set of second items in each coll, until any one of the colls is
-  exhausted."
+  exhausted. Returns a transducer when no collection is provided."
   {:added "1.0"
    :static true}
+  ([f]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result] (rf result))
+       ([result input] (rf result (f input))))))
   ([f coll]
    (lazy-seq
      (when-let [s (seq coll)]
@@ -342,9 +396,16 @@
 
 (defn filter
   "Returns a lazy sequence of the items in coll for which (pred item)
-  returns logical true. pred must be free of side-effects."
+  returns logical true. pred must be free of side-effects. Returns a
+  transducer when no collection is provided."
   {:added "1.0"
    :static true}
+  ([pred]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result] (rf result))
+       ([result input] (if (pred input) (rf result input) result)))))
   ([pred coll]
    (lazy-seq
      (when-let [s (seq coll)]
@@ -352,6 +413,14 @@
          (if (pred f)
            (cons f (filter pred r))
            (filter pred r)))))))
+
+(defn remove
+  "Returns a lazy sequence of the items in coll for which (pred item)
+  returns logical false/nil. Returns a transducer when no collection
+  is provided."
+  {:added "1.0"}
+  ([pred] (filter (complement pred)))
+  ([pred coll] (filter (complement pred) coll)))
 
 (defmacro lazy-cat
   "Expands to code which yields a lazy sequence of the concatenation
@@ -472,11 +541,103 @@
   [f]
   (fn [& args] (not (apply f args))))
 
-(defn into
-  "Returns a new coll consisting of to-coll with all items of from-coll conjoined."
+(defn comp
+  "Takes a set of functions and returns a fn that is the composition
+  of those fns. ((comp f g) x) = (f (g x))."
   {:added "1.0"}
-  [to from]
-  (reduce conj to from))
+  ([] identity)
+  ([f] f)
+  ([f g]
+   (fn [& args] (f (apply g args))))
+  ([f g h]
+   (fn [& args] (f (g (apply h args)))))
+  ([f g h & fs]
+   (reduce comp (list* f g h fs))))
+
+(defn volatile!
+  "Creates and returns a Volatile with an initial value of val."
+  {:added "1.7"}
+  [val]
+  (atom val))
+
+(defn vswap!
+  "Non-atomically swaps the value of the volatile as if: (apply f current-value-of-volatile args)."
+  {:added "1.7"}
+  [vol f & args]
+  (apply swap! vol f args))
+
+(defn vreset!
+  "Sets the value of volatile to newval without regard for the current value."
+  {:added "1.7"}
+  [vol newval]
+  (reset! vol newval))
+
+(defn completing
+  "Takes a reducing function f of 2 args and returns a fn suitable for
+  transduce by adding an arity-1 signature that calls cf (default:
+  identity) on the result argument."
+  {:added "1.7"}
+  ([f] (completing f identity))
+  ([f cf]
+   (fn
+     ([] (f))
+     ([x] (cf x))
+     ([x y] (f x y)))))
+
+(defn transduce
+  "Reduce with a transformation of f (xf). If init is not supplied,
+  (f) will be called to produce it. f should be a reducing step
+  function that accepts both 1 and 2 arity forms. Returns the result
+  of applying (f result) to the final accumulated value."
+  {:added "1.7"}
+  ([xform f coll]
+   (transduce xform f (f) coll))
+  ([xform f init coll]
+   (let [f (xform (completing f))]
+     (f (reduce f init coll)))))
+
+(defn into
+  "Returns a new coll consisting of to-coll with all items of from-coll
+  conjoined. A transducer may be supplied."
+  {:added "1.0"}
+  ([to from]
+   (reduce conj to from))
+  ([to xform from]
+   (transduce xform conj to from)))
+
+(defn sequence
+  "Coerces coll to a (possibly empty) sequence, if it is not already
+  one. Will not force a lazy seq. When a transducer xform is supplied,
+  returns a lazy sequence of applications of the transform to the items
+  in coll."
+  {:added "1.7"}
+  ([coll]
+   (if (seq? coll) coll
+     (or (seq coll) ())))
+  ([xform coll]
+   (let [rf (xform (completing conj))]
+     (letfn [(advance [s]
+               (lazy-seq
+                 (if-let [s (seq s)]
+                   (let [new-result (rf [] (first s))]
+                     (if (reduced? new-result)
+                       (seq (rf (unreduced new-result)))
+                       (drain new-result (rest s))))
+                   (seq (rf [])))))
+             (drain [buf s]
+               (lazy-seq
+                 (if (seq buf)
+                   (cons (first buf) (drain (rest buf) s))
+                   (advance s))))]
+       (advance coll)))))
+
+(defn eduction
+  "Returns a reducible/seqable application of the transducers to the
+  items in coll. Transducer state is fresh per call to eduction."
+  {:added "1.7"}
+  [& xforms+coll]
+  (sequence (apply comp (butlast xforms+coll))
+            (last xforms+coll)))
 
 (defn assoc-in
   "Associates a value in a nested associative structure, where ks is a
@@ -596,12 +757,26 @@
         (if v v (recur (next s))))
       nil)))
 
+(def cat
+  (fn [rf]
+    (let [rf1 (fn [result input]
+                (let [ret (rf result input)]
+                  (if (reduced? ret)
+                    (reduced ret)
+                    ret)))]
+      (fn
+        ([] (rf))
+        ([result] (rf result))
+        ([result input]
+         (reduce rf1 result input))))))
+
 (defn mapcat
   "Returns the result of applying concat to the result of applying map
-   to f and colls. Thus function f should return a collection."
+  to f and colls. Thus function f should return a collection. Returns a
+  transducer when no collection is provided."
   {:added "1.0"}
-  [f & colls]
-  (apply concat (apply map f colls)))
+  ([f] (comp (map f) cat))
+  ([f & colls] (apply concat (apply map f colls))))
 
 (defn sequential?
   "Returns true if coll implements Sequential"
@@ -692,9 +867,27 @@
 
 (defn partition-all
   "Returns a lazy sequence of lists like partition, but may include
-  partitions with fewer than n items at the end."
+  partitions with fewer than n items at the end. Returns a stateful
+  transducer when no collection is provided."
   {:added "1.2"
    :static true}
+  ([n]
+   (fn [rf]
+     (let [a (volatile! [])]
+       (fn
+         ([] (rf))
+         ([result]
+          (let [result (if (not-empty @a)
+                         (let [v @a]
+                           (vreset! a [])
+                           (rf result v))
+                         result)]
+            (rf result)))
+         ([result input]
+          (let [buf (vswap! a conj input)]
+            (if (= n (count buf))
+              (do (vreset! a []) (rf result buf))
+              result)))))))
   ([n coll]
    (partition-all n n coll))
   ([n step coll]
@@ -743,19 +936,73 @@
    (sort #(comp (keyfn %1) (keyfn %2)) coll)))
 
 (defn distinct
-  "Returns a lazy sequence of the elements of coll with duplicates removed."
+  "Returns a lazy sequence of the elements of coll with duplicates
+  removed. Returns a stateful transducer when no collection is provided."
   {:added "1.0"
    :static true}
-  [coll]
-  (let [step (fn step [xs seen]
-               (lazy-seq
-                ((fn [[f :as xs] seen]
-                   (when (seq xs)
-                     (if (contains? seen f)
-                       (recur (rest xs) seen)
-                       (cons f (step (rest xs) (conj seen f))))))
-                 xs seen)))]
-    (step coll #{})))
+  ([]
+   (fn [rf]
+     (let [seen (volatile! #{})]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (contains? @seen input)
+            result
+            (do (vswap! seen conj input) (rf result input))))))))
+  ([coll]
+   (let [step (fn step [xs seen]
+                (lazy-seq
+                 ((fn [[f :as xs] seen]
+                    (when (seq xs)
+                      (if (contains? seen f)
+                        (recur (rest xs) seen)
+                        (cons f (step (rest xs) (conj seen f))))))
+                  xs seen)))]
+     (step coll #{}))))
+
+(def dedupe-none :__dedupe-none__)
+
+(defn dedupe
+  "Returns a lazy sequence removing consecutive duplicates in coll.
+  Returns a stateful transducer when no collection is provided."
+  {:added "1.7"}
+  ([]
+   (fn [rf]
+     (let [pv (volatile! dedupe-none)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [prior @pv]
+            (vreset! pv input)
+            (if (= prior input)
+              result
+              (rf result input))))))))
+  ([coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [f (first s)]
+         (cons f (dedupe (drop-while #(= % f) (rest s)))))))))
+
+(defn take-nth
+  "Returns a lazy seq of every nth item in coll. Returns a stateful
+  transducer when no collection is provided."
+  {:added "1.0"}
+  ([n]
+   (fn [rf]
+     (let [iv (volatile! -1)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if (zero? (mod (vswap! iv inc) n))
+            (rf result input)
+            result))))))
+  ([n coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (cons (first s) (take-nth n (drop n s)))))))
 
 (defn interleave
   "Returns a lazy seq of the first item in each coll, then the second etc."
@@ -776,14 +1023,28 @@
         (concat (map first ss) (apply interleave (map rest ss))))))))
 
 (defn interpose
-  "Returns a lazy seq of the elements of coll separated by sep."
+  "Returns a lazy seq of the elements of coll separated by sep. Returns
+  a stateful transducer when no collection is provided."
   {:added "1.0"
    :static true}
-  [sep coll]
-  (lazy-seq
-   (when-let [s (seq coll)]
-     (cons (first s)
-           (mapcat (fn [x] [sep x]) (rest s))))))
+  ([sep]
+   (fn [rf]
+     (let [started (volatile! false)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (if @started
+            (let [result (rf result sep)]
+              (if (reduced? result)
+                result
+                (rf result input)))
+            (do (vreset! started true) (rf result input))))))))
+  ([sep coll]
+   (lazy-seq
+    (when-let [s (seq coll)]
+      (cons (first s)
+            (mapcat (fn [x] [sep x]) (rest s)))))))
 
 (defn zipmap
   "Returns a map with the keys mapped to the corresponding vals."
@@ -802,46 +1063,72 @@
 (defn keep
   "Returns a lazy sequence of the non-nil results of (f item). Note,
   this means false return values are included. f must be free of
-  side-effects."
+  side-effects. Returns a transducer when no collection is provided."
   {:added "1.2"
    :static true}
-  [f coll]
-  (lazy-seq
-   (when-let [s (seq coll)]
-     (let [x (f (first s))]
-       (if (nil? x)
-         (keep f (rest s))
-         (cons x (keep f (rest s))))))))
+  ([f]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result] (rf result))
+       ([result input]
+        (let [v (f input)]
+          (if (nil? v) result (rf result v)))))))
+  ([f coll]
+   (lazy-seq
+    (when-let [s (seq coll)]
+      (let [x (f (first s))]
+        (if (nil? x)
+          (keep f (rest s))
+          (cons x (keep f (rest s)))))))))
 
 (defn keep-indexed
   "Returns a lazy sequence of the non-nil results of (f index item). Note,
   this means false return values are included. f must be free of
-  side-effects."
+  side-effects. Returns a stateful transducer when no collection is provided."
   {:added "1.2"
    :static true}
-  [f coll]
-  (letfn [(keepi [idx coll]
-            (lazy-seq
-             (when-let [s (seq coll)]
-               (let [x (f idx (first s))]
-                 (if (nil? x)
-                   (keepi (inc idx) (rest s))
-                   (cons x (keepi (inc idx) (rest s))))))))]
-    (keepi 0 coll)))
+  ([f]
+   (fn [rf]
+     (let [iv (volatile! -1)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (let [v (f (vswap! iv inc) input)]
+            (if (nil? v) result (rf result v))))))))
+  ([f coll]
+   (letfn [(keepi [idx coll]
+             (lazy-seq
+              (when-let [s (seq coll)]
+                (let [x (f idx (first s))]
+                  (if (nil? x)
+                    (keepi (inc idx) (rest s))
+                    (cons x (keepi (inc idx) (rest s))))))))]
+     (keepi 0 coll))))
 
 (defn map-indexed
   "Returns a lazy sequence consisting of the result of applying f to 0
   and the first item of coll, followed by applying f to 1 and the second
   item in coll, etc, until coll is exhausted. Thus function f should
-  accept 2 arguments, index and item."
+  accept 2 arguments, index and item. Returns a stateful transducer
+  when no collection is provided."
   {:added "1.2"
    :static true}
-  [f coll]
-  (letfn [(mapi [idx coll]
-            (lazy-seq
-             (when-let [s (seq coll)]
-               (cons (f idx (first s)) (mapi (inc idx) (rest s))))))]
-    (mapi 0 coll)))
+  ([f]
+   (fn [rf]
+     (let [iv (volatile! -1)]
+       (fn
+         ([] (rf))
+         ([result] (rf result))
+         ([result input]
+          (rf result (f (vswap! iv inc) input)))))))
+  ([f coll]
+   (letfn [(mapi [idx coll]
+             (lazy-seq
+              (when-let [s (seq coll)]
+                (cons (f idx (first s)) (mapi (inc idx) (rest s))))))]
+     (mapi 0 coll))))
 
 (defmacro doseq
   "Repeatedly executes body (presumably for side-effects) with

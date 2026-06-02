@@ -42,6 +42,9 @@ public indirect enum Expr: Sendable {
     case transient(TransientCollection)
     /// A thunk-backed lazy sequence. Realizes elements on demand.
     case lazySeq(LazySeqBox)
+
+    /// A sentinel wrapping a value to signal early termination of `reduce`.
+    case reduced(Expr)
 }
 
 extension Expr: Equatable {
@@ -122,6 +125,9 @@ extension Expr: Equatable {
 
         case (.lazySeq, .list), (.list, .lazySeq):
             return seqEqual(lhs, rhs)
+
+        case (.reduced(let a), .reduced(let b)):
+            return a == b
 
         default:
             return false
@@ -248,6 +254,9 @@ extension Expr: Hashable {
         // the hash contract is maintained within the lazy-seq type (same box → same hash).
         case .lazySeq(let box):
             hasher.combine(22); hasher.combine(ObjectIdentifier(box))
+
+        case .reduced(let v):
+            hasher.combine(23); hasher.combine(v)
         }
     }
 }
