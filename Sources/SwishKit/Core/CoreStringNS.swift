@@ -51,6 +51,22 @@ extension Evaluator {
                 .vector([.symbol("s", metadata: nil)], metadata: nil),
             ], metadata: nil),
         ]
+
+        let upperCaseVar = ns.intern(name: "upper-case", value: coreUpperCase)
+        upperCaseVar.metadata = [
+            .keyword("doc"): .string("Converts string to all upper-case."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
+
+        let lowerCaseVar = ns.intern(name: "lower-case", value: coreLowerCase)
+        lowerCaseVar.metadata = [
+            .keyword("doc"): .string("Converts string to all lower-case."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
     }
 }
 
@@ -143,6 +159,20 @@ private let coreTrimNewline = Expr.nativeFunction(name: "trim-newline", arity: .
         result.removeLast()
     }
     return .string(result)
+}
+
+private let coreUpperCase = Expr.nativeFunction(name: "upper-case", arity: .fixed(1)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "upper-case", message: "argument must be a string")
+    }
+    return .string(s.uppercased())
+}
+
+private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixed(1)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "lower-case", message: "argument must be a string")
+    }
+    return .string(s.lowercased())
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {

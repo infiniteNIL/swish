@@ -189,4 +189,34 @@ struct ClojureStringTests {
     func trimNewlineEmpty() throws {
         #expect(try swish.eval(#"(str/trim-newline "")"#) == .string(""))
     }
+
+    @Test("upper-case converts to all uppercase")
+    func upperCaseBasic() throws {
+        #expect(try swish.eval(#"(str/upper-case "hello")"#) == .string("HELLO"))
+    }
+
+    @Test("upper-case on already-uppercase string is a no-op")
+    func upperCaseNoOp() throws {
+        #expect(try swish.eval(#"(str/upper-case "HELLO")"#) == .string("HELLO"))
+    }
+
+    @Test("upper-case on empty string returns empty string")
+    func upperCaseEmpty() throws {
+        #expect(try swish.eval(#"(str/upper-case "")"#) == .string(""))
+    }
+
+    @Test("lower-case converts to all lowercase")
+    func lowerCaseBasic() throws {
+        #expect(try swish.eval(#"(str/lower-case "HELLO")"#) == .string("hello"))
+    }
+
+    @Test("lower-case on already-lowercase string is a no-op")
+    func lowerCaseNoOp() throws {
+        #expect(try swish.eval(#"(str/lower-case "hello")"#) == .string("hello"))
+    }
+
+    @Test("lower-case on empty string returns empty string")
+    func lowerCaseEmpty() throws {
+        #expect(try swish.eval(#"(str/lower-case "")"#) == .string(""))
+    }
 }
