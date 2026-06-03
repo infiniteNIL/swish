@@ -57,3 +57,19 @@ public final class Namespace: @unchecked Sendable {
         aliases[name]
     }
 }
+
+extension Namespace {
+    /// Interns `value` under `name` and sets `:doc` / `:arglists` metadata,
+    /// using the same `[[String]]` arglists format as `Evaluator.register()`.
+    @discardableResult
+    func register(name: String, value: Expr, doc: String, arglists: [[String]]) -> Var {
+        let v = intern(name: name, value: value)
+        v.metadata = [
+            .keyword("doc"): .string(doc),
+            .keyword("arglists"): .list(arglists.map { params in
+                .vector(params.map { .symbol($0, metadata: nil) }, metadata: nil)
+            }, metadata: nil),
+        ]
+        return v
+    }
+}

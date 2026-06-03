@@ -2,103 +2,51 @@ extension Evaluator {
     func registerClojureStringNatives() {
         let ns = findOrCreateNs("clojure.string")
 
-        let splitVar = ns.intern(name: "split", value: coreSplit)
-        splitVar.metadata = [
-            .keyword("doc"): .string(
-                "Splits string on a regular expression. Optional argument limit is " +
-                "the maximum number of splits. Not lazy. Returns vector of the splits."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil), .symbol("re", metadata: nil)],
-                        metadata: nil),
-                .vector([.symbol("s", metadata: nil), .symbol("re", metadata: nil),
-                         .symbol("limit", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "split", value: coreSplit,
+            doc: "Splits string on a regular expression. Optional argument limit is " +
+                 "the maximum number of splits. Not lazy. Returns vector of the splits.",
+            arglists: [["s", "re"], ["s", "re", "limit"]])
 
-        let trimVar = ns.intern(name: "trim", value: coreTrim)
-        trimVar.metadata = [
-            .keyword("doc"): .string(
-                "Removes whitespace from both ends of string."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "trim", value: coreTrim,
+            doc: "Removes whitespace from both ends of string.",
+            arglists: [["s"]])
 
-        let trimlVar = ns.intern(name: "triml", value: coreTriml)
-        trimlVar.metadata = [
-            .keyword("doc"): .string(
-                "Removes whitespace from the left side of string."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "triml", value: coreTriml,
+            doc: "Removes whitespace from the left side of string.",
+            arglists: [["s"]])
 
-        let trimrVar = ns.intern(name: "trimr", value: coreTrimr)
-        trimrVar.metadata = [
-            .keyword("doc"): .string(
-                "Removes whitespace from the right side of string."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "trimr", value: coreTrimr,
+            doc: "Removes whitespace from the right side of string.",
+            arglists: [["s"]])
 
-        let trimNewlineVar = ns.intern(name: "trim-newline", value: coreTrimNewline)
-        trimNewlineVar.metadata = [
-            .keyword("doc"): .string(
-                "Removes all trailing newline \\n or return \\r characters from " +
-                "string. Similar to Perl's chomp."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "trim-newline", value: coreTrimNewline,
+            doc: "Removes all trailing newline \\n or return \\r characters from " +
+                 "string. Similar to Perl's chomp.",
+            arglists: [["s"]])
 
-        let upperCaseVar = ns.intern(name: "upper-case", value: coreUpperCase)
-        upperCaseVar.metadata = [
-            .keyword("doc"): .string("Converts string to all upper-case."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "upper-case", value: coreUpperCase,
+            doc: "Converts string to all upper-case.",
+            arglists: [["s"]])
 
-        let lowerCaseVar = ns.intern(name: "lower-case", value: coreLowerCase)
-        lowerCaseVar.metadata = [
-            .keyword("doc"): .string("Converts string to all lower-case."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "lower-case", value: coreLowerCase,
+            doc: "Converts string to all lower-case.",
+            arglists: [["s"]])
 
-        let startsWithVar = ns.intern(name: "starts-with?", value: coreStartsWith)
-        startsWithVar.metadata = [
-            .keyword("doc"): .string("True if s starts with substr."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "starts-with?", value: coreStartsWith,
+            doc: "True if s starts with substr.",
+            arglists: [["s", "substr"]])
 
-        let endsWithVar = ns.intern(name: "ends-with?", value: coreEndsWith)
-        endsWithVar.metadata = [
-            .keyword("doc"): .string("True if s ends with substr."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "ends-with?", value: coreEndsWith,
+            doc: "True if s ends with substr.",
+            arglists: [["s", "substr"]])
 
-        let includesVar = ns.intern(name: "includes?", value: coreIncludes)
-        includesVar.metadata = [
-            .keyword("doc"): .string("True if s includes substr."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "includes?", value: coreIncludes,
+            doc: "True if s includes substr.",
+            arglists: [["s", "substr"]])
 
-        let blankVar = ns.intern(name: "blank?", value: coreBlank)
-        blankVar.metadata = [
-            .keyword("doc"): .string("True if s is nil, empty, or contains only whitespace."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "blank?", value: coreBlank,
+            doc: "True if s is nil, empty, or contains only whitespace.",
+            arglists: [["s"]])
 
         let replaceNative = Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [self] args in
             guard case .string(let s) = args[0] else {
@@ -148,17 +96,11 @@ extension Evaluator {
                     message: "match must be a string, character, or regex")
             }
         }
-        let replaceVar = ns.intern(name: "replace", value: replaceNative)
-        replaceVar.metadata = [
-            .keyword("doc"): .string(
-                "Replaces all instances of match with replacement in s. " +
-                "match/replacement can be: string/string, char/char, " +
-                "pattern/string, or pattern/function."),
-            .keyword("arglists"): .list([
-                .vector([.symbol("s", metadata: nil), .symbol("match", metadata: nil),
-                         .symbol("replacement", metadata: nil)], metadata: nil),
-            ], metadata: nil),
-        ]
+        ns.register(name: "replace", value: replaceNative,
+            doc: "Replaces all instances of match with replacement in s. " +
+                 "match/replacement can be: string/string, char/char, " +
+                 "pattern/string, or pattern/function.",
+            arglists: [["s", "match", "replacement"]])
     }
 }
 
