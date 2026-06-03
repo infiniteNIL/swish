@@ -279,4 +279,29 @@ struct ClojureStringTests {
     func includesFullMatch() throws {
         #expect(try swish.eval(#"(str/includes? "hello" "hello")"#) == .boolean(true))
     }
+
+    @Test("blank? returns true for nil")
+    func blankNil() throws {
+        #expect(try swish.eval("(str/blank? nil)") == .boolean(true))
+    }
+
+    @Test("blank? returns true for empty string")
+    func blankEmpty() throws {
+        #expect(try swish.eval(#"(str/blank? "")"#) == .boolean(true))
+    }
+
+    @Test("blank? returns true for all-whitespace string")
+    func blankWhitespace() throws {
+        #expect(try swish.eval(#"(str/blank? "   ")"#) == .boolean(true))
+    }
+
+    @Test("blank? returns false for non-whitespace string")
+    func blankNonWhitespace() throws {
+        #expect(try swish.eval(#"(str/blank? "hello")"#) == .boolean(false))
+    }
+
+    @Test("blank? returns false for string with whitespace and content")
+    func blankMixed() throws {
+        #expect(try swish.eval(#"(str/blank? "  hi  ")"#) == .boolean(false))
+    }
 }

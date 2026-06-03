@@ -91,6 +91,14 @@ extension Evaluator {
                 .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
             ], metadata: nil),
         ]
+
+        let blankVar = ns.intern(name: "blank?", value: coreBlank)
+        blankVar.metadata = [
+            .keyword("doc"): .string("True if s is nil, empty, or contains only whitespace."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
     }
 }
 
@@ -227,6 +235,19 @@ private let coreIncludes = Expr.nativeFunction(name: "includes?", arity: .fixed(
         throw EvaluatorError.invalidArgument(function: "includes?", message: "second argument must be a string")
     }
     return .boolean(substr.isEmpty || s.contains(substr))
+}
+
+private let coreBlank = Expr.nativeFunction(name: "blank?", arity: .fixed(1)) { args in
+    switch args[0] {
+    case .nil:
+        return .boolean(true)
+
+    case .string(let s):
+        return .boolean(s.allSatisfy(\.isWhitespace))
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "blank?", message: "argument must be a string or nil")
+    }
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {
