@@ -119,4 +119,74 @@ struct ClojureStringTests {
     func splitNoMatch() throws {
         #expect(try swish.eval(#"(str/split "foo" #",")"#) == .vector([.string("foo")], metadata: nil))
     }
+
+    @Test("trim removes spaces from both ends")
+    func trimBothEnds() throws {
+        #expect(try swish.eval(#"(str/trim "  hello  ")"#) == .string("hello"))
+    }
+
+    @Test("trim removes tabs and newlines")
+    func trimTabsNewlines() throws {
+        #expect(try swish.eval("(str/trim \"\t\nhello\n\t\")") == .string("hello"))
+    }
+
+    @Test("trim on already-trimmed string is a no-op")
+    func trimNoOp() throws {
+        #expect(try swish.eval(#"(str/trim "hello")"#) == .string("hello"))
+    }
+
+    @Test("trim on empty string returns empty string")
+    func trimEmpty() throws {
+        #expect(try swish.eval(#"(str/trim "")"#) == .string(""))
+    }
+
+    @Test("trim on all-whitespace returns empty string")
+    func trimAllWhitespace() throws {
+        #expect(try swish.eval(#"(str/trim "   ")"#) == .string(""))
+    }
+
+    @Test("triml removes whitespace from left only")
+    func trimlLeft() throws {
+        #expect(try swish.eval(#"(str/triml "  hello  ")"#) == .string("hello  "))
+    }
+
+    @Test("triml on no leading whitespace is a no-op")
+    func trimlNoOp() throws {
+        #expect(try swish.eval(#"(str/triml "hello  ")"#) == .string("hello  "))
+    }
+
+    @Test("trimr removes whitespace from right only")
+    func trimrRight() throws {
+        #expect(try swish.eval(#"(str/trimr "  hello  ")"#) == .string("  hello"))
+    }
+
+    @Test("trimr on no trailing whitespace is a no-op")
+    func trimrNoOp() throws {
+        #expect(try swish.eval(#"(str/trimr "  hello")"#) == .string("  hello"))
+    }
+
+    @Test("trim-newline removes trailing newlines")
+    func trimNewlineTrailingNewlines() throws {
+        #expect(try swish.eval("(str/trim-newline \"hello\\n\\n\")") == .string("hello"))
+    }
+
+    @Test("trim-newline removes trailing carriage returns")
+    func trimNewlineTrailingCR() throws {
+        #expect(try swish.eval("(str/trim-newline \"hello\\r\\n\")") == .string("hello"))
+    }
+
+    @Test("trim-newline stops at non-newline character")
+    func trimNewlineStopsAtNonNewline() throws {
+        #expect(try swish.eval("(str/trim-newline \"hello world\\n\")") == .string("hello world"))
+    }
+
+    @Test("trim-newline on string with no trailing newlines is a no-op")
+    func trimNewlineNoOp() throws {
+        #expect(try swish.eval(#"(str/trim-newline "hello")"#) == .string("hello"))
+    }
+
+    @Test("trim-newline on empty string returns empty string")
+    func trimNewlineEmpty() throws {
+        #expect(try swish.eval(#"(str/trim-newline "")"#) == .string(""))
+    }
 }
