@@ -75,6 +75,9 @@ private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     case .lazySeq:
         tail = try seqOf(lastArg, function: "apply")
 
+    case .string(let s):
+        tail = s.map { .character($0) }
+
     default:
         throw EvaluatorError.invalidArgument(function: "apply",
             message: "last argument must be a sequence, got \(corePrinter.printString(lastArg))")
