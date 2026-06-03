@@ -99,6 +99,66 @@ extension Evaluator {
                 .vector([.symbol("s", metadata: nil)], metadata: nil),
             ], metadata: nil),
         ]
+
+        let replaceNative = Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [self] args in
+            guard case .string(let s) = args[0] else {
+                throw EvaluatorError.invalidArgument(function: "replace",
+                    message: "first argument must be a string")
+            }
+            switch args[1] {
+            case .string(let match):
+                guard case .string(let repl) = args[2] else {
+                    throw EvaluatorError.invalidArgument(function: "replace",
+                        message: "string match requires string replacement")
+                }
+                return .string(s.replacingOccurrences(of: match, with: repl))
+
+            case .character(let match):
+                guard case .character(let repl) = args[2] else {
+                    throw EvaluatorError.invalidArgument(function: "replace",
+                        message: "char match requires char replacement")
+                }
+                return .string(s.replacingOccurrences(of: String(match), with: String(repl)))
+
+            case .regex(let re):
+                switch args[2] {
+                case .string(let repl):
+                    return .string(s.replacing(re.regex, with: repl))
+
+                default:
+                    let f = args[2]
+                    var result = ""
+                    var lastEnd = s.startIndex
+                    for match in s.matches(of: re.regex) {
+                        result += s[lastEnd..<match.range.lowerBound]
+                        let matchStr = String(s[match.range])
+                        guard case .string(let repl) = try self.call(f, args: [.string(matchStr)]) else {
+                            throw EvaluatorError.invalidArgument(function: "replace",
+                                message: "replacement function must return a string")
+                        }
+                        result += repl
+                        lastEnd = match.range.upperBound
+                    }
+                    result += s[lastEnd...]
+                    return .string(result)
+                }
+
+            default:
+                throw EvaluatorError.invalidArgument(function: "replace",
+                    message: "match must be a string, character, or regex")
+            }
+        }
+        let replaceVar = ns.intern(name: "replace", value: replaceNative)
+        replaceVar.metadata = [
+            .keyword("doc"): .string(
+                "Replaces all instances of match with replacement in s. " +
+                "match/replacement can be: string/string, char/char, " +
+                "pattern/string, or pattern/function."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil), .symbol("match", metadata: nil),
+                         .symbol("replacement", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
     }
 }
 

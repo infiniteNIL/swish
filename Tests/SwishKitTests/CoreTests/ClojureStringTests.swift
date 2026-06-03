@@ -304,4 +304,35 @@ struct ClojureStringTests {
     func blankMixed() throws {
         #expect(try swish.eval(#"(str/blank? "  hi  ")"#) == .boolean(false))
     }
+
+    @Test("replace string/string replaces all occurrences")
+    func replaceStringString() throws {
+        #expect(try swish.eval(#"(str/replace "hello world" "o" "0")"#) == .string("hell0 w0rld"))
+    }
+
+    @Test("replace string/string with no match returns original")
+    func replaceStringNoMatch() throws {
+        #expect(try swish.eval(#"(str/replace "hello" "x" "y")"#) == .string("hello"))
+    }
+
+    @Test("replace char/char replaces all occurrences")
+    func replaceCharChar() throws {
+        #expect(try swish.eval(#"(str/replace "hello" \l \r)"#) == .string("herro"))
+    }
+
+    @Test("replace regex/string treats replacement as literal")
+    func replaceRegexString() throws {
+        #expect(try swish.eval(#"(str/replace "hello world" #"\s+" "-")"#) == .string("hello-world"))
+    }
+
+    @Test("replace regex/string with dollar sign is literal not backreference")
+    func replaceRegexStringLiteral() throws {
+        #expect(try swish.eval(#"(str/replace "hello" #"hello" "$0")"#) == .string("$0"))
+    }
+
+    @Test("replace regex/function calls function with each match")
+    func replaceRegexFunction() throws {
+        #expect(try swish.eval(#"(str/replace "hello world" #"\w+" str/upper-case)"#)
+            == .string("HELLO WORLD"))
+    }
 }
