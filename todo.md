@@ -1,7 +1,7 @@
 # Todo
 
 - [ ] clojure.set
-      union, intersection, difference, subset?, superset?
+      difference, subset?, superset?
 - [ ] Better I/O
       slurp, spit, read-string, with-open — needed for any file-touching code.
 - [ ] Jank Clojure test suite
@@ -20,6 +20,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] clojure.set: union, intersection, disj
 - [x] set
 - [x] subs
 - [x] clojure.string: join, split, trim, triml, trimr, trim-newline, upper-case,
