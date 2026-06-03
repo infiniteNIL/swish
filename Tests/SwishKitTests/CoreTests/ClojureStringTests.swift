@@ -219,4 +219,44 @@ struct ClojureStringTests {
     func lowerCaseEmpty() throws {
         #expect(try swish.eval(#"(str/lower-case "")"#) == .string(""))
     }
+
+    @Test("starts-with? returns true when string starts with substr")
+    func startsWithMatch() throws {
+        #expect(try swish.eval(#"(str/starts-with? "hello" "hel")"#) == .boolean(true))
+    }
+
+    @Test("starts-with? returns false when string does not start with substr")
+    func startsWithNoMatch() throws {
+        #expect(try swish.eval(#"(str/starts-with? "hello" "ell")"#) == .boolean(false))
+    }
+
+    @Test("starts-with? with empty substr always returns true")
+    func startsWithEmptySubstr() throws {
+        #expect(try swish.eval(#"(str/starts-with? "hello" "")"#) == .boolean(true))
+    }
+
+    @Test("starts-with? on empty string with empty substr returns true")
+    func startsWithBothEmpty() throws {
+        #expect(try swish.eval(#"(str/starts-with? "" "")"#) == .boolean(true))
+    }
+
+    @Test("ends-with? returns true when string ends with substr")
+    func endsWithMatch() throws {
+        #expect(try swish.eval(#"(str/ends-with? "hello" "llo")"#) == .boolean(true))
+    }
+
+    @Test("ends-with? returns false when string does not end with substr")
+    func endsWithNoMatch() throws {
+        #expect(try swish.eval(#"(str/ends-with? "hello" "hel")"#) == .boolean(false))
+    }
+
+    @Test("ends-with? with empty substr always returns true")
+    func endsWithEmptySubstr() throws {
+        #expect(try swish.eval(#"(str/ends-with? "hello" "")"#) == .boolean(true))
+    }
+
+    @Test("ends-with? on empty string with empty substr returns true")
+    func endsWithBothEmpty() throws {
+        #expect(try swish.eval(#"(str/ends-with? "" "")"#) == .boolean(true))
+    }
 }

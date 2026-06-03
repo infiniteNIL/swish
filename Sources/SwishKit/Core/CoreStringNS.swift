@@ -67,6 +67,22 @@ extension Evaluator {
                 .vector([.symbol("s", metadata: nil)], metadata: nil),
             ], metadata: nil),
         ]
+
+        let startsWithVar = ns.intern(name: "starts-with?", value: coreStartsWith)
+        startsWithVar.metadata = [
+            .keyword("doc"): .string("True if s starts with substr."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
+
+        let endsWithVar = ns.intern(name: "ends-with?", value: coreEndsWith)
+        endsWithVar.metadata = [
+            .keyword("doc"): .string("True if s ends with substr."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
     }
 }
 
@@ -173,6 +189,26 @@ private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixe
         throw EvaluatorError.invalidArgument(function: "lower-case", message: "argument must be a string")
     }
     return .string(s.lowercased())
+}
+
+private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .fixed(2)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "starts-with?", message: "first argument must be a string")
+    }
+    guard case .string(let substr) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "starts-with?", message: "second argument must be a string")
+    }
+    return .boolean(s.hasPrefix(substr))
+}
+
+private let coreEndsWith = Expr.nativeFunction(name: "ends-with?", arity: .fixed(2)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "ends-with?", message: "first argument must be a string")
+    }
+    guard case .string(let substr) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "ends-with?", message: "second argument must be a string")
+    }
+    return .boolean(s.hasSuffix(substr))
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {
