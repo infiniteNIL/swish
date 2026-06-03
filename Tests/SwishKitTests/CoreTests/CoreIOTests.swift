@@ -12,6 +12,70 @@ struct CoreIOTests {
             .path
     }
 
+    // MARK: - read-string
+
+    @Test("read-string parses an integer")
+    func readStringInteger() throws {
+        #expect(try swish.eval(#"(read-string "42")"#) == .integer(42))
+    }
+
+    @Test("read-string parses a string")
+    func readStringString() throws {
+        #expect(try swish.eval(#"(read-string "\"hello\"")"#) == .string("hello"))
+    }
+
+    @Test("read-string parses a keyword")
+    func readStringKeyword() throws {
+        #expect(try swish.eval(#"(read-string ":foo")"#) == .keyword("foo"))
+    }
+
+    @Test("read-string parses a boolean")
+    func readStringBoolean() throws {
+        #expect(try swish.eval(#"(read-string "true")"#) == .boolean(true))
+    }
+
+    @Test("read-string parses nil")
+    func readStringNil() throws {
+        #expect(try swish.eval(#"(read-string "nil")"#) == .nil)
+    }
+
+    @Test("read-string parses a list unevaluated")
+    func readStringList() throws {
+        #expect(try swish.eval(#"(read-string "(+ 1 2)")"#) ==
+            .list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("read-string parses a vector")
+    func readStringVector() throws {
+        #expect(try swish.eval(#"(read-string "[1 2 3]")"#) ==
+            .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("read-string parses a map")
+    func readStringMap() throws {
+        #expect(try swish.eval(#"(read-string "{:a 1}")"#) ==
+            .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
+
+    @Test("read-string returns only the first form in a multi-form string")
+    func readStringFirstFormOnly() throws {
+        #expect(try swish.eval(#"(read-string "1 2 3")"#) == .integer(1))
+    }
+
+    @Test("read-string throws on empty string")
+    func readStringEmpty() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval(#"(read-string "")"#)
+        }
+    }
+
+    @Test("read-string throws on malformed input")
+    func readStringMalformed() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval(#"(read-string "(unclosed")"#)
+        }
+    }
+
     // MARK: - slurp
 
     @Test("slurp reads file content as string")

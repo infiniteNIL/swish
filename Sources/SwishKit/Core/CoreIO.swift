@@ -15,6 +15,12 @@ func registerIO(into evaluator: Evaluator) {
         doc: "Prints formatted documentation for the var named by symbol to *out*.",
         arglists: [["sym"]]) { [evaluator] args in try corePrintDoc(evaluator, args) }
 
+    evaluator.register(name: "read-string", arity: .fixed(1),
+        doc: "Reads one object from the string s. Returns the first Swish data " +
+             "structure read. Does not evaluate.",
+        arglists: [["s"]],
+        body: coreReadString)
+
     evaluator.register(name: "slurp", arity: .variadic,
         doc: "Reads the file named by f and returns the contents as a string. " +
              "Supported options: :encoding (default \"UTF-8\").",
@@ -55,6 +61,27 @@ func registerIO(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "spit",
                 message: error.localizedDescription)
         }
+    }
+}
+
+// MARK: - Reader implementations
+
+private func coreReadString(_ args: [Expr]) throws -> Expr {
+    guard case .string(let source) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "read-string",
+            message: "argument must be a string")
+    }
+    do {
+        let exprs = try Reader.readString(source)
+        guard let first = exprs.first else {
+            throw EvaluatorError.invalidArgument(function: "read-string",
+                message: "no forms found in string")
+        }
+        return first
+    }
+    catch {
+        throw EvaluatorError.invalidArgument(function: "read-string",
+            message: error.localizedDescription)
     }
 }
 
