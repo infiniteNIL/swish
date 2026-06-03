@@ -241,6 +241,9 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
     case .lazySeq:
         tail = try seqOf(args.last!, function: "list*")
 
+    case .string(let s):
+        tail = s.map { .character($0) }
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "list*",

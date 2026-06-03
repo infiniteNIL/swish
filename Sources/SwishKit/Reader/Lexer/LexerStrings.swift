@@ -1,14 +1,47 @@
 extension Lexer {
     func scanString(startLine: Int, startColumn: Int) throws -> Token {
-        advance()  // consume opening quote
+        advance()  // consume opening "
 
         // Check for multiline string: """
         if peek() == "\"" && peekAt(1) == "\"" {
-            advance()  // consume second quote
-            advance()  // consume third quote
+            advance()  // consume second "
+            advance()  // consume third "
             return try scanMultilineString(startLine: startLine, startColumn: startColumn)
         }
 
+        let value = try scanQuotedLiteral(startLine: startLine, startColumn: startColumn) { ch in
+            switch ch {
+            case "\"": self.advance(); return "\""
+            case "\\": self.advance(); return "\\"
+            case "n":  self.advance(); return "\n"
+            case "t":  self.advance(); return "\t"
+            case "r":  self.advance(); return "\r"
+            case "0":  self.advance(); return "\0"
+            case "u":  return String(try self.scanUnicodeEscapeFromStream(startLine: startLine, startColumn: startColumn))
+            default:   throw LexerError.invalidEscapeSequence(char: ch, line: self.line, column: self.column)
+            }
+        }
+        return Token(type: .string, text: value, line: startLine, column: startColumn)
+    }
+
+    func scanRegex(startLine: Int, startColumn: Int) throws -> Token {
+        advance()  // consume opening "
+        let pattern = try scanQuotedLiteral(startLine: startLine, startColumn: startColumn) { ch in
+            self.advance()  // consume the char after backslash
+            return "\\\(ch)"  // keep both backslash and char verbatim
+        }
+        return Token(type: .regex, text: pattern, line: startLine, column: startColumn)
+    }
+
+    // Scans the body of a quoted literal (opening " already consumed), up to and
+    // including the closing ". Calls `handleEscape` with the char after each `\`;
+    // the handler is responsible for advancing past that char and returning the
+    // string fragment to append.
+    private func scanQuotedLiteral(
+        startLine: Int,
+        startColumn: Int,
+        handleEscape: (Character) throws -> String
+    ) throws -> String {
         var value = ""
         while !isAtEnd && peek() != "\"" {
             if peek() == "\\" {
@@ -16,69 +49,16 @@ extension Lexer {
                 if isAtEnd {
                     throw LexerError.unterminatedString(line: startLine, column: startColumn)
                 }
-                switch peek()! {
-                case "\"":
-                    value.append("\"")
-                    advance()
-
-                case "\\":
-                    value.append("\\")
-                    advance()
-
-                case "n":
-                    value.append("\n")
-                    advance()
-
-                case "t":
-                    value.append("\t")
-                    advance()
-
-                case "r":
-                    value.append("\r")
-                    advance()
-
-                case "0":
-                    value.append("\0")
-                    advance()
-
-                case "u":
-                    value.append(try scanUnicodeEscapeFromStream(startLine: startLine, startColumn: startColumn))
-
-                default:
-                    throw LexerError.invalidEscapeSequence(char: peek()!, line: line, column: column)
-                }
-            }
-            else {
-                value.append(advance())
-            }
-        }
-
-        if isAtEnd {
-            throw LexerError.unterminatedString(line: startLine, column: startColumn)
-        }
-        advance()  // consume closing quote
-        return Token(type: .string, text: value, line: startLine, column: startColumn)
-    }
-
-    func scanRegex(startLine: Int, startColumn: Int) throws -> Token {
-        advance()  // consume opening "
-        var pattern = ""
-        while !isAtEnd && peek() != "\"" {
-            if peek() == "\\" {
-                pattern.append(advance())  // keep backslash
-                if isAtEnd {
-                    throw LexerError.unterminatedString(line: startLine, column: startColumn)
-                }
-                pattern.append(advance())  // keep next char verbatim
+                value += try handleEscape(peek()!)
             } else {
-                pattern.append(advance())
+                value.append(advance())
             }
         }
         if isAtEnd {
             throw LexerError.unterminatedString(line: startLine, column: startColumn)
         }
         advance()  // consume closing "
-        return Token(type: .regex, text: pattern, line: startLine, column: startColumn)
+        return value
     }
 
     func scanMultilineString(startLine: Int, startColumn: Int) throws -> Token {
