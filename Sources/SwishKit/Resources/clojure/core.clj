@@ -605,6 +605,12 @@
   ([to xform from]
    (transduce xform conj to from)))
 
+(defn set
+  "Returns a set of the distinct elements of coll."
+  {:added "1.0"}
+  [coll]
+  (reduce conj #{} coll))
+
 (defn sequence
   "Coerces coll to a (possibly empty) sequence, if it is not already
   one. Will not force a lazy seq. When a transducer xform is supplied,
