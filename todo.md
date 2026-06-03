@@ -16,6 +16,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] clojure.swift.io with reader and writer types
+- [x] reader?, writer?, line-seq
 - [x] symbol?, vec, assert, close
 - [x] I/O: slurp, spit, read-string, with-open
 - [x] clojure.set: union, intersection, disj, difference, subset?, superset?

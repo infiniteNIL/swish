@@ -96,6 +96,12 @@ public struct Printer {
 
         case .regex(let r):
             "#\"\(r.pattern)\""
+
+        case .reader(let r):
+            "#<Reader \(r.path)>"
+
+        case .writer(let w):
+            "#<Writer \(w.path)>"
         }
     }
 

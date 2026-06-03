@@ -629,12 +629,14 @@
       (throw ~message))))
 
 (defn close
-  "Closes a resource. The resource must have a :close key pointing to a
-  zero-arity function."
+  "Closes a resource. Handles SwishReader, SwishWriter, and map resources
+  with a :close key pointing to a zero-arity function."
   {:added "1.0"}
   [resource]
-  (when-let [f (:close resource)]
-    (f)))
+  (cond
+    (reader? resource) (swish-close-reader! resource)
+    (writer? resource) (swish-close-writer! resource)
+    :else (when-let [f (:close resource)] (f))))
 
 (defmacro with-open
   "bindings => [name init ...]
@@ -654,6 +656,14 @@
                                       (finally
                                         (close ~(first bindings)))))
     :else (throw "with-open only allows Symbols in bindings")))
+
+(defn line-seq
+  "Returns the lines of text from rdr as a lazy sequence of strings.
+  rdr must be a reader (use with with-open)."
+  {:added "1.0"}
+  [rdr]
+  (when-let [line (swish-read-line! rdr)]
+    (lazy-seq (cons line (line-seq rdr)))))
 
 (defn sequence
   "Coerces coll to a (possibly empty) sequence, if it is not already

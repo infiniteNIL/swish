@@ -21,6 +21,66 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["s"]],
         body: coreReadString)
 
+    evaluator.register(name: "reader?", arity: .fixed(1),
+        doc: "Returns true if x is a SwishReader.",
+        arglists: [["x"]]) { args in
+        if case .reader = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
+    evaluator.register(name: "writer?", arity: .fixed(1),
+        doc: "Returns true if x is a SwishWriter.",
+        arglists: [["x"]]) { args in
+        if case .writer = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
+    evaluator.register(name: "swish-read-line!", arity: .fixed(1),
+        doc: "Reads the next line from a SwishReader. Returns the line as a string, or nil at EOF.",
+        arglists: [["rdr"]]) { args in
+        guard case .reader(let rdr) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "swish-read-line!",
+                message: "argument must be a reader")
+        }
+        if let line = rdr.readLine() { return .string(line) }
+        return .nil
+    }
+    evaluator.register(name: "swish-write!", arity: .fixed(2),
+        doc: "Writes a string to a SwishWriter.",
+        arglists: [["wtr", "s"]]) { args in
+        guard case .writer(let wtr) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "swish-write!",
+                message: "first argument must be a writer")
+        }
+        let s = corePrinter.strString(args[1])
+        do {
+            try wtr.write(s)
+        }
+        catch {
+            throw EvaluatorError.invalidArgument(function: "swish-write!",
+                message: error.localizedDescription)
+        }
+        return .nil
+    }
+    evaluator.register(name: "swish-close-reader!", arity: .fixed(1),
+        doc: "Closes a SwishReader.",
+        arglists: [["rdr"]]) { args in
+        guard case .reader(let rdr) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "swish-close-reader!",
+                message: "argument must be a reader")
+        }
+        rdr.close()
+        return .nil
+    }
+    evaluator.register(name: "swish-close-writer!", arity: .fixed(1),
+        doc: "Closes a SwishWriter.",
+        arglists: [["wtr"]]) { args in
+        guard case .writer(let wtr) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "swish-close-writer!",
+                message: "argument must be a writer")
+        }
+        wtr.close()
+        return .nil
+    }
+
     evaluator.register(name: "slurp", arity: .variadic,
         doc: "Reads the file named by f and returns the contents as a string. " +
              "Supported options: :encoding (default \"UTF-8\").",
@@ -62,6 +122,51 @@ func registerIO(into evaluator: Evaluator) {
                 message: error.localizedDescription)
         }
     }
+}
+
+// MARK: - clojure.swift.io namespace
+
+func registerSwiftIONamespace(into evaluator: Evaluator) {
+    let ns = evaluator.findOrCreateNs("clojure.swift.io")
+
+    ns.register(
+        name: "reader",
+        value: .nativeFunction(name: "reader", arity: .variadic, body: { args in
+            guard let first = args.first, case .string(let path) = first else {
+                throw EvaluatorError.invalidArgument(function: "reader",
+                    message: "first argument must be a string path")
+            }
+            do {
+                return .reader(try SwishReader(path: path))
+            }
+            catch {
+                throw EvaluatorError.invalidArgument(function: "reader",
+                    message: error.localizedDescription)
+            }
+        }),
+        doc: "Opens a buffered reader for the file at path. Close with with-open.",
+        arglists: [["path"], ["path", "&", "opts"]]
+    )
+
+    ns.register(
+        name: "writer",
+        value: .nativeFunction(name: "writer", arity: .variadic, body: { args in
+            guard let first = args.first, case .string(let path) = first else {
+                throw EvaluatorError.invalidArgument(function: "writer",
+                    message: "first argument must be a string path")
+            }
+            let append = parseAppendOpt(args.dropFirst())
+            do {
+                return .writer(try SwishWriter(path: path, append: append))
+            }
+            catch {
+                throw EvaluatorError.invalidArgument(function: "writer",
+                    message: error.localizedDescription)
+            }
+        }),
+        doc: "Opens a buffered writer for the file at path. Supported options: :append (default false). Close with with-open.",
+        arglists: [["path"], ["path", "&", "opts"]]
+    )
 }
 
 // MARK: - Reader implementations

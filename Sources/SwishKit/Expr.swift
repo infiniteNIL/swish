@@ -48,6 +48,12 @@ public indirect enum Expr: Sendable {
 
     /// A compiled regular expression literal (`#"pattern"`).
     case regex(SwishRegex)
+
+    /// A buffered file reader, usable with `line-seq` and `with-open`.
+    case reader(SwishReader)
+
+    /// A buffered file writer, usable with `swish-write!` and `with-open`.
+    case writer(SwishWriter)
 }
 
 extension Expr: Equatable {
@@ -134,6 +140,12 @@ extension Expr: Equatable {
 
         case (.regex(let a), .regex(let b)):
             return a == b
+
+        case (.reader(let a), .reader(let b)):
+            return a === b
+
+        case (.writer(let a), .writer(let b)):
+            return a === b
 
         default:
             return false
@@ -266,6 +278,12 @@ extension Expr: Hashable {
 
         case .regex(let v):
             hasher.combine(24); hasher.combine(v)
+
+        case .reader(let v):
+            hasher.combine(25); hasher.combine(ObjectIdentifier(v))
+
+        case .writer(let v):
+            hasher.combine(26); hasher.combine(ObjectIdentifier(v))
         }
     }
 }

@@ -17,4 +17,5 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerAtom(into: evaluator)
     registerTransient(into: evaluator)
     registerSort(into: evaluator)
+    registerSwiftIONamespace(into: evaluator)
 }
