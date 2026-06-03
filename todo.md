@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] set
 - [ ] clojure.set
       union, intersection, difference, subset?, superset?
 - [ ] Better I/O
@@ -21,12 +20,14 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] set
 - [x] subs
 - [x] clojure.string: join, split, trim, triml, trimr, trim-newline, upper-case,
       lower-case, starts-with?, ends-with?, includes?, blank?, replace
 - [x] regular expression literals
 - [x] Transducers (map/filter/take/drop 1-arity forms, transduce, sequence, into with transducer)
 - [x] Implement lazy-seq properly (currently an eager no-op; needed for infinite sequences and true Clojure compatibility)
+
 - [x] #() functions
 - [x] letfn, peek, pop, when-first
 - [x] max, min
