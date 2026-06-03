@@ -1,8 +1,10 @@
 func registerSet(into evaluator: Evaluator) {
     evaluator.register(name: "set?", arity: .fixed(1),
         doc: "Returns true if x implements IPersistentSet",
-        arglists: [["x"]],
-        body: coreIsSet)
+        arglists: [["x"]]) { args in
+        if case .set = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
 
     evaluator.register(name: "disj", arity: .atLeastOne,
         doc: "disj[oin]. Returns a new set that does not contain key(s).",
@@ -15,9 +17,4 @@ func registerSet(into evaluator: Evaluator) {
         }
         return .set(elements, metadata: meta)
     }
-}
-
-private func coreIsSet(_ args: [Expr]) throws -> Expr {
-    if case .set = args[0] { return .boolean(true) }
-    return .boolean(false)
 }
