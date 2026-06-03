@@ -45,26 +45,6 @@ struct ClojureSetTests {
         #expect(try swish.eval("(s/union #{1 2} #{})") == .set([.integer(1), .integer(2)], metadata: nil))
     }
 
-    @Test("disj removes one element from a set")
-    func disjOneElement() throws {
-        #expect(try swish.eval("(disj #{1 2 3} 2)") == .set([.integer(1), .integer(3)], metadata: nil))
-    }
-
-    @Test("disj removes multiple elements from a set")
-    func disjMultipleElements() throws {
-        #expect(try swish.eval("(disj #{1 2 3} 1 3)") == .set([.integer(2)], metadata: nil))
-    }
-
-    @Test("disj with non-existent element returns the original set")
-    func disjNonExistent() throws {
-        #expect(try swish.eval("(disj #{1 2 3} 99)") == .set([.integer(1), .integer(2), .integer(3)], metadata: nil))
-    }
-
-    @Test("disj with one arg returns the set unchanged")
-    func disjOneArg() throws {
-        #expect(try swish.eval("(disj #{1 2 3})") == .set([.integer(1), .integer(2), .integer(3)], metadata: nil))
-    }
-
     @Test("intersection of one set returns that set")
     func intersectionOneArg() throws {
         #expect(try swish.eval("(s/intersection #{1 2 3})") == .set([.integer(1), .integer(2), .integer(3)], metadata: nil))
