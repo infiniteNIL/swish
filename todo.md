@@ -1,7 +1,7 @@
 # Todo
 
 - [ ] Better I/O
-      slurp, spit, read-string, with-open — needed for any file-touching code.
+      with-open — needed for any file-touching code.
 - [ ] Jank Clojure test suite
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
@@ -18,6 +18,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] I/O: slurp, spit, read-string
 - [x] clojure.set: union, intersection, disj, difference, subset?, superset?
 - [x] set
 - [x] subs
