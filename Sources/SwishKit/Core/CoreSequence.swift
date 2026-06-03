@@ -43,6 +43,12 @@ func registerSequence(into evaluator: Evaluator) {
         if case .keyword = args[0] { return .boolean(true) }
         return .boolean(false)
     }
+    evaluator.register(name: "symbol?", arity: .fixed(1),
+        doc: "Return true if x is a Symbol",
+        arglists: [["x"]]) { args in
+        if case .symbol = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in

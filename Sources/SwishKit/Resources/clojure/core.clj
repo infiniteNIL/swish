@@ -611,6 +611,50 @@
   [coll]
   (reduce conj #{} coll))
 
+(defn vec
+  "Creates a new vector containing the contents of coll."
+  {:added "1.0"}
+  [coll]
+  (into [] coll))
+
+(defmacro assert
+  "Evaluates expr and throws an exception if it does not evaluate to
+  logical true."
+  {:added "1.0"}
+  ([x]
+   `(when-not ~x
+      (throw (str "Assert failed"))))
+  ([x message]
+   `(when-not ~x
+      (throw ~message))))
+
+(defn close
+  "Closes a resource. The resource must have a :close key pointing to a
+  zero-arity function."
+  {:added "1.0"}
+  [resource]
+  (when-let [f (:close resource)]
+    (f)))
+
+(defmacro with-open
+  "bindings => [name init ...]
+
+  Evaluates body in a try expression with names bound to the values
+  of the inits, and a finally clause that calls (close name) on each
+  name in reverse order."
+  {:added "1.0"}
+  [bindings & body]
+  (assert (vector? bindings) "with-open requires a vector for its bindings")
+  (assert (even? (count bindings)) "with-open requires an even number of forms in binding vector")
+  (cond
+    (= (count bindings) 0) `(do ~@body)
+    (symbol? (first bindings)) `(let [~(first bindings) ~(second bindings)]
+                                    (try
+                                      (with-open ~(vec (drop 2 bindings)) ~@body)
+                                      (finally
+                                        (close ~(first bindings)))))
+    :else (throw "with-open only allows Symbols in bindings")))
+
 (defn sequence
   "Coerces coll to a (possibly empty) sequence, if it is not already
   one. Will not force a lazy seq. When a transducer xform is supplied,
