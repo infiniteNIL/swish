@@ -22,8 +22,9 @@ public enum TokenType: Equatable, Sendable {
     case varRef
     case deref
     case discard
-    case leftSet    // #{
+    case leftSet     // #{
     case anonymousFn // #(
+    case regex       // #"..."
     case metadata
     case eof
 }

@@ -37,6 +37,9 @@ public class Parser {
         case .string:
             return try parseString()
 
+        case .regex:
+            return try parseRegex()
+
         case .character:
             return try parseCharacter()
 
@@ -148,6 +151,12 @@ public class Parser {
         let value = currentToken.text
         try advance()
         return .string(value)
+    }
+
+    private func parseRegex() throws -> Expr {
+        let pattern = currentToken.text
+        try advance()
+        return .regex(try SwishRegex(pattern: pattern))
     }
 
     private func parseCharacter() throws -> Expr {

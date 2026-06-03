@@ -60,6 +60,27 @@ extension Lexer {
         return Token(type: .string, text: value, line: startLine, column: startColumn)
     }
 
+    func scanRegex(startLine: Int, startColumn: Int) throws -> Token {
+        advance()  // consume opening "
+        var pattern = ""
+        while !isAtEnd && peek() != "\"" {
+            if peek() == "\\" {
+                pattern.append(advance())  // keep backslash
+                if isAtEnd {
+                    throw LexerError.unterminatedString(line: startLine, column: startColumn)
+                }
+                pattern.append(advance())  // keep next char verbatim
+            } else {
+                pattern.append(advance())
+            }
+        }
+        if isAtEnd {
+            throw LexerError.unterminatedString(line: startLine, column: startColumn)
+        }
+        advance()  // consume closing "
+        return Token(type: .regex, text: pattern, line: startLine, column: startColumn)
+    }
+
     func scanMultilineString(startLine: Int, startColumn: Int) throws -> Token {
         let (rawLines, indent) = try collectMultilineRawLines(startLine: startLine, startColumn: startColumn)
         let strippedLines = try stripIndentation(rawLines, indent: indent, startLine: startLine)

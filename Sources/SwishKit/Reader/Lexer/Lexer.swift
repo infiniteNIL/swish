@@ -116,6 +116,9 @@ public class Lexer {
                 _ = advance()
                 return Token(type: .anonymousFn, text: "#(", line: startLine, column: startColumn)
             }
+            if peek() == "\"" {
+                return try scanRegex(startLine: startLine, startColumn: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:

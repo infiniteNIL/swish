@@ -93,6 +93,9 @@ public struct Printer {
 
         case .reduced(let v):
             "#<reduced \(printString(v))>"
+
+        case .regex(let r):
+            "#\"\(r.pattern)\""
         }
     }
 

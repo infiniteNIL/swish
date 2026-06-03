@@ -45,6 +45,9 @@ public indirect enum Expr: Sendable {
 
     /// A sentinel wrapping a value to signal early termination of `reduce`.
     case reduced(Expr)
+
+    /// A compiled regular expression literal (`#"pattern"`).
+    case regex(SwishRegex)
 }
 
 extension Expr: Equatable {
@@ -127,6 +130,9 @@ extension Expr: Equatable {
             return seqEqual(lhs, rhs)
 
         case (.reduced(let a), .reduced(let b)):
+            return a == b
+
+        case (.regex(let a), .regex(let b)):
             return a == b
 
         default:
@@ -257,6 +263,9 @@ extension Expr: Hashable {
 
         case .reduced(let v):
             hasher.combine(23); hasher.combine(v)
+
+        case .regex(let v):
+            hasher.combine(24); hasher.combine(v)
         }
     }
 }
