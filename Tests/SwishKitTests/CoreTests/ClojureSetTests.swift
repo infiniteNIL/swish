@@ -84,4 +84,69 @@ struct ClojureSetTests {
     func intersectionThreeSets() throws {
         #expect(try swish.eval("(s/intersection #{1 2 3} #{2 3 4} #{3 4 5})") == .set([.integer(3)], metadata: nil))
     }
+
+    @Test("difference of one set returns that set")
+    func differenceOneArg() throws {
+        #expect(try swish.eval("(s/difference #{1 2 3})") == .set([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("difference removes elements present in s2")
+    func differenceOverlapping() throws {
+        #expect(try swish.eval("(s/difference #{1 2 3} #{2 3})") == .set([.integer(1)], metadata: nil))
+    }
+
+    @Test("difference with disjoint s2 returns s1 unchanged")
+    func differenceDisjoint() throws {
+        #expect(try swish.eval("(s/difference #{1 2 3} #{4 5})") == .set([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("difference where s2 covers all of s1 returns empty set")
+    func differenceAllRemoved() throws {
+        #expect(try swish.eval("(s/difference #{1 2} #{1 2 3})") == .set([], metadata: nil))
+    }
+
+    @Test("difference of three sets removes from multiple")
+    func differenceThreeSets() throws {
+        #expect(try swish.eval("(s/difference #{1 2 3 4} #{2} #{3})") == .set([.integer(1), .integer(4)], metadata: nil))
+    }
+
+    @Test("subset? empty set is subset of any set")
+    func subsetEmpty() throws {
+        #expect(try swish.eval("(s/subset? #{} #{1 2 3})") == .boolean(true))
+    }
+
+    @Test("subset? proper subset returns true")
+    func subsetProper() throws {
+        #expect(try swish.eval("(s/subset? #{1 2} #{1 2 3})") == .boolean(true))
+    }
+
+    @Test("subset? identical sets returns true")
+    func subsetIdentical() throws {
+        #expect(try swish.eval("(s/subset? #{1 2} #{1 2})") == .boolean(true))
+    }
+
+    @Test("subset? set with extra element returns false")
+    func subsetFalse() throws {
+        #expect(try swish.eval("(s/subset? #{1 2 4} #{1 2 3})") == .boolean(false))
+    }
+
+    @Test("superset? any set is superset of empty set")
+    func supersetEmpty() throws {
+        #expect(try swish.eval("(s/superset? #{1 2 3} #{})") == .boolean(true))
+    }
+
+    @Test("superset? proper superset returns true")
+    func supersetProper() throws {
+        #expect(try swish.eval("(s/superset? #{1 2 3} #{1 2})") == .boolean(true))
+    }
+
+    @Test("superset? identical sets returns true")
+    func supersetIdentical() throws {
+        #expect(try swish.eval("(s/superset? #{1 2} #{1 2})") == .boolean(true))
+    }
+
+    @Test("superset? set missing element returns false")
+    func supersetFalse() throws {
+        #expect(try swish.eval("(s/superset? #{1 2} #{1 2 3})") == .boolean(false))
+    }
 }

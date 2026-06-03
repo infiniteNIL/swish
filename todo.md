@@ -1,7 +1,6 @@
 # Todo
 
-- [ ] clojure.set
-      difference, subset?, superset?
+- [x] clojure.set: difference, subset?, superset?
 - [ ] Better I/O
       slurp, spit, read-string, with-open — needed for any file-touching code.
 - [ ] Jank Clojure test suite
