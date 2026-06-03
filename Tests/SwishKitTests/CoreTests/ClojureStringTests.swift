@@ -74,4 +74,49 @@ struct ClojureStringTests {
     func joinSepString() throws {
         #expect(try swish.eval("(str/join \"-\" \"abc\")") == .string("a-b-c"))
     }
+
+    @Test("split basic")
+    func splitBasic() throws {
+        #expect(try swish.eval(#"(str/split "a,b,c" #",")"#) == .vector([.string("a"), .string("b"), .string("c")], metadata: nil))
+    }
+
+    @Test("split with positive limit caps the number of substrings")
+    func splitWithLimit() throws {
+        #expect(try swish.eval(#"(str/split "a,b,c" #"," 2)"#) == .vector([.string("a"), .string("b,c")], metadata: nil))
+    }
+
+    @Test("split empty string returns empty vector")
+    func splitEmptyString() throws {
+        #expect(try swish.eval(#"(str/split "" #",")"#) == .vector([], metadata: nil))
+    }
+
+    @Test("split keeps interior empty strings")
+    func splitInteriorEmpties() throws {
+        #expect(try swish.eval(#"(str/split "a,,b" #",")"#) == .vector([.string("a"), .string(""), .string("b")], metadata: nil))
+    }
+
+    @Test("split strips trailing empty strings by default")
+    func splitStripsTrailingEmpties() throws {
+        #expect(try swish.eval(#"(str/split "a,b," #",")"#) == .vector([.string("a"), .string("b")], metadata: nil))
+    }
+
+    @Test("split keeps leading empty string")
+    func splitKeepsLeadingEmpty() throws {
+        #expect(try swish.eval(#"(str/split ",a,b" #",")"#) == .vector([.string(""), .string("a"), .string("b")], metadata: nil))
+    }
+
+    @Test("split with negative limit keeps trailing empty strings")
+    func splitNegativeLimit() throws {
+        #expect(try swish.eval(#"(str/split "a,b," #"," -1)"#) == .vector([.string("a"), .string("b"), .string("")], metadata: nil))
+    }
+
+    @Test("split with regex separator")
+    func splitRegexSeparator() throws {
+        #expect(try swish.eval(#"(str/split "hello   world" #"\s+")"#) == .vector([.string("hello"), .string("world")], metadata: nil))
+    }
+
+    @Test("split no match returns single-element vector")
+    func splitNoMatch() throws {
+        #expect(try swish.eval(#"(str/split "foo" #",")"#) == .vector([.string("foo")], metadata: nil))
+    }
 }

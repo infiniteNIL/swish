@@ -51,6 +51,17 @@ extension Evaluator {
         guard let ns = findNs(name) else {
             throw EvaluatorError.namespaceNotFound(name)
         }
+        postLoadNatives(for: name)
         return ns
+    }
+
+    private func postLoadNatives(for name: String) {
+        switch name {
+        case "clojure.string":
+            registerClojureStringNatives()
+
+        default:
+            break
+        }
     }
 }
