@@ -83,6 +83,14 @@ extension Evaluator {
                 .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
             ], metadata: nil),
         ]
+
+        let includesVar = ns.intern(name: "includes?", value: coreIncludes)
+        includesVar.metadata = [
+            .keyword("doc"): .string("True if s includes substr."),
+            .keyword("arglists"): .list([
+                .vector([.symbol("s", metadata: nil), .symbol("substr", metadata: nil)], metadata: nil),
+            ], metadata: nil),
+        ]
     }
 }
 
@@ -209,6 +217,16 @@ private let coreEndsWith = Expr.nativeFunction(name: "ends-with?", arity: .fixed
         throw EvaluatorError.invalidArgument(function: "ends-with?", message: "second argument must be a string")
     }
     return .boolean(s.hasSuffix(substr))
+}
+
+private let coreIncludes = Expr.nativeFunction(name: "includes?", arity: .fixed(2)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "includes?", message: "first argument must be a string")
+    }
+    guard case .string(let substr) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "includes?", message: "second argument must be a string")
+    }
+    return .boolean(substr.isEmpty || s.contains(substr))
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {

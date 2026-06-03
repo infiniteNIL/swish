@@ -259,4 +259,24 @@ struct ClojureStringTests {
     func endsWithBothEmpty() throws {
         #expect(try swish.eval(#"(str/ends-with? "" "")"#) == .boolean(true))
     }
+
+    @Test("includes? returns true when substr is in the middle")
+    func includesMatch() throws {
+        #expect(try swish.eval(#"(str/includes? "hello" "ell")"#) == .boolean(true))
+    }
+
+    @Test("includes? returns false when substr is not present")
+    func includesNoMatch() throws {
+        #expect(try swish.eval(#"(str/includes? "hello" "xyz")"#) == .boolean(false))
+    }
+
+    @Test("includes? with empty substr always returns true")
+    func includesEmptySubstr() throws {
+        #expect(try swish.eval(#"(str/includes? "hello" "")"#) == .boolean(true))
+    }
+
+    @Test("includes? returns true when substr equals the full string")
+    func includesFullMatch() throws {
+        #expect(try swish.eval(#"(str/includes? "hello" "hello")"#) == .boolean(true))
+    }
 }
