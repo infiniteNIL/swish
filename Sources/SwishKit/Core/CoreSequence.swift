@@ -17,10 +17,6 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns a possibly empty seq of the items after the first. Calls seq on its argument.",
         arglists: [["coll"]],
         body: coreRest)
-    evaluator.register(name: "string?", arity: .fixed(1),
-        doc: "Return true if x is a String",
-        arglists: [["x"]],
-        body: coreIsString)
     evaluator.register(name: "list*", arity: .atLeastOne,
         doc: "Creates a new seq containing the items prepended to the rest, the last of which will be treated as a sequence.",
         arglists: [["args"], ["a", "args"], ["a", "b", "args"], ["a", "b", "c", "args"], ["a", "b", "c", "d", "&", "more"]],
@@ -33,22 +29,6 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Return true if x implements IPersistentVector",
         arglists: [["x"]],
         body: coreIsVector)
-    evaluator.register(name: "nil?", arity: .fixed(1),
-        doc: "Returns true if x is nil, false otherwise.",
-        arglists: [["x"]],
-        body: coreIsNil)
-    evaluator.register(name: "keyword?", arity: .fixed(1),
-        doc: "Returns true if x is a keyword, false otherwise.",
-        arglists: [["x"]]) { args in
-        if case .keyword = args[0] { return .boolean(true) }
-        return .boolean(false)
-    }
-    evaluator.register(name: "symbol?", arity: .fixed(1),
-        doc: "Return true if x is a Symbol",
-        arglists: [["x"]]) { args in
-        if case .symbol = args[0] { return .boolean(true) }
-        return .boolean(false)
-    }
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
@@ -201,18 +181,8 @@ private func coreRest(_ args: [Expr]) throws -> Expr {
     return .list(Array(elements.dropFirst()), metadata: nil)
 }
 
-private func coreIsString(_ args: [Expr]) throws -> Expr {
-    if case .string = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
 private func coreIsVector(_ args: [Expr]) throws -> Expr {
     if case .vector = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsNil(_ args: [Expr]) throws -> Expr {
-    if case .nil = args[0] { return .boolean(true) }
     return .boolean(false)
 }
 
