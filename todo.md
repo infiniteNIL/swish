@@ -16,6 +16,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] pr-str, pr, prn
 - [x] binding
 - [x] *out*
 - [x] dynamic vars

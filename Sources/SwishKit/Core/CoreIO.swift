@@ -16,6 +16,23 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["&", "more"]]) { [evaluator] args in
         try coreOutput(evaluator, args: args, terminator: "\n")
     }
+    evaluator.register(name: "pr-str", arity: .variadic,
+        doc: "pr to a string, returning it. Prints the object(s), separated by spaces, " +
+             "in a form that the reader can read back.",
+        arglists: [["&", "more"]]) { args in
+        .string(args.map { corePrinter.printString($0) }.joined(separator: " "))
+    }
+    evaluator.register(name: "pr", arity: .variadic,
+        doc: "Prints the object(s) to the output stream that is the current value of *out*. " +
+             "Prints the object(s) in a form that the reader can read back.",
+        arglists: [["&", "more"]]) { [evaluator] args in
+        try corePrint(evaluator, args: args, terminator: "")
+    }
+    evaluator.register(name: "prn", arity: .variadic,
+        doc: "Same as pr followed by (newline)",
+        arglists: [["&", "more"]]) { [evaluator] args in
+        try corePrint(evaluator, args: args, terminator: "\n")
+    }
     evaluator.register(name: "print-doc", arity: .fixed(1),
         doc: "Prints formatted documentation for the var named by symbol to *out*.",
         arglists: [["sym"]]) { [evaluator] args in try corePrintDoc(evaluator, args) }
@@ -170,14 +187,24 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
 
 private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
     let s = args.map { corePrinter.strString($0) }.joined(separator: " ")
+    try writeToOut(evaluator, s + terminator)
+    return .nil
+}
+
+private func corePrint(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
+    let s = args.map { corePrinter.printString($0) }.joined(separator: " ")
+    try writeToOut(evaluator, s + terminator)
+    return .nil
+}
+
+private func writeToOut(_ evaluator: Evaluator, _ s: String) throws {
     switch evaluator.currentOut() {
     case .writer(let wtr):
-        do { try wtr.write(s + terminator) }
+        do { try wtr.write(s) }
         catch { throw EvaluatorError.invalidArgument(function: "print", message: error.localizedDescription) }
     default:
-        Swift.print(s, terminator: terminator)
+        Swift.print(s, terminator: "")
     }
-    return .nil
 }
 
 private func corePrintDoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {

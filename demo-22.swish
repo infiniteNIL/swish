@@ -14,52 +14,52 @@
 
 (let [a #{1 2 3}
       b #{2 3 4}]
-  (println "  (union #{1 2 3} #{2 3 4})         =>" (set/union a b))
-  (println "  (intersection #{1 2 3} #{2 3 4})  =>" (set/intersection a b))
-  (println "  (difference #{1 2 3} #{2 3 4})    =>" (set/difference a b))
-  (println "  (subset? #{2 3} #{1 2 3})         =>" (set/subset? #{2 3} a))
-  (println "  (superset? #{1 2 3} #{2 3})       =>" (set/superset? a #{2 3}))
-  (println "  (disj #{1 2 3} 2 3)               =>" (disj a 2 3)))
+  (println "  (union #{1 2 3} #{2 3 4})         =>" (pr-str (set/union a b)))
+  (println "  (intersection #{1 2 3} #{2 3 4})  =>" (pr-str (set/intersection a b)))
+  (println "  (difference #{1 2 3} #{2 3 4})    =>" (pr-str (set/difference a b)))
+  (println "  (subset? #{2 3} #{1 2 3})         =>" (pr-str (set/subset? #{2 3} a)))
+  (println "  (superset? #{1 2 3} #{2 3})       =>" (pr-str (set/superset? a #{2 3})))
+  (println "  (disj #{1 2 3} 2 3)               =>" (pr-str (disj a 2 3))))
 
 ;; ──────────────────────────────────────────────────────────────────
 ;; clojure.string
 ;; ──────────────────────────────────────────────────────────────────
 (println "\n--- clojure.string ---")
 
-(println "  (join \", \" [\"a\" \"b\" \"c\"])              =>" (str/join ", " ["a" "b" "c"]))
-(println "  (split \"a,b,c\" #\",\")                     =>" (str/split "a,b,c" #","))
-(println "  (trim \"  hello  \")                         =>" (str/trim "  hello  "))
-(println "  (triml \"  hello  \")                        =>" (str/triml "  hello  "))
-(println "  (trimr \"  hello  \")                        =>" (str/trimr "  hello  "))
-(println "  (upper-case \"hello\")                       =>" (str/upper-case "hello"))
-(println "  (lower-case \"WORLD\")                       =>" (str/lower-case "WORLD"))
-(println "  (starts-with? \"clojure\" \"cl\")             =>" (str/starts-with? "clojure" "cl"))
-(println "  (ends-with?   \"clojure\" \"re\")             =>" (str/ends-with? "clojure" "re"))
-(println "  (includes?    \"clojure\" \"oju\")            =>" (str/includes? "clojure" "oju"))
-(println "  (blank? \"   \")                             =>" (str/blank? "   "))
-(println "  (blank? \"hi\")                              =>" (str/blank? "hi"))
-(println "  (replace \"hello\" \"l\" \"r\")                =>" (str/replace "hello" "l" "r"))
-(println "  (replace \"abc123def456\" #\"\\d+\" \"[N]\")   =>" (str/replace "abc123def456" #"\d+" "[N]"))
+(println "  (join \", \" [\"a\" \"b\" \"c\"])              =>" (pr-str (str/join ", " ["a" "b" "c"])))
+(println "  (split \"a,b,c\" #\",\")                     =>" (pr-str (str/split "a,b,c" #",")))
+(println "  (trim \"  hello  \")                         =>" (pr-str (str/trim "  hello  ")))
+(println "  (triml \"  hello  \")                        =>" (pr-str (str/triml "  hello  ")))
+(println "  (trimr \"  hello  \")                        =>" (pr-str (str/trimr "  hello  ")))
+(println "  (upper-case \"hello\")                       =>" (pr-str (str/upper-case "hello")))
+(println "  (lower-case \"WORLD\")                       =>" (pr-str (str/lower-case "WORLD")))
+(println "  (starts-with? \"clojure\" \"cl\")             =>" (pr-str (str/starts-with? "clojure" "cl")))
+(println "  (ends-with?   \"clojure\" \"re\")             =>" (pr-str (str/ends-with? "clojure" "re")))
+(println "  (includes?    \"clojure\" \"oju\")            =>" (pr-str (str/includes? "clojure" "oju")))
+(println "  (blank? \"   \")                             =>" (pr-str (str/blank? "   ")))
+(println "  (blank? \"hi\")                              =>" (pr-str (str/blank? "hi")))
+(println "  (replace \"hello\" \"l\" \"r\")                =>" (pr-str (str/replace "hello" "l" "r")))
+(println "  (replace \"abc123def456\" #\"\\d+\" \"[N]\")   =>" (pr-str (str/replace "abc123def456" #"\d+" "[N]")))
 (println "  (replace \"abc123def456\" #\"\\d+\" (fn ...)) =>"
-         (str/replace "abc123def456" #"\d+" (fn [m] (str "[" m "]"))))
+         (pr-str (str/replace "abc123def456" #"\d+" (fn [m] (str "[" m "]")))))
 
 ;; ──────────────────────────────────────────────────────────────────
 ;; Lazy sequences
 ;; ──────────────────────────────────────────────────────────────────
 (println "\n--- Lazy sequences ---")
 
-(println "  (take 5 (range))             =>" (take 5 (range)))
-(println "  (range 5)                    =>" (range 5))
-(println "  (range 0 10 2)               =>" (range 0 10 2))
-(println "  (take 5 (iterate inc 0))     =>" (take 5 (iterate inc 0)))
-(println "  (take 5 (iterate #(* % 2) 1)) =>" (take 5 (iterate (fn [x] (* x 2)) 1)))
-(println "  (take 4 (repeat :x))         =>" (take 4 (repeat :x)))
-(println "  (repeat 3 :y)                =>" (repeat 3 :y))
-(println "  (take 6 (cycle [1 2 3]))     =>" (take 6 (cycle [1 2 3])))
+(println "  (take 5 (range))             =>" (pr-str (take 5 (range))))
+(println "  (range 5)                    =>" (pr-str (range 5)))
+(println "  (range 0 10 2)               =>" (pr-str (range 0 10 2)))
+(println "  (take 5 (iterate inc 0))     =>" (pr-str (take 5 (iterate inc 0))))
+(println "  (take 5 (iterate #(* % 2) 1)) =>" (pr-str (take 5 (iterate (fn [x] (* x 2)) 1))))
+(println "  (take 4 (repeat :x))         =>" (pr-str (take 4 (repeat :x))))
+(println "  (repeat 3 :y)                =>" (pr-str (repeat 3 :y)))
+(println "  (take 6 (cycle [1 2 3]))     =>" (pr-str (take 6 (cycle [1 2 3]))))
 (let [c (atom 0)]
   (println "  (take 4 (repeatedly inc!)) =>"
-           (take 4 (repeatedly (fn [] (swap! c inc))))))
-(println "  (lazy-cat [1 2] [3 4] [5])  =>" (lazy-cat [1 2] [3 4] [5]))
+           (pr-str (take 4 (repeatedly (fn [] (swap! c inc)))))))
+(println "  (lazy-cat [1 2] [3 4] [5])  =>" (pr-str (lazy-cat [1 2] [3 4] [5])))
 
 ;; ──────────────────────────────────────────────────────────────────
 ;; Transducers
@@ -67,39 +67,39 @@
 (println "\n--- Transducers ---")
 
 (println "  (transduce (map inc) + 0 [1 2 3])                        =>"
-         (transduce (map inc) + 0 [1 2 3]))
+         (pr-str (transduce (map inc) + 0 [1 2 3])))
 (println "  (transduce (filter even?) conj [] [1 2 3 4 5])            =>"
-         (transduce (filter even?) conj [] [1 2 3 4 5]))
+         (pr-str (transduce (filter even?) conj [] [1 2 3 4 5])))
 (println "  (transduce (comp (map inc) (filter even?)) conj [] [1..4]) =>"
-         (transduce (comp (map inc) (filter even?)) conj [] [1 2 3 4]))
+         (pr-str (transduce (comp (map inc) (filter even?)) conj [] [1 2 3 4])))
 (println "  (into [] (take 5) (range 100))                            =>"
-         (into [] (take 5) (range 100)))
+         (pr-str (into [] (take 5) (range 100))))
 (println "  (sequence (distinct) [1 1 2 3 2 4])                       =>"
-         (sequence (distinct) [1 1 2 3 2 4]))
+         (pr-str (sequence (distinct) [1 1 2 3 2 4])))
 (println "  (sequence (dedupe) [1 1 2 2 3 1 1])                       =>"
-         (sequence (dedupe) [1 1 2 2 3 1 1]))
+         (pr-str (sequence (dedupe) [1 1 2 2 3 1 1])))
 (println "  (sequence (partition-all 3) (range 8))                    =>"
-         (sequence (partition-all 3) (range 8)))
+         (pr-str (sequence (partition-all 3) (range 8))))
 (println "  (sequence (interpose :sep) [1 2 3])                       =>"
-         (sequence (interpose :sep) [1 2 3]))
+         (pr-str (sequence (interpose :sep) [1 2 3])))
 (println "  (sequence (take-nth 2) (range 8))                         =>"
-         (sequence (take-nth 2) (range 8)))
+         (pr-str (sequence (take-nth 2) (range 8))))
 (println "  (sequence (keep odd?) [1 2 3 4 5])                        =>"
-         (sequence (keep odd?) [1 2 3 4 5]))
+         (pr-str (sequence (keep odd?) [1 2 3 4 5])))
 (println "  (sequence (map-indexed vector) [:a :b :c])                 =>"
-         (sequence (map-indexed vector) [:a :b :c]))
+         (pr-str (sequence (map-indexed vector) [:a :b :c])))
 (println "  (into [] (eduction (comp (filter odd?) (map inc)) [1..6])) =>"
-         (into [] (eduction (comp (filter odd?) (map inc)) [1 2 3 4 5 6])))
+         (pr-str (into [] (eduction (comp (filter odd?) (map inc)) [1 2 3 4 5 6]))))
 
 ;; ──────────────────────────────────────────────────────────────────
 ;; Core utilities
 ;; ──────────────────────────────────────────────────────────────────
 (println "\n--- Core utilities ---")
 
-(println "  (vec '(1 2 3))           =>" (vec '(1 2 3)))
-(println "  (vec nil)                =>" (vec nil))
-(println "  (read-string \"42\")      =>" (read-string "42"))
-(println "  (read-string \"(+ 1 2)\") =>" (read-string "(+ 1 2)"))
+(println "  (vec '(1 2 3))           =>" (pr-str (vec '(1 2 3))))
+(println "  (vec nil)                =>" (pr-str (vec nil)))
+(println "  (read-string \"42\")      =>" (pr-str (read-string "42")))
+(println "  (read-string \"(+ 1 2)\") =>" (pr-str (read-string "(+ 1 2)")))
 (assert (= (vec [1 2]) [1 2]))
 (println "  (assert (= (vec [1 2]) [1 2])) passed")
 
@@ -110,11 +110,11 @@
 
 (let [path "/tmp/swish-demo-bulk.txt"]
   (spit path "alpha\nbeta\ngamma")
-  (println "  spit wrote 3 lines to" path)
+  (println "  spit wrote 3 lines to" (pr-str path))
   (spit path "\ndelta" :append true)
   (println "  appended a fourth line")
   (let [content (slurp path)]
-    (println "  slurp =>" content))
+    (println "  slurp =>" (pr-str content)))
   (spit path ""))   ; truncate/clean up
 
 ;; ──────────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@
 
   ;; Read them back lazily
   (with-open [rdr (io/reader path)]
-    (println "  line-seq =>" (doall (line-seq rdr))))
+    (println "  line-seq =>" (pr-str (doall (line-seq rdr)))))
 
   ;; Append one more line
   (with-open [wtr (io/writer path :append true)]
@@ -142,7 +142,7 @@
   (println "  appended a fourth line")
 
   (with-open [rdr (io/reader path)]
-    (println "  line-seq after append =>" (doall (line-seq rdr))))
+    (println "  line-seq after append =>" (pr-str (doall (line-seq rdr)))))
 
   (spit path ""))   ; truncate/clean up
 
@@ -154,23 +154,23 @@
 (def ^:dynamic *verbosity* 1)
 (def ^:dynamic *multiplier* 10)
 
-(println "  root value  *verbosity* =>" *verbosity*)
+(println "  root value  *verbosity* =>" (pr-str *verbosity*))
 
 (println "  (binding [*verbosity* 3] *verbosity*) =>"
-         (binding [*verbosity* 3] *verbosity*))
+         (pr-str (binding [*verbosity* 3] *verbosity*)))
 
-(println "  *verbosity* restored after binding =>" *verbosity*)
+(println "  *verbosity* restored after binding =>" (pr-str *verbosity*))
 
 (println "  nested binding — outer 5, inner 99 =>"
-         (binding [*verbosity* 5]
+         (pr-str (binding [*verbosity* 5]
            (let [outer *verbosity*
                  inner (binding [*verbosity* 99] *verbosity*)]
-             (str outer " -> " inner))))
+             (str outer " -> " inner)))))
 
-(println "  *verbosity* still =>" *verbosity*)
+(println "  *verbosity* still =>" (pr-str *verbosity*))
 
 (println "  binding two vars at once =>"
-         (binding [*verbosity* 7 *multiplier* 3]
-           (* *verbosity* *multiplier*)))
+         (pr-str (binding [*verbosity* 7 *multiplier* 3]
+           (* *verbosity* *multiplier*))))
 
 (println "\nAll done!")
