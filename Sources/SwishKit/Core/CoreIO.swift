@@ -3,14 +3,19 @@ import Foundation
 // MARK: - Registration
 
 func registerIO(into evaluator: Evaluator) {
+    let outVar = evaluator.findNs("clojure.core")!.intern(name: "*out*", value: .nil)
+    outVar.isDynamic = true
+
     evaluator.register(name: "print", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. print and println produce output for human consumption.",
-        arglists: [["&", "more"]],
-        body: corePrint)
+        arglists: [["&", "more"]]) { [evaluator] args in
+        try coreOutput(evaluator, args: args, terminator: "")
+    }
     evaluator.register(name: "println", arity: .variadic,
         doc: "Same as print followed by (newline)",
-        arglists: [["&", "more"]],
-        body: corePrintln)
+        arglists: [["&", "more"]]) { [evaluator] args in
+        try coreOutput(evaluator, args: args, terminator: "\n")
+    }
     evaluator.register(name: "print-doc", arity: .fixed(1),
         doc: "Prints formatted documentation for the var named by symbol to *out*.",
         arglists: [["sym"]]) { [evaluator] args in try corePrintDoc(evaluator, args) }
@@ -41,23 +46,6 @@ func registerIO(into evaluator: Evaluator) {
                 message: "argument must be a reader")
         }
         if let line = rdr.readLine() { return .string(line) }
-        return .nil
-    }
-    evaluator.register(name: "swish-write!", arity: .fixed(2),
-        doc: "Writes a string to a SwishWriter.",
-        arglists: [["wtr", "s"]]) { args in
-        guard case .writer(let wtr) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "swish-write!",
-                message: "first argument must be a writer")
-        }
-        let s = corePrinter.strString(args[1])
-        do {
-            try wtr.write(s)
-        }
-        catch {
-            throw EvaluatorError.invalidArgument(function: "swish-write!",
-                message: error.localizedDescription)
-        }
         return .nil
     }
     evaluator.register(name: "swish-close-reader!", arity: .fixed(1),
@@ -192,17 +180,15 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
 
 // MARK: - Print implementations
 
-private func printArgs(_ args: [Expr], terminator: String) {
-    Swift.print(args.map { corePrinter.strString($0) }.joined(separator: " "), terminator: terminator)
-}
-
-private func corePrint(_ args: [Expr]) throws -> Expr {
-    printArgs(args, terminator: "")
-    return .nil
-}
-
-private func corePrintln(_ args: [Expr]) throws -> Expr {
-    printArgs(args, terminator: "\n")
+private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
+    let s = args.map { corePrinter.strString($0) }.joined(separator: " ")
+    switch evaluator.currentOut() {
+    case .writer(let wtr):
+        do { try wtr.write(s + terminator) }
+        catch { throw EvaluatorError.invalidArgument(function: "print", message: error.localizedDescription) }
+    default:
+        Swift.print(s, terminator: terminator)
+    }
     return .nil
 }
 

@@ -6,6 +6,10 @@ struct RecurSignal: Error {
 public class Evaluator {
     var namespaces: [String: Namespace] = [:]
 
+    /// Stack of dynamic-binding frames. Each frame maps var identity → current value.
+    /// Pushed/popped by the `binding` special form. Single-threaded, so no thread-local needed.
+    var bindingFrames: [[ObjectIdentifier: Expr]] = []
+
     private var gensymCounter = 0
     var callDepth = 0
     let maxCallDepth = 1_000
@@ -148,6 +152,9 @@ public class Evaluator {
         case .symbol("lazy-seq", _):
             return try evalLazySeq(elements, in: env)
 
+        case .symbol("binding", _):
+            return try evalBinding(elements, in: env)
+
         case .symbol("throw", _):
             return try evalThrow(elements, in: env)
 
@@ -160,12 +167,26 @@ public class Evaluator {
         }
     }
 
-    private func deref(_ v: Var) throws -> Expr {
-        guard let bound = v.value
-        else {
-            throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+    /// Returns the current value of a var, checking the binding stack for dynamic vars.
+    func dynamicValue(of v: Var) -> Expr? {
+        if v.isDynamic {
+            let id = ObjectIdentifier(v)
+            for frame in bindingFrames.reversed() {
+                if let val = frame[id] { return val }
+            }
         }
-        return bound
+        return v.value
+    }
+
+    private func deref(_ v: Var) throws -> Expr {
+        if let val = dynamicValue(of: v) { return val }
+        throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+    }
+
+    /// Returns the current value of `*out*`, or `.nil` if unbound (meaning stdout).
+    func currentOut() -> Expr {
+        guard let v = findNs("clojure.core")?.findVar(name: "*out*") else { return .nil }
+        return dynamicValue(of: v) ?? .nil
     }
 
     func transformMap(_ dict: [Expr: Expr], metadata: [Expr: Expr]? = nil, _ transform: (Expr) throws -> Expr) rethrows -> Expr {

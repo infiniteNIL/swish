@@ -186,6 +186,9 @@ extension Evaluator {
         if idx < elements.count {
             v.value = try eval(elements[idx], in: env)
         }
+        if case .boolean(true) = symMeta?[.keyword("dynamic")] {
+            v.isDynamic = true
+        }
         if symMeta != nil || docString != nil {
             v.metadata = buildMeta(from: symMeta, attrMap: nil, docString: docString)
         }
@@ -209,6 +212,48 @@ extension Evaluator {
         else {
             return .nil
         }
+    }
+
+    func evalBinding(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
+        else {
+            throw EvaluatorError.invalidArgument(function: "binding",
+                message: "requires a vector of var/value pairs")
+        }
+        guard bindingVec.count % 2 == 0
+        else {
+            throw EvaluatorError.invalidArgument(function: "binding",
+                message: "requires an even number of forms in binding vector")
+        }
+        var frame: [ObjectIdentifier: Expr] = [:]
+        var i = 0
+        while i < bindingVec.count {
+            guard case .symbol(let name, _) = bindingVec[i]
+            else {
+                throw EvaluatorError.invalidArgument(function: "binding",
+                    message: "binding target must be a symbol")
+            }
+            let v: Var
+            if let qualified = try resolveQualifiedVar(name: name) {
+                v = qualified
+            }
+            else if let local = resolveVar(name: name, in: currentNs()) {
+                v = local
+            }
+            else {
+                throw EvaluatorError.undefinedSymbol(name)
+            }
+            guard v.isDynamic
+            else {
+                throw EvaluatorError.invalidArgument(function: "binding",
+                    message: "\(name) is not a dynamic var")
+            }
+            frame[ObjectIdentifier(v)] = try eval(bindingVec[i + 1], in: env)
+            i += 2
+        }
+        bindingFrames.append(frame)
+        defer { bindingFrames.removeLast() }
+        return try evalBody(Array(elements.dropFirst(2)), in: env)
     }
 
     func evalLet(_ elements: [Expr], in env: Environment) throws -> Expr {

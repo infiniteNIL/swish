@@ -86,16 +86,19 @@ struct CoreStreamingIOTests {
         #expect(result == .list([.string("only line")], metadata: nil))
     }
 
-    // MARK: - writer / swish-write!
+    // MARK: - writer via *out* binding
 
-    @Test("writer writes content to a file")
+    @Test("writer writes content via *out* binding")
     func writerBasic() throws {
         let path = tempPath()
         defer { try? FileManager.default.removeItem(atPath: path) }
         _ = try swish.eval("(require '[clojure.swift.io :as io])")
         _ = try swish.eval("""
             (with-open [wtr (io/writer \"\(path)\")]
-              (swish-write! wtr "hello\\nworld\\n"))
+              (binding [*out* wtr]
+                (print "hello")
+                (println "")
+                (println "world")))
             """)
         #expect(try String(contentsOfFile: path, encoding: .utf8) == "hello\nworld\n")
     }
@@ -108,7 +111,8 @@ struct CoreStreamingIOTests {
         _ = try swish.eval("(require '[clojure.swift.io :as io])")
         _ = try swish.eval("""
             (with-open [wtr (io/writer \"\(path)\" :append true)]
-              (swish-write! wtr "line2\\n"))
+              (binding [*out* wtr]
+                (println "line2")))
             """)
         #expect(try String(contentsOfFile: path, encoding: .utf8) == "line1\nline2\n")
     }
@@ -121,7 +125,8 @@ struct CoreStreamingIOTests {
         _ = try swish.eval("(require '[clojure.swift.io :as io])")
         _ = try swish.eval("""
             (with-open [wtr (io/writer \"\(path)\")]
-              (swish-write! wtr "new"))
+              (binding [*out* wtr]
+                (print "new")))
             """)
         #expect(try String(contentsOfFile: path, encoding: .utf8) == "new")
     }

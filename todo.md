@@ -16,6 +16,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] binding
+- [x] *out*
+- [x] dynamic vars
 - [x] clojure.swift.io with reader and writer types
 - [x] reader?, writer?, line-seq
 - [x] symbol?, vec, assert, close
