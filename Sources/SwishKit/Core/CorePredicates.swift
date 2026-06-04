@@ -21,6 +21,18 @@ func registerPredicates(into evaluator: Evaluator) {
         doc: "Return true if x is a String",
         arglists: [["x"]],
         body: coreIsString)
+    evaluator.register(name: "reader?", arity: .fixed(1),
+        doc: "Returns true if x is a SwishReader.",
+        arglists: [["x"]]) { args in
+        if case .reader = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
+    evaluator.register(name: "writer?", arity: .fixed(1),
+        doc: "Returns true if x is a SwishWriter.",
+        arglists: [["x"]]) { args in
+        if case .writer = args[0] { return .boolean(true) }
+        return .boolean(false)
+    }
 }
 
 private func coreIsNil(_ args: [Expr]) throws -> Expr {

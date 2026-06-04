@@ -26,18 +26,6 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["s"]],
         body: coreReadString)
 
-    evaluator.register(name: "reader?", arity: .fixed(1),
-        doc: "Returns true if x is a SwishReader.",
-        arglists: [["x"]]) { args in
-        if case .reader = args[0] { return .boolean(true) }
-        return .boolean(false)
-    }
-    evaluator.register(name: "writer?", arity: .fixed(1),
-        doc: "Returns true if x is a SwishWriter.",
-        arglists: [["x"]]) { args in
-        if case .writer = args[0] { return .boolean(true) }
-        return .boolean(false)
-    }
     evaluator.register(name: "swish-read-line!", arity: .fixed(1),
         doc: "Reads the next line from a SwishReader. Returns the line as a string, or nil at EOF.",
         arglists: [["rdr"]]) { args in

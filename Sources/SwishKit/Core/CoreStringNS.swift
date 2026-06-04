@@ -1,6 +1,5 @@
-extension Evaluator {
-    func registerClojureStringNatives() {
-        let ns = findOrCreateNs("clojure.string")
+func registerClojureStringNatives(into evaluator: Evaluator) {
+    let ns = evaluator.findOrCreateNs("clojure.string")
 
         ns.register(name: "split", value: coreSplit,
             doc: "Splits string on a regular expression. Optional argument limit is " +
@@ -48,7 +47,7 @@ extension Evaluator {
             doc: "True if s is nil, empty, or contains only whitespace.",
             arglists: [["s"]])
 
-        let replaceNative = Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [self] args in
+        let replaceNative = Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [evaluator] args in
             guard case .string(let s) = args[0] else {
                 throw EvaluatorError.invalidArgument(function: "replace",
                     message: "first argument must be a string")
@@ -80,7 +79,7 @@ extension Evaluator {
                     for match in s.matches(of: re.regex) {
                         result += s[lastEnd..<match.range.lowerBound]
                         let matchStr = String(s[match.range])
-                        guard case .string(let repl) = try self.call(f, args: [.string(matchStr)]) else {
+                        guard case .string(let repl) = try evaluator.call(f, args: [.string(matchStr)]) else {
                             throw EvaluatorError.invalidArgument(function: "replace",
                                 message: "replacement function must return a string")
                         }
@@ -101,7 +100,6 @@ extension Evaluator {
                  "match/replacement can be: string/string, char/char, " +
                  "pattern/string, or pattern/function.",
             arglists: [["s", "match", "replacement"]])
-    }
 }
 
 private let coreSplit = Expr.nativeFunction(name: "split", arity: .variadic) { args in

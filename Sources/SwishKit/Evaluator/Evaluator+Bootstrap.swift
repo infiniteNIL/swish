@@ -58,7 +58,7 @@ extension Evaluator {
     private func postLoadNatives(for name: String) {
         switch name {
         case "clojure.string":
-            registerClojureStringNatives()
+            registerClojureStringNatives(into: self)
 
         default:
             break
