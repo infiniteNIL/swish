@@ -146,6 +146,19 @@ struct ParserReaderConditionalTests {
         #expect(exprs == [.keyword("kept")])
     }
 
+    @Test("Discard inside a quoted form: '#_ x y quotes y")
+    func discardInsideQuote() throws {
+        // '  #_ :ignored  :kept  →  (quote :kept)
+        let exprs = try parse("'#_ :ignored :kept")
+        #expect(exprs == [.list([.symbol("quote", metadata: nil), .keyword("kept")], metadata: nil)])
+    }
+
+    @Test("Discard inside a syntax-quoted form")
+    func discardInsideSyntaxQuote() throws {
+        let exprs = try parse("`#_ :ignored :kept")
+        #expect(exprs == [.list([.symbol("syntax-quote", metadata: nil), .keyword("kept")], metadata: nil)])
+    }
+
     // MARK: - Error cases
 
     @Test("Splicing outside collection throws")

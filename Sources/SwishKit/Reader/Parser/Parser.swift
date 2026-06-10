@@ -203,15 +203,17 @@ public class Parser {
 
     private func parseReaderMacro(_ symbolName: String) throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-        return .list([.symbol(symbolName, metadata: nil), try parseExpr()], metadata: nil)
+        guard let expr = try parseFormSkipDiscards() else { throw ParserError.unexpectedEOF }
+        return .list([.symbol(symbolName, metadata: nil), expr], metadata: nil)
     }
 
     private func parseBacktick() throws -> Expr {
         try advance()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
         syntaxQuoteDepth += 1
-        let expr = try parseExpr()
+        guard let expr = try parseFormSkipDiscards() else {
+            syntaxQuoteDepth -= 1
+            throw ParserError.unexpectedEOF
+        }
         syntaxQuoteDepth -= 1
         return .list([.symbol("syntax-quote", metadata: nil), expr], metadata: nil)
     }
@@ -221,10 +223,8 @@ public class Parser {
     private func parseMetadataForm() throws -> Expr {
         let startToken = currentToken
         try advance()  // consume '^'
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-        let spec = try parseExpr()
-        if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-        let target = try parseExpr()
+        guard let spec = try parseFormSkipDiscards() else { throw ParserError.unexpectedEOF }
+        guard let target = try parseFormSkipDiscards() else { throw ParserError.unexpectedEOF }
         let metaMap = try specToMetaMap(spec, at: startToken)
         return try applyMetadata(metaMap, to: target, at: startToken)
     }
@@ -300,15 +300,7 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
             }
-            if currentToken.type == .readerConditionalSplicing {
-                let condToken = currentToken
-                try advance()
-                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
-                    elements.append(contentsOf: spliced)
-                }
-            } else if let expr = try parseFormSkipDiscards() {
-                elements.append(expr)
-            } else if currentToken.type != .rightParen {
+            if !(try appendNextElement(to: &elements)) && currentToken.type != .rightParen {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -473,15 +465,7 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedVector(line: startToken.line, column: startToken.column)
             }
-            if currentToken.type == .readerConditionalSplicing {
-                let condToken = currentToken
-                try advance()
-                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
-                    elements.append(contentsOf: spliced)
-                }
-            } else if let expr = try parseFormSkipDiscards() {
-                elements.append(expr)
-            } else if currentToken.type != .rightBracket {
+            if !(try appendNextElement(to: &elements)) && currentToken.type != .rightBracket {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -500,15 +484,7 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedMap(line: startToken.line, column: startToken.column)
             }
-            if currentToken.type == .readerConditionalSplicing {
-                let condToken = currentToken
-                try advance()
-                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
-                    forms.append(contentsOf: spliced)
-                }
-            } else if let expr = try parseFormSkipDiscards() {
-                forms.append(expr)
-            } else if currentToken.type != .rightBrace {
+            if !(try appendNextElement(to: &forms)) && currentToken.type != .rightBrace {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -536,15 +512,7 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedSet(line: startToken.line, column: startToken.column)
             }
-            if currentToken.type == .readerConditionalSplicing {
-                let condToken = currentToken
-                try advance()
-                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
-                    forms.append(contentsOf: spliced)
-                }
-            } else if let expr = try parseFormSkipDiscards() {
-                forms.append(expr)
-            } else if currentToken.type != .rightBrace {
+            if !(try appendNextElement(to: &forms)) && currentToken.type != .rightBrace {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -579,10 +547,7 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
             }
-            if let expr = try parseFormSkipDiscards() {
-                bodyForms.append(expr)
-            }
-            else if currentToken.type != .rightParen {
+            if !(try appendNextElement(to: &bodyForms)) && currentToken.type != .rightParen {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -716,6 +681,25 @@ public class Parser {
             || currentToken.type == .rightBracket
             || currentToken.type == .rightBrace { return nil }
         return try parseExpr()
+    }
+
+    // MARK: - Collection element helper
+
+    @discardableResult
+    private func appendNextElement(to elements: inout [Expr]) throws -> Bool {
+        if currentToken.type == .readerConditionalSplicing {
+            let condToken = currentToken
+            try advance()
+            if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                elements.append(contentsOf: spliced)
+            }
+            return true
+        }
+        if let expr = try parseFormSkipDiscards() {
+            elements.append(expr)
+            return true
+        }
+        return false
     }
 
     // MARK: - Reader Conditionals
