@@ -29,22 +29,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "quot[ient] of dividing numerator by denominator.",
         arglists: [["num", "div"]],
         body: coreQuot)
-    evaluator.register(name: "number?", arity: .fixed(1),
-        doc: "Returns true if x is a Number",
-        arglists: [["x"]],
-        body: coreIsNumber)
-    evaluator.register(name: "integer?", arity: .fixed(1),
-        doc: "Returns true if n is an integer",
-        arglists: [["n"]],
-        body: coreIsInteger)
-    evaluator.register(name: "float?", arity: .fixed(1),
-        doc: "Returns true if n is a floating point number",
-        arglists: [["n"]],
-        body: coreIsFloat)
-    evaluator.register(name: "ratio?", arity: .fixed(1),
-        doc: "Returns true if n is a Ratio",
-        arglists: [["n"]],
-        body: coreIsRatio)
+    evaluator.register(name: "number?",  arity: .fixed(1), doc: "Returns true if x is a Number",                     arglists: [["x"]]) { args in switch args[0] { case .integer, .float, .ratio: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "integer?", arity: .fixed(1), doc: "Returns true if n is an integer",                   arglists: [["n"]]) { args in if case .integer = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "float?",   arity: .fixed(1), doc: "Returns true if n is a floating point number",      arglists: [["n"]]) { args in if case .float   = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "ratio?",   arity: .fixed(1), doc: "Returns true if n is a Ratio",                      arglists: [["n"]]) { args in if case .ratio   = args[0] { return .boolean(true) }; return .boolean(false) }
 }
 
 // MARK: - Implementations
@@ -302,24 +290,3 @@ private func coreQuot(_ args: [Expr]) throws -> Expr {
     return .integer(a / b)
 }
 
-private func coreIsNumber(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .integer, .float, .ratio: return .boolean(true)
-    default: return .boolean(false)
-    }
-}
-
-private func coreIsInteger(_ args: [Expr]) throws -> Expr {
-    if case .integer = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsFloat(_ args: [Expr]) throws -> Expr {
-    if case .float = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsRatio(_ args: [Expr]) throws -> Expr {
-    if case .ratio = args[0] { return .boolean(true) }
-    return .boolean(false)
-}

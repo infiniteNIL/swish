@@ -24,35 +24,32 @@ func registerNamespace(into evaluator: Evaluator) {
         arglists: [["sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
 }
 
+// MARK: - Helpers
+
+private func expectSymbol(_ expr: Expr, function: String) throws -> String {
+    guard case .symbol(let name, _) = expr else {
+        throw EvaluatorError.invalidArgument(
+            function: function,
+            message: "expected a symbol, got \(corePrinter.printString(expr))")
+    }
+    return name
+}
+
 // MARK: - Implementations
 
 private func coreFindNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "find-ns",
-            message: "expected a symbol, got \(corePrinter.printString(args[0]))")
-    }
-    guard let ns = evaluator.findNs(name)
-    else { return .nil }
+    let name = try expectSymbol(args[0], function: "find-ns")
+    guard let ns = evaluator.findNs(name) else { return .nil }
     return .namespace(ns)
 }
 
 private func coreCreateNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "create-ns",
-            message: "expected a symbol, got \(args[0])")
-    }
+    let name = try expectSymbol(args[0], function: "create-ns")
     return .namespace(evaluator.findOrCreateNs(name))
 }
 
 private func coreInNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "in-ns",
-            message: "expected a symbol, got \(args[0])")
-    }
+    let name = try expectSymbol(args[0], function: "in-ns")
     let ns = evaluator.findOrCreateNs(name)
     evaluator.setCurrentNs(ns)
     return .namespace(ns)

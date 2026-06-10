@@ -31,10 +31,7 @@ func registerMap(into evaluator: Evaluator) {
         doc: "Returns a sequence of the map's values, in the same order as (seq map).",
         arglists: [["map"]],
         body: coreVals)
-    evaluator.register(name: "map?", arity: .fixed(1),
-        doc: "Return true if x implements IPersistentMap",
-        arglists: [["x"]],
-        body: coreIsMap)
+    evaluator.register(name: "map?", arity: .fixed(1), doc: "Return true if x implements IPersistentMap", arglists: [["x"]]) { args in if case .map = args[0] { return .boolean(true) }; return .boolean(false) }
 }
 
 private func coreFind(_ args: [Expr]) throws -> Expr {
@@ -171,11 +168,6 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
         }
     }
     return hadMapArg ? .map(result, metadata: nil) : .nil
-}
-
-private func coreIsMap(_ args: [Expr]) throws -> Expr {
-    if case .map = args[0] { return .boolean(true) }
-    return .boolean(false)
 }
 
 func coreAssoc(_ args: [Expr]) throws -> Expr {

@@ -25,10 +25,7 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns the number of items in the collection. (count nil) returns 0. Also works on strings, arrays, and Java Collections and Maps.",
         arglists: [["coll"]],
         body: coreCount)
-    evaluator.register(name: "vector?", arity: .fixed(1),
-        doc: "Return true if x implements IPersistentVector",
-        arglists: [["x"]],
-        body: coreIsVector)
+    evaluator.register(name: "vector?", arity: .fixed(1), doc: "Return true if x implements IPersistentVector",    arglists: [["x"]]) { args in if case .vector = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
@@ -68,14 +65,8 @@ func registerSequence(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "pop", message: "not a vector or list")
         }
     }
-    evaluator.register(name: "list?", arity: .fixed(1),
-        doc: "Returns true if x implements IPersistentList",
-        arglists: [["x"]],
-        body: coreIsList)
-    evaluator.register(name: "seq?", arity: .fixed(1),
-        doc: "Returns true if x implements ISeq",
-        arglists: [["x"]],
-        body: coreIsSeq)
+    evaluator.register(name: "list?", arity: .fixed(1), doc: "Returns true if x implements IPersistentList",        arglists: [["x"]]) { args in if case .list = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "seq?",  arity: .fixed(1), doc: "Returns true if x implements ISeq",                  arglists: [["x"]]) { args in switch args[0] { case .list, .lazySeq: return .boolean(true); default: return .boolean(false) } }
     evaluator.register(name: "seq", arity: .fixed(1),
         doc: "Returns a seq on the collection. If the collection is empty, returns nil. (seq nil) returns nil. seq also works on Strings, native Java arrays (of reference types) and any objects that implement Iterable. Note that seqs cache values, thus seq should not be used on any Iterable whose iterator repeatedly returns the same mutable object.",
         arglists: [["coll"]],
@@ -179,26 +170,6 @@ private func coreRest(_ args: [Expr]) throws -> Expr {
     }
     let elements = try seqOf(args[0], function: "rest")
     return .list(Array(elements.dropFirst()), metadata: nil)
-}
-
-private func coreIsVector(_ args: [Expr]) throws -> Expr {
-    if case .vector = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsList(_ args: [Expr]) throws -> Expr {
-    if case .list = args[0] { return .boolean(true) }
-    return .boolean(false)
-}
-
-private func coreIsSeq(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .list, .lazySeq:
-        return .boolean(true)
-
-    default:
-        return .boolean(false)
-    }
 }
 
 private func coreListStar(_ args: [Expr]) throws -> Expr {

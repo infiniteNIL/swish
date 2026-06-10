@@ -316,10 +316,10 @@ public class Parser {
         if case .symbol(let name, _) = elements.first {
             switch name {
             case "def":      try validateDef(elements)
-            case "let":      try validateLet(elements)
+            case "let":      try validateBindingVector(elements, makeError: { ParserError.invalidLet($0) })
             case "fn":       try validateFn(elements)
             case "defmacro": try validateDefmacro(elements)
-            case "loop":     try validateLoop(elements)
+            case "loop":     try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0) })
             case "throw":    try validateThrow(elements)
             default: break
             }
@@ -336,14 +336,6 @@ public class Parser {
         guard case .symbol = elements[1] else {
             throw ParserError.invalidDef("first argument to def must be a symbol")
         }
-    }
-
-    private func validateLet(_ elements: [Expr]) throws {
-        try validateBindingVector(elements, makeError: { ParserError.invalidLet($0) })
-    }
-
-    private func validateLoop(_ elements: [Expr]) throws {
-        try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0) })
     }
 
     private func validateThrow(_ elements: [Expr]) throws {

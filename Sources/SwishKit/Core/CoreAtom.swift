@@ -3,10 +3,7 @@ func registerAtom(into evaluator: Evaluator) {
         doc: "Creates and returns an Atom with an initial value of x and zero or more options (in any order): :meta metadata-map, :validator validate-fn. If metadata-map is supplied, it will become the metadata on the atom. validate-fn must be nil or a side-effect-free fn of one argument, which will be passed the intended new state on any state change. If the new state is unacceptable, the validate-fn should return false or throw an Error.",
         arglists: [["x"], ["x", "&", "options"]],
         body: coreAtom)
-    evaluator.register(name: "atom?", arity: .fixed(1),
-        doc: "Returns true if x is an atom, false otherwise.",
-        arglists: [["x"]],
-        body: coreIsAtom)
+    evaluator.register(name: "atom?", arity: .fixed(1), doc: "Returns true if x is an atom, false otherwise.", arglists: [["x"]]) { args in if case .atom = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "reset!", arity: .fixed(2),
         doc: "Sets the value of atom to newval without regard for the current value. Returns newval.",
         arglists: [["atom", "newval"]],
@@ -21,11 +18,6 @@ func registerAtom(into evaluator: Evaluator) {
 
 private func coreAtom(_ args: [Expr]) throws -> Expr {
     .atom(SwishAtom(args[0]))
-}
-
-private func coreIsAtom(_ args: [Expr]) throws -> Expr {
-    if case .atom = args[0] { return .boolean(true) }
-    return .boolean(false)
 }
 
 private func coreDeref(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
