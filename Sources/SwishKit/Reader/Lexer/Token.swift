@@ -25,6 +25,8 @@ public enum TokenType: Equatable, Sendable {
     case leftSet     // #{
     case anonymousFn // #(
     case regex       // #"..."
+    case readerConditional          // #?
+    case readerConditionalSplicing  // #?@
     case metadata
     case eof
 }

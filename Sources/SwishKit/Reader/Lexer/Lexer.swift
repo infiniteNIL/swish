@@ -119,6 +119,14 @@ public class Lexer {
             if peek() == "\"" {
                 return try scanRegex(startLine: startLine, startColumn: startColumn)
             }
+            if peek() == "?" {
+                _ = advance()
+                if peek() == "@" {
+                    _ = advance()
+                    return Token(type: .readerConditionalSplicing, text: "#?@", line: startLine, column: startColumn)
+                }
+                return Token(type: .readerConditional, text: "#?", line: startLine, column: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:

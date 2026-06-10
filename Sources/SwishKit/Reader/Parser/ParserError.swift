@@ -18,6 +18,8 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidLoop(String)
     case invalidThrow(String)
     case nestedAnonymousFunction(line: Int, column: Int)
+    case invalidReaderConditional(String, line: Int, column: Int)
+    case splicingOutsideCollection(line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -77,6 +79,12 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .nestedAnonymousFunction(let line, let column):
             "Anonymous function literals cannot be nested (line \(line), column \(column))."
+
+        case .invalidReaderConditional(let message, let line, let column):
+            "Invalid reader conditional (line \(line), column \(column)): \(message)."
+
+        case .splicingOutsideCollection(let line, let column):
+            "Splicing reader conditional #?@ not allowed outside a collection (line \(line), column \(column))."
         }
     }
 }

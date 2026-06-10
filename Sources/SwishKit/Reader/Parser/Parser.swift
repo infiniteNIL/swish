@@ -6,6 +6,8 @@ public class Parser {
     private var syntaxQuoteDepth = 0
     private var anonymousFnDepth = 0
 
+    private static let readerFeatures: Set<String> = ["swish", "default"]
+
     public init(_ lexer: Lexer) throws {
         self.lexer = lexer
         self.currentToken = try lexer.nextToken()
@@ -78,6 +80,17 @@ public class Parser {
 
         case .discard:
             throw ParserError.unexpectedToken(currentToken)
+
+        case .readerConditional:
+            let startToken = currentToken
+            try advance()
+            guard let exprs = try parseReaderConditionalBody(splicing: false, startToken: startToken) else {
+                throw ParserError.unexpectedToken(startToken)
+            }
+            return exprs[0]
+
+        case .readerConditionalSplicing:
+            throw ParserError.splicingOutsideCollection(line: currentToken.line, column: currentToken.column)
 
         case .leftParen:
             return try parseList()
@@ -287,7 +300,13 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
             }
-            if let expr = try parseFormSkipDiscards() {
+            if currentToken.type == .readerConditionalSplicing {
+                let condToken = currentToken
+                try advance()
+                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                    elements.append(contentsOf: spliced)
+                }
+            } else if let expr = try parseFormSkipDiscards() {
                 elements.append(expr)
             } else if currentToken.type != .rightParen {
                 throw ParserError.unexpectedToken(currentToken)
@@ -454,7 +473,13 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedVector(line: startToken.line, column: startToken.column)
             }
-            if let expr = try parseFormSkipDiscards() {
+            if currentToken.type == .readerConditionalSplicing {
+                let condToken = currentToken
+                try advance()
+                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                    elements.append(contentsOf: spliced)
+                }
+            } else if let expr = try parseFormSkipDiscards() {
                 elements.append(expr)
             } else if currentToken.type != .rightBracket {
                 throw ParserError.unexpectedToken(currentToken)
@@ -475,7 +500,13 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedMap(line: startToken.line, column: startToken.column)
             }
-            if let expr = try parseFormSkipDiscards() {
+            if currentToken.type == .readerConditionalSplicing {
+                let condToken = currentToken
+                try advance()
+                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                    forms.append(contentsOf: spliced)
+                }
+            } else if let expr = try parseFormSkipDiscards() {
                 forms.append(expr)
             } else if currentToken.type != .rightBrace {
                 throw ParserError.unexpectedToken(currentToken)
@@ -505,10 +536,15 @@ public class Parser {
             if currentToken.type == .eof {
                 throw ParserError.unterminatedSet(line: startToken.line, column: startToken.column)
             }
-            if let expr = try parseFormSkipDiscards() {
+            if currentToken.type == .readerConditionalSplicing {
+                let condToken = currentToken
+                try advance()
+                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                    forms.append(contentsOf: spliced)
+                }
+            } else if let expr = try parseFormSkipDiscards() {
                 forms.append(expr)
-            }
-            else if currentToken.type != .rightBrace {
+            } else if currentToken.type != .rightBrace {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
@@ -658,16 +694,79 @@ public class Parser {
     // MARK: - Discard
 
     private func parseFormSkipDiscards() throws -> Expr? {
-        while currentToken.type == .discard {
-            try advance()
-            if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-            _ = try parseFormSkipDiscards()
+        while true {
+            if currentToken.type == .discard {
+                try advance()
+                if currentToken.type == .eof { throw ParserError.unexpectedEOF }
+                _ = try parseFormSkipDiscards()
+                continue
+            }
+            if currentToken.type == .readerConditional {
+                let startToken = currentToken
+                try advance()
+                if let exprs = try parseReaderConditionalBody(splicing: false, startToken: startToken) {
+                    return exprs[0]
+                }
+                continue  // no matching platform — skip and try next form
+            }
+            break
         }
         if currentToken.type == .eof
             || currentToken.type == .rightParen
             || currentToken.type == .rightBracket
             || currentToken.type == .rightBrace { return nil }
         return try parseExpr()
+    }
+
+    // MARK: - Reader Conditionals
+
+    private func parseReaderConditionalBody(splicing: Bool, startToken: Token) throws -> [Expr]? {
+        guard currentToken.type == .leftParen else {
+            throw ParserError.invalidReaderConditional(
+                "expected '(' after #?", line: startToken.line, column: startToken.column)
+        }
+        try advance()  // consume '('
+
+        var matched: [Expr]? = nil
+
+        while currentToken.type != .rightParen {
+            if currentToken.type == .eof {
+                throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
+            }
+            guard currentToken.type == .keyword else {
+                throw ParserError.invalidReaderConditional(
+                    "reader conditional requires keyword/form pairs",
+                    line: currentToken.line, column: currentToken.column)
+            }
+            let feature = currentToken.text
+            try advance()
+
+            guard let branchExpr = try parseFormSkipDiscards() else {
+                throw ParserError.invalidReaderConditional(
+                    "missing form after feature key :\(feature)",
+                    line: startToken.line, column: startToken.column)
+            }
+
+            if matched == nil && Self.readerFeatures.contains(feature) {
+                if splicing {
+                    switch branchExpr {
+                    case .list(let elems, _):
+                        matched = elems
+                    case .vector(let elems, _):
+                        matched = elems
+                    default:
+                        throw ParserError.invalidReaderConditional(
+                            "splicing reader conditional requires a sequential",
+                            line: startToken.line, column: startToken.column)
+                    }
+                } else {
+                    matched = [branchExpr]
+                }
+            }
+        }
+
+        try advance()  // consume ')'
+        return matched
     }
 
     private func advance() throws {
