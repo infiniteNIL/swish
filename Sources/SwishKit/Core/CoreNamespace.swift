@@ -22,6 +22,15 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "resolve", arity: .fixed(1),
         doc: "Returns the var or Class to which a symbol will be resolved in the current namespace, else nil.",
         arglists: [["sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
+    evaluator.register(name: "ns-interns", arity: .fixed(1),
+        doc: "Returns a map of the intern mappings for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsInterns(evaluator, args) }
+    evaluator.register(name: "all-ns", arity: .fixed(0),
+        doc: "Returns a sequence of all namespaces.",
+        arglists: [[]]) { [evaluator] _ in coreAllNs(evaluator) }
+    evaluator.register(name: "ns-name", arity: .fixed(1),
+        doc: "Returns the name of the namespace, a Symbol.",
+        arglists: [["ns"]]) { args in try coreNsName(args) }
 }
 
 // MARK: - Helpers
@@ -128,4 +137,37 @@ private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
     if let v = try evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
     if let v = evaluator.resolveVar(name: name, in: evaluator.currentNs()) { return .varRef(v) }
     return .nil
+}
+
+private func coreNsInterns(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns: Namespace
+    switch args[0] {
+    case .symbol(let name, _):
+        guard let found = evaluator.findNs(name) else { return .map([:], metadata: nil) }
+        ns = found
+    case .namespace(let n):
+        ns = n
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "ns-interns",
+            message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
+    }
+    var result: [Expr: Expr] = [:]
+    for (name, v) in ns.mappings where v.namespace === ns {
+        result[.symbol(name, metadata: nil)] = .varRef(v)
+    }
+    return .map(result, metadata: nil)
+}
+
+private func coreAllNs(_ evaluator: Evaluator) -> Expr {
+    .list(evaluator.namespaces.values.map { .namespace($0) }, metadata: nil)
+}
+
+private func coreNsName(_ args: [Expr]) throws -> Expr {
+    guard case .namespace(let ns) = args[0] else {
+        throw EvaluatorError.invalidArgument(
+            function: "ns-name",
+            message: "expected a namespace, got \(corePrinter.printString(args[0]))")
+    }
+    return .symbol(ns.name, metadata: nil)
 }
