@@ -6,6 +6,23 @@ struct CoreNumericPredicateTests {
     nonisolated(unsafe) static let _shared = Swish()
     var swish: Swish { Self._shared }
 
+    // MARK: - int?
+
+    @Test("(int? 42) returns true")
+    func intPredicateTrue() throws {
+        #expect(try swish.eval("(int? 42)") == .boolean(true))
+    }
+
+    @Test("(int? 1.5) returns false")
+    func intPredicateFalseFloat() throws {
+        #expect(try swish.eval("(int? 1.5)") == .boolean(false))
+    }
+
+    @Test("(int? \"x\") returns false")
+    func intPredicateFalseString() throws {
+        #expect(try swish.eval("(int? \"x\")") == .boolean(false))
+    }
+
     // MARK: - even?
 
     @Test("(even? 2) returns true")

@@ -66,7 +66,8 @@ func registerSequence(into evaluator: Evaluator) {
         }
     }
     evaluator.register(name: "list?", arity: .fixed(1), doc: "Returns true if x implements IPersistentList",        arglists: [["x"]]) { args in if case .list = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "seq?",  arity: .fixed(1), doc: "Returns true if x implements ISeq",                  arglists: [["x"]]) { args in switch args[0] { case .list, .lazySeq: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "seq?",      arity: .fixed(1), doc: "Returns true if x implements ISeq",               arglists: [["x"]]) { args in switch args[0] { case .list, .lazySeq: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "lazy-seq?", arity: .fixed(1), doc: "Return true if x is a LazySeq.",                   arglists: [["x"]]) { args in if case .lazySeq = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "seq", arity: .fixed(1),
         doc: "Returns a seq on the collection. If the collection is empty, returns nil. (seq nil) returns nil. seq also works on Strings, native Java arrays (of reference types) and any objects that implement Iterable. Note that seqs cache values, thus seq should not be used on any Iterable whose iterator repeatedly returns the same mutable object.",
         arglists: [["coll"]],

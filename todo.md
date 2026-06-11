@@ -1,9 +1,9 @@
 # Todo
 
+- [ ] some kind of load path (CLASSPATH in Clojure) for source outside of
+      resource bundle
 - [ ] Jank Clojure test suite
 - [ ] multi methods
-- [ ] nested backtick (was in clojure.test)
-- [ ] keyword auto-resolve syntax (::keyword)
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
@@ -19,6 +19,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] lazy-seq?
+- [x] int? (same as integer?)
 - [x] clojure.test
 - [x] reader conditionals (allowed in any file like Babashka and Jank)
 
