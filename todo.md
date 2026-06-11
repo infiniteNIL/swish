@@ -1,6 +1,9 @@
 # Todo
 
 - [ ] Jank Clojure test suite
+- [ ] multi methods
+- [ ] nested backtick (was in clojure.test)
+- [ ] keyword auto-resolve syntax (::keyword)
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
@@ -15,6 +18,9 @@
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
+
+- [x] clojure.test
+- [x] reader conditionals (allowed in any file like Babashka and Jank)
 
 - [x] pr-str, pr, prn
 - [x] binding
