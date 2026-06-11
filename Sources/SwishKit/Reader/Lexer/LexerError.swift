@@ -12,7 +12,7 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case invalidCharacterLiteral(String, line: Int, column: Int)
     case unknownNamedCharacter(String, line: Int, column: Int)
     case invalidKeyword(String, line: Int, column: Int)
-    case unsupportedAutoResolvedKeyword(line: Int, column: Int)
+    case unsupportedAutoResolvedKeyword(line: Int, column: Int)  // kept for unused-case safety
 
     public var description: String {
         switch self {

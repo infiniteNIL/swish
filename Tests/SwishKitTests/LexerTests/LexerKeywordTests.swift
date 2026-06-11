@@ -109,12 +109,11 @@ struct LexerKeywordTests {
         }
     }
 
-    @Test("Throws error for auto-resolved keyword")
-    func autoResolvedKeywordThrows() throws {
-        let lexer = Lexer("::foo")
-        #expect(throws: LexerError.unsupportedAutoResolvedKeyword(line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+    @Test("Auto-resolved keyword resolves to current-namespace/name")
+    func autoResolvedKeywordResolvesToNs() throws {
+        let lexer = Lexer("::foo", currentNsName: "my.ns")
+        let token = try lexer.nextToken()
+        #expect(token == Token(type: .keyword, text: "my.ns/foo", line: 1, column: 1))
     }
 
     @Test("Keyword position tracking")

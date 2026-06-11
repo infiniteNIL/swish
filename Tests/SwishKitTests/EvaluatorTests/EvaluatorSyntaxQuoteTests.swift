@@ -6,10 +6,11 @@ struct EvaluatorSyntaxQuoteTests {
     static let _shared = Evaluator()
     var evaluator: Evaluator { Self._shared }
 
-    @Test("syntax-quote returns atom as-is")
-    func syntaxQuoteAtomReturnsItself() throws {
+    @Test("syntax-quote auto-qualifies unresolvable symbol to current namespace")
+    func syntaxQuoteAtomAutoQualifies() throws {
         let result = try evaluator.eval(.list([.symbol("syntax-quote", metadata: nil), .symbol("a", metadata: nil)], metadata: nil))
-        #expect(result == .symbol("a", metadata: nil))
+        // 'a' is not defined anywhere; auto-qualifies to current-ns/a (user here)
+        #expect(result == .symbol("user/a", metadata: nil))
     }
 
     @Test("syntax-quote returns integer as-is")

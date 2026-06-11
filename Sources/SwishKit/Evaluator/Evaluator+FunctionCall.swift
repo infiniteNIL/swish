@@ -188,7 +188,10 @@ extension Evaluator {
         else {
             return nil
         }
-        guard let value = resolveVar(name: name, in: currentNs())?.value else {
+        // Try qualified lookup first (for auto-qualified names like user/b), then unqualified
+        let varValue = (try? resolveQualifiedVar(name: name))?.value
+                    ?? resolveVar(name: name, in: currentNs())?.value
+        guard let value = varValue else {
             return nil
         }
         let args = Array(elements.dropFirst())

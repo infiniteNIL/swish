@@ -14,16 +14,16 @@
 ;; Thanks to Chas Emerick, Allen Rohner, and Stuart Halloway for
 ;; contributions and suggestions.
 
-;; Swish adaptations (marked with [Swish]):
+;; Remaining Swish adaptations (marked with [Swish]):
 ;;   - report uses (cond ...) instead of (defmulti/defmethod) — no multimethods yet
 ;;   - *report-counters* uses (atom ...) instead of (ref ...) — no STM in Swish
 ;;   - inc-report-counter uses (swap! ...) instead of (dosync (commute ...))
 ;;   - do-report does not add :file/:line — no Java stack trace access
 ;;   - testing-vars-str does not include file/line
-;;   - is macro inlines try/catch instead of delegating to try-expr/assert-expr
+;;   - is macro inlines try/catch (no try-expr/assert-expr multimethod yet)
 ;;   - are macro uses partition+interleave instead of clojure.template/do-template
-;;   - use-fixtures stores fixtures in namespace metadata without defmulti
-;;   - test-ns uses find-ns instead of the-ns; always runs test-all-vars
+;;   - use-fixtures uses cond instead of defmulti
+;;   - run-tests uses doall+reduce instead of apply merge-with + (lazy-seq robustness)
 
 (ns
   ^{:author "Stuart Sierra, with contributions and suggestions by
@@ -104,7 +104,7 @@
   "Runs body with *out* bound to the value of *test-out*."
   {:added "1.1"}
   [& body]
-  `(binding [*out* clojure.test/*test-out*]
+  `(binding [*out* *test-out*]
      ~@body))
 
 
@@ -208,31 +208,30 @@
   (is (thrown? c body)) checks that an instance of c is thrown from
   body, fails if not; then returns the thing thrown."
   {:added "1.1"}
-  ([form] `(clojure.test/is ~form nil))
+  ;; [Swish] real clojure.test delegates to try-expr/assert-expr for richer output;
+  ;; we inline the try/catch and handle thrown? directly.
+  ([form] `(is ~form nil))
   ([form msg]
-   ;; [Swish] real clojure.test delegates to try-expr/assert-expr for richer output;
-   ;; we inline the try/catch and handle thrown? directly.
-   ;; clojure.test/* symbols are qualified so expansion works in any namespace.
    (if (and (seq? form) (= (first form) 'thrown?))
      (let [body (drop 2 form)]
        `(try ~@body
-             (clojure.test/do-report {:type :fail, :message ~msg,
-                                      :expected '~form, :actual nil})
+             (do-report {:type :fail, :message ~msg,
+                         :expected '~form, :actual nil})
              (catch Exception e#
-               (clojure.test/do-report {:type :pass, :message ~msg,
-                                        :expected '~form, :actual e#})
+               (do-report {:type :pass, :message ~msg,
+                           :expected '~form, :actual e#})
                e#)))
      `(try
         (let [result# ~form]
           (if result#
-            (clojure.test/do-report {:type :pass, :message ~msg,
-                                     :expected '~form, :actual result#})
-            (clojure.test/do-report {:type :fail, :message ~msg,
-                                     :expected '~form, :actual (list '~'not result#)}))
+            (do-report {:type :pass, :message ~msg,
+                        :expected '~form, :actual result#})
+            (do-report {:type :fail, :message ~msg,
+                        :expected '~form, :actual (list '~'not result#)}))
           result#)
         (catch Exception e#
-          (clojure.test/do-report {:type :error, :message ~msg,
-                                   :expected '~form, :actual e#})
+          (do-report {:type :error, :message ~msg,
+                      :expected '~form, :actual e#})
           nil)))))
 
 (defmacro are
@@ -246,16 +245,14 @@
                (is (= 4 (* 2 2))))"
   {:added "1.1"}
   [argv expr & args]
-  ;; [Swish] real clojure.test uses clojure.template/do-template; we build forms explicitly
-  ;; to avoid nested syntax-quote depth issues.
+  ;; [Swish] real clojure.test uses clojure.template/do-template; we use partition+interleave.
+  ;; Nested syntax-quote works in Swish after vector splicing was fixed.
   (if (or (and (empty? argv) (empty? args))
           (and (pos? (count argv))
                (pos? (count args))
                (zero? (mod (count args) (count argv)))))
-    (list* 'do
-           (map (fn [group]
-                  (list 'clojure.test/is
-                        (list 'let (vec (interleave argv group)) expr)))
+    `(do ~@(map (fn [group]
+                  `(is (let [~@(interleave argv group)] ~expr)))
                 (partition (count argv) args)))
     (throw "The number of args doesn't match are's argv.")))
 
@@ -264,7 +261,7 @@
   but must occur inside a test function (deftest)."
   {:added "1.1"}
   [string & body]
-  `(binding [clojure.test/*testing-contexts* (conj clojure.test/*testing-contexts* ~string)]
+  `(binding [*testing-contexts* (conj *testing-contexts* ~string)]
      ~@body))
 
 
@@ -295,21 +292,17 @@
   When *load-tests* is false, deftest is ignored."
   {:added "1.1"}
   [name & body]
-  ;; [Swish] use alter-meta! so (fn [] ...) is evaluated at runtime, not stored as a form.
-  ;; Swish's def does not evaluate metadata values (unlike Clojure).
   (when *load-tests*
-    `(do
-       (defn ~name [] (clojure.test/test-var (var ~name)))
-       (alter-meta! (var ~name) assoc :test (fn [] ~@body)))))
+    `(def ~(vary-meta name assoc :test `(fn [] ~@body))
+          (fn [] (test-var (var ~name))))))
 
 (defmacro deftest-
   "Like deftest but creates a private var."
   {:added "1.1"}
   [name & body]
   (when *load-tests*
-    `(do
-       (defn- ~name [] (clojure.test/test-var (var ~name)))
-       (alter-meta! (var ~name) assoc :test (fn [] ~@body)))))
+    `(def ~(vary-meta name assoc :test `(fn [] ~@body) :private true)
+          (fn [] (test-var (var ~name))))))
 
 (defmacro set-test
   "Experimental.
@@ -340,8 +333,8 @@
   [fixture-type & args]
   ;; [Swish] real clojure.test uses (defmulti use-fixtures ...) here
   (cond
-    (= fixture-type :each) (add-ns-meta :test-each-fixtures args)
-    (= fixture-type :once) (add-ns-meta :test-once-fixtures args)
+    (= fixture-type :each) (add-ns-meta ::each-fixtures args)
+    (= fixture-type :once) (add-ns-meta ::once-fixtures args)
     :else (throw (str "Invalid fixture type: " fixture-type))))
 
 (defn- default-fixture
@@ -388,8 +381,8 @@
   with fixtures applied."
   {:added "1.1"}
   [ns]
-  (let [once-fixture-fn (join-fixtures (:test-once-fixtures (meta ns)))
-        each-fixture-fn (join-fixtures (:test-each-fixtures (meta ns)))]
+  (let [once-fixture-fn (join-fixtures (::once-fixtures (meta ns)))
+        each-fixture-fn (join-fixtures (::each-fixtures (meta ns)))]
     (once-fixture-fn
      (fn []
        (doseq [v (vals (ns-interns ns))]
@@ -406,12 +399,14 @@
   *report-counters*."
   {:added "1.1"}
   [ns]
-  ;; [Swish] uses atom instead of ref; uses find-ns instead of the-ns
-  ;; [Swish] test-ns-hook lookup omitted (no symbol fn yet); always uses test-all-vars
+  ;; [Swish] uses atom instead of ref for *report-counters*
   (binding [*report-counters* (atom *initial-report-counters*)]
-    (let [ns-obj (if (symbol? ns) (find-ns ns) ns)]
+    (let [ns-obj (the-ns ns)
+          hook-var (get (ns-interns ns-obj) (symbol "test-ns-hook"))]
       (do-report {:type :begin-test-ns, :ns ns-obj})
-      (test-all-vars ns-obj)
+      (if (and hook-var (:test (meta hook-var)))
+        ((deref hook-var))
+        (test-all-vars ns-obj))
       (do-report {:type :end-test-ns, :ns ns-obj}))
     @*report-counters*))
 
@@ -425,7 +420,7 @@
   {:added "1.1"}
   ([] (run-tests *ns*))
   ([& namespaces]
-   ;; [Swish] use reduce instead of (apply merge-with +) to avoid lazy-seq issues
+   ;; [Swish] use doall+reduce instead of (apply merge-with +) for lazy-seq robustness
    (let [results (doall (map test-ns namespaces))
          merged  (reduce #(merge-with + %1 %2) *initial-report-counters* results)
          summary (assoc merged :type :summary)]

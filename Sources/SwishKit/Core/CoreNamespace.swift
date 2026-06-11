@@ -31,6 +31,12 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "ns-name", arity: .fixed(1),
         doc: "Returns the name of the namespace, a Symbol.",
         arglists: [["ns"]]) { args in try coreNsName(args) }
+    evaluator.register(name: "the-ns", arity: .fixed(1),
+        doc: "If passed a namespace, returns it. Else, when passed a symbol, returns the namespace named by it, throwing an exception if not found.",
+        arglists: [["x"]]) { [evaluator] args in try coreTheNs(evaluator, args) }
+    evaluator.register(name: "symbol", arity: .variadic,
+        doc: "Returns a Symbol with the given namespace and name. Arity-1 coerces string to symbol.",
+        arglists: [["name"], ["ns", "name"]]) { args in try coreSymbol(args) }
 }
 
 // MARK: - Helpers
@@ -170,4 +176,45 @@ private func coreNsName(_ args: [Expr]) throws -> Expr {
             message: "expected a namespace, got \(corePrinter.printString(args[0]))")
     }
     return .symbol(ns.name, metadata: nil)
+}
+
+private func coreTheNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .namespace:
+        return args[0]
+    case .symbol(let name, _):
+        guard let ns = evaluator.findNs(name) else {
+            throw EvaluatorError.namespaceNotFound(name)
+        }
+        return .namespace(ns)
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "the-ns",
+            message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreSymbol(_ args: [Expr]) throws -> Expr {
+    switch args.count {
+    case 1:
+        switch args[0] {
+        case .symbol: return args[0]
+        case .string(let s): return .symbol(s, metadata: nil)
+        case .keyword(let k): return .symbol(k, metadata: nil)
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "symbol",
+                message: "cannot coerce \(corePrinter.printString(args[0])) to symbol")
+        }
+    case 2:
+        guard case .string(let ns) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "symbol", message: "namespace must be a string")
+        }
+        guard case .string(let name) = args[1] else {
+            throw EvaluatorError.invalidArgument(function: "symbol", message: "name must be a string")
+        }
+        return .symbol("\(ns)/\(name)", metadata: nil)
+    default:
+        throw EvaluatorError.invalidArgument(function: "symbol", message: "requires 1 or 2 arguments")
+    }
 }

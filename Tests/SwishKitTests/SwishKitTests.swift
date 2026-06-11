@@ -88,9 +88,10 @@ struct SwishKitTests {
 
     // MARK: - syntax-quote / unquote / unquote-splicing (full pipeline)
 
-    @Test("`a returns the symbol a")
-    func backtickAtomReturnSymbol() throws {
-        #expect(try swish.eval("`a") == .symbol("a", metadata: nil))
+    @Test("`a auto-qualifies unresolvable symbol to current namespace")
+    func backtickAtomAutoQualifies() throws {
+        // 'a' is not defined; auto-qualifies to user/a (forward reference, like real Clojure)
+        #expect(try swish.eval("`a") == .symbol("user/a", metadata: nil))
     }
 
     @Test("`(1 2 3) returns the list unevaluated")

@@ -2,12 +2,95 @@ private let destructuringSpecialKeys: Set<Expr> = [
     .keyword("keys"), .keyword("strs"), .keyword("syms"), .keyword("as"), .keyword("or")
 ]
 
+/// Special-form names and magic identifiers that must not be auto-qualified in syntax-quote
+/// expansions — either because the evaluator dispatches on their plain names, or because they
+/// are Swish-specific identifiers (like `Exception` in catch clauses).
+private let syntaxQuoteSpecialForms: Set<String> = [
+    "quote", "syntax-quote", "unquote", "unquote-splicing",
+    "def", "if", "do", "let", "letfn", "loop", "recur", "fn", "defmacro",
+    "var", "ns", "lazy-seq", "binding", "throw", "try", "catch", "finally",
+    "Exception"   // Swish magic catch-all type name in (catch Exception e ...)
+]
+
 extension Evaluator {
 
-    // MARK: - Syntax-quote expansion
+    // MARK: - Compile-time syntax-quote pre-expansion
+
+    /// Walks `forms` and pre-qualifies all syntax-quote templates using the current namespace.
+    /// Called from evalDefmacro so that macro bodies have symbols resolved at definition time,
+    /// matching Clojure's compile-time syntax-quote behavior.
+    func preExpandSyntaxQuotesInBody(_ forms: [Expr]) -> [Expr] {
+        forms.map { preExpandSyntaxQuotesInExpr($0) }
+    }
+
+    private func preExpandSyntaxQuotesInExpr(_ expr: Expr) -> Expr {
+        switch expr {
+        case .list(let elements, let meta):
+            guard !elements.isEmpty else { return expr }
+            if case .symbol("syntax-quote", _) = elements[0], elements.count == 2 {
+                var gensyms: [String: String] = [:]
+                return .list([elements[0], preExpandSyntaxQuote(elements[1], gensyms: &gensyms)],
+                             metadata: meta)
+            }
+            return .list(elements.map { preExpandSyntaxQuotesInExpr($0) }, metadata: meta)
+
+        case .vector(let elements, let meta):
+            return .vector(elements.map { preExpandSyntaxQuotesInExpr($0) }, metadata: meta)
+
+        default:
+            return expr
+        }
+    }
+
+    /// Statically pre-qualifies all non-unquoted symbols inside a syntax-quote template.
+    /// Does NOT evaluate anything — unquote/unquote-splicing forms are left as-is.
+    /// Gensyms (name#) are left for the runtime expander to generate at call time.
+    private func preExpandSyntaxQuote(_ expr: Expr, gensyms: inout [String: String]) -> Expr {
+        switch expr {
+        case .symbol(let name, _) where name.hasSuffix("#"):
+            return expr  // Leave gensyms for runtime — pre-generated gensyms would be re-qualified
+
+        case .symbol(let name, let meta):
+            if name.contains("/") || name == "nil" || name == "true" || name == "false" || name == "&" {
+                return expr
+            }
+            if syntaxQuoteSpecialForms.contains(name) { return expr }
+            if let v = resolveVar(name: name, in: currentNs()) {
+                return .symbol("\(v.namespace.name)/\(v.name)", metadata: meta)
+            }
+            return .symbol("\(currentNs().name)/\(name)", metadata: meta)
+
+        case .list(let elements, let meta):
+            guard !elements.isEmpty else { return expr }
+            if case .symbol(let head, _) = elements[0] {
+                if head == "unquote" || head == "unquote-splicing" {
+                    return expr  // Leave runtime-evaluated forms untouched
+                }
+                if head == "syntax-quote" {
+                    return expr  // Nested syntax-quote — Fix B would handle depth; skip for now
+                }
+            }
+            return .list(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+
+        case .vector(let elements, let meta):
+            return .vector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+
+        case .map(let dict, let meta):
+            return transformMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
+
+        case .set(let elements, let meta):
+            return .set(Set(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
+
+        default:
+            return expr
+        }
+    }
+
+    // MARK: - Runtime syntax-quote expansion
 
     /// Recursively expands a syntax-quote template, substituting (unquote ...) and
     /// splicing (unquote-splicing ...) sub-forms. Auto-gensyms symbols ending in #.
+    /// Unqualified symbols are auto-qualified to their defining namespace (like real Clojure).
     func syntaxQuoteExpand(_ expr: Expr, in env: Environment, gensyms: inout [String: String]) throws -> Expr {
         switch expr {
         case .symbol(let name, _) where name.hasSuffix("#"):
@@ -15,6 +98,26 @@ extension Evaluator {
             let generated = gensyms[name] ?? gensym(prefix: base)
             gensyms[name] = generated
             return .symbol(generated, metadata: nil)
+
+        case .symbol(let name, let meta):
+            // Special literals and already-qualified symbols — leave as-is
+            if name.contains("/") || name == "nil" || name == "true" || name == "false" || name == "&" {
+                return expr
+            }
+            // Special forms — must not be qualified or the evaluator won't dispatch them
+            if syntaxQuoteSpecialForms.contains(name) {
+                return expr
+            }
+            // Local binding (fn param, let binding) — leave as-is
+            if env.get(name) != nil {
+                return expr
+            }
+            // Resolve through the current namespace and qualify to the home namespace
+            if let v = resolveVar(name: name, in: currentNs()) {
+                return .symbol("\(v.namespace.name)/\(v.name)", metadata: meta)
+            }
+            // Unresolvable — qualify to current namespace (forward reference, like real Clojure)
+            return .symbol("\(currentNs().name)/\(name)", metadata: meta)
 
         case .list(let elements, let listMeta):
             if case .symbol("unquote", _) = elements.first {
@@ -63,7 +166,34 @@ extension Evaluator {
             return .list(result, metadata: listMeta)
 
         case .vector(let elements, let vecMeta):
-            return .vector(try elements.map { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }, metadata: vecMeta)
+            var result: [Expr] = []
+            for element in elements {
+                if case .list(let sub, _) = element,
+                   case .symbol("unquote-splicing", _) = sub.first {
+                    guard sub.count == 2
+                    else {
+                        throw EvaluatorError.invalidArgument(function: "unquote-splicing",
+                                                             message: "requires exactly 1 argument")
+                    }
+                    let spliced = try eval(sub[1], in: env)
+                    let splicedElements: [Expr]
+                    switch spliced {
+                    case .list(let elems, _):      splicedElements = elems
+                    case .vector(let elems, _):    splicedElements = elems
+                    case .nil:                      splicedElements = []
+                    case .lazySeq:                  splicedElements = try seqOf(spliced, function: "unquote-splicing")
+                    default:
+                        throw EvaluatorError.invalidArgument(
+                            function: "unquote-splicing",
+                            message: "value must be a list or vector")
+                    }
+                    result.append(contentsOf: splicedElements)
+                }
+                else {
+                    result.append(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
+                }
+            }
+            return .vector(result, metadata: vecMeta)
 
         case .map(let dict, let mapMeta):
             return try transformMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }

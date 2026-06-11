@@ -7,8 +7,8 @@ public class Reader {
     /// - Parameter source: A string containing Lisp expressions
     /// - Returns: An array of parsed `Expr` values
     /// - Throws: `LexerError` or `ParserError` if the input is invalid
-    public static func readString(_ source: String) throws -> [Expr] {
-        let lexer = Lexer(source)
+    public static func readString(_ source: String, currentNsName: String = "user") throws -> [Expr] {
+        let lexer = Lexer(source, currentNsName: currentNsName)
         let parser = try Parser(lexer)
         return try parser.parse()
     }

@@ -69,7 +69,13 @@ extension Lexer {
         advance() // consume leading ':'
 
         if let char = peek(), char == ":" {
-            throw LexerError.unsupportedAutoResolvedKeyword(line: startLine, column: startColumn)
+            _ = advance()  // consume second ':'
+            let localName = scanQualifiedName()
+            guard !localName.isEmpty else {
+                throw LexerError.invalidKeyword("expected name after '::'", line: startLine, column: startColumn)
+            }
+            let qualified = "\(currentNsName)/\(localName)"
+            return Token(type: .keyword, text: qualified, line: startLine, column: startColumn)
         }
 
         guard let char = peek() else {

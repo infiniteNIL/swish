@@ -55,6 +55,39 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 - `sequence` is lazy: each input element steps through the transducer with a fresh `[]` accumulator; outputs are collected and drained lazily. The 1-arity completion `(rf [])` flushes buffered state after input exhaustion. Infinite seqs + `(take n)` terminate correctly via `reduced`.
 - `eduction` delegates to `sequence`; calling `eduction` creates fresh transducer state, but the returned lazy seq cannot be re-reduced independently.
 
+## Known Limitations (to address later)
+
+### Multimethods
+
+`defmulti` / `defmethod` are not implemented. This affects:
+- `clojure.test/report` — currently a `cond`-based function instead of a multimethod (cannot be extended by users)
+- `clojure.test/use-fixtures` — same workaround
+- `clojure.test/assert-expr` — not implemented; `is` inlines try/catch rather than dispatching through it
+
+### STM (Software Transactional Memory)
+
+`ref`, `dosync`, `commute`, `alter`, `ensure` are not implemented. `clojure.test` uses an `atom` instead of a `ref` for `*report-counters*`, and `swap!` instead of `dosync`/`commute`.
+
+### Nested syntax-quote depth tracking
+
+Syntax-quotes inside syntax-quotes (`\`\`~x`) do not increment depth — `~` always evaluates immediately regardless of nesting level. This only affects macro-writing macros. See `syntaxQuoteExpand` in `Evaluator+Destructuring.swift`.
+
+### Syntax-quote namespace resolution uses call-site namespace for `~` unquoted values
+
+`preExpandSyntaxQuote` (called at `defmacro` evaluation time) pre-qualifies all quoted symbols using the defining namespace. However, gensyms (`x#`) are still generated fresh at each call rather than being fixed at definition time, because pre-generated gensyms get re-qualified by the runtime expander. Functionally correct, but differs from Clojure where gensyms are stable across calls.
+
+### `clojure.test` — no `assert-expr` / `try-expr`
+
+The `is` macro inlines its try/catch directly. The `assert-expr` multimethod (which provides richer failure messages showing both sides of `=` comparisons) is not implemented. Failure output shows `(not false)` rather than `(not (= 5 4))`.
+
+### `clojure.template/do-template`
+
+Not implemented. `clojure.test/are` uses a `partition`+`interleave` expansion instead.
+
+### `run-tests` uses `doall` + `reduce` instead of `apply merge-with +`
+
+Due to a lazy-seq realization issue where `asSequence` silently swallows errors from lazy seq thunks, the standard `(apply merge-with + (map test-ns namespaces))` pattern fails. Current workaround forces evaluation with `doall`.
+
 ## REPL Commands
 
 REPL commands are preceded by `/` (e.g., `/quit`, `/q`). This distinguishes them from Swish expressions.

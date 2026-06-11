@@ -190,7 +190,20 @@ extension Evaluator {
             v.isDynamic = true
         }
         if symMeta != nil || docString != nil {
-            v.metadata = buildMeta(from: symMeta, attrMap: nil, docString: docString)
+            // Evaluate metadata values that are (fn ...) forms (e.g. :test metadata in deftest).
+            // All other metadata values — keywords, strings, booleans, arglists vectors — are left as-is.
+            var evaluatedMeta = symMeta
+            if var m = symMeta {
+                for (k, val) in m {
+                    if case .list(let elems, _) = val,
+                       case .symbol(let head, _) = elems.first,
+                       head == "fn" || head == "fn*" {
+                        m[k] = try eval(val, in: env)
+                    }
+                }
+                evaluatedMeta = m
+            }
+            v.metadata = buildMeta(from: evaluatedMeta, attrMap: nil, docString: docString)
         }
         return .varRef(v)
     }
@@ -527,16 +540,19 @@ extension Evaluator {
             }
         }
         let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta
+        // Pre-qualify syntax-quote templates using the current (defining) namespace.
+        // This matches Clojure's compile-time syntax-quote behavior.
+        let expandedRestElems = preExpandSyntaxQuotesInBody(restElems)
         let macroValue: Expr
-        switch restElems.first {
+        switch expandedRestElems.first {
         case .vector(let paramExprs, _):
             let params = extractParamNames(paramExprs)
-            let rawBody = Array(restElems.dropFirst())
+            let rawBody = Array(expandedRestElems.dropFirst())
             macroValue = .macro(name: name, params: params,
                                 body: expandAliases(in: rawBody, locals: Set(params)),
                                 metadata: macroMeta)
         case .list:
-            let arities = try restElems.map {
+            let arities = try expandedRestElems.map {
                 try buildFnArity(from: $0, functionName: "defmacro", validateRecur: false)
             }
             macroValue = .multiArityMacro(name: name, arities: arities, metadata: macroMeta)

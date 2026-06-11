@@ -45,7 +45,7 @@ extension Evaluator {
         let savedNs = currentNs()
         defer { setCurrentNs(savedNs) }
         let source = try String(contentsOf: url, encoding: .utf8)
-        for expr in try Reader.readString(source) {
+        for expr in try Reader.readString(source, currentNsName: name) {
             _ = try eval(expr)
         }
         guard let ns = findNs(name) else {

@@ -5,10 +5,13 @@ public class Lexer {
     private(set) var index: String.Index
     private(set) var line: Int = 1
     private(set) var column: Int = 1
+    /// The current namespace name, used to resolve auto-qualified keywords (::foo → :ns/foo).
+    let currentNsName: String
 
-    public init(_ source: String) {
+    public init(_ source: String, currentNsName: String = "user") {
         self.source = source
         self.index = source.startIndex
+        self.currentNsName = currentNsName
     }
 
     public func nextToken() throws -> Token {
