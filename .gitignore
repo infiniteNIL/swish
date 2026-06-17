@@ -47,3 +47,5 @@ playground.xcworkspace
 *.swp
 *~
 .jank-repl-history
+.clj-kondo
+.lsp
