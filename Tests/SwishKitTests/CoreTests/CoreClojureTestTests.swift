@@ -180,12 +180,11 @@ struct CoreClojureTestTests {
     @Test("deftest creates a function whose :test metadata is set")
     func deftestCreatesTestMetadata() throws {
         let result = try swish.eval("""
-            (do
-              (ns test-deftest-ns)
-              (require '[clojure.test :as t])
-              (t/deftest my-sample-test
-                (t/is (= 1 1)))
-              (some? (:test (meta #'my-sample-test))))
+            (ns test-deftest-ns
+              (:require [clojure.test :refer [deftest is]]))
+            (deftest my-sample-test
+              (is (= 1 1)))
+            (some? (:test (meta #'my-sample-test)))
             """)
         #expect(result == .boolean(true))
     }
@@ -193,15 +192,13 @@ struct CoreClojureTestTests {
     @Test("run-tests returns summary map with correct counts")
     func runTestsReturnsSummary() throws {
         let result = try swish.eval("""
-            (do
-              (ns test-run-ns)
-              (require '[clojure.test :refer [deftest is run-tests]])
-              (deftest passing-test (is (= 1 1)) (is (= 2 2)))
-              (deftest failing-test (is (= 1 2)))
-              (ns user)
-              (let [summary (binding [clojure.test/*test-out* *out*]
-                              (clojure.test/run-tests 'test-run-ns))]
-                [(:test summary) (:pass summary) (:fail summary) (:error summary)]))
+            (ns test-run-ns
+              (:require [clojure.test :refer [deftest is run-tests]]))
+            (deftest passing-test (is (= 1 1)) (is (= 2 2)))
+            (deftest failing-test (is (= 1 2)))
+            (let [summary (binding [clojure.test/*test-out* *out*]
+                            (run-tests 'test-run-ns))]
+              [(:test summary) (:pass summary) (:fail summary) (:error summary)])
             """)
         if case .vector(let elems, _) = result {
             #expect(elems[0] == .integer(2))  // 2 tests
@@ -216,14 +213,12 @@ struct CoreClojureTestTests {
     @Test("successful? returns true when no failures or errors")
     func successfulReturnsTrueForCleanRun() throws {
         let result = try swish.eval("""
-            (do
-              (ns test-success-ns)
-              (require '[clojure.test :refer [deftest is run-tests successful?]])
-              (deftest all-pass (is (= 1 1)))
-              (ns user)
-              (let [summary (binding [clojure.test/*test-out* *out*]
-                              (clojure.test/run-tests 'test-success-ns))]
-                (clojure.test/successful? summary)))
+            (ns test-success-ns
+              (:require [clojure.test :refer [deftest is run-tests successful?]]))
+            (deftest all-pass (is (= 1 1)))
+            (let [summary (binding [clojure.test/*test-out* *out*]
+                            (run-tests 'test-success-ns))]
+              (successful? summary))
             """)
         #expect(result == .boolean(true))
     }

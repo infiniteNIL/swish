@@ -43,7 +43,9 @@ public struct Printer {
             "nil"
 
         case .symbol(let name, let meta):
-            metaPrefix(meta) + name
+            metaPrefix(meta) + (name.hasPrefix("clojure.core/")
+                ? String(name.dropFirst("clojure.core/".count))
+                : name)
 
         case .keyword(let name):
             ":\(name)"

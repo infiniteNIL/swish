@@ -37,6 +37,9 @@ struct PrinterSymbolTests {
 
     @Test("prints namespaced symbol")
     func printsNamespacedSymbol() {
-        #expect(printer.printString(.symbol("clojure.core/map", metadata: nil)) == "clojure.core/map")
+        // clojure.core/ prefix is always stripped — those symbols are always available unqualified
+        #expect(printer.printString(.symbol("clojure.core/map", metadata: nil)) == "map")
+        // other namespaces are preserved
+        #expect(printer.printString(.symbol("clojure.string/join", metadata: nil)) == "clojure.string/join")
     }
 }

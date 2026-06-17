@@ -227,7 +227,7 @@
             (do-report {:type :pass, :message ~msg,
                         :expected '~form, :actual result#})
             (do-report {:type :fail, :message ~msg,
-                        :expected '~form, :actual (list '~'not result#)}))
+                        :expected '~form, :actual (list '~'not '~form)}))
           result#)
         (catch Exception e#
           (do-report {:type :error, :message ~msg,
