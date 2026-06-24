@@ -15,27 +15,39 @@ extension Evaluator {
     }
 
     /// Returns the namespace named `name`, loading it if needed.
-    /// Search order: bundle resources (.clj), then current working directory (.swish).
+    /// Search order: Bundle.module, then each source path, then CWD.
     /// Throws `namespaceNotFound` if the namespace cannot be located.
     func requireNs(_ name: String) throws -> Namespace {
         if let existing = findNs(name) {
             return existing
         }
-        if name.hasPrefix("clojure"), let lastDot = name.lastIndex(of: ".") {
-            let resourceName = String(name[name.index(after: lastDot)...])
-            let subdirectory = String(name[..<lastDot]).replacingOccurrences(of: ".", with: "/")
+
+        let filePath = name
+            .replacingOccurrences(of: ".", with: "/")
+            .replacingOccurrences(of: "-", with: "_")
+
+        if let lastSlash = filePath.lastIndex(of: "/") {
+            let resourceName = String(filePath[filePath.index(after: lastSlash)...])
+            let subdirectory = String(filePath[..<lastSlash])
             if let url = Bundle.module.url(forResource: resourceName,
                                            withExtension: "clj",
                                            subdirectory: subdirectory) {
                 return try loadNs(name: name, url: url)
             }
+        } else if let url = Bundle.module.url(forResource: filePath,
+                                               withExtension: "clj") {
+            return try loadNs(name: name, url: url)
         }
 
-        let cwdURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent(name.replacingOccurrences(of: ".", with: "/"))
-            .appendingPathExtension("swish")
-        if FileManager.default.fileExists(atPath: cwdURL.path) {
-            return try loadNs(name: name, url: cwdURL)
+        let extensions = ["swish"]
+        for basePath in sourcePaths + [FileManager.default.currentDirectoryPath] {
+            let base = URL(fileURLWithPath: basePath).appendingPathComponent(filePath)
+            for ext in extensions {
+                let url = base.appendingPathExtension(ext)
+                if FileManager.default.fileExists(atPath: url.path) {
+                    return try loadNs(name: name, url: url)
+                }
+            }
         }
 
         throw EvaluatorError.namespaceNotFound(name)

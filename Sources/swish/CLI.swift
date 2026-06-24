@@ -9,16 +9,21 @@ struct SwishCLI: ParsableCommand {
         abstract: "A Clojure-like Lisp for Swift"
     )
 
+    @Option(name: [.customShort("p"), .long],
+            help: "Colon-separated list of source directories to search for namespaces.")
+    var classpath: String?
+
     @Argument(help: "A Swish source file to run. If omitted, starts the REPL.")
     var file: String?
 
     func run() throws {
+        let sourcePaths = classpath.map { $0.split(separator: ":").map(String.init) } ?? []
         if let file {
             guard FileManager.default.fileExists(atPath: file) else {
                 fputs("error: file not found: \(file)\n", stderr)
                 throw ExitCode.failure
             }
-            let interpreter = Swish()
+            let interpreter = Swish(sourcePaths: sourcePaths)
             do {
                 try interpreter.run(filename: file)
             }
@@ -28,7 +33,7 @@ struct SwishCLI: ParsableCommand {
             }
         }
         else {
-            Repl().run()
+            Repl(sourcePaths: sourcePaths).run()
         }
     }
 }

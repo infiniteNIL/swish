@@ -28,14 +28,15 @@ nonisolated(unsafe) private var sigintReceived: Int32 = 0
 // MARK: - Repl
 
 final class Repl {
-    private var swish = Swish()
+    private var swish: Swish
     private let printer = Printer()
     private var inputCount = 1
     private var results: [Int: Expr] = [:]
     private let lineReader: LineReader?
     private var inputCancelled = false
 
-    init() {
+    init(sourcePaths: [String] = []) {
+        swish = Swish(sourcePaths: sourcePaths)
         lineReader = LineReader()
     }
 

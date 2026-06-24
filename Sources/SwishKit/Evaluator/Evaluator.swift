@@ -10,12 +10,15 @@ public class Evaluator {
     /// Pushed/popped by the `binding` special form. Single-threaded, so no thread-local needed.
     var bindingFrames: [[ObjectIdentifier: Expr]] = []
 
+    let sourcePaths: [String]
+
     private var gensymCounter = 0
     var callDepth = 0
     let maxCallDepth = 1_000
     var interruptionCheck: (() -> Bool)? = nil
 
-    public init() {
+    public init(sourcePaths: [String] = []) {
+        self.sourcePaths = sourcePaths
         // 1. Create clojure.core first — register() interns into it
         let coreNs = Namespace(name: "clojure.core")
         namespaces["clojure.core"] = coreNs

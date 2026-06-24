@@ -3,11 +3,17 @@
 /// SwishKit provides the core Lisp interpreter functionality
 /// for embedding in Swift applications.
 
+import Foundation
+
 /// The main entry point for the Swish Lisp interpreter.
 public struct Swish {
-    let evaluator = Evaluator()
+    let evaluator: Evaluator
 
-    public init() {}
+    public init(sourcePaths: [String] = []) {
+        let envPaths = ProcessInfo.processInfo.environment["SWISH_CLASSPATH"]
+            .map { $0.split(separator: ":").map(String.init) } ?? []
+        evaluator = Evaluator(sourcePaths: sourcePaths + envPaths)
+    }
 
     /// Reads and evaluates a Swish source file.
     /// - Parameter filename: Path to the file to run
