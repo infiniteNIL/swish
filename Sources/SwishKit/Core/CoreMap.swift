@@ -31,7 +31,12 @@ func registerMap(into evaluator: Evaluator) {
         doc: "Returns a sequence of the map's values, in the same order as (seq map).",
         arglists: [["map"]],
         body: coreVals)
-    evaluator.register(name: "map?", arity: .fixed(1), doc: "Return true if x implements IPersistentMap", arglists: [["x"]]) { args in if case .map = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "map?", arity: .fixed(1), doc: "Return true if x implements IPersistentMap", arglists: [["x"]]) { args in
+        switch args[0] {
+        case .map, .record: return .boolean(true)
+        default: return .boolean(false)
+        }
+    }
 }
 
 private func coreFind(_ args: [Expr]) throws -> Expr {
@@ -41,6 +46,10 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
 
     case .map(let dict, _):
         guard let value = dict[args[1]] else { return .nil }
+        return .vector([args[1], value], metadata: nil)
+
+    case .record(_, _, let data, _):
+        guard let value = data[args[1]] else { return .nil }
         return .vector([args[1], value], metadata: nil)
 
     default:
@@ -110,6 +119,15 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
         }
         return .map(dict, metadata: nil)
 
+    case .record(let typeName, let fields, var data, _):
+        var removedBaseField = false
+        for key in args.dropFirst() {
+            if case .keyword(let k) = key, fields.contains(k) { removedBaseField = true }
+            data.removeValue(forKey: key)
+        }
+        if removedBaseField { return .map(data, metadata: nil) }
+        return .record(typeName: typeName, fields: fields, data: data, metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "dissoc",
@@ -126,6 +144,10 @@ private func coreKeys(_ args: [Expr]) throws -> Expr {
         let keys = Array(dict.keys)
         return keys.isEmpty ? .nil : .list(keys, metadata: nil)
 
+    case .record(_, _, let data, _):
+        let keys = Array(data.keys)
+        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "keys",
@@ -140,6 +162,10 @@ private func coreVals(_ args: [Expr]) throws -> Expr {
 
     case .map(let dict, _):
         let vals = Array(dict.values)
+        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
+
+    case .record(_, _, let data, _):
+        let vals = Array(data.values)
         return vals.isEmpty ? .nil : .list(vals, metadata: nil)
 
     default:
@@ -184,6 +210,15 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
 
     case .nil:
         dict = [:]
+
+    case .record(let typeName, let fields, let d, _):
+        var recordData = d
+        var i = 1
+        while i < args.count {
+            recordData[args[i]] = args[i + 1]
+            i += 2
+        }
+        return .record(typeName: typeName, fields: fields, data: recordData, metadata: nil)
 
     case .vector(let elements, _):
         var result = elements
@@ -237,6 +272,9 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
 
     case .map(let dict, _):
         return dict[args[1]] ?? notFound
+
+    case .record(_, _, let data, _):
+        return data[args[1]] ?? notFound
 
     case .vector(let elements, _):
         guard case .integer(let idx) = args[1], idx >= 0, idx < elements.count else {

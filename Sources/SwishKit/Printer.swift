@@ -112,6 +112,9 @@ public struct Printer {
 
         case .writer(let w):
             "#<Writer \(w.path)>"
+
+        case .record(let typeName, _, let data, _):
+            "#\(typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName)\(printMapString(data, transform: printString))"
         }
     }
 

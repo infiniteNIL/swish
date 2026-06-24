@@ -50,6 +50,9 @@ extension Evaluator {
         case .set(let elements, _):
             return try callSet(elements, args: args, in: env)
 
+        case .record(_, _, let data, _):
+            return try callMap(data, args: args, in: env)
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }
@@ -72,8 +75,9 @@ extension Evaluator {
     private func callKeyword(_ name: String, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
         let (key, notFound) = try evalLookupArgs(args, function: "keyword", in: env)
         switch key {
-        case .map(let dict, _): return dict[.keyword(name)] ?? notFound
-        default:                return notFound
+        case .map(let dict, _):            return dict[.keyword(name)] ?? notFound
+        case .record(_, _, let data, _):   return data[.keyword(name)] ?? notFound
+        default:                           return notFound
         }
     }
 

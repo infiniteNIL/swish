@@ -66,7 +66,7 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .regex,
-             .reader, .writer:
+             .reader, .writer, .record:
             return expr
 
         case .vector(let elements, let vecMeta):
@@ -164,6 +164,9 @@ public class Evaluator {
 
         case .symbol("try", _):
             return try evalTry(elements, in: env)
+
+        case .symbol("defrecord", _):
+            return try evalDefrecord(elements, in: env)
 
         default:
             let callee = try eval(head, in: env)

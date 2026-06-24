@@ -59,6 +59,12 @@ public indirect enum Expr: Sendable {
 
     /// A buffered file writer, usable with `swish-write!` and `with-open`.
     case writer(SwishWriter)
+
+    /// A map-backed record created by `defrecord`.
+    /// `typeName` is namespace-qualified (e.g. `"user/Point"`).
+    /// `fields` lists the declared field names in order.
+    /// `data` holds the current key→value pairs (always includes all declared fields).
+    case record(typeName: String, fields: [String], data: [Expr: Expr], metadata: [Expr: Expr]?)
 }
 
 extension Expr: Equatable {
@@ -157,6 +163,9 @@ extension Expr: Equatable {
 
         case (.writer(let a), .writer(let b)):
             return a === b
+
+        case (.record(let t1, _, let d1, _), .record(let t2, _, let d2, _)):
+            return t1 == t2 && d1 == d2
 
         default:
             return false
@@ -301,6 +310,9 @@ extension Expr: Hashable {
 
         case .bigDecimal(let v):
             hasher.combine(28); hasher.combine(v)
+
+        case .record(let t, _, let d, _):
+            hasher.combine(29); hasher.combine(t); hasher.combine(d)
         }
     }
 }
