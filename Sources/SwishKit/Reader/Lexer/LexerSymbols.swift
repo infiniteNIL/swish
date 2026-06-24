@@ -113,12 +113,9 @@ extension Lexer {
                 if text.isEmpty {
                     break
                 }
-                if let next = peekAt(1), isSymbolContinuation(next) {
-                    text.append(advance())
-                }
-                else {
-                    break
-                }
+                // Always include the dot — trailing dot is Clojure constructor call
+                // syntax (ClassName.), interior dot is namespace separator (foo.bar).
+                text.append(advance())
             }
             else if char == "/" {
                 if hasSlash || text.isEmpty {
