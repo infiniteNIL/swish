@@ -62,7 +62,8 @@ public class Evaluator {
 
     func eval(_ expr: Expr, in env: Environment) throws -> Expr {
         switch expr {
-        case .integer, .float, .ratio, .string, .character, .boolean, .nil, .keyword,
+        case .integer, .float, .ratio, .bigInteger, .bigDecimal,
+             .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .regex,
              .reader, .writer:

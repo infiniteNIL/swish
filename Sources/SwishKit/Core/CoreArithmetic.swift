@@ -1,3 +1,6 @@
+import BigInt
+import BigDecimal
+
 // MARK: - Registration
 
 func registerArithmetic(into evaluator: Evaluator) {
@@ -29,11 +32,13 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "quot[ient] of dividing numerator by denominator.",
         arglists: [["num", "div"]],
         body: coreQuot)
-    evaluator.register(name: "number?",  arity: .fixed(1), doc: "Returns true if x is a Number",                     arglists: [["x"]]) { args in switch args[0] { case .integer, .float, .ratio: return .boolean(true); default: return .boolean(false) } }
-    evaluator.register(name: "integer?", arity: .fixed(1), doc: "Returns true if n is an integer",                   arglists: [["n"]]) { args in if case .integer = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "number?",  arity: .fixed(1), doc: "Returns true if x is a Number",                     arglists: [["x"]]) { args in switch args[0] { case .integer, .float, .ratio, .bigInteger, .bigDecimal: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "integer?", arity: .fixed(1), doc: "Returns true if n is an integer",                   arglists: [["n"]]) { args in switch args[0] { case .integer, .bigInteger: return .boolean(true); default: return .boolean(false) } }
     evaluator.register(name: "int?",     arity: .fixed(1), doc: "Return true if x is a fixed-precision integer.",     arglists: [["x"]]) { args in if case .integer = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "float?",   arity: .fixed(1), doc: "Returns true if n is a floating point number",      arglists: [["n"]]) { args in if case .float   = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "ratio?",   arity: .fixed(1), doc: "Returns true if n is a Ratio",                      arglists: [["n"]]) { args in if case .ratio   = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "bigint?",  arity: .fixed(1), doc: "Returns true if n is an arbitrary-precision integer", arglists: [["n"]]) { args in if case .bigInteger = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "decimal?", arity: .fixed(1), doc: "Returns true if n is a BigDecimal",                 arglists: [["n"]]) { args in if case .bigDecimal = args[0] { return .boolean(true) }; return .boolean(false) }
 }
 
 // MARK: - Implementations
@@ -67,6 +72,12 @@ private func coreSubtract(_ args: [Expr]) throws -> Expr {
 
         case .ratio(let x):
             return .ratio(Ratio(-x.numerator, x.denominator))
+
+        case .bigInteger(let x):
+            return .bigInteger(-x)
+
+        case .bigDecimal(let x):
+            return .bigDecimal(-x)
 
         default:
             throw EvaluatorError.invalidArgument(
@@ -111,6 +122,14 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
             let r = Ratio(x.denominator, x.numerator)
             return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
 
+        case .bigInteger(let x):
+            if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            return .bigDecimal(BigDecimal(integerLiteral: 1) / BigDecimal(integerValue: x, scale: 0))
+
+        case .bigDecimal(let x):
+            if x.isZero { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            return .bigDecimal(BigDecimal(1) / x)
+
         default:
             throw EvaluatorError.invalidArgument(
                 function: "/", message: "expected a number, got \(corePrinter.printString(args[0]))")
@@ -126,6 +145,8 @@ enum NumericPair {
     case ints(Int, Int)
     case floats(Double, Double)
     case ratios(Ratio, Ratio)
+    case bigInts(BigInt, BigInt)
+    case bigDecimals(BigDecimal, BigDecimal)
 }
 
 func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> NumericPair {
@@ -157,6 +178,26 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.integer(let x), .ratio(let y)):
         return .ratios(Ratio(x, 1), y)
 
+    // BigDecimal wins over all other types
+    case (.bigDecimal(let x), .bigDecimal(let y)): return .bigDecimals(x, y)
+    case (.bigDecimal(let x), .integer(let y)):    return .bigDecimals(x, BigDecimal(integerValue: BigInt(y), scale: 0))
+    case (.integer(let x),    .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x), scale: 0), y)
+    case (.bigDecimal(let x), .float(let y)):      return .bigDecimals(x, BigDecimal(floatLiteral: y))
+    case (.float(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(floatLiteral: x), y)
+    case (.bigDecimal(let x), .ratio(let y)):      return .bigDecimals(x, BigDecimal(integerValue: BigInt(y.numerator), scale: 0) / BigDecimal(integerValue: BigInt(y.denominator), scale: 0))
+    case (.ratio(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x.numerator), scale: 0) / BigDecimal(integerValue: BigInt(x.denominator), scale: 0), y)
+    case (.bigDecimal(let x), .bigInteger(let y)): return .bigDecimals(x, BigDecimal(integerValue: y, scale: 0))
+    case (.bigInteger(let x), .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: x, scale: 0), y)
+
+    // BigInt wins over Int and Ratio; Double wins over BigInt
+    case (.bigInteger(let x), .bigInteger(let y)): return .bigInts(x, y)
+    case (.bigInteger(let x), .integer(let y)):    return .bigInts(x, BigInt(y))
+    case (.integer(let x),    .bigInteger(let y)): return .bigInts(BigInt(x), y)
+    case (.bigInteger(let x), .float(let y)):      return .floats(Double(x), y)
+    case (.float(let x),      .bigInteger(let y)): return .floats(x, Double(y))
+    case (.bigInteger(let x), .ratio(let y)):      return .floats(Double(x), Double(y.numerator) / Double(y.denominator))
+    case (.ratio(let x),      .bigInteger(let y)): return .floats(Double(x.numerator) / Double(x.denominator), Double(y))
+
     default:
         throw EvaluatorError.invalidArgument(
             function: function,
@@ -172,7 +213,7 @@ private func ratioExpr(_ r: Ratio) -> Expr {
 
 private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
     switch arg {
-    case .integer, .float, .ratio:
+    case .integer, .float, .ratio, .bigInteger, .bigDecimal:
         return arg
 
     default:
@@ -199,6 +240,9 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
         guard !o1 && !o2 && !o3 && !o4
         else { throw EvaluatorError.invalidArgument(function: "+", message: "integer overflow in ratio arithmetic") }
         return ratioExpr(Ratio(num, den))
+
+    case .bigInts(let x, let y):     return .bigInteger(x + y)
+    case .bigDecimals(let x, let y): return .bigDecimal(x + y)
     }
 }
 
@@ -220,6 +264,9 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
         guard !o1 && !o2 && !o3 && !o4
         else { throw EvaluatorError.invalidArgument(function: "-", message: "integer overflow in ratio arithmetic") }
         return ratioExpr(Ratio(num, den))
+
+    case .bigInts(let x, let y):     return .bigInteger(x - y)
+    case .bigDecimals(let x, let y): return .bigDecimal(x - y)
     }
 }
 
@@ -239,6 +286,9 @@ private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
         guard !o1 && !o2
         else { throw EvaluatorError.invalidArgument(function: "*", message: "integer overflow in ratio arithmetic") }
         return ratioExpr(Ratio(num, den))
+
+    case .bigInts(let x, let y):     return .bigInteger(x * y)
+    case .bigDecimals(let x, let y): return .bigDecimal(x * y)
     }
 }
 
@@ -262,6 +312,14 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
         guard !o1 && !o2
         else { throw EvaluatorError.invalidArgument(function: "/", message: "integer overflow in ratio arithmetic") }
         return ratioExpr(Ratio(num, den))
+
+    case .bigInts(let x, let y):
+        if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+        return .bigInteger(x / y)
+
+    case .bigDecimals(let x, let y):
+        if y.isZero { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+        return .bigDecimal(x / y)
     }
 }
 

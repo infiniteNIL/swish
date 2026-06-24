@@ -1,3 +1,6 @@
+import BigInt
+import BigDecimal
+
 // MARK: - Registration
 
 func registerComparison(into evaluator: Evaluator) {
@@ -65,6 +68,12 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
 
     case .ratios(let x, let y):
         return x.numerator * y.denominator < y.numerator * x.denominator
+
+    case .bigInts(let x, let y):
+        return x < y
+
+    case .bigDecimals(let x, let y):
+        return x < y
     }
 }
 
@@ -85,7 +94,9 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
 
     case (.integer, .integer), (.float, .float),
          (.integer, .float), (.float, .integer),
-         (.ratio, _), (_, .ratio):
+         (.ratio, _), (_, .ratio),
+         (.bigInteger, _), (_, .bigInteger),
+         (.bigDecimal, _), (_, .bigDecimal):
         if try numericLessThan(x, y, function: "compare") { return -1 }
         if try numericLessThan(y, x, function: "compare") { return 1 }
         return 0

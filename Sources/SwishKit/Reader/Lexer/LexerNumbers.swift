@@ -5,6 +5,34 @@ extension Lexer {
 
         try scanDigitSequence(into: &text, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
 
+        // Clojure radix notation: NrDIGITS (e.g., 2r1111, 16rFF, 36rZ)
+        if peek() == "r" {
+            let noSign = text.hasPrefix("-") || text.hasPrefix("+") ? String(text.dropFirst()) : text
+            if !noSign.isEmpty && noSign.allSatisfy({ $0.isNumber }) {
+                advance() // consume 'r'
+                var digitText = ""
+                while let c = peek(), c.isLetter || c.isNumber {
+                    digitText.append(advance())
+                }
+                guard !digitText.isEmpty else {
+                    throw LexerError.invalidNumberFormat(text + "r", line: startLine, column: startColumn)
+                }
+                // N and M at the end of radix digits are BigInt/BigDecimal suffixes,
+                // not part of the number — strip them before calling validateNumberEnd.
+                var tokenType: TokenType = .integer
+                if digitText.last == "N", isNumberTerminator(peek()) {
+                    digitText.removeLast()
+                    tokenType = .bigInteger
+                } else if digitText.last == "M", isNumberTerminator(peek()) {
+                    digitText.removeLast()
+                    tokenType = .bigDecimal
+                }
+                let fullText = text + "r" + digitText
+                try validateNumberEnd(text: fullText, startLine: startLine, startColumn: startColumn)
+                return Token(type: tokenType, text: fullText, line: startLine, column: startColumn)
+            }
+        }
+
         // Check for ratio: / followed by digit
         if peek() == "/", let afterSlash = peekAt(1), afterSlash.isNumber {
             text.append(advance()) // consume '/'
@@ -41,8 +69,20 @@ extension Lexer {
             }
         }
 
-        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         let cleanText = text.filter { $0 != "_" }
+
+        // Clojure BigDecimal (M) and BigInteger (N) suffixes
+        if let suffix = peek(), suffix == "M" {
+            advance()
+            try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
+            return Token(type: .bigDecimal, text: cleanText, line: startLine, column: startColumn)
+        } else if let suffix = peek(), suffix == "N" {
+            advance()
+            try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
+            return Token(type: .bigInteger, text: cleanText, line: startLine, column: startColumn)
+        }
+
+        try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
         return Token(type: isFloat ? .float : .integer, text: cleanText, line: startLine, column: startColumn)
     }
 

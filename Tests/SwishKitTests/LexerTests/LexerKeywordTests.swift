@@ -85,12 +85,12 @@ struct LexerKeywordTests {
         #expect(token.text == "nil")
     }
 
-    @Test("Throws error for keyword starting with number")
-    func keywordStartingWithNumberThrows() throws {
+    @Test("Scans keyword starting with number")
+    func keywordStartingWithNumber() throws {
         let lexer = Lexer(":123")
-        #expect(throws: LexerError.invalidKeyword("keyword cannot start with a number", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .keyword)
+        #expect(token.text == "123")
     }
 
     @Test("Throws error for colon alone")

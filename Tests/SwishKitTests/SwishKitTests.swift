@@ -30,10 +30,12 @@ struct SwishKitTests {
         #expect(try swish.eval("9223372036854775807") == .integer(Int.max))
     }
 
-    @Test("Throws error for integer overflow")
-    func throwsErrorForIntegerOverflow() {
-        #expect(throws: ParserError.self) {
-            _ = try swish.eval("9223372036854775808")
+    @Test("Integer overflow promotes to BigInt")
+    func integerOverflowPromotesToBigInt() throws {
+        // Int.max + 1 exceeds Int64; falls back to BigInteger
+        let result = try swish.eval("9223372036854775808")
+        if case .bigInteger = result { } else {
+            Issue.record("Expected .bigInteger, got \(result)")
         }
     }
 

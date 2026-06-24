@@ -3,6 +3,8 @@ public enum TokenType: Equatable, Sendable {
     case integer
     case float
     case ratio
+    case bigInteger  // N suffix, e.g. 123N
+    case bigDecimal  // M suffix, e.g. 1.23M
     case string
     case character
     case boolean

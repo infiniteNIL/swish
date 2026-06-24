@@ -1,3 +1,6 @@
+import BigInt
+import BigDecimal
+
 /// Specifies how many arguments a function accepts
 public enum Arity: Equatable, Hashable, Sendable {
     case fixed(Int)    // exactly N arguments
@@ -21,6 +24,8 @@ public indirect enum Expr: Sendable {
     case integer(Int)
     case float(Double)
     case ratio(Ratio)
+    case bigInteger(BigInt)
+    case bigDecimal(BigDecimal)
     case string(String)
     case character(Character)
     case boolean(Bool)
@@ -66,6 +71,12 @@ extension Expr: Equatable {
             return a == b
 
         case (.ratio(let a), .ratio(let b)):
+            return a == b
+
+        case (.bigInteger(let a), .bigInteger(let b)):
+            return a == b
+
+        case (.bigDecimal(let a), .bigDecimal(let b)):
             return a == b
 
         case (.string(let a), .string(let b)):
@@ -284,6 +295,12 @@ extension Expr: Hashable {
 
         case .writer(let v):
             hasher.combine(26); hasher.combine(ObjectIdentifier(v))
+
+        case .bigInteger(let v):
+            hasher.combine(27); hasher.combine(v)
+
+        case .bigDecimal(let v):
+            hasher.combine(28); hasher.combine(v)
         }
     }
 }

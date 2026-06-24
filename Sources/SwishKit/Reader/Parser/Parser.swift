@@ -1,3 +1,5 @@
+import BigInt
+import BigDecimal
 
 /// Parser for Swish source code
 public class Parser {
@@ -35,6 +37,12 @@ public class Parser {
 
         case .ratio:
             return try parseRatio()
+
+        case .bigInteger:
+            return try parseBigInteger()
+
+        case .bigDecimal:
+            return try parseBigDecimal()
 
         case .string:
             return try parseString()
@@ -127,11 +135,19 @@ public class Parser {
         else if let v = parseOctalInteger(text) {
             value = v
         }
+        else if let v = parseClojureRadixInteger(text) {
+            value = v
+        }
         else if let v = Int(text) {
             value = v
         }
         else {
-            throw ParserError.integerOverflow(text)
+            // Overflow: fall back to BigInt
+            guard let big = parseClojureRadixBigInteger(text) ?? BigInt(text) else {
+                throw ParserError.integerOverflow(text)
+            }
+            try advance()
+            return .bigInteger(big)
         }
         try advance()
         return .integer(value)
@@ -139,7 +155,15 @@ public class Parser {
 
     private func parseFloat() throws -> Expr {
         let text = currentToken.text
-        guard let value = Double(text) else { throw ParserError.invalidFloat(text) }
+        let value: Double
+        switch text {
+        case "##Inf":  value = Double.infinity
+        case "##-Inf": value = -Double.infinity
+        case "##NaN":  value = Double.nan
+        default:
+            guard let v = Double(text) else { throw ParserError.invalidFloat(text) }
+            value = v
+        }
         try advance()
         return .float(value)
     }
@@ -158,6 +182,29 @@ public class Parser {
         }
         let ratio = Ratio(numerator, denominator)
         return ratio.denominator == 1 ? .integer(ratio.numerator) : .ratio(ratio)
+    }
+
+    private func parseBigInteger() throws -> Expr {
+        let text = currentToken.text
+        let value: BigInt
+        if let v = parseClojureRadixBigInteger(text) {
+            value = v
+        }
+        else if let v = BigInt(text) {
+            value = v
+        }
+        else {
+            throw ParserError.integerOverflow(text)
+        }
+        try advance()
+        return .bigInteger(value)
+    }
+
+    private func parseBigDecimal() throws -> Expr {
+        let text = currentToken.text
+        guard let value = BigDecimal(text) else { throw ParserError.invalidFloat(text) }
+        try advance()
+        return .bigDecimal(value)
     }
 
     private func parseString() throws -> Expr {
@@ -630,22 +677,69 @@ public class Parser {
     private func parseHexInteger(_ text: String) -> Int? {
         let (negative, str) = stripSign(text)
         guard str.hasPrefix("0x") else { return nil }
-        guard let magnitude = Int(str.dropFirst(2), radix: 16) else { return nil }
-        return negative ? -magnitude : magnitude
+        return parseMagnitude(str.dropFirst(2), radix: 16, negative: negative)
     }
 
     private func parseBinaryInteger(_ text: String) -> Int? {
         let (negative, str) = stripSign(text)
         guard str.hasPrefix("0b") else { return nil }
-        guard let magnitude = Int(str.dropFirst(2), radix: 2) else { return nil }
-        return negative ? -magnitude : magnitude
+        return parseMagnitude(str.dropFirst(2), radix: 2, negative: negative)
     }
 
     private func parseOctalInteger(_ text: String) -> Int? {
         let (negative, str) = stripSign(text)
         guard str.hasPrefix("0o") else { return nil }
-        guard let magnitude = Int(str.dropFirst(2), radix: 8) else { return nil }
-        return negative ? -magnitude : magnitude
+        return parseMagnitude(str.dropFirst(2), radix: 8, negative: negative)
+    }
+
+    private func parseClojureRadixInteger(_ text: String) -> Int? {
+        let (negative, rest) = stripSign(text)
+        guard let rIdx = rest.firstIndex(of: "r") else { return nil }
+        let radixStr = String(rest[rest.startIndex..<rIdx])
+        let digits = rest[rest.index(after: rIdx)...]
+        guard let radix = Int(radixStr), radix >= 2, radix <= 36, !digits.isEmpty else { return nil }
+        return parseMagnitude(digits, radix: radix, negative: negative)
+    }
+
+    private func parseClojureRadixBigInteger(_ text: String) -> BigInt? {
+        let (negative, rest) = stripSign(text)
+        guard let rIdx = rest.firstIndex(of: "r") else { return nil }
+        let radixStr = String(rest[rest.startIndex..<rIdx])
+        let digits = String(rest[rest.index(after: rIdx)...])
+        guard let radix = Int(radixStr), radix >= 2, radix <= 36, !digits.isEmpty else { return nil }
+        let bigRadix = BigInt(radix)
+        var result = BigInt(0)
+        for char in digits.uppercased() {
+            guard let v = clojureDigitValue(char, radix: radix) else { return nil }
+            result = result * bigRadix + BigInt(v)
+        }
+        return negative ? -result : result
+    }
+
+    private func clojureDigitValue(_ char: Character, radix: Int) -> Int? {
+        let scalar = char.unicodeScalars.first!.value
+        let value: Int
+        if scalar >= 48 && scalar <= 57 {       // '0'–'9'
+            value = Int(scalar - 48)
+        } else if scalar >= 65 && scalar <= 90 { // 'A'–'Z'
+            value = Int(scalar - 55)
+        } else {
+            return nil
+        }
+        return value < radix ? value : nil
+    }
+
+    // Parse an unsigned magnitude and apply sign, handling Int.min correctly.
+    private func parseMagnitude(_ digits: Substring, radix: Int, negative: Bool) -> Int? {
+        if negative {
+            guard let mag = UInt(digits, radix: radix) else { return nil }
+            let minMag = UInt(bitPattern: Int.min)  // 0x8000000000000000
+            if mag == minMag { return Int.min }
+            guard mag < minMag else { return nil }
+            return -Int(mag)
+        } else {
+            return Int(digits, radix: radix)
+        }
     }
 
     // MARK: - Discard

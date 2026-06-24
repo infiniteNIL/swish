@@ -85,18 +85,24 @@ extension Lexer {
         if char.isWhitespace {
             throw LexerError.invalidKeyword("whitespace after ':'", line: startLine, column: startColumn)
         }
-        if char.isNumber {
-            throw LexerError.invalidKeyword("keyword cannot start with a number", line: startLine, column: startColumn)
-        }
-        if !isSymbolStart(char) {
+        if !isSymbolStart(char) && !char.isNumber {
             throw LexerError.invalidKeyword("invalid character '\(char)' after ':'", line: startLine, column: startColumn)
         }
 
-        let text = scanQualifiedName()
+        // For digit-starting keywords (e.g. :0, :1, :-1), scan manually since
+        // scanQualifiedName expects at least one symbol-start char first.
+        var text = ""
+        if char.isNumber {
+            while let c = peek(), isSymbolContinuation(c) {
+                text.append(advance())
+            }
+        } else {
+            text = scanQualifiedName()
+        }
         return Token(type: .keyword, text: text, line: startLine, column: startColumn)
     }
 
-    private func scanQualifiedName() -> String {
+    func scanQualifiedName() -> String {
         var text = ""
         var hasSlash = false
         while let char = peek() {

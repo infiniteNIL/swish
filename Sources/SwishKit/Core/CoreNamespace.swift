@@ -140,7 +140,7 @@ private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 
 private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .symbol(let name, _) = args[0] else { return .nil }
-    if let v = try evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
+    if let v = try? evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
     if let v = evaluator.resolveVar(name: name, in: evaluator.currentNs()) { return .varRef(v) }
     return .nil
 }

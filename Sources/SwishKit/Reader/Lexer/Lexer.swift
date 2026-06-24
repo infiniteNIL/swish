@@ -130,6 +130,11 @@ public class Lexer {
                 }
                 return Token(type: .readerConditional, text: "#?", line: startLine, column: startColumn)
             }
+            if peek() == "#" {
+                _ = advance()
+                let name = scanQualifiedName()
+                return Token(type: .float, text: "##\(name)", line: startLine, column: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:

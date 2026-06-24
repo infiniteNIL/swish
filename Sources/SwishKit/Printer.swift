@@ -1,4 +1,6 @@
 import Foundation
+import BigInt
+import BigDecimal
 
 /// Printer for Swish expressions
 public struct Printer {
@@ -29,6 +31,12 @@ public struct Printer {
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
+
+        case .bigInteger(let v):
+            "\(v)N"
+
+        case .bigDecimal(let v):
+            "\(v)M"
 
         case .string(let value):
             "\"\(escapeString(value))\""

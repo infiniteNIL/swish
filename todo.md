@@ -1,9 +1,7 @@
 # Todo
 
-- [ ] some kind of load path (CLASSPATH in Clojure) for source outside of
-      resource bundle
-- [ ] Jank Clojure test suite
 - [ ] multi methods
+- [ ] Jank Clojure test suite
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
@@ -19,6 +17,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] radix notation
+- [x] BigInt, BigDecimal
+- [x] source paths
 - [x] lazy-seq?
 - [x] int? (same as integer?)
 - [x] clojure.test
