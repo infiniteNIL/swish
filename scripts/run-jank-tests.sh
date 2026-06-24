@@ -31,7 +31,7 @@ trap "rm -f $RUNNER" EXIT
     ns=$(echo "${rel%.cljc}" | tr '/' '.' | tr '_' '-')
     echo "(t/run-tests '$ns)"
   done
-} > "$RUNNER"
+} >"$RUNNER"
 
 cd "$PROJECT_DIR"
-swift run swish --classpath "$SUPPORT_DIR:$CTS_DIR/test" "$RUNNER"
+swift run swish --sourcepath "$SUPPORT_DIR:$CTS_DIR/test" "$RUNNER"

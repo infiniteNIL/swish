@@ -6,18 +6,18 @@ import SwishKit
 struct SwishCLI: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "swish",
-        abstract: "A Clojure-like Lisp for Swift"
+        abstract: "Swish: A Clojure-like Lisp for Swift"
     )
 
-    @Option(name: [.customShort("p"), .long],
+    @Option(name: [.customLong("sp", withSingleDash: true), .long],
             help: "Colon-separated list of source directories to search for namespaces.")
-    var classpath: String?
+    var sourcepath: String?
 
     @Argument(help: "A Swish source file to run. If omitted, starts the REPL.")
     var file: String?
 
     func run() throws {
-        let sourcePaths = classpath.map { $0.split(separator: ":").map(String.init) } ?? []
+        let sourcePaths = sourcepath.map { $0.split(separator: ":").map(String.init) } ?? []
         if let file {
             guard FileManager.default.fileExists(atPath: file) else {
                 fputs("error: file not found: \(file)\n", stderr)
