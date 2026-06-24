@@ -1,4 +1,4 @@
-(ns test-success-ns
+(ns test-success
   (:require [clojure.test :refer [deftest is run-tests successful?]]))
 
 (deftest all-pass
@@ -7,6 +7,6 @@
 
 ;(ns user)
 (let [summary (binding [clojure.test/*test-out* *out*]
-                (clojure.test/run-tests 'test-success-ns))]
+                (run-tests 'test-success))]
   (successful? summary))
 
