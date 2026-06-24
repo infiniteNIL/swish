@@ -717,13 +717,12 @@ public class Parser {
             let feature = currentToken.text
             try advance()
 
-            guard let branchExpr = try parseFormSkipDiscards() else {
-                throw ParserError.invalidReaderConditional(
-                    "missing form after feature key :\(feature)",
-                    line: startToken.line, column: startToken.column)
-            }
-
             if matched == nil && Self.readerFeatures.contains(feature) {
+                guard let branchExpr = try parseFormSkipDiscards() else {
+                    throw ParserError.invalidReaderConditional(
+                        "missing form after feature key :\(feature)",
+                        line: startToken.line, column: startToken.column)
+                }
                 if splicing {
                     switch branchExpr {
                     case .list(let elems, _):
@@ -738,11 +737,35 @@ public class Parser {
                 } else {
                     matched = [branchExpr]
                 }
+            } else {
+                try skipBranchForm()
             }
         }
 
         try advance()  // consume ')'
         return matched
+    }
+
+    /// Skips the form that `currentToken` has already started consuming,
+    /// then calls `advance()` to load the next token.
+    /// Used for non-matching reader conditional branches where the first
+    /// token is already in `currentToken` but we don't want to parse the form.
+    private func skipBranchForm() throws {
+        switch currentToken.type {
+        case .leftParen, .anonymousFn:
+            try lexer.skipUntilClose(")")
+        case .leftBracket:
+            try lexer.skipUntilClose("]")
+        case .leftBrace, .leftSet:
+            try lexer.skipUntilClose("}")
+        case .quote, .backtick, .unquote, .unquoteSplicing, .deref, .metadata, .varRef, .discard:
+            try lexer.skipForm()
+        case .readerConditional, .readerConditionalSplicing:
+            try lexer.skipForm()
+        default:
+            break  // atom (symbol, keyword, number, string, bool, nil, char): already consumed
+        }
+        try advance()
     }
 
     private func advance() throws {
