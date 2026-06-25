@@ -10,7 +10,7 @@ public struct Swish {
     let evaluator: Evaluator
 
     public init(sourcePaths: [String] = []) {
-        let envPaths = ProcessInfo.processInfo.environment["SWISH_CLASSPATH"]
+        let envPaths = ProcessInfo.processInfo.environment["SWISH_SOURCEPATH"]
             .map { $0.split(separator: ":").map(String.init) } ?? []
         evaluator = Evaluator(sourcePaths: sourcePaths + envPaths)
     }
