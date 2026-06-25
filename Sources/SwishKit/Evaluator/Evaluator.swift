@@ -66,7 +66,7 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .regex,
-             .reader, .writer, .record:
+             .reader, .writer, .record, .inst, .uuid:
             return expr
 
         case .vector(let elements, let vecMeta):

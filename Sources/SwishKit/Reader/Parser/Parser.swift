@@ -1,3 +1,4 @@
+import Foundation
 import BigInt
 import BigDecimal
 
@@ -118,6 +119,9 @@ public class Parser {
         case .rightParen, .rightBracket, .rightBrace:
             throw ParserError.unexpectedToken(currentToken)
 
+        case .taggedLiteral:
+            return try parseTaggedLiteral()
+
         case .eof:
             throw ParserError.unexpectedEOF
         }
@@ -217,6 +221,55 @@ public class Parser {
         let pattern = currentToken.text
         try advance()
         return .regex(try SwishRegex(pattern: pattern))
+    }
+
+    private func parseTaggedLiteral() throws -> Expr {
+        let tag  = currentToken.text
+        let line = currentToken.line
+        let col  = currentToken.column
+        try advance()  // consume the tag token
+
+        guard currentToken.type == .string else {
+            throw ParserError.invalidTaggedLiteral(
+                "#\(tag) expects a string literal",
+                line: line, column: col)
+        }
+        let value = currentToken.text
+        try advance()  // consume the string
+
+        switch tag {
+        case "inst":
+            guard let date = parseInstString(value) else {
+                throw ParserError.invalidTaggedLiteral(
+                    "invalid #inst date string: \"\(value)\"",
+                    line: line, column: col)
+            }
+            return .inst(date)
+
+        case "uuid":
+            guard let uuid = UUID(uuidString: value) else {
+                throw ParserError.invalidTaggedLiteral(
+                    "invalid #uuid string: \"\(value)\"",
+                    line: line, column: col)
+            }
+            return .uuid(uuid)
+
+        default:
+            throw ParserError.invalidTaggedLiteral(
+                "no reader function for tag #\(tag)",
+                line: line, column: col)
+        }
+    }
+
+    /// Parses a Clojure #inst string (RFC 3339 / ISO 8601).
+    /// Tries with fractional seconds first, then without.
+    private func parseInstString(_ s: String) -> Date? {
+        let fmtFrac = ISO8601DateFormatter()
+        fmtFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = fmtFrac.date(from: s) { return d }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime]
+        return fmt.date(from: s)
     }
 
     private func parseCharacter() throws -> Expr {

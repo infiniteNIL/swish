@@ -5,6 +5,7 @@ import BigDecimal
 /// Printer for Swish expressions
 public struct Printer {
     private let floatFormatter: NumberFormatter
+    private let instFormatter: ISO8601DateFormatter
     public var printMeta: Bool = false
     /// Maximum number of lazy-seq elements to realize when printing.
     /// `nil` means no limit (only safe for finite seqs).
@@ -16,6 +17,9 @@ public struct Printer {
         floatFormatter.usesGroupingSeparator = false
         floatFormatter.minimumFractionDigits = 1
         floatFormatter.maximumFractionDigits = 15
+
+        instFormatter = ISO8601DateFormatter()
+        instFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
     }
 
     /// Returns a machine-readable string representation of a Swish expression.
@@ -112,6 +116,12 @@ public struct Printer {
 
         case .writer(let w):
             "#<Writer \(w.path)>"
+
+        case .inst(let date):
+            "#inst \"\(instFormatter.string(from: date))\""
+
+        case .uuid(let uuid):
+            "#uuid \"\(uuid.uuidString.lowercased())\""
 
         case .record(let typeName, _, let data, _):
             "#\(typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName)\(printMapString(data, transform: printString))"

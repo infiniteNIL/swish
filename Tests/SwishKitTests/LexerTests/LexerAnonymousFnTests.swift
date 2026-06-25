@@ -61,12 +61,4 @@ struct LexerAnonymousFnTests {
         let token = try lexer.nextToken()
         #expect(token == Token(type: .symbol, text: "%&", line: 1, column: 1))
     }
-
-    @Test("# alone still throws illegal character")
-    func hashAloneThrows() throws {
-        let lexer = Lexer("#a")
-        #expect(throws: LexerError.self) {
-            try lexer.nextToken()
-        }
-    }
 }

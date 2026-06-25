@@ -135,6 +135,10 @@ public class Lexer {
                 let name = scanQualifiedName()
                 return Token(type: .float, text: "##\(name)", line: startLine, column: startColumn)
             }
+            if let c = peek(), isSymbolStart(c) {
+                let tag = scanQualifiedName()
+                return Token(type: .taggedLiteral, text: tag, line: startLine, column: startColumn)
+            }
             throw LexerError.illegalCharacter("#", line: startLine, column: startColumn)
 
         default:

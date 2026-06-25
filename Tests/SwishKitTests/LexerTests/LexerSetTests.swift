@@ -48,12 +48,4 @@ struct LexerSetTests {
         #expect(t2 == Token(type: .keyword, text: "a", line: 1, column: 3))
         #expect(t3 == Token(type: .rightBrace, text: "}", line: 1, column: 5))
     }
-
-    @Test("# alone still throws illegal character")
-    func hashAloneThrows() throws {
-        let lexer = Lexer("#a")
-        #expect(throws: LexerError.self) {
-            try lexer.nextToken()
-        }
-    }
 }

@@ -1,3 +1,4 @@
+import Foundation
 import BigInt
 import BigDecimal
 
@@ -59,6 +60,12 @@ public indirect enum Expr: Sendable {
 
     /// A buffered file writer, usable with `swish-write!` and `with-open`.
     case writer(SwishWriter)
+
+    /// A date value from a `#inst` tagged literal.
+    case inst(Date)
+
+    /// A UUID value from a `#uuid` tagged literal.
+    case uuid(UUID)
 
     /// A map-backed record created by `defrecord`.
     /// `typeName` is namespace-qualified (e.g. `"user/Point"`).
@@ -163,6 +170,12 @@ extension Expr: Equatable {
 
         case (.writer(let a), .writer(let b)):
             return a === b
+
+        case (.inst(let a), .inst(let b)):
+            return a == b
+
+        case (.uuid(let a), .uuid(let b)):
+            return a == b
 
         case (.record(let t1, _, let d1, _), .record(let t2, _, let d2, _)):
             return t1 == t2 && d1 == d2
@@ -310,6 +323,12 @@ extension Expr: Hashable {
 
         case .bigDecimal(let v):
             hasher.combine(28); hasher.combine(v)
+
+        case .inst(let v):
+            hasher.combine(30); hasher.combine(v)
+
+        case .uuid(let v):
+            hasher.combine(31); hasher.combine(v)
 
         case .record(let t, _, let d, _):
             hasher.combine(29); hasher.combine(t); hasher.combine(d)

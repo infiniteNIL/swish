@@ -29,6 +29,7 @@ public enum TokenType: Equatable, Sendable {
     case regex       // #"..."
     case readerConditional          // #?
     case readerConditionalSplicing  // #?@
+    case taggedLiteral              // #inst, #uuid, or any future #tag
     case metadata
     case eof
 }
