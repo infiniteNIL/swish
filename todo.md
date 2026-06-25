@@ -17,6 +17,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] #uuid, #inst
+
 - [x] defrecord w/constructor functions
 - [x] be able to run Jank Clojure test suite (scripts/run-jank-suite.sh)
 - [x] radix notation
