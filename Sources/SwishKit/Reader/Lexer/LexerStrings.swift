@@ -72,14 +72,27 @@ extension Lexer {
     // MARK: - Single-line string helpers
 
     private func scanUnicodeEscapeFromStream(startLine: Int, startColumn: Int) throws -> Character {
-        guard peekAt(1) == "{" else {
-            throw LexerError.invalidUnicodeEscape("expected '{'", line: line, column: column)
+        if peekAt(1) == "{" {
+            advance()  // consume 'u'
+            advance()  // consume '{'
+            return try parseUnicodeHexContent(
+                unterminated: .unterminatedString(line: startLine, column: startColumn),
+                startLine: startLine, startColumn: startColumn)
         }
+        // Clojure/Java-style \uXXXX — exactly 4 hex digits, no braces
         advance()  // consume 'u'
-        advance()  // consume '{'
-        return try parseUnicodeHexContent(
-            unterminated: .unterminatedString(line: startLine, column: startColumn),
-            startLine: startLine, startColumn: startColumn)
+        var hexDigits = ""
+        for _ in 0..<4 {
+            guard let c = peek(), c.isHexDigit else {
+                throw LexerError.invalidUnicodeEscape("expected 4 hex digits after \\u", line: line, column: column)
+            }
+            hexDigits.append(advance())
+        }
+        guard let codePoint = UInt32(hexDigits, radix: 16),
+              let scalar = Unicode.Scalar(codePoint) else {
+            throw LexerError.invalidUnicodeEscape("invalid code point", line: line, column: column)
+        }
+        return Character(scalar)
     }
 
     // MARK: - Multiline string helpers
@@ -217,32 +230,47 @@ extension Lexer {
         return result
     }
 
-    /// Parses `\u{XXXX}` starting with the index of `u`, returns the character and the index after `}`.
+    /// Parses `\u{XXXX}` or `\uXXXX` starting with the index of `u`, returns the character and the index after the escape.
     private func processUnicodeEscape(in input: String, from uIndex: String.Index, startLine: Int, startColumn: Int) throws -> (Character, String.Index) {
         let afterU = input.index(after: uIndex)
-        guard afterU < input.endIndex, input[afterU] == "{" else {
-            throw LexerError.invalidUnicodeEscape("expected '{'", line: startLine, column: startColumn)
-        }
-        var hexDigits = ""
-        var hexIndex = input.index(after: afterU)
-        while hexIndex < input.endIndex && input[hexIndex] != "}" {
-            let hexChar = input[hexIndex]
-            guard hexChar.isHexDigit else {
-                throw LexerError.invalidUnicodeEscape("invalid hex digit", line: startLine, column: startColumn)
+        if afterU < input.endIndex && input[afterU] == "{" {
+            // Swish-style \u{XXXX}
+            var hexDigits = ""
+            var hexIndex = input.index(after: afterU)
+            while hexIndex < input.endIndex && input[hexIndex] != "}" {
+                let hexChar = input[hexIndex]
+                guard hexChar.isHexDigit else {
+                    throw LexerError.invalidUnicodeEscape("invalid hex digit", line: startLine, column: startColumn)
+                }
+                hexDigits.append(hexChar)
+                hexIndex = input.index(after: hexIndex)
             }
-            hexDigits.append(hexChar)
+            guard hexIndex < input.endIndex else {
+                throw LexerError.unterminatedString(line: startLine, column: startColumn)
+            }
+            guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
+                throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: startLine, column: startColumn)
+            }
+            guard let codePoint = UInt32(hexDigits, radix: 16),
+                  let scalar = Unicode.Scalar(codePoint) else {
+                throw LexerError.invalidUnicodeEscape("invalid code point", line: startLine, column: startColumn)
+            }
+            return (Character(scalar), input.index(after: hexIndex))
+        }
+        // Clojure/Java-style \uXXXX — exactly 4 hex digits, no braces
+        var hexDigits = ""
+        var hexIndex = afterU
+        for _ in 0..<4 {
+            guard hexIndex < input.endIndex, input[hexIndex].isHexDigit else {
+                throw LexerError.invalidUnicodeEscape("expected 4 hex digits after \\u", line: startLine, column: startColumn)
+            }
+            hexDigits.append(input[hexIndex])
             hexIndex = input.index(after: hexIndex)
-        }
-        guard hexIndex < input.endIndex else {
-            throw LexerError.unterminatedString(line: startLine, column: startColumn)
-        }
-        guard !hexDigits.isEmpty && hexDigits.count <= 6 else {
-            throw LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: startLine, column: startColumn)
         }
         guard let codePoint = UInt32(hexDigits, radix: 16),
               let scalar = Unicode.Scalar(codePoint) else {
             throw LexerError.invalidUnicodeEscape("invalid code point", line: startLine, column: startColumn)
         }
-        return (Character(scalar), input.index(after: hexIndex))
+        return (Character(scalar), hexIndex)
     }
 }

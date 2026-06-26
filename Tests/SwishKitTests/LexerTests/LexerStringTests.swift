@@ -211,7 +211,7 @@ struct LexerStringTests {
     @Test("Throws error for Unicode escape missing brace")
     func unicodeEscapeMissingBraceThrows() throws {
         let lexer = Lexer("\"\\u\"")
-        #expect(throws: LexerError.invalidUnicodeEscape("expected '{'", line: 1, column: 3)) {
+        #expect(throws: LexerError.invalidUnicodeEscape("expected 4 hex digits after \\u", line: 1, column: 4)) {
             try lexer.nextToken()
         }
     }
