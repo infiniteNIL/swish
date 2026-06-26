@@ -826,19 +826,38 @@ public class Parser {
 
     @discardableResult
     private func appendNextElement(to elements: inout [Expr]) throws -> Bool {
-        if currentToken.type == .readerConditionalSplicing {
-            let condToken = currentToken
-            try advance()
-            if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
-                elements.append(contentsOf: spliced)
+        while true {
+            switch currentToken.type {
+            case .eof, .rightParen, .rightBracket, .rightBrace:
+                return false
+
+            case .discard:
+                try advance()
+                guard currentToken.type != .eof else { throw ParserError.unexpectedEOF }
+                _ = try parseFormSkipDiscards()
+
+            case .readerConditional:
+                let startToken = currentToken
+                try advance()
+                if let exprs = try parseReaderConditionalBody(splicing: false, startToken: startToken) {
+                    elements.append(exprs[0])
+                    return true
+                }
+                // non-matching branch — loop to process the next element in the collection
+
+            case .readerConditionalSplicing:
+                let condToken = currentToken
+                try advance()
+                if let spliced = try parseReaderConditionalBody(splicing: true, startToken: condToken) {
+                    elements.append(contentsOf: spliced)
+                }
+                return true
+
+            default:
+                elements.append(try parseExpr())
+                return true
             }
-            return true
         }
-        if let expr = try parseFormSkipDiscards() {
-            elements.append(expr)
-            return true
-        }
-        return false
     }
 
     // MARK: - Reader Conditionals
@@ -909,6 +928,8 @@ public class Parser {
             try lexer.skipForm()
         case .readerConditional, .readerConditionalSplicing:
             try lexer.skipForm()
+        case .taggedLiteral:
+            try lexer.skipForm()  // skip the data form that follows the tag
         default:
             break  // atom (symbol, keyword, number, string, bool, nil, char): already consumed
         }
