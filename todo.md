@@ -17,6 +17,10 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] int
+- [x] :swish in reader conditionals
+- [x] prefer :cljc over :clj in reader conditonals
+- [x] handle :clj in reader conditionals
 - [x] #uuid, #inst
 
 - [x] defrecord w/constructor functions
