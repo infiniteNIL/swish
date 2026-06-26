@@ -27,7 +27,7 @@ struct ParserReaderConditionalTests {
 
     @Test("Selects :default branch when no :swish")
     func selectsDefaultBranch() throws {
-        let exprs = try parse(#"#?(:clj "nope" :default "fallback")"#)
+        let exprs = try parse(#"#?(:jank "nope" :default "fallback")"#)
         #expect(exprs == [.string("fallback")])
     }
 
@@ -37,21 +37,33 @@ struct ParserReaderConditionalTests {
         #expect(exprs == [.string("swish")])
     }
 
+    @Test("Selects :clj branch when no :swish")
+    func selectsClj() throws {
+        let exprs = try parse(#"#?(:jank "nope" :clj "yes")"#)
+        #expect(exprs == [.string("yes")])
+    }
+
+    @Test("Prefers :swish over :clj")
+    func prefersSwishOverClj() throws {
+        let exprs = try parse(#"#?(:swish "swish" :clj "clj")"#)
+        #expect(exprs == [.string("swish")])
+    }
+
     @Test("Discards non-matching conditional at top level")
     func discardsNonMatchingTopLevel() throws {
-        let exprs = try parse(#"#?(:clj "nope") 42"#)
+        let exprs = try parse(#"#?(:jank "nope") 42"#)
         #expect(exprs == [.integer(42)])
     }
 
     @Test("Non-matching conditional with no default yields empty top-level")
     func nonMatchingNoDefault() throws {
-        let exprs = try parse("#?(:clj 1)")
+        let exprs = try parse("#?(:jank 1)")
         #expect(exprs == [])
     }
 
     @Test("Multiple top-level forms with non-matching conditional")
     func multipleTopLevelFormsWithNonMatch() throws {
-        let exprs = try parse("#?(:clj 1) 2 #?(:swish 3)")
+        let exprs = try parse("#?(:jank 1) 2 #?(:swish 3)")
         #expect(exprs == [.integer(2), .integer(3)])
     }
 
@@ -65,7 +77,7 @@ struct ParserReaderConditionalTests {
 
     @Test("Non-matching conditional inside a list is skipped")
     func nonMatchingInList() throws {
-        let exprs = try parse("(+ 1 #?(:clj 99) 2)")
+        let exprs = try parse("(+ 1 #?(:jank 99) 2)")
         #expect(exprs == [.list([.symbol("+", metadata: nil), .integer(1), .integer(2)], metadata: nil)])
     }
 
@@ -77,7 +89,7 @@ struct ParserReaderConditionalTests {
 
     @Test("Non-matching conditional inside a vector is skipped")
     func nonMatchingInVector() throws {
-        let exprs = try parse("[1 #?(:clj 99) 2]")
+        let exprs = try parse("[1 #?(:jank 99) 2]")
         #expect(exprs == [.vector([.integer(1), .integer(2)], metadata: nil)])
     }
 
@@ -97,7 +109,7 @@ struct ParserReaderConditionalTests {
 
     @Test("Non-matching splice into a vector")
     func nonMatchingSpliceIntoVector() throws {
-        let exprs = try parse("[1 #?@(:clj [2 3]) 4]")
+        let exprs = try parse("[1 #?@(:jank [2 3]) 4]")
         #expect(exprs == [.vector([.integer(1), .integer(4)], metadata: nil)])
     }
 
@@ -114,7 +126,7 @@ struct ParserReaderConditionalTests {
 
     @Test("Splice with :default branch")
     func spliceWithDefault() throws {
-        let exprs = try parse("[#?@(:clj [1 2] :default [3 4])]")
+        let exprs = try parse("[#?@(:jank [1 2] :default [3 4])]")
         #expect(exprs == [.vector([.integer(3), .integer(4)], metadata: nil)])
     }
 

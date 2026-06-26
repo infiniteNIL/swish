@@ -39,6 +39,10 @@ func registerArithmetic(into evaluator: Evaluator) {
     evaluator.register(name: "ratio?",   arity: .fixed(1), doc: "Returns true if n is a Ratio",                      arglists: [["n"]]) { args in if case .ratio   = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "bigint?",  arity: .fixed(1), doc: "Returns true if n is an arbitrary-precision integer", arglists: [["n"]]) { args in if case .bigInteger = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "decimal?", arity: .fixed(1), doc: "Returns true if n is a BigDecimal",                 arglists: [["n"]]) { args in if case .bigDecimal = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "Integer.", arity: .fixed(1),
+        doc: "Coerces x to a fixed-precision integer. Clojure interop: (Integer. x) constructs a boxed Integer.",
+        arglists: [["x"]],
+        body: coreIntegerNew)
 }
 
 // MARK: - Implementations
@@ -347,5 +351,44 @@ private func coreQuot(_ args: [Expr]) throws -> Expr {
     let (a, b) = try coreIntPair(args, function: "quot")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
     return .integer(a / b)
+}
+
+private func coreIntegerNew(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer:
+        return args[0]
+
+    case .bigInteger(let n):
+        guard let i = Int(exactly: n) else {
+            throw EvaluatorError.invalidArgument(function: "Integer.", message: "value out of int range")
+        }
+        return .integer(i)
+
+    case .float(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "Integer.", message: "cannot convert \(f) to integer")
+        }
+        return .integer(Int(f))
+
+    case .bigDecimal(let d):
+        let truncated = d.withScale(0)
+        guard let i = Int(exactly: truncated.integerValue) else {
+            throw EvaluatorError.invalidArgument(function: "Integer.", message: "value out of int range")
+        }
+        return .integer(i)
+
+    case .ratio(let r):
+        return .integer(r.numerator / r.denominator)
+
+    case .string(let s):
+        guard let i = Int(s) else {
+            throw EvaluatorError.invalidArgument(function: "Integer.", message: "not a valid integer: \"\(s)\"")
+        }
+        return .integer(i)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "Integer.", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
+    }
 }
 
