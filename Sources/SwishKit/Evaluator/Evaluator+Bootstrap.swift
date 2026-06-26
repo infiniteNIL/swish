@@ -39,7 +39,7 @@ extension Evaluator {
             return try loadNs(name: name, url: url)
         }
 
-        let extensions = ["clj", "cljc", "swish"]
+        let extensions = ["cljc", "clj", "swish"]
         for basePath in sourcePaths + [FileManager.default.currentDirectoryPath] {
             let base = URL(fileURLWithPath: basePath).appendingPathComponent(filePath)
             for ext in extensions {

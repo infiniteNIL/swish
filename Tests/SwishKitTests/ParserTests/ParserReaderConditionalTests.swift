@@ -37,12 +37,6 @@ struct ParserReaderConditionalTests {
         #expect(exprs == [.string("swish")])
     }
 
-    @Test("Selects :clj branch when no :swish")
-    func selectsClj() throws {
-        let exprs = try parse(#"#?(:jank "nope" :clj "yes")"#)
-        #expect(exprs == [.string("yes")])
-    }
-
     @Test("Prefers :swish over :clj")
     func prefersSwishOverClj() throws {
         let exprs = try parse(#"#?(:swish "swish" :clj "clj")"#)

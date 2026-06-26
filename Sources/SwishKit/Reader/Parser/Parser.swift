@@ -9,7 +9,7 @@ public class Parser {
     private var syntaxQuoteDepth = 0
     private var anonymousFnDepth = 0
 
-    private static let readerFeatures: Set<String> = ["swish", "clj", "default"]
+    private static let readerFeatures: Set<String> = ["swish", "default"]
 
     public init(_ lexer: Lexer) throws {
         self.lexer = lexer

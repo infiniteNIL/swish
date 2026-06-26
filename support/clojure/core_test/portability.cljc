@@ -3,8 +3,7 @@
 
 ;; Swish-specific portability shim for the Jank Clojure Test Suite.
 ;; This file shadows portability.cljc from the test suite itself.
-;; Loaded first because .clj is searched before .cljc and support/ comes
-;; first in the classpath.
+;; Loaded first because support/ comes first on the sourcepath.
 
 (defmacro when-var-exists [var-sym & body]
   (if (resolve var-sym)
