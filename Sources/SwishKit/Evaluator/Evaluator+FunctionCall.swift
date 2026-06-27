@@ -136,6 +136,56 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "macro")
             return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args[...], in: Environment())
 
+        case .map(let dict, _):
+            guard args.count == 1 || args.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "map",
+                    message: "requires 1 or 2 arguments, got \(args.count)")
+            }
+            return dict[args[0]] ?? (args.count == 2 ? args[1] : .nil)
+
+        case .record(_, _, let data, _):
+            guard args.count == 1 || args.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "record",
+                    message: "requires 1 or 2 arguments, got \(args.count)")
+            }
+            return data[args[0]] ?? (args.count == 2 ? args[1] : .nil)
+
+        case .keyword(let name):
+            guard args.count == 1 || args.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "keyword",
+                    message: "requires 1 or 2 arguments, got \(args.count)")
+            }
+            let notFound: Expr = args.count == 2 ? args[1] : .nil
+            switch args[0] {
+            case .map(let dict, _):          return dict[.keyword(name)] ?? notFound
+            case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
+            default:                         return notFound
+            }
+
+        case .vector(let elements, _):
+            guard args.count == 1, case .integer(let idx) = args[0]
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "requires one integer argument")
+            }
+            guard idx >= 0, idx < elements.count
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "index \(idx) out of bounds for vector of size \(elements.count)")
+            }
+            return elements[idx]
+
+        case .set(let elements, _):
+            guard args.count == 1
+            else {
+                throw EvaluatorError.invalidArgument(function: "set",
+                    message: "requires 1 argument, got \(args.count)")
+            }
+            return elements.contains(args[0]) ? args[0] : .nil
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }
