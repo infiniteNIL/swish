@@ -87,11 +87,11 @@ public class Evaluator {
             return .set(result, metadata: setMeta)
 
         case .symbol(let name, _):
-            if let v = try resolveQualifiedVar(name: name) {
-                return try deref(v)
-            }
             if let value = env.get(name) {
                 return value
+            }
+            if let v = try resolveQualifiedVar(name: name) {
+                return try deref(v)
             }
             if let v = resolveVar(name: name, in: currentNs()) {
                 return try deref(v)
