@@ -125,6 +125,14 @@ struct LexerSymbolTests {
         #expect(token.text == "/")
     }
 
+    @Test("Scans . as symbol")
+    func scanDotAsSymbol() throws {
+        let lexer = Lexer(".")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == ".")
+    }
+
     @Test("Scans namespaced symbol")
     func scanNamespacedSymbol() throws {
         let lexer = Lexer("clojure.core/map")

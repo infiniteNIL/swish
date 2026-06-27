@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] . is a valid symbol
 - [x] int
 - [x] :swish in reader conditionals
 - [x] prefer :cljc over :clj in reader conditonals

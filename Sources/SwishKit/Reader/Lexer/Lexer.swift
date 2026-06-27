@@ -42,6 +42,12 @@ public class Lexer {
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
+        // Handle . as a symbol (Clojure method-call special form)
+        if char == "." {
+            _ = advance()
+            return Token(type: .symbol, text: ".", line: startLine, column: startColumn)
+        }
+
         if char == "\"" {
             return try scanString(startLine: startLine, startColumn: startColumn)
         }

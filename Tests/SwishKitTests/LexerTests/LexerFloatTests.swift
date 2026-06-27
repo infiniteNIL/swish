@@ -107,13 +107,13 @@ struct LexerFloatTests {
         #expect(token.text == "1.5e10")
     }
 
-    @Test("Dot without leading digit is not a float")
+    @Test("Dot without leading digit lexes as symbol, not float")
     func dotWithoutLeadingDigitNotFloat() throws {
-        // .5 should be lexed as illegal character '.'
+        // .5 — the dot is a standalone symbol; 5 is a separate integer token
         let lexer = Lexer(".5")
-        #expect(throws: LexerError.illegalCharacter(".", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == ".")
     }
 
     @Test("Trailing dot without digit is not a float")
