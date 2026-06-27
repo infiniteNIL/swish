@@ -39,4 +39,19 @@ struct CoreApplyTests {
         let result = try swish.eval("(count (apply list {:a 1 :b 2}))")
         #expect(result == .integer(2))
     }
+
+    @Test("(apply + {}) returns 0 — empty map as spread arg")
+    func applyEmptyMapSpread() throws {
+        #expect(try swish.eval("(apply + {})") == .integer(0))
+    }
+
+    @Test("(apply + #{1 2 3}) returns 6 — set as spread arg")
+    func applySetSpread() throws {
+        #expect(try swish.eval("(apply + #{1 2 3})") == .integer(6))
+    }
+
+    @Test("map as spread arg produces pairs: (count (apply list {:a 1 :b 2})) → 2")
+    func applyMapSpreadPairCount() throws {
+        #expect(try swish.eval("(count (apply list {:a 1 :b 2}))") == .integer(2))
+    }
 }
