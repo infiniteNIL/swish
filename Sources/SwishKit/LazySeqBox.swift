@@ -41,6 +41,15 @@ public final class LazySeqBox: @unchecked Sendable {
         return .nil
     }
 
+    /// Returns true if the thunk has been forced (state is cons, empty, or error).
+    /// A box created with init(head:tail:) is always considered realized.
+    var isRealized: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if case .unrealized = state { return false }
+        return true
+    }
+
     // MARK: - Private
 
     private func realizeIfNeeded() throws {
