@@ -122,8 +122,7 @@ private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         tail = s.map { .character($0) }
 
     default:
-        throw EvaluatorError.invalidArgument(function: "apply",
-            message: "last argument must be a sequence, got \(corePrinter.printString(lastArg))")
+        tail = try seqOf(lastArg, function: "apply")
     }
     let allArgs = Array(args.dropFirst().dropLast()) + tail
     return try evaluator.call(f, args: allArgs)
