@@ -17,6 +17,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] realized?
+- [x] fix apply on lazy seq.
+- [x] fix conj on lazy seq.
 - [x] . is a valid symbol
 - [x] int
 - [x] :swish in reader conditionals

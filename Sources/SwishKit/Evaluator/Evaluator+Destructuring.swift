@@ -64,7 +64,8 @@ extension Evaluator {
             guard !elements.isEmpty else { return expr }
             if case .symbol(let head, _) = elements[0] {
                 if head == "unquote" || head == "unquote-splicing" {
-                    return expr  // Leave runtime-evaluated forms untouched
+                    guard elements.count == 2 else { return expr }
+                    return .list([elements[0], preExpandSyntaxQuotesInExpr(elements[1])], metadata: meta)
                 }
                 if head == "syntax-quote" {
                     return expr  // Nested syntax-quote — Fix B would handle depth; skip for now
