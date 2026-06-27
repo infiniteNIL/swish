@@ -161,17 +161,20 @@ extension Evaluator {
         return try body(args)
     }
 
-    func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr], in env: Environment) throws -> Expr {
+    func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr],
+                          in env: Environment, rest: Expr? = nil) throws -> Expr {
         guard callDepth < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
         }
         callDepth += 1
         defer { callDepth -= 1 }
         var currentArgs = args
+        var currentRest = rest
         while true {
             if interruptionCheck?() == true { throw EvaluatorError.interrupted }
             let fnEnv = Environment(parent: env)
-            try bindParams(params, to: currentArgs, in: fnEnv, name: name ?? "fn")
+            try bindParams(params, to: currentArgs, in: fnEnv, name: name ?? "fn",
+                           prebuiltRest: currentRest)
             if let fnName = name {
                 fnEnv.set(fnName, .function(name: name, params: params, body: body,
                                             capturedEnv: env, metadata: nil))
@@ -180,7 +183,27 @@ extension Evaluator {
                 return try evalBody(body, in: fnEnv)
             } catch let signal as RecurSignal {
                 currentArgs = signal.args
+                currentRest = nil
             }
+        }
+    }
+
+    /// Calls callee with pre-evaluated args and a pre-built lazy rest binding.
+    /// `rest` is bound directly to the `& rest` parameter without wrapping in a list.
+    /// Used by `apply` when the spread argument is a lazy seq that must not be forced.
+    public func call(_ callee: Expr, args: [Expr], rest: Expr) throws -> Expr {
+        switch callee {
+        case .function(let name, let params, let body, let capturedEnv, _):
+            return try callUserFunction(name: name, params: params, body: body,
+                                        args: args, in: capturedEnv ?? Environment(), rest: rest)
+
+        case .multiArityFunction(let name, let arities, let capturedEnv, _):
+            let chosen = try selectArity(from: arities, argCount: args.count + 1, name: name ?? "fn")
+            return try callUserFunction(name: name, params: chosen.params, body: chosen.body,
+                                        args: args, in: capturedEnv ?? Environment(), rest: rest)
+            
+        default:
+            throw EvaluatorError.notAFunction(callee)
         }
     }
 
@@ -226,7 +249,8 @@ extension Evaluator {
         return result
     }
 
-    func bindParams(_ params: [String], to args: [Expr], in env: Environment, name: String) throws {
+    func bindParams(_ params: [String], to args: [Expr], in env: Environment, name: String,
+                    prebuiltRest: Expr? = nil) throws {
         if let ampIdx = params.firstIndex(of: "&") {
             let fixedParams = Array(params[..<ampIdx])
             let restParam = params[ampIdx + 1]
@@ -238,8 +262,12 @@ extension Evaluator {
             for (param, arg) in zip(fixedParams, args) {
                 env.set(param, arg)
             }
-            let restArgs = Array(args.dropFirst(fixedParams.count))
-            env.set(restParam, restArgs.isEmpty ? .nil : .list(restArgs, metadata: nil))
+            if let rest = prebuiltRest {
+                env.set(restParam, rest)
+            } else {
+                let restArgs = Array(args.dropFirst(fixedParams.count))
+                env.set(restParam, restArgs.isEmpty ? .nil : .list(restArgs, metadata: nil))
+            }
         }
         else {
             guard args.count == params.count

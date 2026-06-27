@@ -55,6 +55,22 @@ func seqOf(_ expr: Expr, function name: String) throws -> [Expr] {
     return elems
 }
 
+private func variadicFixedCount(_ f: Expr) -> Int? {
+    switch f {
+    case .function(_, let params, _, _, _):
+        return params.firstIndex(of: "&")
+
+    case .multiArityFunction(_, let arities, _, _):
+        for a in arities {
+            if let i = a.params.firstIndex(of: "&") { return i }
+        }
+        return nil
+        
+    default:
+        return nil
+    }
+}
+
 private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard args.count >= 2 else {
         throw EvaluatorError.invalidArgument(function: "apply", message: "requires at least 2 args")
@@ -73,6 +89,33 @@ private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         tail = []
 
     case .lazySeq:
+        let middle = Array(args.dropFirst().dropLast())
+        if let fixedCount = variadicFixedCount(f) {
+            // Realize only the elements needed for the function's fixed params,
+            // then pass the remaining lazy tail as the & rest binding directly.
+            let needed = max(0, fixedCount - middle.count)
+            var realized: [Expr] = []
+            var remaining: Expr = lastArg
+            for _ in 0..<needed {
+                if case .lazySeq(let box) = remaining {
+                    if let head = try box.forceHead() {
+                        realized.append(head)
+                        remaining = try box.forceTail()
+                    } else {
+                        remaining = .nil  // seq exhausted before filling fixed params
+                        break
+                    }
+                } else {
+                    break  // remaining became a list or nil after forcing tail
+                }
+            }
+            let allArgs = middle + realized
+            if case .nil = remaining {
+                return try evaluator.call(f, args: allArgs)
+            } else {
+                return try evaluator.call(f, args: allArgs, rest: remaining)
+            }
+        }
         tail = try seqOf(lastArg, function: "apply")
 
     case .string(let s):
