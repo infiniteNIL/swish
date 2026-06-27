@@ -5,13 +5,22 @@ public struct Ratio: Equatable, Hashable, Sendable {
 
     public init(_ numerator: Int, _ denominator: Int) {
         precondition(denominator != 0, "Ratio denominator cannot be zero")
-        let g = Self.gcd(abs(numerator), abs(denominator))
+        let absN = Self.magnitude(numerator)
+        let absD = Self.magnitude(denominator)
+        let g = Self.gcd(absN, absD)
         let sign = denominator < 0 ? -1 : 1
-        self.numerator = sign * numerator / g
-        self.denominator = abs(denominator) / g
+        self.numerator = sign * (numerator / Int(g))
+        self.denominator = Int(absD / g)
     }
 
-    private static func gcd(_ a: Int, _ b: Int) -> Int {
+    // Returns the absolute value as UInt, safe even for Int.min.
+    private static func magnitude(_ x: Int) -> UInt {
+        if x >= 0 { return UInt(x) }
+        if x == .min { return UInt(bitPattern: Int.min) }
+        return UInt(-x)
+    }
+
+    private static func gcd(_ a: UInt, _ b: UInt) -> UInt {
         var a = a, b = b
         while b != 0 { (a, b) = (b, a % b) }
         return a == 0 ? 1 : a

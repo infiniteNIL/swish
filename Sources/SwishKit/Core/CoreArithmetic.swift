@@ -186,10 +186,18 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.bigDecimal(let x), .bigDecimal(let y)): return .bigDecimals(x, y)
     case (.bigDecimal(let x), .integer(let y)):    return .bigDecimals(x, BigDecimal(integerValue: BigInt(y), scale: 0))
     case (.integer(let x),    .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x), scale: 0), y)
-    case (.bigDecimal(let x), .float(let y)):      return .bigDecimals(x, BigDecimal(floatLiteral: y))
-    case (.float(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(floatLiteral: x), y)
+    case (.bigDecimal(let x), .float(let y)):
+        guard !y.isNaN && !y.isInfinite else { return .floats(Double(x.description) ?? 0.0, y) }
+        return .bigDecimals(x, BigDecimal(floatLiteral: y))
+
+    case (.float(let x), .bigDecimal(let y)):
+        guard !x.isNaN && !x.isInfinite else { return .floats(x, Double(y.description) ?? 0.0) }
+        return .bigDecimals(BigDecimal(floatLiteral: x), y)
+
     case (.bigDecimal(let x), .ratio(let y)):      return .bigDecimals(x, BigDecimal(integerValue: BigInt(y.numerator), scale: 0) / BigDecimal(integerValue: BigInt(y.denominator), scale: 0))
+
     case (.ratio(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x.numerator), scale: 0) / BigDecimal(integerValue: BigInt(x.denominator), scale: 0), y)
+
     case (.bigDecimal(let x), .bigInteger(let y)): return .bigDecimals(x, BigDecimal(integerValue: y, scale: 0))
     case (.bigInteger(let x), .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: x, scale: 0), y)
 
