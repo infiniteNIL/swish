@@ -38,82 +38,12 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
             return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: capturedEnv ?? env)
 
-        case .map(let dict, _):
-            return try callMap(dict, args: args, in: env)
-
-        case .keyword(let name):
-            return try callKeyword(name, args: args, in: env)
-
-        case .vector(let elements, _):
-            return try callVector(elements, args: args, in: env)
-
-        case .set(let elements, _):
-            return try callSet(elements, args: args, in: env)
-
-        case .record(_, _, let data, _):
-            return try callMap(data, args: args, in: env)
+        case .map, .keyword, .vector, .set, .record:
+            return try call(callee, args: evalArgs(args, in: env))
 
         default:
             throw EvaluatorError.notAFunction(callee)
         }
-    }
-
-    private func evalLookupArgs(_ args: ArraySlice<Expr>, function: String, in env: Environment) throws -> (key: Expr, notFound: Expr) {
-        let evaluated = try args.map { try eval($0, in: env) }
-        guard evaluated.count == 1 || evaluated.count == 2 else {
-            throw EvaluatorError.invalidArgument(function: function,
-                message: "requires 1 or 2 arguments, got \(evaluated.count)")
-        }
-        return (evaluated[0], evaluated.count == 2 ? evaluated[1] : .nil)
-    }
-
-    private func callMap(_ dict: [Expr: Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let (key, notFound) = try evalLookupArgs(args, function: "map", in: env)
-        return dict[key] ?? notFound
-    }
-
-    private func callKeyword(_ name: String, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let (key, notFound) = try evalLookupArgs(args, function: "keyword", in: env)
-        switch key {
-        case .map(let dict, _):            return dict[.keyword(name)] ?? notFound
-        case .record(_, _, let data, _):   return data[.keyword(name)] ?? notFound
-        case .set(let elements, _):        return elements.contains(.keyword(name)) ? .keyword(name) : notFound
-        default:                           return notFound
-        }
-    }
-
-    private func callVector(_ elements: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let evaluated = try args.map { try eval($0, in: env) }
-        guard evaluated.count == 1
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "vector",
-                message: "requires 1 argument, got \(evaluated.count)")
-        }
-        guard case .integer(let idx) = evaluated[0]
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "vector",
-                message: "index must be an integer")
-        }
-        guard idx >= 0, idx < elements.count
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "vector",
-                message: "index \(idx) out of bounds for vector of size \(elements.count)")
-        }
-        return elements[idx]
-    }
-
-    private func callSet(_ set: Set<Expr>, args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        let evaluated = try args.map { try eval($0, in: env) }
-        guard evaluated.count == 1
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "set",
-                message: "requires 1 argument, got \(evaluated.count)")
-        }
-        return set.contains(evaluated[0]) ? evaluated[0] : .nil
     }
 
     /// Calls an already-evaluated callee with already-evaluated args. Used by HOFs and meta functions.
@@ -168,10 +98,15 @@ extension Evaluator {
             }
 
         case .vector(let elements, _):
-            guard args.count == 1, case .integer(let idx) = args[0]
+            guard args.count == 1
             else {
                 throw EvaluatorError.invalidArgument(function: "vector",
-                    message: "requires one integer argument")
+                    message: "requires 1 argument, got \(args.count)")
+            }
+            guard case .integer(let idx) = args[0]
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "index must be an integer")
             }
             guard idx >= 0, idx < elements.count
             else {
