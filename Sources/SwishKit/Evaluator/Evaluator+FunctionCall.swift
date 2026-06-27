@@ -77,6 +77,7 @@ extension Evaluator {
         switch key {
         case .map(let dict, _):            return dict[.keyword(name)] ?? notFound
         case .record(_, _, let data, _):   return data[.keyword(name)] ?? notFound
+        case .set(let elements, _):        return elements.contains(.keyword(name)) ? .keyword(name) : notFound
         default:                           return notFound
         }
     }
@@ -162,6 +163,7 @@ extension Evaluator {
             switch args[0] {
             case .map(let dict, _):          return dict[.keyword(name)] ?? notFound
             case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
+            case .set(let elements, _):      return elements.contains(.keyword(name)) ? .keyword(name) : notFound
             default:                         return notFound
             }
 
