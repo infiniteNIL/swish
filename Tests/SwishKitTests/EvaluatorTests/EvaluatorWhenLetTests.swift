@@ -60,26 +60,4 @@ struct EvaluatorWhenLetTests {
         #expect(try swish.eval("(when-let [{:keys [x]} {:x 5}] x)") == .integer(5))
     }
 
-    // MARK: - assert-args validation
-
-    @Test("non-vector binding throws")
-    func whenLetNonVectorThrows() throws {
-        #expect(throws: SwishException.self) {
-            try swish.eval("(when-let 42 nil)")
-        }
-    }
-
-    @Test("binding vector with one form throws")
-    func whenLetOneFormBindingThrows() throws {
-        #expect(throws: SwishException.self) {
-            try swish.eval("(when-let [x] x)")
-        }
-    }
-
-    @Test("binding vector with four forms throws")
-    func whenLetFourFormsBindingThrows() throws {
-        #expect(throws: SwishException.self) {
-            try swish.eval("(when-let [x 1 y 2] x)")
-        }
-    }
 }

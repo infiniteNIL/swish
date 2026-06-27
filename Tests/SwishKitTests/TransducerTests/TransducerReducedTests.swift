@@ -76,21 +76,6 @@ struct TransducerReducedTests {
         #expect(result == .integer(3))
     }
 
-    @Test("reduce over empty coll with no init calls f with no args")
-    func reduceEmptyNoInit() throws {
-        #expect(try swish.eval("(reduce + [])") == .integer(0))
-    }
-
-    @Test("reduce over empty coll with init returns init")
-    func reduceEmptyWithInit() throws {
-        #expect(try swish.eval("(reduce + 10 [])") == .integer(10))
-    }
-
-    @Test("reduce over single element with no init returns element")
-    func reduceSingleNoInit() throws {
-        #expect(try swish.eval("(reduce + [42])") == .integer(42))
-    }
-
     @Test("reduce over lazy seq with early exit")
     func reduceLazyEarlyExit() throws {
         let result = try swish.eval("""

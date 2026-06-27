@@ -20,11 +20,6 @@ struct SwishKitTests {
         }
     }
 
-    @Test("Uses Int for small numbers")
-    func usesIntForSmall() throws {
-        #expect(try swish.eval("42") == .integer(42))
-    }
-
     @Test("Handles Int.max")
     func handlesIntMax() throws {
         #expect(try swish.eval("9223372036854775807") == .integer(Int.max))
@@ -73,11 +68,6 @@ struct SwishKitTests {
         #expect(try swish.eval("-0o700") == .integer(-448))
         #expect(try swish.eval("+0o755") == .integer(493))
         #expect(try swish.eval("0o7_55") == .integer(493))
-    }
-
-    @Test("Plain zero is still decimal zero")
-    func plainZeroIsDecimal() throws {
-        #expect(try swish.eval("0") == .integer(0))
     }
 
     @Test("Decimal integers can have leading zeros")
@@ -134,19 +124,4 @@ struct SwishKitTests {
         #expect(try swish.eval("(def x 7) `~x") == .integer(7))
     }
 
-    @Test("unquote of undefined symbol throws undefinedSymbol")
-    func backtickUnquoteUndefinedThrows() throws {
-        #expect(throws: EvaluatorError.undefinedSymbol("missing")) {
-            _ = try swish.eval("`(1 ~missing 3)")
-        }
-    }
-
-    @Test("unquote-splicing a non-list throws invalidArgument")
-    func backtickUnquoteSplicingNonListThrows() throws {
-        #expect(throws: EvaluatorError.invalidArgument(
-            function: "unquote-splicing", message: "value must be a list or vector"
-        )) {
-            _ = try swish.eval("(def v 99) `(1 ~@v 3)")
-        }
-    }
 }

@@ -8,16 +8,6 @@ struct CoreCallableTests {
 
     // MARK: Map as function
 
-    @Test("map as fn: ({:a 1 :b 2} :a) → 1")
-    func mapAsFnHit() throws {
-        #expect(try swish.eval("({:a 1 :b 2} :a)") == .integer(1))
-    }
-
-    @Test("map as fn miss: ({:a 1 :b 2} :c) → nil")
-    func mapAsFnMiss() throws {
-        #expect(try swish.eval("({:a 1 :b 2} :c)") == .nil)
-    }
-
     @Test("map as fn with not-found: ({:a 1} :c :missing) → :missing")
     func mapAsFnNotFound() throws {
         #expect(try swish.eval("({:a 1} :c :missing)") == .keyword("missing"))

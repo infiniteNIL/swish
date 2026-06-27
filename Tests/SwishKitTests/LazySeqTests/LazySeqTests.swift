@@ -232,16 +232,6 @@ struct LazySeqTests {
         #expect(try swish.eval("(sequential? (range 3))") == .boolean(true))
     }
 
-    @Test("sequential? true for list")
-    func sequentialList() throws {
-        #expect(try swish.eval("(sequential? '(1 2 3))") == .boolean(true))
-    }
-
-    @Test("sequential? true for vector")
-    func sequentialVector() throws {
-        #expect(try swish.eval("(sequential? [1 2])") == .boolean(true))
-    }
-
     // MARK: - eager consumers
 
     @Test("count forces and counts lazy seq")

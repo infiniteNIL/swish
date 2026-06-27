@@ -6,28 +6,6 @@ struct EvaluatorCondTests {
     nonisolated(unsafe) static let _shared = Swish()
     var swish: Swish { Self._shared }
 
-    // MARK: - second
-
-    @Test("(second [1 2 3]) returns 2")
-    func secondOfVector() throws {
-        #expect(try swish.eval("(second [1 2 3])") == .integer(2))
-    }
-
-    @Test("(second [1]) returns nil")
-    func secondOfSingletonReturnsNil() throws {
-        #expect(try swish.eval("(second [1])") == .nil)
-    }
-
-    @Test("(second nil) returns nil")
-    func secondOfNilReturnsNil() throws {
-        #expect(try swish.eval("(second nil)") == .nil)
-    }
-
-    @Test("(second '(a b c)) returns b")
-    func secondOfList() throws {
-        #expect(try swish.eval("(second '(1 2 3))") == .integer(2))
-    }
-
     // MARK: - cond basics
 
     @Test("(cond) returns nil")

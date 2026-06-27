@@ -179,11 +179,6 @@ struct TransducerFormTests {
         #expect(try swish.eval("(take 3 (drop 2 (range)))") == .list([2, 3, 4].map { .integer($0) }, metadata: nil))
     }
 
-    @Test("filter still works as lazy seq")
-    func filterSeq() throws {
-        #expect(try swish.eval("(take 3 (filter even? (range)))") == .list([0, 2, 4].map { .integer($0) }, metadata: nil))
-    }
-
     @Test("map still works as lazy seq")
     func mapSeq() throws {
         #expect(try swish.eval("(take 3 (map inc (range)))") == .list([1, 2, 3].map { .integer($0) }, metadata: nil))

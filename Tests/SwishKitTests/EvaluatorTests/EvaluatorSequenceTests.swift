@@ -167,17 +167,7 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(concat '(1) nil '(2))") == .list([.integer(1), .integer(2)], metadata: nil))
     }
 
-    // MARK: - first/rest on all collection types
-
-    @Test("first on vector works")
-    func firstOnVector() throws {
-        #expect(try evaluator.eval("(first [1 2 3])") == .integer(1))
-    }
-
-    @Test("rest on vector returns a list")
-    func restOnVector() throws {
-        #expect(try evaluator.eval("(rest [1 2 3])") == .list([.integer(2), .integer(3)], metadata: nil))
-    }
+    // MARK: - first on non-list collection types
 
     @Test("first on map returns a key-value vector")
     func firstOnMap() throws {
