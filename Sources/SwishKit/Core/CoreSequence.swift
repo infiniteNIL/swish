@@ -298,8 +298,7 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         return .set(elems, metadata: meta)
 
     case .lazySeq:
-        let elems = try seqOf(coll, function: "conj")
-        return .list([item] + elems, metadata: nil)
+        return .lazySeq(LazySeqBox(head: item, tail: coll))
 
     default:
         throw EvaluatorError.invalidArgument(function: "conj",
