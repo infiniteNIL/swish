@@ -304,4 +304,39 @@ struct CoreComparisonTests {
     func compareSymbolsEqual() throws {
         #expect(try swish.eval("(compare 'cat 'cat)") == .integer(0))
     }
+
+    // MARK: - compare vectors
+
+    @Test("(compare [1] [2]) is negative")
+    func compareVectorsLess() throws {
+        let result = try swish.eval("(compare [1] [2])")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n < 0)
+    }
+
+    @Test("(compare [2] [1]) is positive")
+    func compareVectorsGreater() throws {
+        let result = try swish.eval("(compare [2] [1])")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n > 0)
+    }
+
+    @Test("(compare [1] [1]) is zero")
+    func compareVectorsEqual() throws {
+        #expect(try swish.eval("(compare [1] [1])") == .integer(0))
+    }
+
+    @Test("(compare [1 2] [1]) is positive (longer wins on prefix tie)")
+    func compareVectorsLongerGreater() throws {
+        let result = try swish.eval("(compare [1 2] [1])")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n > 0)
+    }
+
+    @Test("(compare [1] [1 2]) is negative (shorter loses on prefix tie)")
+    func compareVectorsShorterLess() throws {
+        let result = try swish.eval("(compare [1] [1 2])")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n < 0)
+    }
 }
