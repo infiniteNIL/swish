@@ -363,11 +363,12 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         return .boolean((try? sortedSetContains(elements, key)) ?? elements.contains(key))
 
     case .vector(let elements, _):
-        guard case .integer(let idx) = key else {
-            throw EvaluatorError.invalidArgument(function: "contains?",
-                message: "key for vector must be an integer")
-        }
+        guard case .integer(let idx) = key else { return .boolean(false) }
         return .boolean(idx >= 0 && idx < elements.count)
+
+    case .string(let s):
+        guard case .integer(let idx) = key else { return .boolean(false) }
+        return .boolean(idx >= 0 && idx < s.count)
 
     default:
         throw EvaluatorError.invalidArgument(function: "contains?",
