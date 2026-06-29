@@ -28,6 +28,14 @@ func registerComparison(into evaluator: Evaluator) {
         doc: "Comparator. Returns a negative number, zero, or a positive number when x is logically 'less than', 'equal to', or 'greater than' y.",
         arglists: [["x", "y"]],
         body: coreCompare)
+    evaluator.register(name: "identical?", arity: .fixed(2),
+        doc: "Tests if 2 arguments are the same object.",
+        arglists: [["x", "y"]]) { args in
+        if case .atom(let a) = args[0], case .atom(let b) = args[1] {
+            return .boolean(a === b)
+        }
+        return .boolean(args[0] == args[1])
+    }
 }
 
 // MARK: - Implementations
