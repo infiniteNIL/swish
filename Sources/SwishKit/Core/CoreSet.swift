@@ -22,9 +22,19 @@ func registerSet(into evaluator: Evaluator) {
             }
             return .sortedSet(result, metadata: meta)
 
+        case .nil:
+            return .nil
+
         default:
             throw EvaluatorError.invalidArgument(function: "disj", message: "first argument must be a set")
         }
+    }
+
+    evaluator.register(name: "sorted?", arity: .fixed(1),
+        doc: "Returns true if coll implements Sorted.",
+        arglists: [["coll"]]) { args in
+        if case .sortedSet = args[0] { return .boolean(true) }
+        return .boolean(false)
     }
 
     evaluator.register(name: "sorted-set", arity: .variadic,
