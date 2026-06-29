@@ -16,6 +16,8 @@ extension Lexer {
             case "n":  self.advance(); return "\n"
             case "t":  self.advance(); return "\t"
             case "r":  self.advance(); return "\r"
+            case "b":  self.advance(); return "\u{08}"
+            case "f":  self.advance(); return "\u{0C}"
             case "0":  self.advance(); return "\0"
             case "u":  return String(try self.scanUnicodeEscapeFromStream(startLine: startLine, startColumn: startColumn))
             default:   throw LexerError.invalidEscapeSequence(char: ch, line: self.line, column: self.column)

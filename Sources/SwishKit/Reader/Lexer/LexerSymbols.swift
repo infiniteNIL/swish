@@ -85,6 +85,21 @@ extension Lexer {
         if char.isWhitespace {
             throw LexerError.invalidKeyword("whitespace after ':'", line: startLine, column: startColumn)
         }
+
+        // Special single-char keywords: :/ and :. (with possible continuation)
+        if char == "/" {
+            _ = advance()
+            return Token(type: .keyword, text: "/", line: startLine, column: startColumn)
+        }
+        if char == "." {
+            _ = advance()
+            var text = "."
+            while let c = peek(), isSymbolContinuation(c) || c == "." {
+                text.append(advance())
+            }
+            return Token(type: .keyword, text: text, line: startLine, column: startColumn)
+        }
+
         if !isSymbolStart(char) && !char.isNumber {
             throw LexerError.invalidKeyword("invalid character '\(char)' after ':'", line: startLine, column: startColumn)
         }

@@ -42,9 +42,19 @@ public class Lexer {
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
-        // Handle . as a symbol (Clojure method-call special form)
+        // Handle . as a symbol (Clojure method-call special form or .method name).
+        // Only extend past the dot if the next char is a non-digit symbol start
+        // (so .5 lexes as "." + 5, not ".5").
         if char == "." {
             _ = advance()
+            if let c = peek(), isSymbolStart(c) {
+                var text = "."
+                text.append(advance())
+                while let c = peek(), isSymbolContinuation(c) || c == "." {
+                    text.append(advance())
+                }
+                return Token(type: .symbol, text: text, line: startLine, column: startColumn)
+            }
             return Token(type: .symbol, text: ".", line: startLine, column: startColumn)
         }
 
@@ -263,7 +273,7 @@ public class Lexer {
             return true
         }
         switch char {
-        case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&", "%":
+        case "*", "+", "!", "-", "_", "?", "<", ">", "=", "&", "%", "$":
             return true
 
         default:
@@ -272,6 +282,6 @@ public class Lexer {
     }
 
     func isSymbolContinuation(_ char: Character) -> Bool {
-        isSymbolStart(char) || char.isNumber || char == "'" || char == "#"
+        isSymbolStart(char) || char.isNumber || char == "'" || char == "#" || char == ":"
     }
 }
