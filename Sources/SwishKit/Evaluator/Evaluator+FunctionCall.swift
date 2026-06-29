@@ -38,7 +38,7 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
             return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: capturedEnv ?? env)
 
-        case .map, .keyword, .vector, .set, .record:
+        case .map, .sortedMap, .keyword, .vector, .set, .record:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -67,7 +67,7 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "macro")
             return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args[...], in: Environment())
 
-        case .map(let dict, _):
+        case .map(let dict, _), .sortedMap(let dict, _):
             guard args.count == 1 || args.count == 2
             else {
                 throw EvaluatorError.invalidArgument(function: "map",

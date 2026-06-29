@@ -33,7 +33,7 @@ func registerMap(into evaluator: Evaluator) {
         body: coreVals)
     evaluator.register(name: "map?", arity: .fixed(1), doc: "Return true if x implements IPersistentMap", arglists: [["x"]]) { args in
         switch args[0] {
-        case .map, .record: return .boolean(true)
+        case .map, .sortedMap, .record: return .boolean(true)
         default: return .boolean(false)
         }
     }
@@ -44,7 +44,7 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         guard let value = dict[args[1]] else { return .nil }
         return .vector([args[1], value], metadata: nil)
 
@@ -85,7 +85,7 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     var current = args[0]
     for key in keys {
         switch current {
-        case .map(let dict, _):
+        case .map(let dict, _), .sortedMap(let dict, _):
             guard let value = dict[key] else { return notFound }
             current = value
 
@@ -119,6 +119,12 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
         }
         return .map(dict, metadata: nil)
 
+    case .sortedMap(var dict, _):
+        for key in args.dropFirst() {
+            dict.removeValue(forKey: key)
+        }
+        return .sortedMap(dict, metadata: nil)
+
     case .record(let typeName, let fields, var data, _):
         var removedBaseField = false
         for key in args.dropFirst() {
@@ -140,7 +146,7 @@ private func coreKeys(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         let keys = Array(dict.keys)
         return keys.isEmpty ? .nil : .list(keys, metadata: nil)
 
@@ -160,7 +166,7 @@ private func coreVals(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         let vals = Array(dict.values)
         return vals.isEmpty ? .nil : .list(vals, metadata: nil)
 
@@ -180,7 +186,7 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
     var hadMapArg = false
     for arg in args {
         switch arg {
-        case .map(let d, _):
+        case .map(let d, _), .sortedMap(let d, _):
             hadMapArg = true
             for (k, v) in d { result[k] = v }
 
@@ -203,10 +209,15 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
             message: "requires a map and an even number of key/value pairs")
     }
 
+    var isSortedMap = false
     var dict: [Expr: Expr]
     switch args[0] {
     case .map(let d, _):
         dict = d
+
+    case .sortedMap(let d, _):
+        dict = d
+        isSortedMap = true
 
     case .nil:
         dict = [:]
@@ -254,7 +265,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         dict[args[i]] = args[i + 1]
         i += 2
     }
-    return .map(dict, metadata: nil)
+    return isSortedMap ? .sortedMap(dict, metadata: nil) : .map(dict, metadata: nil)
 }
 
 private func coreGet(_ args: [Expr]) throws -> Expr {
@@ -270,7 +281,7 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
     case .nil:
         return notFound
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         return dict[args[1]] ?? notFound
 
     case .record(_, _, let data, _):

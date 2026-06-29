@@ -62,7 +62,7 @@ public struct Printer {
         case .keyword(let name):
             ":\(name)"
 
-        case .list, .vector, .map, .set, .sortedSet:
+        case .list, .vector, .map, .sortedMap, .set, .sortedSet:
             formatCollection(expr, transform: printString, includeMeta: true) ?? ""
 
         case .function(let name, _, _, _, let meta):
@@ -142,7 +142,7 @@ public struct Printer {
         case .character(let char):
             String(char)
 
-        case .list, .vector, .map, .set, .sortedSet:
+        case .list, .vector, .map, .sortedMap, .set, .sortedSet:
             formatCollection(expr, transform: strString, includeMeta: true) ?? ""
 
         case .lazySeq(let box):
@@ -166,7 +166,7 @@ public struct Printer {
         case .float(let value):
             String(value)
 
-        case .list, .vector, .map, .set, .sortedSet:
+        case .list, .vector, .map, .sortedMap, .set, .sortedSet:
             formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
 
         case .lazySeq(let box):
@@ -200,6 +200,11 @@ public struct Printer {
         case .sortedSet(let elements, let meta):
             let body = elements.map(transform).joined(separator: " ")
             return (includeMeta ? metaPrefix(meta) : "") + (elements.isEmpty ? "#{}" : "#{\(body)}")
+
+        case .sortedMap(let dict, let meta):
+            let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
+            let pairs = sortedKeys.flatMap { [transform($0), transform(dict[$0]!)] }.joined(separator: " ")
+            return (includeMeta ? metaPrefix(meta) : "") + (dict.isEmpty ? "{}" : "{\(pairs)}")
 
         default:
             return nil

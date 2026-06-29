@@ -134,6 +134,10 @@ func asSequence(_ expr: Expr) -> [Expr]? {
     case .map(let dict, _):
         return dict.map { .vector([$0.key, $0.value], metadata: nil) }
 
+    case .sortedMap(let dict, _):
+        let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
+        return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
+
     case .set(let elements, _):
         return Array(elements)
 
@@ -223,7 +227,7 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .vector(let elements, _):
         return .integer(elements.count)
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         return .integer(dict.count)
 
     case .set(let elements, _):
@@ -313,6 +317,24 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         dict[entry[0]] = entry[1]
         return .map(dict, metadata: meta)
 
+    case .sortedMap(var dict, let meta):
+        if case .nil = item { return coll }
+        if case .sortedMap(let other, _) = item {
+            for (k, v) in other { dict[k] = v }
+            return .sortedMap(dict, metadata: meta)
+        }
+        if case .map(let other, _) = item {
+            for (k, v) in other { dict[k] = v }
+            return .sortedMap(dict, metadata: meta)
+        }
+        guard case .vector(let entry, _) = item, entry.count == 2
+        else {
+            throw EvaluatorError.invalidArgument(function: "conj",
+                message: "map conj requires a [key val] vector")
+        }
+        dict[entry[0]] = entry[1]
+        return .sortedMap(dict, metadata: meta)
+
     case .set(var elems, let meta):
         elems.insert(item)
         return .set(elems, metadata: meta)
@@ -353,7 +375,7 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .boolean(false)
 
-    case .map(let dict, _):
+    case .map(let dict, _), .sortedMap(let dict, _):
         return .boolean(dict[key] != nil)
 
     case .set(let elements, _):

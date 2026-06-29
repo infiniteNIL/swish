@@ -38,6 +38,7 @@ public indirect enum Expr: Sendable {
     case map([Expr: Expr], metadata: [Expr: Expr]?)
     case set(Set<Expr>, metadata: [Expr: Expr]?)
     case sortedSet([Expr], metadata: [Expr: Expr]?)
+    case sortedMap([Expr: Expr], metadata: [Expr: Expr]?)
     case function(name: String?, params: [String], body: [Expr], capturedEnv: Environment?, metadata: [Expr: Expr]?)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case multiArityFunction(name: String?, arities: [FnArity], capturedEnv: Environment?, metadata: [Expr: Expr]?)
@@ -131,6 +132,15 @@ extension Expr: Equatable {
 
         case (.set(let a, _), .sortedSet(let b, _)):
             return a == Set(b)
+
+        case (.sortedMap(let a, _), .sortedMap(let b, _)):
+            return a == b
+
+        case (.sortedMap(let a, _), .map(let b, _)):
+            return a == b
+
+        case (.map(let a, _), .sortedMap(let b, _)):
+            return a == b
 
         case (.function(let n1, let p1, let b1, _, _), .function(let n2, let p2, let b2, _, _)):
             return n1 == n2 && p1 == p2 && b1 == b2
@@ -242,109 +252,152 @@ extension Expr: Equatable {
     }
 }
 
+// MARK: - Hash discriminants
+
+/// Named type discriminants for Expr.hash(into:).
+/// Sorted/unsorted variants that are value-equal share the same discriminant
+/// so their hashes are compatible (required by Swift's Hashable contract).
+private enum ExprHash {
+    static let integer            = 0
+    static let float              = 1
+    static let ratio              = 2
+    static let string             = 3
+    static let character          = 4
+    static let boolean            = 5
+    static let `nil`              = 6
+    static let symbol             = 7
+    static let keyword            = 8
+    static let list               = 9
+    static let vector             = 10
+    static let map                = 11  // sortedMap shares this for cross-type equality
+    static let set                = 12  // sortedSet shares this for cross-type equality
+    static let function           = 13
+    static let macro              = 14
+    static let multiArityFunction = 15
+    static let multiArityMacro    = 16
+    static let nativeFunction     = 17
+    static let varRef             = 18
+    static let namespace          = 19
+    static let atom               = 20
+    static let transient          = 21
+    static let lazySeq            = 22
+    static let reduced            = 23
+    static let regex              = 24
+    static let reader             = 25
+    static let writer             = 26
+    static let bigInteger         = 27
+    static let bigDecimal         = 28
+    static let record             = 29
+    static let inst               = 30
+    static let uuid               = 31
+}
+
 extension Expr: Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .integer(let v):
-            hasher.combine(0);  hasher.combine(v)
+            hasher.combine(ExprHash.integer);   hasher.combine(v)
 
         case .float(let v):
-            hasher.combine(1);  hasher.combine(v)
+            hasher.combine(ExprHash.float);     hasher.combine(v)
 
         case .ratio(let v):
-            hasher.combine(2);  hasher.combine(v)
+            hasher.combine(ExprHash.ratio);     hasher.combine(v)
 
         case .string(let v):
-            hasher.combine(3);  hasher.combine(v)
+            hasher.combine(ExprHash.string);    hasher.combine(v)
 
         case .character(let v):
-            hasher.combine(4);  hasher.combine(v)
+            hasher.combine(ExprHash.character); hasher.combine(v)
 
         case .boolean(let v):
-            hasher.combine(5);  hasher.combine(v)
+            hasher.combine(ExprHash.boolean);   hasher.combine(v)
 
         case .nil:
-            hasher.combine(6)
+            hasher.combine(ExprHash.nil)
 
         case .symbol(let v, _):
-            hasher.combine(7);  hasher.combine(v)
+            hasher.combine(ExprHash.symbol);    hasher.combine(v)
 
         case .keyword(let v):
-            hasher.combine(8);  hasher.combine(v)
+            hasher.combine(ExprHash.keyword);   hasher.combine(v)
 
         case .list(let v, _):
-            hasher.combine(9);  hasher.combine(v)
+            hasher.combine(ExprHash.list);      hasher.combine(v)
 
         case .vector(let v, _):
-            hasher.combine(10); hasher.combine(v)
+            hasher.combine(ExprHash.vector);    hasher.combine(v)
 
         case .map(let v, _):
-            hasher.combine(11); hasher.combine(v)
+            hasher.combine(ExprHash.map);       hasher.combine(v)
+
+        case .sortedMap(let v, _):
+            hasher.combine(ExprHash.map);       hasher.combine(v)
 
         case .set(let v, _):
-            hasher.combine(12); hasher.combine(v)
+            hasher.combine(ExprHash.set);       hasher.combine(v)
 
         case .sortedSet(let v, _):
-            hasher.combine(12); hasher.combine(Set(v))
+            hasher.combine(ExprHash.set);       hasher.combine(Set(v))
 
         case .function(let n, let p, let b, _, _):
-            hasher.combine(13); hasher.combine(n); hasher.combine(p); hasher.combine(b)
+            hasher.combine(ExprHash.function);  hasher.combine(n); hasher.combine(p); hasher.combine(b)
 
         case .macro(let n, let p, let b, _):
-            hasher.combine(14); hasher.combine(n); hasher.combine(p); hasher.combine(b)
+            hasher.combine(ExprHash.macro);     hasher.combine(n); hasher.combine(p); hasher.combine(b)
 
         case .multiArityFunction(let n, let a, _, _):
-            hasher.combine(15); hasher.combine(n); hasher.combine(a)
+            hasher.combine(ExprHash.multiArityFunction); hasher.combine(n); hasher.combine(a)
 
         case .multiArityMacro(let n, let a, _):
-            hasher.combine(16); hasher.combine(n); hasher.combine(a)
+            hasher.combine(ExprHash.multiArityMacro);    hasher.combine(n); hasher.combine(a)
 
         case .nativeFunction(let n, let a, _):
-            hasher.combine(17); hasher.combine(n); hasher.combine(a)
+            hasher.combine(ExprHash.nativeFunction);     hasher.combine(n); hasher.combine(a)
 
         case .varRef(let v):
-            hasher.combine(18); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.varRef);    hasher.combine(ObjectIdentifier(v))
 
         case .namespace(let v):
-            hasher.combine(19); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.namespace); hasher.combine(ObjectIdentifier(v))
 
         case .atom(let v):
-            hasher.combine(20); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.atom);      hasher.combine(ObjectIdentifier(v))
 
         case .transient(let v):
-            hasher.combine(21); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.transient); hasher.combine(ObjectIdentifier(v))
 
         // Identity hash. Lazy seqs can be == to lists via element comparison but
         // the hash contract is maintained within the lazy-seq type (same box → same hash).
         case .lazySeq(let box):
-            hasher.combine(22); hasher.combine(ObjectIdentifier(box))
+            hasher.combine(ExprHash.lazySeq);   hasher.combine(ObjectIdentifier(box))
 
         case .reduced(let v):
-            hasher.combine(23); hasher.combine(v)
+            hasher.combine(ExprHash.reduced);   hasher.combine(v)
 
         case .regex(let v):
-            hasher.combine(24); hasher.combine(v)
+            hasher.combine(ExprHash.regex);     hasher.combine(v)
 
         case .reader(let v):
-            hasher.combine(25); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.reader);    hasher.combine(ObjectIdentifier(v))
 
         case .writer(let v):
-            hasher.combine(26); hasher.combine(ObjectIdentifier(v))
+            hasher.combine(ExprHash.writer);    hasher.combine(ObjectIdentifier(v))
 
         case .bigInteger(let v):
-            hasher.combine(27); hasher.combine(v)
+            hasher.combine(ExprHash.bigInteger); hasher.combine(v)
 
         case .bigDecimal(let v):
-            hasher.combine(28); hasher.combine(v)
+            hasher.combine(ExprHash.bigDecimal); hasher.combine(v)
 
         case .inst(let v):
-            hasher.combine(30); hasher.combine(v)
+            hasher.combine(ExprHash.inst);      hasher.combine(v)
 
         case .uuid(let v):
-            hasher.combine(31); hasher.combine(v)
+            hasher.combine(ExprHash.uuid);      hasher.combine(v)
 
         case .record(let t, _, let d, _):
-            hasher.combine(29); hasher.combine(t); hasher.combine(d)
+            hasher.combine(ExprHash.record);    hasher.combine(t); hasher.combine(d)
         }
     }
 }

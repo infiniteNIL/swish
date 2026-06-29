@@ -368,6 +368,9 @@ public class Parser {
         case .map(let d, let m):
             return .map(d, metadata: merge(m, new))
 
+        case .sortedMap(let d, let m):
+            return .sortedMap(d, metadata: merge(m, new))
+
         case .set(let e, let m):
             return .set(e, metadata: merge(m, new))
 
@@ -689,7 +692,7 @@ public class Parser {
             collectAnonFnRefs(elems, into: &refs)
         case .vector(let elems, _):
             collectAnonFnRefs(elems, into: &refs)
-        case .map(let dict, _):
+        case .map(let dict, _), .sortedMap(let dict, _):
             for (k, v) in dict {
                 collectAnonFnRefsInExpr(k, into: &refs)
                 collectAnonFnRefsInExpr(v, into: &refs)
@@ -711,18 +714,29 @@ public class Parser {
         switch expr {
         case .symbol("%", let meta):
             return .symbol("%1", metadata: meta)
+
         case .list(let elems, let meta):
             return .list(normalizeAnonFnArgRefs(elems), metadata: meta)
+
         case .vector(let elems, let meta):
             return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)
+
         case .map(let dict, let meta):
             var result: [Expr: Expr] = [:]
             for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
             return .map(result, metadata: meta)
+
+        case .sortedMap(let dict, let meta):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
+            return .sortedMap(result, metadata: meta)
+
         case .set(let elems, let meta):
             return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), metadata: meta)
+
         case .sortedSet(let elems, let meta):
             return .sortedSet(elems.map { normalizeAnonFnArgRef($0) }, metadata: meta)
+            
         default:
             return expr
         }

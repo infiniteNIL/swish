@@ -25,7 +25,7 @@ func registerMeta(into evaluator: Evaluator) {
 
 private func coreMeta(_ args: [Expr]) throws -> Expr {
     switch args[0] {
-    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .map(_, let m), .set(_, let m), .sortedSet(_, let m):
+    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .map(_, let m), .sortedMap(_, let m), .set(_, let m), .sortedSet(_, let m):
         guard let m else { return .nil }
         return .map(m, metadata: nil)
 
@@ -87,6 +87,9 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
 
     case .sortedSet(let e, _):
         return .sortedSet(e, metadata: newMeta)
+
+    case .sortedMap(let d, _):
+        return .sortedMap(d, metadata: newMeta)
 
     case .function(let n, let p, let b, let capturedEnv, _):
         return .function(name: n, params: p, body: b, capturedEnv: capturedEnv, metadata: newMeta)
