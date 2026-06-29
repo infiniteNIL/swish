@@ -42,7 +42,23 @@ private func coreAssocBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "assoc!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
-    tc.value = try coreAssoc([tc.value] + Array(args.dropFirst()))
+    guard args.count >= 3 else {
+        throw EvaluatorError.arityMismatch(name: "assoc!", expected: .atLeastOne, got: args.count)
+    }
+    var i = 1
+    while i < args.count {
+        let key = args[i]
+        let val: Expr
+        if i + 1 < args.count {
+            val = args[i + 1]
+            i += 2
+        }
+        else {
+            val = .nil
+            i += 1
+        }
+        tc.value = try coreAssoc([tc.value, key, val])
+    }
     return args[0]
 }
 
