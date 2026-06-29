@@ -534,6 +534,11 @@
   {:added "1.0"}
   [x] x)
 
+(defn constantly
+  "Returns a function that takes any number of arguments and returns x."
+  {:added "1.0"}
+  [x] (fn [& args] x))
+
 (defn complement
   "Takes a fn f and returns a fn that takes the same arguments as f,
    has the same effects, if any, and returns the opposite truth value."

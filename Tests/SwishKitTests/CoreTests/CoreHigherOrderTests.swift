@@ -94,4 +94,16 @@ struct CoreHigherOrderTests {
     func someIdentity() throws {
         #expect(try swish.eval("(some identity [nil false 3])") == .integer(3))
     }
+
+    // MARK: - constantly
+
+    @Test("constantly returns a fn that always returns x regardless of args")
+    func constantlyMultiArgs() throws {
+        #expect(try swish.eval("((constantly 42) 1 2 3)") == .integer(42))
+    }
+
+    @Test("constantly with no args call returns x")
+    func constantlyNoArgs() throws {
+        #expect(try swish.eval("((constantly nil))") == .nil)
+    }
 }
