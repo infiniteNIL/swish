@@ -91,6 +91,12 @@ extension Expr: Equatable {
         case (.bigInteger(let a), .bigInteger(let b)):
             return a == b
 
+        case (.integer(let a), .bigInteger(let b)):
+            return BigInt(a) == b
+
+        case (.bigInteger(let a), .integer(let b)):
+            return a == BigInt(b)
+
         case (.bigDecimal(let a), .bigDecimal(let b)):
             return a == b
 
@@ -296,7 +302,7 @@ extension Expr: Hashable {
     public func hash(into hasher: inout Hasher) {
         switch self {
         case .integer(let v):
-            hasher.combine(ExprHash.integer);   hasher.combine(v)
+            hasher.combine(ExprHash.integer);   hasher.combine(BigInt(v))
 
         case .float(let v):
             hasher.combine(ExprHash.float);     hasher.combine(v)
@@ -385,7 +391,11 @@ extension Expr: Hashable {
             hasher.combine(ExprHash.writer);    hasher.combine(ObjectIdentifier(v))
 
         case .bigInteger(let v):
-            hasher.combine(ExprHash.bigInteger); hasher.combine(v)
+            if let i = Int(exactly: v) {
+                hasher.combine(ExprHash.integer); hasher.combine(BigInt(i))
+            } else {
+                hasher.combine(ExprHash.bigInteger); hasher.combine(v)
+            }
 
         case .bigDecimal(let v):
             hasher.combine(ExprHash.bigDecimal); hasher.combine(v)

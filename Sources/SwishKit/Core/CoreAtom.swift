@@ -36,7 +36,7 @@ private func coreAtom(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         let val = args[i + 1]
         if key == .keyword("meta") {
             switch val {
-            case .map(let m, _):
+            case .map(let m, _), .sortedMap(let m, _):
                 atomMeta = m
             case .nil:
                 atomMeta = nil

@@ -355,30 +355,36 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
     }
 }
 
-private func coreIntPair(_ args: [Expr], function name: String) throws -> (Int, Int) {
-    guard case .integer(let a) = args[0], case .integer(let b) = args[1] else {
+private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigInt, Bool) {
+    switch expr {
+    case .integer(let n):    return (BigInt(n), false)
+    case .bigInteger(let n): return (n, true)
+    default:
         throw EvaluatorError.invalidArgument(function: name, message: "arguments must be integers")
     }
-    return (a, b)
 }
 
 private func coreMod(_ args: [Expr]) throws -> Expr {
-    let (a, b) = try coreIntPair(args, function: "mod")
+    let (a, aBig) = try extractIntLike(args[0], function: "mod")
+    let (b, bBig) = try extractIntLike(args[1], function: "mod")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "mod", message: "division by zero") }
     let r = a % b
-    return .integer(r == 0 ? 0 : (r < 0) != (b < 0) ? r + b : r)
+    let result = r == 0 ? BigInt(0) : (r < 0) != (b < 0) ? r + b : r
+    return (aBig || bBig) ? .bigInteger(result) : .integer(Int(result))
 }
 
 private func coreRem(_ args: [Expr]) throws -> Expr {
-    let (a, b) = try coreIntPair(args, function: "rem")
+    let (a, aBig) = try extractIntLike(args[0], function: "rem")
+    let (b, bBig) = try extractIntLike(args[1], function: "rem")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-    return .integer(a % b)
+    return (aBig || bBig) ? .bigInteger(a % b) : .integer(Int(a % b))
 }
 
 private func coreQuot(_ args: [Expr]) throws -> Expr {
-    let (a, b) = try coreIntPair(args, function: "quot")
+    let (a, aBig) = try extractIntLike(args[0], function: "quot")
+    let (b, bBig) = try extractIntLike(args[1], function: "quot")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-    return .integer(a / b)
+    return (aBig || bBig) ? .bigInteger(a / b) : .integer(Int(a / b))
 }
 
 private func coreInt(_ args: [Expr]) throws -> Expr {
