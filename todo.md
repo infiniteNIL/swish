@@ -17,6 +17,20 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] fixed uses when working with integers and big integers
+- [x] sorted-map, sorted-map-by, sorted-set-by
+- [x] identical?
+- [x] disj now accepts nil
+- [x] sorted?
+- [x] NaN?
+- [x] fixes to compare
+- [x] rand-int
+- [x] some-fn
+- [x] fn?
+- [x] sorted-set
+- [x] fixes to conj!. Needed multi-arity
+- [x] fixes to (concat). Now returns lazy seq.
+- [x] fixes to compare (didn't handle symbols, vectors, lists)
 - [x] realized?
 - [x] fix apply on lazy seq.
 - [x] fix conj on lazy seq.
