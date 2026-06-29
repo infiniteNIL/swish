@@ -52,10 +52,16 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
         guard let value = data[args[1]] else { return .nil }
         return .vector([args[1], value], metadata: nil)
 
+    case .vector(let elements, _):
+        guard case .integer(let idx) = args[1],
+              idx >= 0, idx < elements.count
+        else { return .nil }
+        return .vector([args[1], elements[idx]], metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "find",
-            message: "first argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+            message: "first argument must be a map, vector, or nil, got \(corePrinter.printString(args[0]))")
     }
 }
 

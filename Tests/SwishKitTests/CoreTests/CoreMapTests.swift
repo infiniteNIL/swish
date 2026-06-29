@@ -547,7 +547,7 @@ struct CoreMapTests {
 
     @Test("(find 42 :a) throws on non-map")
     func findNonMapThrows() throws {
-        #expect(throws: EvaluatorError.invalidArgument(function: "find", message: "first argument must be a map or nil, got 42")) {
+        #expect(throws: EvaluatorError.invalidArgument(function: "find", message: "first argument must be a map, vector, or nil, got 42")) {
             try swish.eval("(find 42 :a)")
         }
     }
@@ -616,5 +616,30 @@ struct CoreMapTests {
     @Test("(merge-with + nil nil) returns nil")
     func mergeWithAllNil() throws {
         #expect(try swish.eval("(merge-with + nil nil)") == .nil)
+    }
+
+    @Test("(find [] nil) returns nil")
+    func findEmptyVectorNilKey() throws {
+        #expect(try swish.eval("(find [] nil)") == .nil)
+    }
+
+    @Test("(find [10 20 30] 1) returns [1 20]")
+    func findVectorValidIndex() throws {
+        #expect(try swish.eval("(find [10 20 30] 1)") == .vector([.integer(1), .integer(20)], metadata: nil))
+    }
+
+    @Test("(find [1 2 3] 5) returns nil for out-of-bounds index")
+    func findVectorOutOfBounds() throws {
+        #expect(try swish.eval("(find [1 2 3] 5)") == .nil)
+    }
+
+    @Test("(find [1 2 3] -1) returns nil for negative index")
+    func findVectorNegativeIndex() throws {
+        #expect(try swish.eval("(find [1 2 3] -1)") == .nil)
+    }
+
+    @Test("(find [1 2 3] :a) returns nil for non-integer key")
+    func findVectorNonIntegerKey() throws {
+        #expect(try swish.eval("(find [1 2 3] :a)") == .nil)
     }
 }
