@@ -113,6 +113,9 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
     case (.character(let a), .character(let b)):
         return a < b ? -1 : a > b ? 1 : 0
 
+    case (.symbol(let a, _), .symbol(let b, _)):
+        return a < b ? -1 : a > b ? 1 : 0
+
     default:
         if x == y { return 0 }
         throw EvaluatorError.invalidArgument(function: "compare",

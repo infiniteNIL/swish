@@ -283,4 +283,25 @@ struct CoreComparisonTests {
     func minMultiple() throws {
         #expect(try swish.eval("(min 1 3 2)") == .integer(1))
     }
+
+    // MARK: - compare symbols
+
+    @Test("(compare 'cat 'dog) is negative")
+    func compareSymbolsLess() throws {
+        let result = try swish.eval("(compare 'cat 'dog)")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n < 0)
+    }
+
+    @Test("(compare 'dog 'cat) is positive")
+    func compareSymbolsGreater() throws {
+        let result = try swish.eval("(compare 'dog 'cat)")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n > 0)
+    }
+
+    @Test("(compare 'cat 'cat) is zero")
+    func compareSymbolsEqual() throws {
+        #expect(try swish.eval("(compare 'cat 'cat)") == .integer(0))
+    }
 }
