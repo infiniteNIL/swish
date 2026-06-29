@@ -43,6 +43,22 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
         body: coreInt)
+    evaluator.register(name: "rand", arity: .variadic,
+        doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
+        arglists: [[], ["n"]]) { args in
+        if args.isEmpty { return .float(Double.random(in: 0.0..<1.0)) }
+
+        switch args[0] {
+        case .integer(let n):
+            return .float(Double.random(in: 0.0..<Double(n)))
+
+        case .float(let n):
+            return .float(Double.random(in: 0.0..<n))
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "rand", message: "n must be a number")
+        }
+    }
 }
 
 // MARK: - Implementations

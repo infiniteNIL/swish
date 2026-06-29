@@ -559,6 +559,15 @@
   ([f g h & fs]
    (reduce comp (list* f g h fs))))
 
+(defn some-fn
+  "Takes a set of predicates and returns a fn that returns the first
+   logical true value returned by one of its predicates against any of
+   its arguments, else nil."
+  {:added "1.3"}
+  [& preds]
+  (fn [& args]
+    (some #(some % args) preds)))
+
 (defn volatile!
   "Creates and returns a Volatile with an initial value of val."
   {:added "1.7"}
@@ -1305,3 +1314,9 @@
                                    ~(do-mod mod-pairs)))))))))]
     `(let [iter# ~(emit-bind (to-groups seq-exprs))]
        (or (iter# ~(second seq-exprs)) (list)))))
+
+(defn rand-int
+  "Returns a random integer between 0 (inclusive) and n (exclusive)."
+  {:added "1.0"}
+  [n]
+  (int (rand n)))
