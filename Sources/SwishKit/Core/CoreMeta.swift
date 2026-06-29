@@ -45,6 +45,10 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
         guard let m = ns.metadata else { return .nil }
         return .map(m, metadata: nil)
 
+    case .atom(let a):
+        guard let m = a.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
     default:
         return .nil
     }
