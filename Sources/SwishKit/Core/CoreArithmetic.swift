@@ -47,6 +47,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
         body: coreInt)
+    evaluator.register(name: "float", arity: .fixed(1),
+        doc: "Coerces x to a floating-point number.",
+        arglists: [["x"]],
+        body: coreToFloat)
+    evaluator.register(name: "double", arity: .fixed(1),
+        doc: "Coerces x to a floating-point number.",
+        arglists: [["x"]],
+        body: coreToFloat)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]]) { args in
@@ -385,6 +393,30 @@ private func coreQuot(_ args: [Expr]) throws -> Expr {
     let (b, bBig) = try extractIntLike(args[1], function: "quot")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
     return (aBig || bBig) ? .bigInteger(a / b) : .integer(Int(a / b))
+}
+
+private func coreToFloat(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .float:
+        return args[0]
+
+    case .integer(let n):
+        return .float(Double(n))
+
+    case .bigInteger(let n):
+        return .float(Double(n))
+
+    case .bigDecimal(let d):
+        return .float(Double(d.description) ?? Double.nan)
+
+    case .ratio(let r):
+        return .float(Double(r.numerator) / Double(r.denominator))
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "float",
+            message: "cannot convert \(corePrinter.printString(args[0])) to float")
+    }
 }
 
 private func coreInt(_ args: [Expr]) throws -> Expr {

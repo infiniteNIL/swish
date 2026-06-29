@@ -242,4 +242,34 @@ struct CoreBigNumberTests {
     func binaryRadixBigInt() throws {
         #expect(try swish.eval("(= 15N 2r1111N)") == .boolean(true))
     }
+
+    @Test("(float 1) returns 1.0")
+    func floatFromInt() throws {
+        #expect(try swish.eval("(float 1)") == .float(1.0))
+    }
+
+    @Test("(float 1/2) returns 0.5")
+    func floatFromRatio() throws {
+        #expect(try swish.eval("(float 1/2)") == .float(0.5))
+    }
+
+    @Test("(float 2N) returns 2.0")
+    func floatFromBigInteger() throws {
+        #expect(try swish.eval("(float 2N)") == .float(2.0))
+    }
+
+    @Test("(double 3) returns 3.0")
+    func doubleFromInt() throws {
+        #expect(try swish.eval("(double 3)") == .float(3.0))
+    }
+
+    @Test("(float? (float 1.0)) returns true")
+    func floatPredicateAfterFloat() throws {
+        #expect(try swish.eval("(float? (float 1.0))") == .boolean(true))
+    }
+
+    @Test("(float? (double 1.0)) returns true")
+    func floatPredicateAfterDouble() throws {
+        #expect(try swish.eval("(float? (double 1.0))") == .boolean(true))
+    }
 }
