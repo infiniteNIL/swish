@@ -39,6 +39,10 @@ func registerArithmetic(into evaluator: Evaluator) {
     evaluator.register(name: "ratio?",   arity: .fixed(1), doc: "Returns true if n is a Ratio",                      arglists: [["n"]]) { args in if case .ratio   = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "bigint?",  arity: .fixed(1), doc: "Returns true if n is an arbitrary-precision integer", arglists: [["n"]]) { args in if case .bigInteger = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "decimal?", arity: .fixed(1), doc: "Returns true if n is a BigDecimal",                 arglists: [["n"]]) { args in if case .bigDecimal = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "NaN?",     arity: .fixed(1), doc: "Returns true if num is NaN, else false.",           arglists: [["num"]]) { args in
+        if case .float(let f) = args[0] { return .boolean(f.isNaN) }
+        return .boolean(false)
+    }
     evaluator.register(name: "int", arity: .fixed(1),
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
