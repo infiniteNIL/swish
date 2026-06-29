@@ -137,6 +137,9 @@ func asSequence(_ expr: Expr) -> [Expr]? {
     case .set(let elements, _):
         return Array(elements)
 
+    case .sortedSet(let elements, _):
+        return elements
+
     case .lazySeq:
         // Iteratively realize the full lazy seq into an array.
         // Never call this on a known-infinite seq.
@@ -226,6 +229,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .set(let elements, _):
         return .integer(elements.count)
 
+    case .sortedSet(let elements, _):
+        return .integer(elements.count)
+
     case .string(let s):
         return .integer(s.count)
 
@@ -311,6 +317,9 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         elems.insert(item)
         return .set(elems, metadata: meta)
 
+    case .sortedSet(let elems, let meta):
+        return .sortedSet(try sortedSetInsert(elems, item), metadata: meta)
+
     case .lazySeq:
         return .lazySeq(LazySeqBox(head: item, tail: coll))
 
@@ -349,6 +358,9 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
 
     case .set(let elements, _):
         return .boolean(elements.contains(key))
+
+    case .sortedSet(let elements, _):
+        return .boolean((try? sortedSetContains(elements, key)) ?? elements.contains(key))
 
     case .vector(let elements, _):
         guard case .integer(let idx) = key else {

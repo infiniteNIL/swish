@@ -37,6 +37,7 @@ public indirect enum Expr: Sendable {
     case vector([Expr], metadata: [Expr: Expr]?)
     case map([Expr: Expr], metadata: [Expr: Expr]?)
     case set(Set<Expr>, metadata: [Expr: Expr]?)
+    case sortedSet([Expr], metadata: [Expr: Expr]?)
     case function(name: String?, params: [String], body: [Expr], capturedEnv: Environment?, metadata: [Expr: Expr]?)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case multiArityFunction(name: String?, arities: [FnArity], capturedEnv: Environment?, metadata: [Expr: Expr]?)
@@ -121,6 +122,15 @@ extension Expr: Equatable {
 
         case (.set(let a, _), .set(let b, _)):
             return a == b
+
+        case (.sortedSet(let a, _), .sortedSet(let b, _)):
+            return Set(a) == Set(b)
+
+        case (.sortedSet(let a, _), .set(let b, _)):
+            return Set(a) == b
+
+        case (.set(let a, _), .sortedSet(let b, _)):
+            return a == Set(b)
 
         case (.function(let n1, let p1, let b1, _, _), .function(let n2, let p2, let b2, _, _)):
             return n1 == n2 && p1 == p2 && b1 == b2
@@ -273,6 +283,9 @@ extension Expr: Hashable {
 
         case .set(let v, _):
             hasher.combine(12); hasher.combine(v)
+
+        case .sortedSet(let v, _):
+            hasher.combine(12); hasher.combine(Set(v))
 
         case .function(let n, let p, let b, _, _):
             hasher.combine(13); hasher.combine(n); hasher.combine(p); hasher.combine(b)

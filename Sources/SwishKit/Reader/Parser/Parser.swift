@@ -371,6 +371,9 @@ public class Parser {
         case .set(let e, let m):
             return .set(e, metadata: merge(m, new))
 
+        case .sortedSet(let e, let m):
+            return .sortedSet(e, metadata: merge(m, new))
+
         case .function(let n, let p, let b, let capturedEnv, let m):
             return .function(name: n, params: p, body: b, capturedEnv: capturedEnv, metadata: merge(m, new))
 
@@ -693,6 +696,8 @@ public class Parser {
             }
         case .set(let elems, _):
             collectAnonFnRefs(Array(elems), into: &refs)
+        case .sortedSet(let elems, _):
+            collectAnonFnRefs(elems, into: &refs)
         default:
             break
         }
@@ -716,6 +721,8 @@ public class Parser {
             return .map(result, metadata: meta)
         case .set(let elems, let meta):
             return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), metadata: meta)
+        case .sortedSet(let elems, let meta):
+            return .sortedSet(elems.map { normalizeAnonFnArgRef($0) }, metadata: meta)
         default:
             return expr
         }

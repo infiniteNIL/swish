@@ -86,6 +86,13 @@ public class Evaluator {
             }
             return .set(result, metadata: setMeta)
 
+        case .sortedSet(let elements, let setMeta):
+            var result: [Expr] = []
+            for element in elements {
+                result = try sortedSetInsert(result, eval(element, in: env))
+            }
+            return .sortedSet(result, metadata: setMeta)
+
         case .symbol(let name, _):
             if let value = env.get(name) {
                 return value

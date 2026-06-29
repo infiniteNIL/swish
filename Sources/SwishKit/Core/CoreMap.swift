@@ -292,6 +292,9 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
     case .set(let elements, _):
         return elements.contains(args[1]) ? args[1] : notFound
 
+    case .sortedSet(let elements, _):
+        return ((try? sortedSetContains(elements, args[1])) == true) ? args[1] : notFound
+
     case .transient(let tc):
         return try coreGet([tc.value] + Array(args.dropFirst()))
 

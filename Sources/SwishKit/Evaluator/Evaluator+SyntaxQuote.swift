@@ -78,6 +78,9 @@ extension Evaluator {
         case .set(let elements, let meta):
             return .set(Set(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
 
+        case .sortedSet(let elements, let meta):
+            return .sortedSet(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+
         default:
             return expr
         }

@@ -56,6 +56,13 @@ extension Evaluator {
             }
             return .set(result, metadata: setMeta)
 
+        case .sortedSet(let elements, let setMeta):
+            var result: [Expr] = []
+            for element in elements {
+                result.append(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
+            }
+            return .sortedSet(result, metadata: setMeta)
+
         default:
             return expr
         }

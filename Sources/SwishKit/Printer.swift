@@ -62,7 +62,7 @@ public struct Printer {
         case .keyword(let name):
             ":\(name)"
 
-        case .list, .vector, .map, .set:
+        case .list, .vector, .map, .set, .sortedSet:
             formatCollection(expr, transform: printString, includeMeta: true) ?? ""
 
         case .function(let name, _, _, _, let meta):
@@ -142,7 +142,7 @@ public struct Printer {
         case .character(let char):
             String(char)
 
-        case .list, .vector, .map, .set:
+        case .list, .vector, .map, .set, .sortedSet:
             formatCollection(expr, transform: strString, includeMeta: true) ?? ""
 
         case .lazySeq(let box):
@@ -166,7 +166,7 @@ public struct Printer {
         case .float(let value):
             String(value)
 
-        case .list, .vector, .map, .set:
+        case .list, .vector, .map, .set, .sortedSet:
             formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
 
         case .lazySeq(let box):
@@ -196,6 +196,10 @@ public struct Printer {
 
         case .set(let elements, let meta):
             return (includeMeta ? metaPrefix(meta) : "") + printSetString(elements, transform: transform)
+
+        case .sortedSet(let elements, let meta):
+            let body = elements.map(transform).joined(separator: " ")
+            return (includeMeta ? metaPrefix(meta) : "") + (elements.isEmpty ? "#{}" : "#{\(body)}")
 
         default:
             return nil

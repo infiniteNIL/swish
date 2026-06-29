@@ -42,6 +42,9 @@ extension Evaluator {
             }
             return .set(result, metadata: setMeta)
 
+        case .sortedSet(let elements, let setMeta):
+            return .sortedSet(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: setMeta)
+
         default:
             return expr
         }

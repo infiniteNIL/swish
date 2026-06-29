@@ -123,6 +123,14 @@ extension Evaluator {
             }
             return elements.contains(args[0]) ? args[0] : .nil
 
+        case .sortedSet(let elements, _):
+            guard args.count == 1
+            else {
+                throw EvaluatorError.invalidArgument(function: "sorted-set",
+                    message: "requires 1 argument, got \(args.count)")
+            }
+            return ((try? sortedSetContains(elements, args[0])) == true) ? args[0] : .nil
+
         default:
             throw EvaluatorError.notAFunction(callee)
         }
