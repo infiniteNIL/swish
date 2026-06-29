@@ -75,6 +75,7 @@ private func coreConjBang(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         return .transient(TransientCollection(.vector([], metadata: nil)))
     }
+    if args.count == 1 { return args[0] }
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "conj!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")

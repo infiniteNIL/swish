@@ -49,4 +49,9 @@ struct CoreTransientTests {
     func conjBangMultipleArgs() throws {
         #expect(try swish.eval("(persistent! (conj! (transient []) 1 2 3))") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
+
+    @Test("(conj! nil) returns nil unchanged")
+    func conjBangNilPassthrough() throws {
+        #expect(try swish.eval("(conj! nil)") == .nil)
+    }
 }
