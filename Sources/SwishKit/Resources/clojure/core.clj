@@ -344,7 +344,7 @@
   the supplied colls."
   {:added "1.0"
    :static true}
-  ([] ())
+  ([] (lazy-seq nil))
   ([x] (lazy-seq x))
   ([x y]
    (lazy-seq
