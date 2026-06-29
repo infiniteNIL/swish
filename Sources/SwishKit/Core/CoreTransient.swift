@@ -17,9 +17,9 @@ func registerTransient(into evaluator: Evaluator) {
         doc: "Returns a transient map that doesn't contain a mapping for key(s).",
         arglists: [["map", "key"], ["map", "key", "&", "ks"]],
         body: coreDisjocBang)
-    evaluator.register(name: "conj!", arity: .fixed(2),
+    evaluator.register(name: "conj!", arity: .variadic,
         doc: "Adds x to the transient collection, and return coll. The addition may happen at different places depending on the concrete type.",
-        arglists: [["coll", "x"]],
+        arglists: [[], ["coll"], ["coll", "x"], ["coll", "x", "&", "xs"]],
         body: coreConjBang)
 }
 
@@ -72,10 +72,15 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreConjBang(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty {
+        return .transient(TransientCollection(.vector([], metadata: nil)))
+    }
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "conj!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
-    tc.value = try conjOne(tc.value, args[1])
+    for i in 1..<args.count {
+        tc.value = try conjOne(tc.value, args[i])
+    }
     return args[0]
 }

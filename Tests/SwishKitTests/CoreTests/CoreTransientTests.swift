@@ -32,4 +32,21 @@ struct CoreTransientTests {
     func assocBangMapOddArgs() throws {
         #expect(try swish.eval("(persistent! (assoc! (transient {:a 1}) :b 2 :c))") == .map([.keyword("a"): .integer(1), .keyword("b"): .integer(2), .keyword("c"): .nil], metadata: nil))
     }
+
+    // MARK: - conj! multi-arity
+
+    @Test("(persistent! (conj!)) returns empty vector")
+    func conjBangZeroArity() throws {
+        #expect(try swish.eval("(persistent! (conj!))") == .vector([], metadata: nil))
+    }
+
+    @Test("(persistent! (conj! (transient []))) returns empty vector")
+    func conjBangOneArity() throws {
+        #expect(try swish.eval("(persistent! (conj! (transient [])))") == .vector([], metadata: nil))
+    }
+
+    @Test("(persistent! (conj! (transient []) 1 2 3)) returns [1 2 3]")
+    func conjBangMultipleArgs() throws {
+        #expect(try swish.eval("(persistent! (conj! (transient []) 1 2 3))") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
 }
