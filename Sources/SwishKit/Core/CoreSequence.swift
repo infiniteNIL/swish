@@ -294,6 +294,11 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         return .vector(elems + [item], metadata: meta)
 
     case .map(var dict, let meta):
+        if case .nil = item { return coll }
+        if case .map(let other, _) = item {
+            for (k, v) in other { dict[k] = v }
+            return .map(dict, metadata: meta)
+        }
         guard case .vector(let entry, _) = item, entry.count == 2
         else {
             throw EvaluatorError.invalidArgument(function: "conj",

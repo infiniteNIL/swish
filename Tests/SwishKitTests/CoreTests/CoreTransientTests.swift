@@ -54,4 +54,21 @@ struct CoreTransientTests {
     func conjBangNilPassthrough() throws {
         #expect(try swish.eval("(conj! nil)") == .nil)
     }
+
+    // MARK: - conj! map with nil/map items
+
+    @Test("(conj! transient-map nil) returns map unchanged")
+    func conjBangMapNil() throws {
+        #expect(try swish.eval("(persistent! (conj! (transient {}) nil))") == .map([:], metadata: nil))
+    }
+
+    @Test("(conj! transient-map {}) returns map unchanged")
+    func conjBangMapEmptyMap() throws {
+        #expect(try swish.eval("(persistent! (conj! (transient {}) {}))") == .map([:], metadata: nil))
+    }
+
+    @Test("(conj! transient-map {:a 1}) merges entries")
+    func conjBangMapMerge() throws {
+        #expect(try swish.eval("(persistent! (conj! (transient {}) {:a 1}))") == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
 }
