@@ -3,34 +3,45 @@ func registerMap(into evaluator: Evaluator) {
         doc: "Returns the value mapped to key, not-found or nil if key not present.",
         arglists: [["map", "key"], ["map", "key", "not-found"]],
         body: coreGet)
+
     evaluator.register(name: "get-in", arity: .variadic,
         doc: "Returns the value in a nested associative structure, where ks is a sequence of keys. Returns nil if the key is not present, or the not-found value if supplied.",
         arglists: [["m", "ks"], ["m", "ks", "not-found"]],
         body: coreGetIn)
+
     evaluator.register(name: "find", arity: .fixed(2),
         doc: "Returns the map entry for key, or nil if key not present.",
         arglists: [["map", "key"]],
         body: coreFind)
+
     evaluator.register(name: "assoc", arity: .variadic,
         doc: "assoc[iate]. When applied to a map, returns a new map of the same (hashed/sorted) type, that contains the mapping of key(s) to val(s). When applied to a vector, returns a new vector that contains val at index. Note - index must be <= (count vector).",
         arglists: [["map", "key", "val"], ["map", "key", "val", "&", "kvs"]],
         body: coreAssoc)
+
     evaluator.register(name: "dissoc", arity: .variadic,
         doc: "dissoc[iate]. Returns a new map of the same (hashed/sorted) type, that does not contain a mapping for key(s).",
         arglists: [["map"], ["map", "key"], ["map", "key", "&", "ks"]],
         body: coreDissoc)
+
+    // Bootstrap: called by the `defn` macro at core.clj:40 before the
+    // Clojure merge definition is loaded. The Clojure version (core.clj)
+    // shadows this at runtime and handles vector map entries correctly.
     evaluator.register(name: "merge", arity: .variadic,
         doc: "Returns a map that consists of the rest of the maps conj-ed onto the first. If a key occurs in more than one map, the mapping from the latter (left-to-right) will be the mapping in the result.",
         arglists: [["&", "maps"]],
         body: coreMerge)
+
     evaluator.register(name: "keys", arity: .fixed(1),
         doc: "Returns a sequence of the map's keys, in the same order as (seq map).",
         arglists: [["map"]],
         body: coreKeys)
+
     evaluator.register(name: "vals", arity: .fixed(1),
         doc: "Returns a sequence of the map's values, in the same order as (seq map).",
         arglists: [["map"]],
         body: coreVals)
+
     evaluator.register(name: "map?", arity: .fixed(1), doc: "Return true if x implements IPersistentMap", arglists: [["x"]]) { args in
         switch args[0] {
         case .map, .sortedMap, .record: return .boolean(true)

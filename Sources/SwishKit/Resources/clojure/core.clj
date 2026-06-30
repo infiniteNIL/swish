@@ -906,6 +906,17 @@
         (if v v (recur (next s))))
       nil)))
 
+(defn merge
+  "Returns a map that consists of the rest of the maps conj-ed onto
+  the first.  If a key occurs in more than one map, the mapping from
+  the latter (left-to-right) will be the mapping in the result.  If
+  any of the maps is nil, it is ignored."
+  {:added "1.0"
+   :static true}
+  [& maps]
+  (when (some identity maps)
+    (reduce #(conj (or %1 {}) %2) maps)))
+
 (def cat
   (fn [rf]
     (let [rf1 (fn [result input]

@@ -338,6 +338,18 @@ struct CoreMapTests {
         #expect(try swish.eval("(merge {:a 1} {:a 2})") == .map([.keyword("a"): .integer(2)], metadata: nil))
     }
 
+    @Test("merge accepts a 2-element vector as a map entry")
+    func mergeVectorEntry() throws {
+        #expect(try swish.eval("(merge {} [:foo \"foo\"])") ==
+            .map([.keyword("foo"): .string("foo")], metadata: nil))
+    }
+
+    @Test("merge accepts multiple vector entries")
+    func mergeMultipleVectorEntries() throws {
+        #expect(try swish.eval("(merge {} [:foo \"foo\"] [:bar \"bar\"])") ==
+            .map([.keyword("foo"): .string("foo"), .keyword("bar"): .string("bar")], metadata: nil))
+    }
+
     // MARK: - dissoc
 
     @Test("(dissoc {:a 1 :b 2} :a) removes one key")
