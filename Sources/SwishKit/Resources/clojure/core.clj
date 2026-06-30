@@ -219,6 +219,11 @@
   [n]
   (vec (repeat n nil)))
 
+(defn int-array
+  "Returns a vector of n zeros (stub; no Java array semantics)."
+  [n]
+  (vec (repeat n 0)))
+
 (def array-map
   "Returns a map created from kvs (delegates to hash-map)."
   hash-map)
