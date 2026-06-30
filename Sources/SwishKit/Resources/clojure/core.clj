@@ -247,6 +247,11 @@
   ([size _init-val-or-seq]
    (vec (repeat size 0.0))))
 
+(defn aset
+  "Sets the value at index i in array a (stub — no mutable array semantics)."
+  [_array _i val]
+  val)
+
 (def array-map
   "Returns a map created from kvs (delegates to hash-map)."
   hash-map)
