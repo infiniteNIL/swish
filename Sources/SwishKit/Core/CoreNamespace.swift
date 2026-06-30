@@ -199,21 +199,37 @@ private func coreSymbol(_ args: [Expr]) throws -> Expr {
     case 1:
         switch args[0] {
         case .symbol: return args[0]
+
         case .string(let s): return .symbol(s, metadata: nil)
+
         case .keyword(let k): return .symbol(k, metadata: nil)
+
+        case .varRef(let v): return .symbol(v.name, metadata: nil)
+
         default:
             throw EvaluatorError.invalidArgument(
                 function: "symbol",
                 message: "cannot coerce \(corePrinter.printString(args[0])) to symbol")
         }
     case 2:
-        guard case .string(let ns) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "symbol", message: "namespace must be a string")
+        let ns: String?
+        switch args[0] {
+        case .nil:
+            ns = nil
+
+        case .string(let s):
+            ns = s
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "symbol", message: "namespace must be a string or nil")
         }
         guard case .string(let name) = args[1] else {
             throw EvaluatorError.invalidArgument(function: "symbol", message: "name must be a string")
         }
-        return .symbol("\(ns)/\(name)", metadata: nil)
+        if let ns {
+            return .symbol("\(ns)/\(name)", metadata: nil)
+        }
+        return .symbol(name, metadata: nil)
     default:
         throw EvaluatorError.invalidArgument(function: "symbol", message: "requires 1 or 2 arguments")
     }
