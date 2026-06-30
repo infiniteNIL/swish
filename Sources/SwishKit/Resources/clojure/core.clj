@@ -197,6 +197,13 @@
   [coll]
   (reduce conj () coll))
 
+(defn to-array
+  "Returns a vector containing the contents of coll."
+  {:added "1.0"
+   :static true}
+  [coll]
+  (vec coll))
+
 (defn take
   "Returns a lazy sequence of the first n items in coll, or all items if
   there are fewer than n. Returns a stateful transducer when no collection

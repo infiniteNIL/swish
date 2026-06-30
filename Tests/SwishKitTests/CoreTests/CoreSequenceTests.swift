@@ -429,4 +429,19 @@ struct CoreSequenceTests {
     func notEmptyNil() throws {
         #expect(try swish.eval("(not-empty nil)") == .nil)
     }
+
+    @Test("(to-array [1 2 3]) returns a vector")
+    func toArrayReturnsVector() throws {
+        #expect(try swish.eval("(to-array [1 2 3])") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    @Test("(get (to-array [1 2]) 0) returns first element")
+    func toArrayGetFirst() throws {
+        #expect(try swish.eval("(get (to-array [1 2]) 0)") == .integer(1))
+    }
+
+    @Test("(get (to-array [1 2]) 10) returns nil for out-of-bounds")
+    func toArrayGetOutOfBounds() throws {
+        #expect(try swish.eval("(get (to-array [1 2]) 10)") == .nil)
+    }
 }
