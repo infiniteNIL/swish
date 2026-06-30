@@ -65,7 +65,7 @@ public class Evaluator {
         case .integer, .float, .ratio, .bigInteger, .bigDecimal,
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
-             .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .regex,
+             .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
              .reader, .writer, .record, .inst, .uuid:
             return expr
 
@@ -169,6 +169,9 @@ public class Evaluator {
 
         case .symbol("lazy-seq", _):
             return try evalLazySeq(elements, in: env)
+
+        case .symbol("delay", _):
+            return try evalDelay(elements, in: env)
 
         case .symbol("binding", _):
             return try evalBinding(elements, in: env)

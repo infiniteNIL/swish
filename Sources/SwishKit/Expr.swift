@@ -54,6 +54,9 @@ public indirect enum Expr: Sendable {
     /// A sentinel wrapping a value to signal early termination of `reduce`.
     case reduced(Expr)
 
+    /// A memoized thunk created by `delay`. Forces on first `deref`/`force`.
+    case delay(DelayBox)
+
     /// A compiled regular expression literal (`#"pattern"`).
     case regex(SwishRegex)
 
@@ -188,6 +191,9 @@ extension Expr: Equatable {
         case (.reduced(let a), .reduced(let b)):
             return a == b
 
+        case (.delay(let a), .delay(let b)):
+            return a === b
+
         case (.regex(let a), .regex(let b)):
             return a == b
 
@@ -296,6 +302,7 @@ private enum ExprHash {
     static let record             = 29
     static let inst               = 30
     static let uuid               = 31
+    static let delay              = 32
 }
 
 extension Expr: Hashable {
@@ -380,6 +387,9 @@ extension Expr: Hashable {
 
         case .reduced(let v):
             hasher.combine(ExprHash.reduced);   hasher.combine(v)
+
+        case .delay(let v):
+            hasher.combine(ExprHash.delay);     hasher.combine(ObjectIdentifier(v))
 
         case .regex(let v):
             hasher.combine(ExprHash.regex);     hasher.combine(v)

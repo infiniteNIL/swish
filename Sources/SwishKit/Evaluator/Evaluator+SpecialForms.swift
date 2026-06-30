@@ -15,6 +15,20 @@ extension Evaluator {
         return meta
     }
 
+    /// `(delay body...)` — special form.
+    ///
+    /// Captures the body and current lexical environment. Returns a `.delay`
+    /// immediately without evaluating the body. The body is evaluated at most
+    /// once on first `deref`/`force`, and the result is memoized.
+    func evalDelay(_ elements: [Expr], in env: Environment) throws -> Expr {
+        let body = Array(elements.dropFirst())
+        let capturedEnv = env
+        let box = DelayBox { [self] in
+            try self.evalBody(body, in: capturedEnv)
+        }
+        return .delay(box)
+    }
+
     /// `(lazy-seq body...)` — special form.
     ///
     /// Captures the body and the current lexical environment inside a thunk.

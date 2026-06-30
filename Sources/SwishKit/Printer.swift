@@ -108,6 +108,11 @@ public struct Printer {
         case .reduced(let v):
             "#<reduced \(printString(v))>"
 
+        case .delay(let box):
+            box.isRealized
+                ? "#<Delay@\((try? box.force()).map { printString($0) } ?? "error")>"
+                : "#<Delay@pending>"
+
         case .regex(let r):
             "#\"\(r.pattern)\""
 
