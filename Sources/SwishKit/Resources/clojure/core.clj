@@ -91,6 +91,10 @@
    :static true}
   [x] true)
 
+(def double?
+  "Returns true if x is a Double."
+  float?)
+
 (defmacro when
   "Evaluates test. If logical true, evaluates body in an implicit do."
   {:added "1.0"}

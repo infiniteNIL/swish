@@ -105,4 +105,14 @@ struct CoreNilPredicateTests {
     func anyPredFalse() throws {
         #expect(try swish.eval("(any? false)") == .boolean(true))
     }
+
+    @Test("(double? 1.0) returns true")
+    func doublePredFloat() throws {
+        #expect(try swish.eval("(double? 1.0)") == .boolean(true))
+    }
+
+    @Test("(double? 1) returns false")
+    func doublePredInt() throws {
+        #expect(try swish.eval("(double? 1)") == .boolean(false))
+    }
 }
