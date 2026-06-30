@@ -17,6 +17,20 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] type (returns a keyword representing a type)
+- [x] fixes to symbol
+- [x] int-array, long-array, double-array, float-array
+- [x] char?
+- [x] rseq
+- [x] delay
+- [x] quot fixes
+- [x] pop fixes
+- [x] rem fixes
+- [x] mod fixes (now pure Clojure)
+- [x] double?
+- [x] Ratio backed by BigInt (to avoid overflow errors)
+- [x] any?
+- [x] fixes to merge
 - [x] partial
 - [x] object-array, array-map
 - [x] fix to keys and vals when passed non-maps
