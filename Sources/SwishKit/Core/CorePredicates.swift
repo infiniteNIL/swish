@@ -68,4 +68,10 @@ func registerPredicates(into evaluator: Evaluator) {
                 message: "don't know how to get namespace of \(corePrinter.printString(args[0]))")
         }
     }
+    evaluator.register(name: "type", arity: .fixed(1),
+        doc: "Returns a keyword naming the runtime type of x, or nil for nil.",
+        arglists: [["x"]]) { args in
+        if case .nil = args[0] { return .nil }
+        return .keyword(args[0].description)
+    }
 }
