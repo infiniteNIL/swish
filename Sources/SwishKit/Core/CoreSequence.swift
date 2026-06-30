@@ -86,6 +86,30 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns a seq on the collection. If the collection is empty, returns nil. (seq nil) returns nil. seq also works on Strings, native Java arrays (of reference types) and any objects that implement Iterable. Note that seqs cache values, thus seq should not be used on any Iterable whose iterator repeatedly returns the same mutable object.",
         arglists: [["coll"]],
         body: coreSeq)
+    evaluator.register(name: "rseq", arity: .fixed(1),
+        doc: "Returns, in constant time, a seq of the items in rev (supports vector and sorted-map), in reverse order. If coll is empty returns nil.",
+        arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .nil:
+            return .nil
+
+        case .vector(let elems, _):
+            if elems.isEmpty { return .nil }
+            return .list(elems.reversed(), metadata: nil)
+
+        case .sortedMap(let m, _):
+            if m.isEmpty { return .nil }
+            let entries = Array(m.keys).reversed().map { k -> Expr in
+                .vector([k, m[k]!], metadata: nil)
+            }
+            return .list(entries, metadata: nil)
+
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "rseq",
+                message: "\(corePrinter.printString(args[0])) doesn't support rseq")
+        }
+    }
     evaluator.register(name: "next", arity: .fixed(1),
         doc: "Returns a seq of the items after the first. Calls seq on its argument. If there are no more items, returns nil.",
         arglists: [["coll"]],
