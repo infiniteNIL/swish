@@ -272,6 +272,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
         let elements = try seqOf(args[0], function: "count")
         return .integer(elements.count)
 
+    case .transient(let tc):
+        return try coreCount([tc.value])
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "count",
@@ -421,6 +424,9 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         guard case .integer(let idx) = key else { return .boolean(false) }
         return .boolean(idx >= 0 && idx < s.count)
 
+    case .transient(let tc):
+        return try coreContains([tc.value, key])
+
     default:
         throw EvaluatorError.invalidArgument(function: "contains?",
             message: "\(corePrinter.printString(args[0])) is not supported")
@@ -466,6 +472,11 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
                 return notFound
             }
         }
+
+    case .transient(let tc):
+        var delegated = [tc.value, args[1]]
+        if args.count >= 3 { delegated.append(args[2]) }
+        return try coreNth(delegated)
 
     default:
         let elements = try seqOf(args[0], function: "nth")

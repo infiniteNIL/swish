@@ -38,7 +38,7 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
             return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: capturedEnv ?? env)
 
-        case .map, .sortedMap, .keyword, .vector, .set, .record:
+        case .map, .sortedMap, .keyword, .vector, .set, .record, .transient:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -130,6 +130,9 @@ extension Evaluator {
                     message: "requires 1 argument, got \(args.count)")
             }
             return ((try? sortedSetContains(elements, args[0])) == true) ? args[0] : .nil
+
+        case .transient(let tc):
+            return try call(tc.value, args: args)
 
         default:
             throw EvaluatorError.notAFunction(callee)
