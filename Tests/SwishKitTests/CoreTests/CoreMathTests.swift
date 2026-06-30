@@ -270,4 +270,26 @@ struct CoreMathTests {
         default: Issue.record("Expected a number, got \(result)")
         }
     }
+
+    // MARK: - mod (float)
+
+    @Test("(mod 10 3.0) returns 1.0")
+    func modIntFloat() throws {
+        #expect(try swish.eval("(mod 10 3.0)") == .float(1.0))
+    }
+
+    @Test("(mod -10 3.0) returns 2.0")
+    func modNegIntFloat() throws {
+        #expect(try swish.eval("(mod -10 3.0)") == .float(2.0))
+    }
+
+    @Test("(mod 10 -3.0) returns -2.0")
+    func modIntNegFloat() throws {
+        #expect(try swish.eval("(mod 10 -3.0)") == .float(-2.0))
+    }
+
+    @Test("(mod -10 -3.0) returns -1.0")
+    func modNegIntNegFloat() throws {
+        #expect(try swish.eval("(mod -10 -3.0)") == .float(-1.0))
+    }
 }

@@ -20,10 +20,6 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "If no denominators are supplied, returns 1/numerator, else returns numerator divided by all of the denominators.",
         arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
         body: coreDivide)
-    evaluator.register(name: "mod", arity: .fixed(2),
-        doc: "Modulus of num and div. Truncates toward negative infinity.",
-        arglists: [["num", "div"]],
-        body: coreMod)
     evaluator.register(name: "rem", arity: .fixed(2),
         doc: "remainder of dividing numerator by denominator.",
         arglists: [["num", "div"]],
@@ -354,20 +350,63 @@ private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigI
     }
 }
 
-private func coreMod(_ args: [Expr]) throws -> Expr {
-    let (a, aBig) = try extractIntLike(args[0], function: "mod")
-    let (b, bBig) = try extractIntLike(args[1], function: "mod")
-    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "mod", message: "division by zero") }
-    let r = a % b
-    let result = r == 0 ? BigInt(0) : (r < 0) != (b < 0) ? r + b : r
-    return (aBig || bBig) ? .bigInteger(result) : .integer(Int(result))
-}
-
 private func coreRem(_ args: [Expr]) throws -> Expr {
+    switch (args[0], args[1]) {
+    case (.float(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .float(a.truncatingRemainder(dividingBy: b))
+    case (.float(let a), .integer(let b)):
+        let fb = Double(b)
+        guard fb != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .float(a.truncatingRemainder(dividingBy: fb))
+    case (.integer(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .float(Double(a).truncatingRemainder(dividingBy: b))
+    case (.bigDecimal(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .bigDecimal(a.remainder(dividingBy: b))
+    case (.bigDecimal(let a), .integer(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .bigDecimal(a.remainder(dividingBy: BigDecimal(integerValue: BigInt(b), scale: 0)))
+    case (.integer(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .bigDecimal(BigDecimal(integerValue: BigInt(a), scale: 0).remainder(dividingBy: b))
+    case (.bigDecimal(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .bigDecimal(a.remainder(dividingBy: BigDecimal(floatLiteral: b)))
+    case (.float(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .bigDecimal(BigDecimal(floatLiteral: a).remainder(dividingBy: b))
+    case (.ratio(let ra), .ratio(let rb)):
+        return try ratioRem(ra, rb)
+    case (.ratio(let ra), .integer(let b)):
+        return try ratioRem(ra, Ratio(b, 1))
+    case (.integer(let a), .ratio(let rb)):
+        return try ratioRem(Ratio(a, 1), rb)
+    case (.ratio(let ra), .bigInteger(let b)):
+        return try ratioRem(ra, Ratio(b, BigInt(1)))
+    case (.bigInteger(let a), .ratio(let rb)):
+        return try ratioRem(Ratio(a, BigInt(1)), rb)
+    default:
+        break
+    }
     let (a, aBig) = try extractIntLike(args[0], function: "rem")
     let (b, bBig) = try extractIntLike(args[1], function: "rem")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
     return (aBig || bBig) ? .bigInteger(a % b) : .integer(Int(a % b))
+}
+
+private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
+    guard rb.numerator != 0 else {
+        throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero")
+    }
+    // q = truncate(ra / rb) via BigInt division (truncates toward zero)
+    let q = (ra.numerator * rb.denominator) / (ra.denominator * rb.numerator)
+    let rNum = ra.numerator * rb.denominator - q * rb.numerator * ra.denominator
+    let rDen = ra.denominator * rb.denominator
+    if rNum == 0 { return .bigInteger(BigInt(0)) }
+    let r = Ratio(rNum, rDen)
+    return r.denominator == 1 ? .bigInteger(r.numerator) : .ratio(r)
 }
 
 private func coreQuot(_ args: [Expr]) throws -> Expr {

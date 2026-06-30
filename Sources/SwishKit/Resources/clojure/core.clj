@@ -550,6 +550,16 @@
   ([x y & more]
    (reduce (fn [m n] (if (< m n) m n)) (if (< x y) x y) more)))
 
+(defn mod
+  "Modulus of num and div. Truncates toward negative infinity."
+  {:added "1.0"
+   :static true}
+  [num div]
+  (let [m (rem num div)]
+    (if (or (zero? m) (= (pos? m) (pos? div)))
+      m
+      (+ m div))))
+
 (defn even?
   "Returns true if n is even, throws if n is not an integer."
   {:added "1.0"}
