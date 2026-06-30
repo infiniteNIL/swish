@@ -410,10 +410,61 @@ private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
 }
 
 private func coreQuot(_ args: [Expr]) throws -> Expr {
+    switch (args[0], args[1]) {
+    // Float wins over all — (a/b) truncated toward zero
+    case (.float(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .float((a / b).rounded(.towardZero))
+    case (.float(let a), .integer(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .float((a / Double(b)).rounded(.towardZero))
+    case (.integer(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .float((Double(a) / b).rounded(.towardZero))
+    case (.float(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .float((a / (Double(b.description) ?? 0)).rounded(.towardZero))
+    case (.bigDecimal(let a), .float(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .float(((Double(a.description) ?? 0) / b).rounded(.towardZero))
+    // BigDecimal — (a - rem(a,b)) / b gives exact integral quotient
+    case (.bigDecimal(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        return .bigDecimal((a - a.remainder(dividingBy: b)) / b)
+    case (.bigDecimal(let a), .integer(let b)):
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        let bd = BigDecimal(integerValue: BigInt(b), scale: 0)
+        return .bigDecimal((a - a.remainder(dividingBy: bd)) / bd)
+    case (.integer(let a), .bigDecimal(let b)):
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        let ad = BigDecimal(integerValue: BigInt(a), scale: 0)
+        return .bigDecimal((ad - ad.remainder(dividingBy: b)) / b)
+    // Ratio — truncate(ra/rb) via BigInt division → bigInteger
+    case (.ratio(let ra), .ratio(let rb)):
+        return try ratioQuot(ra, rb)
+    case (.ratio(let ra), .integer(let b)):
+        return try ratioQuot(ra, Ratio(b, 1))
+    case (.integer(let a), .ratio(let rb)):
+        return try ratioQuot(Ratio(a, 1), rb)
+    case (.ratio(let ra), .bigInteger(let b)):
+        return try ratioQuot(ra, Ratio(b, BigInt(1)))
+    case (.bigInteger(let a), .ratio(let rb)):
+        return try ratioQuot(Ratio(a, BigInt(1)), rb)
+    default:
+        break
+    }
     let (a, aBig) = try extractIntLike(args[0], function: "quot")
     let (b, bBig) = try extractIntLike(args[1], function: "quot")
     guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
     return (aBig || bBig) ? .bigInteger(a / b) : .integer(Int(a / b))
+}
+
+private func ratioQuot(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
+    guard rb.numerator != 0 else {
+        throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero")
+    }
+    let q = (ra.numerator * rb.denominator) / (ra.denominator * rb.numerator)
+    return .bigInteger(q)
 }
 
 private func coreToFloat(_ args: [Expr]) throws -> Expr {
