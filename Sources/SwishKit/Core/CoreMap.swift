@@ -161,9 +161,7 @@ private func coreKeys(_ args: [Expr]) throws -> Expr {
         return keys.isEmpty ? .nil : .list(keys, metadata: nil)
 
     default:
-        throw EvaluatorError.invalidArgument(
-            function: "keys",
-            message: "argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+        return .nil
     }
 }
 
@@ -181,9 +179,7 @@ private func coreVals(_ args: [Expr]) throws -> Expr {
         return vals.isEmpty ? .nil : .list(vals, metadata: nil)
 
     default:
-        throw EvaluatorError.invalidArgument(
-            function: "vals",
-            message: "argument must be a map or nil, got \(corePrinter.printString(args[0]))")
+        return .nil
     }
 }
 

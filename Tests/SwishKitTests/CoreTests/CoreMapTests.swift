@@ -492,11 +492,9 @@ struct CoreMapTests {
         #expect(try swish.eval("(keys nil)") == .nil)
     }
 
-    @Test("(keys 42) throws on non-map")
-    func keysNonMapThrows() throws {
-        #expect(throws: EvaluatorError.invalidArgument(function: "keys", message: "argument must be a map or nil, got 42")) {
-            try swish.eval("(keys 42)")
-        }
+    @Test("(keys 42) returns nil for non-map")
+    func keysNonMapReturnsNil() throws {
+        #expect(try swish.eval("(keys 42)") == .nil)
     }
 
     // MARK: - vals
@@ -516,11 +514,9 @@ struct CoreMapTests {
         #expect(try swish.eval("(vals nil)") == .nil)
     }
 
-    @Test("(vals 42) throws on non-map")
-    func valsNonMapThrows() throws {
-        #expect(throws: EvaluatorError.invalidArgument(function: "vals", message: "argument must be a map or nil, got 42")) {
-            try swish.eval("(vals 42)")
-        }
+    @Test("(vals 42) returns nil for non-map")
+    func valsNonMapReturnsNil() throws {
+        #expect(try swish.eval("(vals 42)") == .nil)
     }
 
     // MARK: - find
@@ -641,5 +637,25 @@ struct CoreMapTests {
     @Test("(find [1 2 3] :a) returns nil for non-integer key")
     func findVectorNonIntegerKey() throws {
         #expect(try swish.eval("(find [1 2 3] :a)") == .nil)
+    }
+
+    @Test("(keys []) returns nil")
+    func keysVector() throws {
+        #expect(try swish.eval("(keys [])") == .nil)
+    }
+
+    @Test("(keys '()) returns nil")
+    func keysList() throws {
+        #expect(try swish.eval("(keys '())") == .nil)
+    }
+
+    @Test("(keys #{}) returns nil")
+    func keysSet() throws {
+        #expect(try swish.eval("(keys #{})") == .nil)
+    }
+
+    @Test("(keys \"\") returns nil")
+    func keysString() throws {
+        #expect(try swish.eval("(keys \"\")") == .nil)
     }
 }
