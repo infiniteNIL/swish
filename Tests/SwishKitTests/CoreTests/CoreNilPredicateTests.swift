@@ -90,4 +90,19 @@ struct CoreNilPredicateTests {
     func ifnPredInt() throws {
         #expect(try swish.eval("(ifn? 42)") == .boolean(false))
     }
+
+    @Test("(any? nil) returns true")
+    func anyPredNil() throws {
+        #expect(try swish.eval("(any? nil)") == .boolean(true))
+    }
+
+    @Test("(any? 42) returns true")
+    func anyPredInt() throws {
+        #expect(try swish.eval("(any? 42)") == .boolean(true))
+    }
+
+    @Test("(any? false) returns true")
+    func anyPredFalse() throws {
+        #expect(try swish.eval("(any? false)") == .boolean(true))
+    }
 }

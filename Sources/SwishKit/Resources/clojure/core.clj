@@ -85,6 +85,12 @@
    :static true}
   [x] (not (nil? x)))
 
+(defn any?
+  "Returns true given any argument."
+  {:added "1.9"
+   :static true}
+  [x] true)
+
 (defmacro when
   "Evaluates test. If logical true, evaluates body in an implicit do."
   {:added "1.0"}
