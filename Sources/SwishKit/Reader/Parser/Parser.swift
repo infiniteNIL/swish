@@ -176,8 +176,8 @@ public class Parser {
         let text = currentToken.text
         let parts = text.split(separator: "/", maxSplits: 1)
         guard parts.count == 2,
-              let numerator = Int(parts[0]),
-              let denominator = Int(parts[1]) else {
+              let numerator = BigInt(String(parts[0])),
+              let denominator = BigInt(String(parts[1])) else {
             throw ParserError.integerOverflow(text)
         }
         try advance()
@@ -185,7 +185,11 @@ public class Parser {
             return .integer(0)
         }
         let ratio = Ratio(numerator, denominator)
-        return ratio.denominator == 1 ? .integer(ratio.numerator) : .ratio(ratio)
+        if ratio.denominator == 1 {
+            if let i = Int(exactly: ratio.numerator) { return .integer(i) }
+            return .bigInteger(ratio.numerator)
+        }
+        return .ratio(ratio)
     }
 
     private func parseBigInteger() throws -> Expr {

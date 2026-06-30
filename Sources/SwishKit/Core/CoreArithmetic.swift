@@ -141,8 +141,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
             if x == 0 {
                 throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
             }
-            let r = Ratio(1, x)
-            return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+            return ratioExpr(Ratio(1, x))
 
         case .float(let x):
             return .float(1.0 / x)
@@ -151,8 +150,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
             if x.numerator == 0 {
                 throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
             }
-            let r = Ratio(x.denominator, x.numerator)
-            return r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+            return ratioExpr(Ratio(x.denominator, x.numerator))
 
         case .bigInteger(let x):
             if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
@@ -222,9 +220,9 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
         guard !x.isNaN && !x.isInfinite else { return .floats(x, Double(y.description) ?? 0.0) }
         return .bigDecimals(BigDecimal(floatLiteral: x), y)
 
-    case (.bigDecimal(let x), .ratio(let y)):      return .bigDecimals(x, BigDecimal(integerValue: BigInt(y.numerator), scale: 0) / BigDecimal(integerValue: BigInt(y.denominator), scale: 0))
+    case (.bigDecimal(let x), .ratio(let y)):      return .bigDecimals(x, BigDecimal(integerValue: y.numerator, scale: 0) / BigDecimal(integerValue: y.denominator, scale: 0))
 
-    case (.ratio(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x.numerator), scale: 0) / BigDecimal(integerValue: BigInt(x.denominator), scale: 0), y)
+    case (.ratio(let x),      .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: x.numerator, scale: 0) / BigDecimal(integerValue: x.denominator, scale: 0), y)
 
     case (.bigDecimal(let x), .bigInteger(let y)): return .bigDecimals(x, BigDecimal(integerValue: y, scale: 0))
     case (.bigInteger(let x), .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: x, scale: 0), y)
@@ -248,7 +246,9 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
 // MARK: - Numeric helpers
 
 private func ratioExpr(_ r: Ratio) -> Expr {
-    r.denominator == 1 ? .integer(r.numerator) : .ratio(r)
+    guard r.denominator == 1 else { return .ratio(r) }
+    if let i = Int(exactly: r.numerator) { return .integer(i) }
+    return .bigInteger(r.numerator)
 }
 
 private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
@@ -273,13 +273,8 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x + y)
 
     case .ratios(let x, let y):
-        let (n1, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
-        let (n2, o2) = y.numerator.multipliedReportingOverflow(by: x.denominator)
-        let (num, o3) = n1.addingReportingOverflow(n2)
-        let (den, o4) = x.denominator.multipliedReportingOverflow(by: y.denominator)
-        guard !o1 && !o2 && !o3 && !o4
-        else { throw EvaluatorError.invalidArgument(function: "+", message: "integer overflow in ratio arithmetic") }
-        return ratioExpr(Ratio(num, den))
+        return ratioExpr(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
+                               x.denominator * y.denominator))
 
     case .bigInts(let x, let y):     return .bigInteger(x + y)
     case .bigDecimals(let x, let y): return .bigDecimal(x + y)
@@ -297,13 +292,8 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x - y)
 
     case .ratios(let x, let y):
-        let (n1, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
-        let (n2, o2) = y.numerator.multipliedReportingOverflow(by: x.denominator)
-        let (num, o3) = n1.subtractingReportingOverflow(n2)
-        let (den, o4) = x.denominator.multipliedReportingOverflow(by: y.denominator)
-        guard !o1 && !o2 && !o3 && !o4
-        else { throw EvaluatorError.invalidArgument(function: "-", message: "integer overflow in ratio arithmetic") }
-        return ratioExpr(Ratio(num, den))
+        return ratioExpr(Ratio(x.numerator * y.denominator - y.numerator * x.denominator,
+                               x.denominator * y.denominator))
 
     case .bigInts(let x, let y):     return .bigInteger(x - y)
     case .bigDecimals(let x, let y): return .bigDecimal(x - y)
@@ -321,11 +311,7 @@ private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
         return .float(x * y)
 
     case .ratios(let x, let y):
-        let (num, o1) = x.numerator.multipliedReportingOverflow(by: y.numerator)
-        let (den, o2) = x.denominator.multipliedReportingOverflow(by: y.denominator)
-        guard !o1 && !o2
-        else { throw EvaluatorError.invalidArgument(function: "*", message: "integer overflow in ratio arithmetic") }
-        return ratioExpr(Ratio(num, den))
+        return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
 
     case .bigInts(let x, let y):     return .bigInteger(x * y)
     case .bigDecimals(let x, let y): return .bigDecimal(x * y)
@@ -347,11 +333,7 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
         if y.numerator == 0 {
             throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
         }
-        let (num, o1) = x.numerator.multipliedReportingOverflow(by: y.denominator)
-        let (den, o2) = x.denominator.multipliedReportingOverflow(by: y.numerator)
-        guard !o1 && !o2
-        else { throw EvaluatorError.invalidArgument(function: "/", message: "integer overflow in ratio arithmetic") }
-        return ratioExpr(Ratio(num, den))
+        return ratioExpr(Ratio(x.numerator * y.denominator, x.denominator * y.numerator))
 
     case .bigInts(let x, let y):
         if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
@@ -444,7 +426,11 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
         return .integer(i)
 
     case .ratio(let r):
-        return .integer(r.numerator / r.denominator)
+        let truncated = r.numerator / r.denominator
+        guard let i = Int(exactly: truncated) else {
+            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        }
+        return .integer(i)
 
     case .string(let s):
         guard let i = Int(s) else {

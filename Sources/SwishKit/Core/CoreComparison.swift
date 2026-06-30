@@ -75,10 +75,7 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
         return x < y
 
     case .ratios(let x, let y):
-        let (lhs, lo) = x.numerator.multipliedReportingOverflow(by: y.denominator)
-        let (rhs, ro) = y.numerator.multipliedReportingOverflow(by: x.denominator)
-        if !lo && !ro { return lhs < rhs }
-        return Double(x.numerator) * Double(y.denominator) < Double(y.numerator) * Double(x.denominator)
+        return x.numerator * y.denominator < y.numerator * x.denominator
 
     case .bigInts(let x, let y):
         return x < y

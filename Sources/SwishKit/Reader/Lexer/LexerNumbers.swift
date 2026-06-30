@@ -40,7 +40,7 @@ extension Lexer {
             try validateNumberEnd(text: text, startLine: startLine, startColumn: startColumn)
             let cleanText = text.filter { $0 != "_" }
             let parts = cleanText.split(separator: "/", maxSplits: 1)
-            if parts.count == 2, let denom = Int(String(parts[1])), denom == 0 {
+            if parts.count == 2, parts[1] == "0" {
                 throw LexerError.invalidRatio(cleanText, line: startLine, column: startColumn)
             }
             return Token(type: .ratio, text: cleanText, line: startLine, column: startColumn)

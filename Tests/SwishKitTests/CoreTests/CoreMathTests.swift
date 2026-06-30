@@ -250,4 +250,24 @@ struct CoreMathTests {
     func decFloat() throws {
         #expect(try swish.eval("(dec 1.5)") == .float(0.5))
     }
+
+    // MARK: - BigInt-backed Ratio overflow
+
+    @Test("(- max-int -1/2) does not throw")
+    func subtractMaxIntRatio() throws {
+        let result = try swish.eval("(- \(Int.max) -1/2)")
+        switch result {
+        case .ratio, .bigInteger, .float, .integer: break
+        default: Issue.record("Expected a number, got \(result)")
+        }
+    }
+
+    @Test("(- min-int 1/2) does not throw")
+    func subtractMinIntRatio() throws {
+        let result = try swish.eval("(- \(Int.min) 1/2)")
+        switch result {
+        case .ratio, .bigInteger, .float, .integer: break
+        default: Issue.record("Expected a number, got \(result)")
+        }
+    }
 }
