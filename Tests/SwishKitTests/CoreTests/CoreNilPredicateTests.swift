@@ -30,4 +30,34 @@ struct CoreNilPredicateTests {
     func nilPredicateEmptyVector() throws {
         #expect(try swish.eval("(nil? [])") == .boolean(false))
     }
+
+    @Test("(true? true) returns true")
+    func truePredTrue() throws {
+        #expect(try swish.eval("(true? true)") == .boolean(true))
+    }
+
+    @Test("(true? false) returns false")
+    func truePredFalse() throws {
+        #expect(try swish.eval("(true? false)") == .boolean(false))
+    }
+
+    @Test("(true? 1) returns false")
+    func truePredInt() throws {
+        #expect(try swish.eval("(true? 1)") == .boolean(false))
+    }
+
+    @Test("(false? false) returns true")
+    func falsePredFalse() throws {
+        #expect(try swish.eval("(false? false)") == .boolean(true))
+    }
+
+    @Test("(false? true) returns false")
+    func falsePredTrue() throws {
+        #expect(try swish.eval("(false? true)") == .boolean(false))
+    }
+
+    @Test("(false? nil) returns false")
+    func falsePredNil() throws {
+        #expect(try swish.eval("(false? nil)") == .boolean(false))
+    }
 }

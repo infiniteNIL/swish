@@ -2,6 +2,8 @@
 
 func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "nil?",     arity: .fixed(1), doc: "Returns true if x is nil, false otherwise.",       arglists: [["x"]]) { args in if case .nil     = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "true?",    arity: .fixed(1), doc: "Returns true if x is the value true, false otherwise.",  arglists: [["x"]]) { args in if case .boolean(true)  = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "false?",   arity: .fixed(1), doc: "Returns true if x is the value false, false otherwise.", arglists: [["x"]]) { args in if case .boolean(false) = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword?", arity: .fixed(1), doc: "Returns true if x is a keyword, false otherwise.",  arglists: [["x"]]) { args in if case .keyword = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "symbol?",  arity: .fixed(1), doc: "Return true if x is a Symbol",                      arglists: [["x"]]) { args in if case .symbol  = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "string?",  arity: .fixed(1), doc: "Return true if x is a String",                      arglists: [["x"]]) { args in if case .string  = args[0] { return .boolean(true) }; return .boolean(false) }
