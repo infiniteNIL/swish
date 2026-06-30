@@ -127,6 +127,23 @@ struct CoreHigherOrderTests {
         #expect(try swish.eval("((juxt + - *) 2 3)") == .vector([.integer(5), .integer(-1), .integer(6)], metadata: nil))
     }
 
+    // MARK: - partial
+
+    @Test("((partial + 5) 3) returns 8")
+    func partialAddsArg() throws {
+        #expect(try swish.eval("((partial + 5) 3)") == .integer(8))
+    }
+
+    @Test("((partial str \"hello-\") \"world\") returns concatenated string")
+    func partialStr() throws {
+        #expect(try swish.eval("((partial str \"hello-\") \"world\")") == .string("hello-world"))
+    }
+
+    @Test("(fn? (partial + 1)) returns true")
+    func partialReturnsFn() throws {
+        #expect(try swish.eval("(fn? (partial + 1))") == .boolean(true))
+    }
+
     // MARK: - name
 
     @Test("(name :foo) returns \"foo\"")
