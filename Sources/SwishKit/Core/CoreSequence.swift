@@ -61,6 +61,9 @@ func registerSequence(into evaluator: Evaluator) {
             }
             return .list(Array(elems.dropFirst()), metadata: nil)
 
+        case .nil:
+            return .nil
+
         default:
             throw EvaluatorError.invalidArgument(function: "pop", message: "not a vector or list")
         }
