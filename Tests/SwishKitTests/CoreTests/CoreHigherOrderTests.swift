@@ -106,4 +106,24 @@ struct CoreHigherOrderTests {
     func constantlyNoArgs() throws {
         #expect(try swish.eval("((constantly nil))") == .nil)
     }
+
+    @Test("juxt is a function")
+    func juxtIsFunction() throws {
+        #expect(try swish.eval("(fn? juxt)") == .boolean(true))
+    }
+
+    @Test("(juxt inc dec) returns a function")
+    func juxtReturnsFunction() throws {
+        #expect(try swish.eval("(fn? (juxt inc dec))") == .boolean(true))
+    }
+
+    @Test("((juxt inc dec) 5) returns [6 4]")
+    func juxtApplied() throws {
+        #expect(try swish.eval("((juxt inc dec) 5)") == .vector([.integer(6), .integer(4)], metadata: nil))
+    }
+
+    @Test("((juxt + - *) 2 3) returns [5 -1 6]")
+    func juxtMultipleArgs() throws {
+        #expect(try swish.eval("((juxt + - *) 2 3)") == .vector([.integer(5), .integer(-1), .integer(6)], metadata: nil))
+    }
 }
