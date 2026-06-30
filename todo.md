@@ -17,6 +17,12 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] fix to keys and vals when passed non-maps
+- [x] ifn?, name, namespace
+- [x] true?, false?
+- [x] to-array
+- [x] just
+- [x] float, double
 - [x] fixed uses when working with integers and big integers
 - [x] sorted-map, sorted-map-by, sorted-set-by
 - [x] identical?
