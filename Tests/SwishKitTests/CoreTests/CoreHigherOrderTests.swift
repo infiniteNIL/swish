@@ -126,4 +126,38 @@ struct CoreHigherOrderTests {
     func juxtMultipleArgs() throws {
         #expect(try swish.eval("((juxt + - *) 2 3)") == .vector([.integer(5), .integer(-1), .integer(6)], metadata: nil))
     }
+
+    // MARK: - name
+
+    @Test("(name :foo) returns \"foo\"")
+    func nameKeyword() throws {
+        #expect(try swish.eval("(name :foo)") == .string("foo"))
+    }
+
+    @Test("(name :ns/foo) returns \"foo\"")
+    func nameNamespacedKeyword() throws {
+        #expect(try swish.eval("(name :ns/foo)") == .string("foo"))
+    }
+
+    @Test("(name \"bar\") returns \"bar\"")
+    func nameString() throws {
+        #expect(try swish.eval("(name \"bar\")") == .string("bar"))
+    }
+
+    // MARK: - namespace
+
+    @Test("(namespace :ns/foo) returns \"ns\"")
+    func namespaceKeyword() throws {
+        #expect(try swish.eval("(namespace :ns/foo)") == .string("ns"))
+    }
+
+    @Test("(namespace :foo) returns nil")
+    func namespaceUnqualifiedKeyword() throws {
+        #expect(try swish.eval("(namespace :foo)") == .nil)
+    }
+
+    @Test("(namespace \"foo\") returns nil")
+    func namespaceString() throws {
+        #expect(try swish.eval("(namespace \"foo\")") == .nil)
+    }
 }

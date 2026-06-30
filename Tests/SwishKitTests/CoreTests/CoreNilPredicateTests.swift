@@ -60,4 +60,34 @@ struct CoreNilPredicateTests {
     func falsePredNil() throws {
         #expect(try swish.eval("(false? nil)") == .boolean(false))
     }
+
+    @Test("(ifn? inc) returns true for a function")
+    func ifnPredFunction() throws {
+        #expect(try swish.eval("(ifn? inc)") == .boolean(true))
+    }
+
+    @Test("(ifn? :foo) returns true for a keyword")
+    func ifnPredKeyword() throws {
+        #expect(try swish.eval("(ifn? :foo)") == .boolean(true))
+    }
+
+    @Test("(ifn? {}) returns true for a map")
+    func ifnPredMap() throws {
+        #expect(try swish.eval("(ifn? {})") == .boolean(true))
+    }
+
+    @Test("(ifn? #{}) returns true for a set")
+    func ifnPredSet() throws {
+        #expect(try swish.eval("(ifn? #{})") == .boolean(true))
+    }
+
+    @Test("(ifn? []) returns true for a vector")
+    func ifnPredVector() throws {
+        #expect(try swish.eval("(ifn? [])") == .boolean(true))
+    }
+
+    @Test("(ifn? 42) returns false")
+    func ifnPredInt() throws {
+        #expect(try swish.eval("(ifn? 42)") == .boolean(false))
+    }
 }

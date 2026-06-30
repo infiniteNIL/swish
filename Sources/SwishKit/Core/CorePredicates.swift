@@ -18,4 +18,53 @@ func registerPredicates(into evaluator: Evaluator) {
             return .boolean(false)
         }
     }
+    evaluator.register(name: "ifn?", arity: .fixed(1), doc: "Returns true if x implements IFn.", arglists: [["x"]]) { args in
+        switch args[0] {
+        case .function, .multiArityFunction, .nativeFunction,
+             .macro, .multiArityMacro,
+             .keyword, .map, .sortedMap, .set, .sortedSet, .vector:
+            return .boolean(true)
+
+        default:
+            return .boolean(false)
+        }
+    }
+    evaluator.register(name: "name", arity: .fixed(1),
+        doc: "Returns the name String of a string, symbol or keyword.",
+        arglists: [["x"]]) { args in
+        switch args[0] {
+        case .string(let s):
+            return .string(s)
+
+        case .keyword(let k):
+            return .string(k.contains("/") ? String(k.split(separator: "/", maxSplits: 1).last!) : k)
+
+        case .symbol(let s, _):
+            return .string(s.contains("/") ? String(s.split(separator: "/", maxSplits: 1).last!) : s)
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "name",
+                message: "don't know how to get name of \(corePrinter.printString(args[0]))")
+        }
+    }
+    evaluator.register(name: "namespace", arity: .fixed(1),
+        doc: "Returns the namespace String of a symbol or keyword, or nil if not present.",
+        arglists: [["x"]]) { args in
+        switch args[0] {
+        case .keyword(let k):
+            guard k.contains("/") else { return .nil }
+            return .string(String(k.split(separator: "/", maxSplits: 1).first!))
+
+        case .symbol(let s, _):
+            guard s.contains("/") else { return .nil }
+            return .string(String(s.split(separator: "/", maxSplits: 1).first!))
+
+        case .string:
+            return .nil
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "namespace",
+                message: "don't know how to get namespace of \(corePrinter.printString(args[0]))")
+        }
+    }
 }
