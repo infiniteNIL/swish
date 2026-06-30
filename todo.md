@@ -17,6 +17,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] partial
+- [x] object-array, array-map
 - [x] fix to keys and vals when passed non-maps
 - [x] ifn?, name, namespace
 - [x] true?, false?
