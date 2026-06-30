@@ -444,4 +444,14 @@ struct CoreSequenceTests {
     func toArrayGetOutOfBounds() throws {
         #expect(try swish.eval("(get (to-array [1 2]) 10)") == .nil)
     }
+
+    @Test("(object-array 3) is not a list")
+    func objectArrayNotList() throws {
+        #expect(try swish.eval("(list? (object-array 3))") == .boolean(false))
+    }
+
+    @Test("(array-map :a 1) is not a list")
+    func arrayMapNotList() throws {
+        #expect(try swish.eval("(list? (array-map :a 1))") == .boolean(false))
+    }
 }

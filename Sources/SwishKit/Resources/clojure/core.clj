@@ -204,6 +204,15 @@
   [coll]
   (vec coll))
 
+(defn object-array
+  "Returns a vector of n nils (stub; no Java array semantics)."
+  [n]
+  (vec (repeat n nil)))
+
+(def array-map
+  "Returns a map created from kvs (delegates to hash-map)."
+  hash-map)
+
 (defn take
   "Returns a lazy sequence of the first n items in coll, or all items if
   there are fewer than n. Returns a stateful transducer when no collection
