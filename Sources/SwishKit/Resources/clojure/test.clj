@@ -212,27 +212,59 @@
   ;; we inline the try/catch and handle thrown? directly.
   ([form] `(is ~form nil))
   ([form msg]
-   (if (and (seq? form) (= (first form) 'thrown?))
-     (let [body (drop 2 form)]
-       `(try ~@body
-             (do-report {:type :fail, :message ~msg,
-                         :expected '~form, :actual nil})
-             (catch Exception e#
-               (do-report {:type :pass, :message ~msg,
-                           :expected '~form, :actual e#})
-               e#)))
-     `(try
-        (let [result# ~form]
-          (if result#
-            (do-report {:type :pass, :message ~msg,
-                        :expected '~form, :actual result#})
-            (do-report {:type :fail, :message ~msg,
-                        :expected '~form, :actual (list '~'not '~form)}))
-          result#)
-        (catch Exception e#
-          (do-report {:type :error, :message ~msg,
-                      :expected '~form, :actual e#})
-          nil)))))
+   (let [p-thrown? (fn [f]
+                     (and (seq? f)
+                          (let [h (first f)]
+                            (or (= h 'p/thrown?)
+                                (= h 'clojure.core-test.portability/thrown?)))))]
+     (cond
+       (and (seq? form) (= (first form) 'thrown?))
+       (let [body (drop 2 form)]
+         `(try ~@body
+               (do-report {:type :fail, :message ~msg,
+                           :expected '~form, :actual nil})
+               (catch Exception e#
+                 (do-report {:type :pass, :message ~msg,
+                             :expected '~form, :actual e#})
+                 e#)))
+
+       (p-thrown? form)
+       (let [body (rest form)]
+         `(try ~@body
+               (do-report {:type :fail, :message ~msg,
+                           :expected '~form, :actual nil})
+               (catch Exception e#
+                 (do-report {:type :pass, :message ~msg,
+                             :expected '~form, :actual e#})
+                 e#)))
+
+       (and (seq? form) (= (first form) 'let) (p-thrown? (last form)))
+       (let [bindings (second form)
+             p-body   (rest (last form))]
+         `(try
+            (let [~@bindings]
+              (try ~@p-body
+                (do-report {:type :fail, :message ~msg, :expected '~form, :actual nil})
+                (catch Exception e#
+                  (do-report {:type :pass, :message ~msg, :expected '~form, :actual e#})
+                  e#)))
+            (catch Exception outer-e#
+              (do-report {:type :pass, :message ~msg, :expected '~form, :actual outer-e#})
+              outer-e#)))
+
+       :else
+       `(try
+          (let [result# ~form]
+            (if result#
+              (do-report {:type :pass, :message ~msg,
+                          :expected '~form, :actual result#})
+              (do-report {:type :fail, :message ~msg,
+                          :expected '~form, :actual (list '~'not '~form)}))
+            result#)
+          (catch Exception e#
+            (do-report {:type :error, :message ~msg,
+                        :expected '~form, :actual e#})
+            nil))))))
 
 (defmacro are
   "Checks multiple assertions with a template expression.

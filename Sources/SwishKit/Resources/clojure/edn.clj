@@ -1,9 +1,14 @@
-(ns clojure.edn)
+(ns clojure.edn
+  (:require [clojure.string :as str]))
 
 (defn read-string
   ([s]
-   (clojure.core/read-string s))
+   (try (clojure.core/read-string s)
+        (catch Exception e
+          (if (str/includes? e "no forms found in string")
+            nil
+            (throw e)))))
   ([opts s]
-   (if (clojure.string/blank? s)
+   (if (str/blank? s)
      (get opts :eof nil)
      (clojure.core/read-string s))))

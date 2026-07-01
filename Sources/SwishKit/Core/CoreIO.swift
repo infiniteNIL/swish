@@ -169,18 +169,19 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "read-string",
             message: "argument must be a string")
     }
+    let exprs: [Expr]
     do {
-        let exprs = try Reader.readString(source)
-        guard let first = exprs.first else {
-            throw EvaluatorError.invalidArgument(function: "read-string",
-                message: "no forms found in string")
-        }
-        return first
+        exprs = try Reader.readString(source)
     }
     catch {
         throw EvaluatorError.invalidArgument(function: "read-string",
             message: error.localizedDescription)
     }
+    guard let first = exprs.first else {
+        throw EvaluatorError.invalidArgument(function: "read-string",
+            message: "no forms found in string")
+    }
+    return first
 }
 
 // MARK: - Print implementations
