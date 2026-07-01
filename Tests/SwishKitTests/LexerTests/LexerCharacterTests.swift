@@ -125,12 +125,12 @@ struct LexerCharacterTests {
         }
     }
 
-    @Test("Throws error for whitespace after backslash")
-    func characterWhitespaceAfterBackslashThrows() throws {
+    @Test("Backslash followed by space returns space character")
+    func characterBackslashSpace() throws {
         let lexer = Lexer("\\ ")
-        #expect(throws: LexerError.invalidCharacterLiteral("whitespace after backslash (use \\space for space character)", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .character)
+        #expect(token.text == " ")
     }
 
     @Test("Throws error for unknown named character")

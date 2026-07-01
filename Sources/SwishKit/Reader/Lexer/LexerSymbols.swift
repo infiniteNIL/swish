@@ -6,12 +6,6 @@ extension Lexer {
             throw LexerError.invalidCharacterLiteral("unexpected end of input", line: startLine, column: startColumn)
         }
 
-        if char.isWhitespace {
-            throw LexerError.invalidCharacterLiteral(
-                "whitespace after backslash (use \\space for space character)",
-                line: startLine, column: startColumn)
-        }
-
         // Clojure Unicode character literal: \uXXXX (exactly 4 hex digits, no braces)
         if char == "u",
            let d1 = peekAt(1), d1.isHexDigit,
