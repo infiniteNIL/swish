@@ -71,12 +71,20 @@ struct ParserLiteralsTests {
         #expect(exprs == [.character(" ")])
     }
 
-    @Test("Parses Unicode character")
+    @Test("Parses Clojure-style Unicode character literal \\uXXXX (U+20AC = '€')")
     func parseUnicodeCharacter() throws {
-        let lexer = Lexer("\\u{20AC}")
+        let lexer = Lexer("\\u20AC")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
         #expect(exprs == [.character("€")])
+    }
+
+    @Test("Parses Clojure-style Unicode character literal \\u1234 (U+1234)")
+    func parseUnicodeCharacter1234() throws {
+        let lexer = Lexer("\\u1234")
+        let parser = try Parser(lexer)
+        let exprs = try parser.parse()
+        #expect(exprs == [.character("\u{1234}")])
     }
 
     @Test("Parses multiple characters")

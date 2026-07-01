@@ -17,6 +17,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] \uXXXX support. No longer supports Swift style \u{XXXX}
+- [x] clojure.edn/read-string fixes
+
 - [x] No ERRORs in clojure.core-test.* (still have FAIL and SKIP)
 - [x] aset
 - [x] transient collection handling

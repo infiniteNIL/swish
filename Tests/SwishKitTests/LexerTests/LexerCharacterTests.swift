@@ -79,7 +79,7 @@ struct LexerCharacterTests {
 
     @Test("Scans Unicode character - euro sign")
     func scanUnicodeCharacterEuro() throws {
-        let lexer = Lexer("\\u{20AC}")
+        let lexer = Lexer("\\u20AC")
         let token = try lexer.nextToken()
         #expect(token.type == .character)
         #expect(token.text == "€")
@@ -87,18 +87,18 @@ struct LexerCharacterTests {
 
     @Test("Scans Unicode character - letter A")
     func scanUnicodeCharacterA() throws {
-        let lexer = Lexer("\\u{41}")
+        let lexer = Lexer("\\u0041")
         let token = try lexer.nextToken()
         #expect(token.type == .character)
         #expect(token.text == "A")
     }
 
-    @Test("Scans Unicode character - emoji")
-    func scanUnicodeCharacterEmoji() throws {
-        let lexer = Lexer("\\u{1F600}")
+    @Test("Scans Unicode character - smiling face (U+263A)")
+    func scanUnicodeCharacterSmilingFace() throws {
+        let lexer = Lexer("\\u263A")
         let token = try lexer.nextToken()
         #expect(token.type == .character)
-        #expect(token.text == "😀")
+        #expect(token.text == "☺")
     }
 
     @Test("Single letter n is not newline")
@@ -189,40 +189,24 @@ struct LexerCharacterTests {
 
     @Test("Unicode character with lowercase hex")
     func unicodeCharacterLowercaseHex() throws {
-        let lexer = Lexer("\\u{20ac}")
+        let lexer = Lexer("\\u20ac")
         let token = try lexer.nextToken()
         #expect(token.type == .character)
         #expect(token.text == "€")
     }
 
-    @Test("Throws error for Unicode character with invalid hex")
-    func unicodeCharacterInvalidHexThrows() throws {
-        let lexer = Lexer("\\u{GGGG}")
-        #expect(throws: LexerError.invalidUnicodeEscape("invalid hex digit", line: 1, column: 4)) {
-            try lexer.nextToken()
-        }
-    }
-
-    @Test("Throws error for Unicode character with too many digits")
-    func unicodeCharacterTooManyDigitsThrows() throws {
-        let lexer = Lexer("\\u{1234567}")
-        #expect(throws: LexerError.invalidUnicodeEscape("expected 1-6 hex digits", line: 1, column: 11)) {
-            try lexer.nextToken()
-        }
-    }
-
-    @Test("Throws error for Unicode character unterminated")
-    func unicodeCharacterUnterminatedThrows() throws {
-        let lexer = Lexer("\\u{20AC")
-        #expect(throws: LexerError.invalidCharacterLiteral("unterminated unicode escape", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
-    }
-
     @Test("Throws error for Unicode character with surrogate code point")
     func unicodeCharacterSurrogateThrows() throws {
-        let lexer = Lexer("\\u{D800}")
-        #expect(throws: LexerError.invalidUnicodeEscape("invalid code point", line: 1, column: 8)) {
+        let lexer = Lexer("\\uD800")
+        #expect(throws: LexerError.invalidCharacterLiteral("invalid Unicode code point \\uD800", line: 1, column: 1)) {
+            try lexer.nextToken()
+        }
+    }
+
+    @Test("\\u followed by non-hex letters is treated as named character (throws unknownNamedCharacter)")
+    func unicodeCharacterNonHexFallsThrough() throws {
+        let lexer = Lexer("\\uGGGG")
+        #expect(throws: LexerError.unknownNamedCharacter("uGGGG", line: 1, column: 1)) {
             try lexer.nextToken()
         }
     }

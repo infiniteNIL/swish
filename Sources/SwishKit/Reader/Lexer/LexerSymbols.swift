@@ -12,9 +12,13 @@ extension Lexer {
                 line: startLine, column: startColumn)
         }
 
-        // Unicode escape: \u{XXXX}
-        if char == "u", let next = peekAt(1), next == "{" {
-            return try scanUnicodeCharacter(startLine: startLine, startColumn: startColumn)
+        // Clojure Unicode character literal: \uXXXX (exactly 4 hex digits, no braces)
+        if char == "u",
+           let d1 = peekAt(1), d1.isHexDigit,
+           let d2 = peekAt(2), d2.isHexDigit,
+           let d3 = peekAt(3), d3.isHexDigit,
+           let d4 = peekAt(4), d4.isHexDigit {
+            return try scanHex4UnicodeChar(startLine: startLine, startColumn: startColumn)
         }
 
         // Named character or single letter
@@ -42,13 +46,17 @@ extension Lexer {
         namedCharacters.first(where: { $0.key == name })?.value
     }
 
-    private func scanUnicodeCharacter(startLine: Int, startColumn: Int) throws -> Token {
+    private func scanHex4UnicodeChar(startLine: Int, startColumn: Int) throws -> Token {
         advance()  // consume 'u'
-        advance()  // consume '{'
-        let char = try parseUnicodeHexContent(
-            unterminated: .invalidCharacterLiteral("unterminated unicode escape", line: startLine, column: startColumn),
-            startLine: startLine, startColumn: startColumn)
-        return Token(type: .character, text: String(char), line: startLine, column: startColumn)
+        var hexDigits = ""
+        for _ in 0..<4 { hexDigits.append(advance()) }
+        guard let codePoint = UInt32(hexDigits, radix: 16),
+              let scalar = Unicode.Scalar(codePoint) else {
+            throw LexerError.invalidCharacterLiteral(
+                "invalid Unicode code point \\u\(hexDigits)",
+                line: startLine, column: startColumn)
+        }
+        return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
     }
 
     func scanSymbol(startLine: Int, startColumn: Int) -> Token {
