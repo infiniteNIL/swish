@@ -169,6 +169,13 @@ extension Lexer {
                 if hasSlash || text.isEmpty {
                     break
                 }
+                // foo// → namespace "foo", name "/" (Clojure allows "/" as a symbol name)
+                if peekAt(1) == "/" {
+                    text.append(advance())  // consume '/' (namespace separator)
+                    hasSlash = true
+                    text.append(advance())  // consume '/' (the name is "/")
+                    break
+                }
                 if let next = peekAt(1), isSymbolContinuation(next) || next == "." {
                     text.append(advance())
                     hasSlash = true

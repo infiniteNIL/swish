@@ -369,4 +369,23 @@ struct LexerSymbolTests {
         #expect(token3.type == .boolean)
         #expect(token3.text == "true")
     }
+
+    @Test("Scans foo// as a single symbol (namespace foo, name /)")
+    func scanFooDoubleSlash() throws {
+        let lexer = Lexer("foo//")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == "foo//")
+    }
+
+    @Test("foo//bar scans as two tokens: foo// and bar")
+    func scanFooDoubleSlashBar() throws {
+        let lexer = Lexer("foo//bar")
+        let t1 = try lexer.nextToken()
+        #expect(t1.type == .symbol)
+        #expect(t1.text == "foo//")
+        let t2 = try lexer.nextToken()
+        #expect(t2.type == .symbol)
+        #expect(t2.text == "bar")
+    }
 }
