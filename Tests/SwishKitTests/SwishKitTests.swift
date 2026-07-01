@@ -70,12 +70,12 @@ struct SwishKitTests {
         #expect(try swish.eval("0o7_55") == .integer(493))
     }
 
-    @Test("Decimal integers can have leading zeros")
-    func decimalWithLeadingZeros() throws {
-        #expect(try swish.eval("0700") == .integer(700))
-        #expect(try swish.eval("08") == .integer(8))
+    @Test("Leading-zero integers are octal (Clojure style)")
+    func leadingZeroOctalIntegers() throws {
+        #expect(try swish.eval("0700") == .integer(448))
         #expect(try swish.eval("00") == .integer(0))
-        #expect(try swish.eval("-09") == .integer(-9))
+        #expect(throws: (any Error).self) { try swish.eval("08") }
+        #expect(throws: (any Error).self) { try swish.eval("-09") }
     }
 
     // MARK: - syntax-quote / unquote / unquote-splicing (full pipeline)

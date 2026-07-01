@@ -6,6 +6,11 @@ extension Lexer {
             throw LexerError.invalidCharacterLiteral("unexpected end of input", line: startLine, column: startColumn)
         }
 
+        // Octal character literal: \oXXX (1-3 octal digits, value 0-377 octal = 0-255 decimal)
+        if char == "o", let next = peekAt(1), next.isNumber {
+            return try scanOctalChar(startLine: startLine, startColumn: startColumn)
+        }
+
         // Clojure Unicode character literal: \uXXXX (exactly 4 hex digits, no braces)
         if char == "u",
            let d1 = peekAt(1), d1.isHexDigit,
@@ -38,6 +43,32 @@ extension Lexer {
 
     private func resolveNamedCharacter(_ name: String) -> Character? {
         namedCharacters.first(where: { $0.key == name })?.value
+    }
+
+    private func scanOctalChar(startLine: Int, startColumn: Int) throws -> Token {
+        advance()  // consume 'o'
+        var digits = ""
+        while let c = peek(), c.isNumber {
+            guard c >= "0" && c <= "7" else {
+                throw LexerError.invalidCharacterLiteral(
+                    "invalid octal digit '\(c)' in character literal",
+                    line: line, column: column)
+            }
+            digits.append(advance())
+            if digits.count == 3 { break }
+        }
+        if let c = peek(), c.isNumber {
+            throw LexerError.invalidCharacterLiteral(
+                "too many octal digits in character literal",
+                line: startLine, column: startColumn)
+        }
+        guard let value = UInt32(digits, radix: 8), value <= 0xFF,
+              let scalar = Unicode.Scalar(value) else {
+            throw LexerError.invalidCharacterLiteral(
+                "octal character literal \\o\(digits) out of range (must be 0-377 octal)",
+                line: startLine, column: startColumn)
+        }
+        return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
     }
 
     private func scanHex4UnicodeChar(startLine: Int, startColumn: Int) throws -> Token {

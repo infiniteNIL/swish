@@ -180,6 +180,14 @@ public class Lexer {
             case "x":
                 return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
 
+            case "0"..."7":
+                return try scanLeadingZeroOctalInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
+
+            case "8", "9":
+                var text = prefix
+                while let c = peek(), !isNumberTerminator(c) { text.append(advance()) }
+                throw LexerError.invalidNumberFormat(text, line: startLine, column: startColumn)
+
             default:
                 break
             }

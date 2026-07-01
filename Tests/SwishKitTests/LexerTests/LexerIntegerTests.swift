@@ -467,30 +467,28 @@ struct LexerIntegerTests {
         }
     }
 
-    // MARK: - Decimal integers with leading zeros
+    // MARK: - Clojure-style octal integers (leading zero)
 
-    @Test("Scans decimal with leading zero")
-    func scanDecimalWithLeadingZero() throws {
+    @Test("Leading zero scans as octal: 0700 = 448")
+    func scanLeadingZeroOctal() throws {
         let lexer = Lexer("0700")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
-        #expect(token.text == "0700")
+        #expect(token.text == "0o700")
     }
 
-    @Test("Scans decimal 08")
-    func scanDecimal08() throws {
+    @Test("Throws for invalid octal digit after leading zero: 08")
+    func scanLeadingZero08Throws() throws {
         let lexer = Lexer("08")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "08")
+        #expect(throws: (any Error).self) { try lexer.nextToken() }
     }
 
-    @Test("Scans decimal 00")
-    func scanDecimal00() throws {
+    @Test("Leading zero with double zero scans as octal 0: 00")
+    func scanLeadingZero00() throws {
         let lexer = Lexer("00")
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
-        #expect(token.text == "00")
+        #expect(token.text == "0o0")
     }
 
     @Test("Plain zero is still valid")

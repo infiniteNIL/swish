@@ -251,22 +251,22 @@ struct ParserIntegerTests {
         #expect(exprs == [.integer(0)])
     }
 
-    // MARK: - Decimal integers with leading zeros
+    // MARK: - Clojure-style octal integers (leading zero)
 
-    @Test("Parses leading zero as decimal")
-    func parseLeadingZeroAsDecimal() throws {
+    @Test("Parses leading zero as octal: 0700 = 448")
+    func parseLeadingZeroAsOctal() throws {
         let lexer = Lexer("0700")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(700)])
+        #expect(exprs == [.integer(448)])
     }
 
-    @Test("Parses 08 as decimal")
-    func parse08AsDecimal() throws {
+    @Test("Throws for invalid octal digit: 08")
+    func parse08Throws() throws {
         let lexer = Lexer("08")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(8)])
+        #expect(throws: (any Error).self) {
+            try Parser(lexer).parse()
+        }
     }
 
     @Test("Parses 00 as decimal zero")

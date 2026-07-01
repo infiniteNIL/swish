@@ -187,6 +187,54 @@ struct LexerCharacterTests {
         #expect(stringToken.text == "hello")
     }
 
+    @Test("Scans octal character literal \\o0 (NUL)")
+    func scanOctalCharNul() throws {
+        let lexer = Lexer("\\o0")
+        let token = try lexer.nextToken()
+        #expect(token.type == .character)
+        #expect(token.text == "\0")
+    }
+
+    @Test("Scans octal character literal \\o101 (U+0041 = 'A')")
+    func scanOctalCharA() throws {
+        let lexer = Lexer("\\o101")
+        let token = try lexer.nextToken()
+        #expect(token.type == .character)
+        #expect(token.text == "A")
+    }
+
+    @Test("Scans octal character literal \\o377 (U+00FF = 'ÿ')")
+    func scanOctalCharMax() throws {
+        let lexer = Lexer("\\o377")
+        let token = try lexer.nextToken()
+        #expect(token.type == .character)
+        #expect(token.text == "ÿ")
+    }
+
+    @Test("Throws for octal character with invalid digit \\o8")
+    func scanOctalCharInvalidDigit8() throws {
+        let lexer = Lexer("\\o8")
+        #expect(throws: (any Error).self) { try lexer.nextToken() }
+    }
+
+    @Test("Throws for octal character with mixed invalid digit \\o18")
+    func scanOctalCharMixedInvalidDigit() throws {
+        let lexer = Lexer("\\o18")
+        #expect(throws: (any Error).self) { try lexer.nextToken() }
+    }
+
+    @Test("Throws for octal character out of range \\o400")
+    func scanOctalCharOutOfRange() throws {
+        let lexer = Lexer("\\o400")
+        #expect(throws: (any Error).self) { try lexer.nextToken() }
+    }
+
+    @Test("Throws for octal character with too many digits \\o1000")
+    func scanOctalCharTooManyDigits() throws {
+        let lexer = Lexer("\\o1000")
+        #expect(throws: (any Error).self) { try lexer.nextToken() }
+    }
+
     @Test("Unicode character with lowercase hex")
     func unicodeCharacterLowercaseHex() throws {
         let lexer = Lexer("\\u20ac")

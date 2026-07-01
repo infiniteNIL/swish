@@ -98,6 +98,25 @@ extension Lexer {
         try scanPrefixedInteger(startLine: startLine, startColumn: startColumn, prefix: prefix, isDigit: isOctalDigit)
     }
 
+    func scanLeadingZeroOctalInteger(startLine: Int, startColumn: Int, prefix: String) throws -> Token {
+        advance()  // consume leading '0'
+        var digits = ""
+        while let c = peek() {
+            if isOctalDigit(c) {
+                digits.append(advance())
+            }
+            else if c.isNumber {
+                throw LexerError.invalidNumberFormat(
+                    prefix + "0" + digits + String(c), line: startLine, column: startColumn)
+            }
+            else {
+                break
+            }
+        }
+        try validateNumberEnd(text: prefix + "0" + digits, startLine: startLine, startColumn: startColumn)
+        return Token(type: .integer, text: prefix + "0o" + digits, line: startLine, column: startColumn)
+    }
+
     private func scanPrefixedInteger(
         startLine: Int, startColumn: Int,
         prefix: String,

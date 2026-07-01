@@ -43,6 +43,26 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
         body: coreInt)
+    evaluator.register(name: "char", arity: .fixed(1),
+        doc: "Coerce to char. Accepts an integer Unicode code point or a character.",
+        arglists: [["x"]]) { args in
+        switch args[0] {
+        case .character:
+            return args[0]
+
+        case .integer(let n):
+            guard n >= 0,
+                  let scalar = Unicode.Scalar(UInt32(n)) else {
+                throw EvaluatorError.invalidArgument(function: "char",
+                    message: "Value out of range for char: \(n)")
+            }
+            return .character(Character(scalar))
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "char",
+                message: "Value out of range for char")
+        }
+    }
     evaluator.register(name: "float", arity: .fixed(1),
         doc: "Coerces x to a floating-point number.",
         arglists: [["x"]],
