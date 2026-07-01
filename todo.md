@@ -17,6 +17,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] No ERRORs in clojure.core-test.* (still have FAIL and SKIP)
+- [x] aset
+- [x] transient collection handling
 - [x] type (returns a keyword representing a type)
 - [x] fixes to symbol
 - [x] int-array, long-array, double-array, float-array
