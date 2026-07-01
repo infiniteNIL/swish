@@ -111,65 +111,79 @@ extension Evaluator {
 
     func processRequireDirective(_ specs: [Expr], caller: String = "require") throws {
         for spec in specs {
-            switch spec {
-            case .symbol(let nsName, _):
-                _ = try requireNs(nsName)
-
-            case .vector(let parts, _):
-                guard !parts.isEmpty, case .symbol(let nsName, _) = parts[0]
-                else {
-                    throw EvaluatorError.invalidArgument(function: caller,
-                        message: ":require spec must start with a namespace symbol")
+            if caller == "ns" {
+                do {
+                    try processOneRequireSpec(spec, caller: caller)
                 }
-                let loadedNs = try requireNs(nsName)
-                var i = 1
-                while i + 1 < parts.count {
-                    guard case .keyword(let key) = parts[i]
+                catch {
+                    print("Warning: require spec failed: \(error)")
+                }
+            }
+            else {
+                try processOneRequireSpec(spec, caller: caller)
+            }
+        }
+    }
+
+    private func processOneRequireSpec(_ spec: Expr, caller: String) throws {
+        switch spec {
+        case .symbol(let nsName, _):
+            _ = try requireNs(nsName)
+
+        case .vector(let parts, _):
+            guard !parts.isEmpty, case .symbol(let nsName, _) = parts[0]
+            else {
+                throw EvaluatorError.invalidArgument(function: caller,
+                    message: ":require spec must start with a namespace symbol")
+            }
+            let loadedNs = try requireNs(nsName)
+            var i = 1
+            while i + 1 < parts.count {
+                guard case .keyword(let key) = parts[i]
+                else {
+                    i += 1
+                    continue
+                }
+                switch key {
+                case "as":
+                    guard case .symbol(let aliasName, _) = parts[i + 1]
                     else {
-                        i += 1
-                        continue
+                        throw EvaluatorError.invalidArgument(function: caller,
+                            message: ":as requires a symbol")
                     }
-                    switch key {
-                    case "as":
-                        guard case .symbol(let aliasName, _) = parts[i + 1]
-                        else {
-                            throw EvaluatorError.invalidArgument(function: caller,
-                                message: ":as requires a symbol")
+                    try currentNs().alias(name: aliasName, ns: loadedNs)
+
+                case "refer":
+                    switch parts[i + 1] {
+                    case .keyword("all"):
+                        for (_, v) in loadedNs.mappings where v.namespace === loadedNs {
+                            try currentNs().refer(v)
                         }
-                        try currentNs().alias(name: aliasName, ns: loadedNs)
 
-                    case "refer":
-                        switch parts[i + 1] {
-                        case .keyword("all"):
-                            for (_, v) in loadedNs.mappings where v.namespace === loadedNs {
-                                try currentNs().refer(v)
+                    case .vector(let syms, _):
+                        let names = syms.compactMap { if case .symbol(let s, _) = $0 { s } else { nil } }
+                        for symName in names {
+                            guard let v = loadedNs.findVar(name: symName)
+                            else {
+                                throw EvaluatorError.undefinedSymbol("\(nsName)/\(symName)")
                             }
-
-                        case .vector(let syms, _):
-                            let names = syms.compactMap { if case .symbol(let s, _) = $0 { s } else { nil } }
-                            for symName in names {
-                                guard let v = loadedNs.findVar(name: symName)
-                                else {
-                                    throw EvaluatorError.undefinedSymbol("\(nsName)/\(symName)")
-                                }
-                                try currentNs().refer(v)
-                            }
-
-                        default:
-                            throw EvaluatorError.invalidArgument(function: caller,
-                                message: ":refer requires a vector of symbols or :all")
+                            try currentNs().refer(v)
                         }
 
                     default:
-                        break
+                        throw EvaluatorError.invalidArgument(function: caller,
+                            message: ":refer requires a vector of symbols or :all")
                     }
-                    i += 2
-                }
 
-            default:
-                throw EvaluatorError.invalidArgument(function: caller,
-                    message: ":require spec must be a symbol or vector")
+                default:
+                    break
+                }
+                i += 2
             }
+
+        default:
+            throw EvaluatorError.invalidArgument(function: caller,
+                message: ":require spec must be a symbol or vector")
         }
     }
 

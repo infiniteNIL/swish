@@ -18,7 +18,14 @@ extension Evaluator {
             return .symbol(generated, metadata: nil)
 
         case .symbol(let name, let meta):
-            if name.contains("/") || name == "nil" || name == "true" || name == "false" || name == "&" {
+            if name == "nil" || name == "true" || name == "false" || name == "&" {
+                return expr
+            }
+            if name.contains("/") {
+                if let (nsAlias, varName) = splitQualified(name),
+                   let resolvedNs = currentNs().findAlias(nsAlias) {
+                    return .symbol("\(resolvedNs.name)/\(varName)", metadata: meta)
+                }
                 return expr
             }
             if syntaxQuoteSpecialForms.contains(name) { return expr }
