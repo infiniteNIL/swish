@@ -116,13 +116,12 @@ struct LexerFloatTests {
         #expect(token.text == ".5")
     }
 
-    @Test("Trailing dot without digit is not a float")
-    func trailingDotWithoutDigitNotFloat() throws {
-        // 5. should be an error - '.' is not a valid number terminator
+    @Test("Trailing dot is a valid float (5. == 5.0)")
+    func trailingDotIsFloat() throws {
         let lexer = Lexer("5.")
-        #expect(throws: LexerError.invalidNumberFormat("5.", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .float)
+        #expect(token.text == "5.")
     }
 
     @Test("Exponent without digits is an error")

@@ -46,11 +46,21 @@ extension Lexer {
             return Token(type: .ratio, text: cleanText, line: startLine, column: startColumn)
         }
 
-        // Check for fractional part: . followed by digit
-        if peek() == ".", let afterDot = peekAt(1), afterDot.isNumber {
-            isFloat = true
-            text.append(advance()) // consume '.'
-            try scanDigitSequence(into: &text, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
+        // Check for fractional part: . optionally followed by digits.
+        // "5.5" → standard float; "5." → trailing-dot float (Clojure/EDN: 5. == 5.0).
+        if peek() == "." {
+            let afterDot = peekAt(1)
+            if let d = afterDot, d.isNumber {
+                // Standard float: 5.5, 5.123
+                isFloat = true
+                text.append(advance()) // consume '.'
+                try scanDigitSequence(into: &text, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
+            } else if isNumberTerminator(afterDot) {
+                // Trailing-dot float: 5. (followed by whitespace, delimiter, or EOF)
+                isFloat = true
+                text.append(advance()) // consume '.'
+            }
+            // else: 5.foo → dot followed by symbol char → validateNumberEnd rejects it
         }
 
         // Check for exponent: e or E
