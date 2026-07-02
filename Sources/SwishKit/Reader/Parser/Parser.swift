@@ -122,6 +122,9 @@ public class Parser {
         case .taggedLiteral:
             return try parseTaggedLiteral()
 
+        case .namespacedMapPrefix:
+            return try parseNamespacedMap()
+
         case .eof:
             throw ParserError.unexpectedEOF
         }
@@ -602,6 +605,46 @@ public class Parser {
             dict[forms[i]] = forms[i + 1]
         }
         return .map(dict, metadata: nil)
+    }
+
+    private func parseNamespacedMap() throws -> Expr {
+        let ns = currentToken.text
+        try advance()  // consume namespacedMapPrefix
+        guard currentToken.type == .leftBrace else {
+            throw ParserError.unexpectedToken(currentToken)
+        }
+        let mapExpr = try parseMap()
+        guard case .map(let dict, let meta) = mapExpr else {
+            return mapExpr
+        }
+        var qualified: [Expr: Expr] = [:]
+        for (key, val) in dict {
+            qualified[qualifyMapKey(key, ns: ns)] = val
+        }
+        return .map(qualified, metadata: meta)
+    }
+
+    private func qualifyMapKey(_ key: Expr, ns: String) -> Expr {
+        switch key {
+        case .keyword(let text):
+            if text.hasPrefix("_/") {
+                return .keyword("\(ns)/\(text.dropFirst(2))")
+            }
+            if !text.contains("/") {
+                return .keyword("\(ns)/\(text)")
+            }
+            return key
+        case .symbol(let text, let meta):
+            if text.hasPrefix("_/") {
+                return .symbol("\(ns)/\(text.dropFirst(2))", metadata: meta)
+            }
+            if !text.contains("/") {
+                return .symbol("\(ns)/\(text)", metadata: meta)
+            }
+            return key
+        default:
+            return key
+        }
     }
 
     private func parseSet() throws -> Expr {

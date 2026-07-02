@@ -150,6 +150,11 @@ public class Lexer {
                 let name = scanQualifiedName()
                 return Token(type: .float, text: "##\(name)", line: startLine, column: startColumn)
             }
+            if peek() == ":" {
+                _ = advance()  // consume ':'
+                let ns = scanQualifiedName()
+                return Token(type: .namespacedMapPrefix, text: ns, line: startLine, column: startColumn)
+            }
             if let c = peek(), isSymbolStart(c) {
                 let tag = scanQualifiedName()
                 return Token(type: .taggedLiteral, text: tag, line: startLine, column: startColumn)

@@ -30,6 +30,7 @@ public enum TokenType: Equatable, Sendable {
     case readerConditional          // #?
     case readerConditionalSplicing  // #?@
     case taggedLiteral              // #inst, #uuid, or any future #tag
+    case namespacedMapPrefix        // #:foo — text holds the namespace name
     case metadata
     case eof
 }
