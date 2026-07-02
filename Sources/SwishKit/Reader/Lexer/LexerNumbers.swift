@@ -123,6 +123,19 @@ extension Lexer {
                 break
             }
         }
+        // Check for ratio with leading-zero numerator: +02/03, -0377/100, etc.
+        if peek() == "/", let afterSlash = peekAt(1), afterSlash.isNumber {
+            var ratioText = prefix + "0" + digits
+            ratioText.append(advance())  // consume '/'
+            try scanDigitSequence(into: &ratioText, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
+            let cleanText = ratioText.filter { $0 != "_" }
+            let parts = cleanText.split(separator: "/", maxSplits: 1)
+            if parts.count == 2, parts[1] == "0" {
+                throw LexerError.invalidRatio(cleanText, line: startLine, column: startColumn)
+            }
+            try validateNumberEnd(text: cleanText, startLine: startLine, startColumn: startColumn)
+            return Token(type: .ratio, text: cleanText, line: startLine, column: startColumn)
+        }
         try validateNumberEnd(text: prefix + "0" + digits, startLine: startLine, startColumn: startColumn)
         return Token(type: .integer, text: prefix + "0o" + digits, line: startLine, column: startColumn)
     }

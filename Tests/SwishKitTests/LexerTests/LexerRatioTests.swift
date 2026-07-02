@@ -110,4 +110,20 @@ struct LexerRatioTests {
         let eofToken = try lexer.nextToken()
         #expect(eofToken.type == .eof)
     }
+
+    @Test("Ratio with positive sign and leading-zero numerator: +02/03")
+    func ratioWithPlusSignAndLeadingZero() throws {
+        let lexer = Lexer("+02/03")
+        let token = try lexer.nextToken()
+        #expect(token.type == .ratio)
+        #expect(token.text == "+02/03")
+    }
+
+    @Test("Ratio with negative sign and leading-zero numerator: -02/03")
+    func ratioWithMinusSignAndLeadingZero() throws {
+        let lexer = Lexer("-02/03")
+        let token = try lexer.nextToken()
+        #expect(token.type == .ratio)
+        #expect(token.text == "-02/03")
+    }
 }
