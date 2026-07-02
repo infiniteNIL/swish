@@ -177,4 +177,13 @@ struct CoreClojureEDNTests {
             """##)
         #expect(result == .integer(1284056289009))
     }
+
+    @Test("inst-ms returns midnight UTC for date-only #inst string")
+    func instMsDateOnly() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (inst-ms (edn/read-string "#inst \"2026-02-03\"")))
+            """##)
+        #expect(result == .integer(1770076800000))
+    }
 }

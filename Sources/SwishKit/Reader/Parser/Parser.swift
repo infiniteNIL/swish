@@ -276,7 +276,11 @@ public class Parser {
         if let d = fmtFrac.date(from: s) { return d }
         let fmt = ISO8601DateFormatter()
         fmt.formatOptions = [.withInternetDateTime]
-        return fmt.date(from: s)
+        if let d = fmt.date(from: s) { return d }
+        // Date-only: "2026-02-03" → midnight UTC
+        let fmtDate = ISO8601DateFormatter()
+        fmtDate.formatOptions = [.withFullDate]
+        return fmtDate.date(from: s)
     }
 
     private func parseCharacter() throws -> Expr {
