@@ -7,13 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 SUPPORT_DIR="$PROJECT_DIR/support"
-CTS_DIR="${CTS_DIR:-/tmp/clojure-test-suite}"
-
-if [ ! -f "$CTS_DIR/test/clojure/core_test/abs.cljc" ]; then
-  rm -rf "$CTS_DIR"
-  echo "Cloning Jank Clojure Test Suite into $CTS_DIR ..."
-  git clone https://github.com/jank-lang/clojure-test-suite "$CTS_DIR"
-fi
+CTS_DIR="${CTS_DIR:-$PROJECT_DIR/jank-test-suite}"
 
 RUNNER=$(mktemp /tmp/swish-runner-XXXXXX.clj)
 trap "rm -f $RUNNER" EXIT

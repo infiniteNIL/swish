@@ -36,6 +36,14 @@ func registerHOF(into evaluator: Evaluator) {
         if case .reduced = args[0] { return args[0] }
         return .reduced(args[0])
     }
+    evaluator.register(name: "inst-ms", arity: .fixed(1),
+        doc: "Return the number of milliseconds since January 1, 1970, 00:00:00 Coordinated Universal Time.",
+        arglists: [["inst"]]) { args in
+        guard case .inst(let date) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "inst-ms", message: "expected inst, got \(args[0])")
+        }
+        return .integer(Int((date.timeIntervalSince1970 * 1000).rounded()))
+    }
 }
 
 // MARK: - Implementations

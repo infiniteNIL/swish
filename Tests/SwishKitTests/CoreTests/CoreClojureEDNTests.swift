@@ -157,4 +157,24 @@ struct CoreClojureEDNTests {
         }
         #expect(inner[.keyword("buzz")] == .integer(2))
     }
+
+    // MARK: - inst-ms
+
+    @Test("inst-ms returns epoch milliseconds for a known instant")
+    func instMsKnownInstant() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (inst-ms (edn/read-string "#inst \"2010-01-01T01:01:01.001-01:01\"")))
+            """##)
+        #expect(result == .integer(1262311321001))
+    }
+
+    @Test("inst-ms returns epoch milliseconds for a second known instant")
+    func instMsSecondKnownInstant() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (inst-ms (edn/read-string "#inst \"2010-09-09T09:09:09.009-09:09\"")))
+            """##)
+        #expect(result == .integer(1284056289009))
+    }
 }

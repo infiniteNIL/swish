@@ -18,7 +18,7 @@
      :lpy     (* 1000 (.timestamp date))
      :phel    (php/intval (php/-> date (format "Uv")))
      :cljs    (.valueOf date)
-     :default (.getTime date)))
+     :default (inst-ms date)))
 
 (when-var-exists clojure.edn/read-string
   (deftest test-read-string
