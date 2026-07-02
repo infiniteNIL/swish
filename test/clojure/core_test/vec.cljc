@@ -1,0 +1,41 @@
+(ns clojure.core-test.vec
+  (:require [clojure.test :refer [deftest testing is are]]
+            [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
+
+(when-var-exists vec
+  (deftest test-vec
+
+    (testing "vec coll"
+      (are [expected coll] (= expected (vec coll))
+                           [] nil
+                           [] '()
+                           [] []
+                           [] #{}
+                           [] {}
+                           [] ""
+                           [nil nil nil] '(nil nil nil)
+                           [1 2 3] '(1 2 3)
+                           [1 2 3] [1 2 3]
+                           ;; Basilisp does not currently implement sorted collections.
+                           #?@(:lpy [] :default [[1 2 3] (sorted-set 1 2 3)])
+                           [1 2 3] (range 1 4)
+                           [\a \b \c] "abc")
+
+      (is (contains? #{[[:a 1] [:b 2]] [[:b 2] [:a 1]]} (vec {:a 1 :b 2}))))
+
+    #?(:cljr    "cljr does not alias array"
+       :lpy     "Basilisp does not alias array"
+       :phel    "Phel does not alias array"
+       :default (testing "array aliasing"
+                  (let [arr (to-array [1 2 3]), v (vec arr)]
+                    (is (= [1 2 3] v))
+                    (aset arr 0 -1)
+                    (is (= [-1 2 3] v)))))
+
+    (testing "bad shape"
+      (are [arg] (p/thrown? (vec arg))
+                 42
+                 3.14
+                 true
+                 :a
+                 (transient [])))))

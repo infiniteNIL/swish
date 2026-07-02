@@ -1,0 +1,54 @@
+(ns clojure.core-test.dissoc
+  (:require [clojure.test :refer [are deftest is testing]]
+            [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
+
+(when-var-exists defrecord
+  (defrecord TestDissocRecord [a b c]))
+
+(when-var-exists dissoc
+
+  (deftest test-dissoc
+
+    (testing "non-nil"
+      (are [expected m keys] (= expected (apply dissoc m keys))
+                             {} {} []
+                             {:a 1} {:a 1} []
+                             {} {:a 1} [:a]
+                             {} {:a 1} [:a :a]
+                             {} {:a 1 :b 2} [:a :b]
+                             {:b 2} {:a 1 :b 2} [:a]
+                             {:b 2} {:a 1 :b 2} [:a :c]))
+
+    (testing "nil"
+      (are [expected m keys] (= expected (apply dissoc m keys))
+                             nil nil [nil]
+                             {} {} [nil]
+                             {} {nil nil} [nil]
+                             {} {nil nil} [nil nil]))
+
+    (when-var-exists sorted-map
+      (testing "sorted preservation"
+        (is (sorted? (dissoc (sorted-map :a 1 :b 2) :a)))))
+
+    (testing "meta preservation"
+      (let [test-meta {:me "ta"}
+            with-test-meta #(with-meta % test-meta)
+            with-test-meta? #(= test-meta (meta %))]
+        (is (with-test-meta? (dissoc (with-test-meta {:a 1 :b 2}) :a)))))
+
+    (when-var-exists defrecord
+      (testing "records"
+        (let [r (TestDissocRecord. 1 2 nil)]
+          (are [expected keys] (= expected (apply dissoc r keys))
+                               {:b 2 :c nil} [:a]
+                               {:b 2 :c nil} [:a :d]
+                               {} [:a :b :c]
+                               r [:d]))))
+
+    (testing "bad shape"
+      (are [m keys] (p/thrown? (apply dissoc m keys))
+                    42 [4]
+                    '() [0]
+                    [] [0]
+                    #{:a :b} [:a]
+                    "string" [\s \t]))))
