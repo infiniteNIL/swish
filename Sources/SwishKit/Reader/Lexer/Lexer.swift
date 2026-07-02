@@ -42,12 +42,11 @@ public class Lexer {
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
-        // Handle . as a symbol (Clojure method-call special form or .method name).
-        // Only extend past the dot if the next char is a non-digit symbol start
-        // (so .5 lexes as "." + 5, not ".5").
+        // Handle . as a symbol or lone dot.
+        // .method lexes as a symbol; .5 also lexes as a symbol (EDN requires a leading digit for floats).
         if char == "." {
             _ = advance()
-            if let c = peek(), isSymbolStart(c) {
+            if let c = peek(), isSymbolStart(c) || c.isNumber {
                 var text = "."
                 text.append(advance())
                 while let c = peek(), isSymbolContinuation(c) || c == "." {

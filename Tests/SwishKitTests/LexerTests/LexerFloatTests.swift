@@ -107,13 +107,13 @@ struct LexerFloatTests {
         #expect(token.text == "1.5e10")
     }
 
-    @Test("Dot without leading digit lexes as symbol, not float")
-    func dotWithoutLeadingDigitNotFloat() throws {
-        // .5 — the dot is a standalone symbol; 5 is a separate integer token
+    @Test("Dot followed by digit lexes as a single symbol (.5 is a symbol, not a float)")
+    func dotWithDigitLexesAsSymbol() throws {
+        // In Clojure/EDN, floats require a leading digit; .5 is the symbol ".5"
         let lexer = Lexer(".5")
         let token = try lexer.nextToken()
         #expect(token.type == .symbol)
-        #expect(token.text == ".")
+        #expect(token.text == ".5")
     }
 
     @Test("Trailing dot without digit is not a float")

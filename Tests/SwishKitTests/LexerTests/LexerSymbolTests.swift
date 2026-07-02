@@ -388,4 +388,20 @@ struct LexerSymbolTests {
         #expect(t2.type == .symbol)
         #expect(t2.text == "bar")
     }
+
+    @Test(".5 scans as a single symbol token (not a float)")
+    func scanLeadingDotDigitAsSymbol() throws {
+        let lexer = Lexer(".5")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == ".5")
+    }
+
+    @Test(".5e2 scans as a single symbol token")
+    func scanLeadingDotDigitLetterAsSymbol() throws {
+        let lexer = Lexer(".5e2")
+        let token = try lexer.nextToken()
+        #expect(token.type == .symbol)
+        #expect(token.text == ".5e2")
+    }
 }
