@@ -1,0 +1,49 @@
+(ns clojure.core-test.double
+  (:require [clojure.test :as t :refer [are deftest is]]
+            [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
+
+(when-var-exists double
+ (deftest test-double
+   (are [expected x] (= expected (double x))
+     (double 1.0) 1
+     (double 0.0) 0
+     (double -1.0) -1
+     (double 1.0) 1N
+     (double 0.0) 0N
+     (double -1.0) -1N
+     (double 1.0) 12/12
+     (double 0.0) 0/12
+     (double -1.0) -12/12
+     (double 1.0) 1.0M
+     (double 0.0) 0.0M
+     (double -1.0) -1.0M)
+   (is (NaN? (double ##NaN)))
+
+   #?@(:cljr
+       [(is (= 0.0 (double "0")))
+        (is (p/thrown? (double :0)))]
+
+       :lpy
+       [(is (= 0.0 (double "0")))
+        (is (p/thrown? (double :0)))]
+
+       :cljs
+       ;; In cljs, `double` just returns the argument unchanged
+       [(is (= "0" (double "0")))
+        (is (= :0 (double :0)))]
+
+       :default
+       [(is (p/thrown? (double "0")))
+        (is (p/thrown? (double :0)))])
+
+   #?@(:cljr
+       [(is (instance? System.Double (double 0)))
+        (is (instance? System.Double (double 0.0)))
+        (is (instance? System.Double (double 0N)))
+        (is (instance? System.Double (double 0.0M)))]
+
+       :clj
+       [(is (instance? java.lang.Double (double 0)))
+        (is (instance? java.lang.Double (double 0.0)))
+        (is (instance? java.lang.Double (double 0N)))
+        (is (instance? java.lang.Double (double 0.0M)))])))

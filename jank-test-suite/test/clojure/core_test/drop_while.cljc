@@ -1,0 +1,19 @@
+(ns clojure.core-test.drop-while
+  (:require [clojure.test :as t :refer [deftest is]]
+            [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
+
+(when-var-exists drop-while
+  (deftest test-drop-while
+    (is (= (range 5 10) (drop-while #(< % 5) (range 0 10))))
+    (is (= 5 (first (drop-while #(< % 5) (range))))) ; lazy infinite `range`
+    (is (= '(1 2 3) (drop-while keyword? [:a :b :c 1 2 3])))
+    (is (= '() (drop-while #(< % 5) nil)))
+
+    ;; Transducer
+    (is (= (vec (range 5 10)) (into [] (drop-while #(< % 5)) (range 0 10))))
+    (is (= [1 2 3] (into [] (drop-while keyword?) [:a :b :c 1 2 3])))
+    (is (= [] (into [] (drop-while #(< % 5)) nil)))
+
+    ;; Negative tests
+    (is (p/thrown? (doall (drop-while nil (range 0 10)))))
+    (is (p/thrown? (into [] (drop-while nil) (range 0 10))))))
