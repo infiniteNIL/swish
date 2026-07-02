@@ -250,13 +250,12 @@ struct LexerIntegerTests {
         }
     }
 
-    @Test("Uppercase prefix is not recognized as hex")
-    func uppercasePrefixNotHex() throws {
-        // 0XFF should be an error - 'X' is not a valid number terminator
+    @Test("Uppercase X prefix is valid hex (0XFF = 255)")
+    func uppercasePrefixHex() throws {
         let lexer = Lexer("0XFF")
-        #expect(throws: LexerError.invalidNumberFormat("0XFF", line: 1, column: 1)) {
-            try lexer.nextToken()
-        }
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "0XFF")
     }
 
     // MARK: - Binary integer literals
@@ -497,5 +496,21 @@ struct LexerIntegerTests {
         let token = try lexer.nextToken()
         #expect(token.type == .integer)
         #expect(token.text == "0")
+    }
+
+    @Test("Uppercase R radix notation: 8R52 = 42")
+    func uppercaseRRadix() throws {
+        let lexer = Lexer("8R52")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "8R52")
+    }
+
+    @Test("Uppercase X hex notation: -0X2a = -42")
+    func uppercaseXHex() throws {
+        let lexer = Lexer("-0X2a")
+        let token = try lexer.nextToken()
+        #expect(token.type == .integer)
+        #expect(token.text == "-0X2a")
     }
 }

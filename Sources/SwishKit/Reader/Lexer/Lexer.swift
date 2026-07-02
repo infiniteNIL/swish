@@ -176,7 +176,7 @@ public class Lexer {
             case "o":
                 return try scanOctalInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
 
-            case "x":
+            case "x", "X":
                 return try scanHexInteger(startLine: startLine, startColumn: startColumn, prefix: prefix)
 
             case "0"..."7":

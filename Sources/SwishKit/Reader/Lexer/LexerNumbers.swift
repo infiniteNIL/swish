@@ -5,17 +5,17 @@ extension Lexer {
 
         try scanDigitSequence(into: &text, isDigit: { $0.isNumber }, startLine: startLine, startColumn: startColumn)
 
-        // Clojure radix notation: NrDIGITS (e.g., 2r1111, 16rFF, 36rZ)
-        if peek() == "r" {
+        // Clojure radix notation: NrDIGITS or NRDIGITS (e.g., 2r1111, 16rFF, 8R52)
+        if let r = peek(), r == "r" || r == "R" {
             let noSign = text.hasPrefix("-") || text.hasPrefix("+") ? String(text.dropFirst()) : text
             if !noSign.isEmpty && noSign.allSatisfy({ $0.isNumber }) {
-                advance() // consume 'r'
+                advance() // consume 'r' or 'R'
                 var digitText = ""
                 while let c = peek(), c.isLetter || c.isNumber {
                     digitText.append(advance())
                 }
                 guard !digitText.isEmpty else {
-                    throw LexerError.invalidNumberFormat(text + "r", line: startLine, column: startColumn)
+                    throw LexerError.invalidNumberFormat(text + String(r), line: startLine, column: startColumn)
                 }
                 // N and M at the end of radix digits are BigInt/BigDecimal suffixes,
                 // not part of the number — strip them before calling validateNumberEnd.
@@ -27,7 +27,7 @@ extension Lexer {
                     digitText.removeLast()
                     tokenType = .bigDecimal
                 }
-                let fullText = text + "r" + digitText
+                let fullText = text + String(r) + digitText
                 try validateNumberEnd(text: fullText, startLine: startLine, startColumn: startColumn)
                 return Token(type: tokenType, text: fullText, line: startLine, column: startColumn)
             }

@@ -754,7 +754,7 @@ public class Parser {
 
     private func parseHexInteger(_ text: String) -> Int? {
         let (negative, str) = stripSign(text)
-        guard str.hasPrefix("0x") else { return nil }
+        guard str.hasPrefix("0x") || str.hasPrefix("0X") else { return nil }
         return parseMagnitude(str.dropFirst(2), radix: 16, negative: negative)
     }
 
@@ -772,7 +772,7 @@ public class Parser {
 
     private func parseClojureRadixInteger(_ text: String) -> Int? {
         let (negative, rest) = stripSign(text)
-        guard let rIdx = rest.firstIndex(of: "r") else { return nil }
+        guard let rIdx = rest.firstIndex(where: { $0 == "r" || $0 == "R" }) else { return nil }
         let radixStr = String(rest[rest.startIndex..<rIdx])
         let digits = rest[rest.index(after: rIdx)...]
         guard let radix = Int(radixStr), radix >= 2, radix <= 36, !digits.isEmpty else { return nil }
@@ -781,7 +781,7 @@ public class Parser {
 
     private func parseClojureRadixBigInteger(_ text: String) -> BigInt? {
         let (negative, rest) = stripSign(text)
-        guard let rIdx = rest.firstIndex(of: "r") else { return nil }
+        guard let rIdx = rest.firstIndex(where: { $0 == "r" || $0 == "R" }) else { return nil }
         let radixStr = String(rest[rest.startIndex..<rIdx])
         let digits = String(rest[rest.index(after: rIdx)...])
         guard let radix = Int(radixStr), radix >= 2, radix <= 36, !digits.isEmpty else { return nil }
