@@ -202,15 +202,16 @@ private let coreUpperCase = Expr.nativeFunction(name: "upper-case", arity: .fixe
 
 private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixed(1)) { args in
     if case .nil = args[0] {
-        throw EvaluatorError.invalidArgument(function: "lower-case", message: "argument must be a string")
+        throw EvaluatorError.invalidArgument(function: "lower-case", message: "argument must not be nil")
     }
     return .string(corePrinter.strString(args[0]).lowercased())
 }
 
 private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .fixed(2)) { args in
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "starts-with?", message: "first argument must be a string")
+    if case .nil = args[0] {
+        throw EvaluatorError.invalidArgument(function: "starts-with?", message: "first argument must not be nil")
     }
+    let s = corePrinter.strString(args[0])
     guard case .string(let substr) = args[1] else {
         throw EvaluatorError.invalidArgument(function: "starts-with?", message: "second argument must be a string")
     }
@@ -219,7 +220,7 @@ private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .f
 
 private let coreEndsWith = Expr.nativeFunction(name: "ends-with?", arity: .fixed(2)) { args in
     if case .nil = args[0] {
-        throw EvaluatorError.invalidArgument(function: "ends-with?", message: "first argument must be a string")
+        throw EvaluatorError.invalidArgument(function: "ends-with?", message: "first argument must not be nil")
     }
     let s = corePrinter.strString(args[0])
     guard case .string(let substr) = args[1] else {
