@@ -95,6 +95,15 @@ struct CoreClojureEDNTests {
         #expect(result == .keyword("END"))
     }
 
+    @Test("edn/read-string with opts returns :eof for comment-only string")
+    func readStringOptsReturnsEOFForCommentOnly() throws {
+        let result = try swish.eval("""
+            (do (require '[clojure.edn :as edn])
+                (edn/read-string {:eof :END} ";just a comment\\n"))
+            """)
+        #expect(result == .keyword("END"))
+    }
+
     @Test("edn/read-string with opts returns nil eof default for blank string")
     func readStringOptsReturnsNilEOFDefault() throws {
         let result = try swish.eval("""

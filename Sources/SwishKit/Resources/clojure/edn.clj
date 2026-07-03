@@ -9,6 +9,8 @@
             nil
             (throw e)))))
   ([opts s]
-   (if (str/blank? s)
-     (get opts :eof nil)
-     (clojure.core/read-string s))))
+   (try (clojure.core/read-string s)
+        (catch Exception e
+          (if (str/includes? e "no forms found in string")
+            (get opts :eof nil)
+            (throw e))))))
