@@ -8,6 +8,7 @@ public class Parser {
     private var currentToken: Token
     private var syntaxQuoteDepth = 0
     private var anonymousFnDepth = 0
+    var tagResolver: ((String, Expr) throws -> Expr)? = nil
 
     private static let readerFeatures: Set<String> = ["swish", "default"]
 
@@ -250,7 +251,10 @@ public class Parser {
             }
             let s = currentToken.text
             try advance()
-            guard let date = parseInstString(s) else {
+            if let resolver = tagResolver {
+                return try resolver(tag, .string(s))
+            }
+            guard let date = Parser.parseInstString(s) else {
                 throw ParserError.invalidTaggedLiteral(
                     "invalid #inst date string: \"\(s)\"",
                     line: line, column: col)
@@ -265,6 +269,9 @@ public class Parser {
             }
             let s = currentToken.text
             try advance()
+            if let resolver = tagResolver {
+                return try resolver(tag, .string(s))
+            }
             guard let uuid = UUID(uuidString: s) else {
                 throw ParserError.invalidTaggedLiteral(
                     "invalid #uuid string: \"\(s)\"",
@@ -274,13 +281,16 @@ public class Parser {
 
         default:
             let value = try parseExpr()
+            if let resolver = tagResolver {
+                return try resolver(tag, value)
+            }
             throw ParserError.unknownTaggedLiteral(tag: tag, value: value, line: line, column: col)
         }
     }
 
     /// Parses a Clojure #inst string (RFC 3339 / ISO 8601).
     /// Tries with fractional seconds first, then without.
-    private func parseInstString(_ s: String) -> Date? {
+    static func parseInstString(_ s: String) -> Date? {
         let fmtFrac = ISO8601DateFormatter()
         fmtFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let d = fmtFrac.date(from: s) { return d }

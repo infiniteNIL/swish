@@ -203,25 +203,43 @@ private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
         throw EvaluatorError.invalidArgument(function: "edn-read-string*",
             message: "second argument must be a string")
     }
-    let exprs: [Expr]
-    do {
-        exprs = try Reader.readString(source)
-    } catch let e as ParserError {
-        if case .unknownTaggedLiteral(let tag, let value, _, _) = e {
-            let tagSym = Expr.symbol(tag, metadata: nil)
-            if let readersExpr = opts[.keyword("readers")],
-               case .map(let readers, _) = readersExpr,
-               let fn = readers[tagSym] {
-                return try evaluator.call(fn, args: [tagSym, value])
+
+    let tagResolver: (String, Expr) throws -> Expr = { tag, value in
+        let tagSym = Expr.symbol(tag, metadata: nil)
+        // :readers override takes precedence (even over uuid/inst built-ins)
+        if let readersExpr = opts[.keyword("readers")],
+           case .map(let readers, _) = readersExpr,
+           let fn = readers[tagSym] {
+            return try evaluator.call(fn, args: [value])
+        }
+        // Built-in handling for uuid and inst
+        if tag == "inst", case .string(let s) = value {
+            guard let date = Parser.parseInstString(s) else {
+                throw EvaluatorError.invalidArgument(function: "edn/read-string",
+                    message: "invalid #inst date string: \"\(s)\"")
             }
-            if let defaultFn = opts[.keyword("default")] {
-                return try evaluator.call(defaultFn, args: [tagSym, value])
+            return .inst(date)
+        }
+        if tag == "uuid", case .string(let s) = value {
+            guard let uuid = UUID(uuidString: s) else {
+                throw EvaluatorError.invalidArgument(function: "edn/read-string",
+                    message: "invalid #uuid string: \"\(s)\"")
             }
-            throw EvaluatorError.invalidArgument(function: "edn/read-string",
-                message: "No reader function for tag #\(tag)")
+            return .uuid(uuid)
+        }
+        // :default for unknown tags
+        if let defaultFn = opts[.keyword("default")] {
+            return try evaluator.call(defaultFn, args: [tagSym, value])
         }
         throw EvaluatorError.invalidArgument(function: "edn/read-string",
-            message: e.description)
+            message: "No reader function for tag #\(tag)")
+    }
+
+    let exprs: [Expr]
+    do {
+        exprs = try Reader.readEDN(source, tagResolver: tagResolver)
+    } catch let e as EvaluatorError {
+        throw e
     } catch {
         throw EvaluatorError.invalidArgument(function: "edn/read-string",
             message: error.localizedDescription)

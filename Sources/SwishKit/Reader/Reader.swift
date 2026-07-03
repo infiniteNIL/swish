@@ -12,4 +12,15 @@ public class Reader {
         let parser = try Parser(lexer)
         return try parser.parse()
     }
+
+    public static func readEDN(
+        _ source: String,
+        tagResolver: @escaping (String, Expr) throws -> Expr,
+        currentNsName: String = "user"
+    ) throws -> [Expr] {
+        let lexer = Lexer(source, currentNsName: currentNsName)
+        let parser = try Parser(lexer)
+        parser.tagResolver = tagResolver
+        return try parser.parse()
+    }
 }

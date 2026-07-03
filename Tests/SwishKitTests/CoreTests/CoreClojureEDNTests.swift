@@ -206,6 +206,20 @@ struct CoreClojureEDNTests {
         #expect(result == .uuid(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000")!))
     }
 
+    @Test("edn/read-string with :readers handler invokes it with value only")
+    func readStringReadersHandlerForNamespacedTag() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (edn/read-string {:readers {'my/foo (fn [x] [:foo x])}} "#my/foo 42"))
+            """##)
+        guard case .vector(let elems, _) = result else {
+            Issue.record("Expected vector, got \(result)")
+            return
+        }
+        #expect(elems[0] == .keyword("foo"))
+        #expect(elems[1] == .integer(42))
+    }
+
     @Test("edn/read-string with :default handler invokes it for unknown tagged literal")
     func readStringDefaultHandlerForUnknownTag() throws {
         let result = try swish.eval(##"""
