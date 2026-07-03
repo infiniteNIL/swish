@@ -220,6 +220,18 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/lower-case "")"#) == .string(""))
     }
 
+    @Test("lower-case coerces symbol to its name lowercased")
+    func lowerCaseSymbol() throws {
+        #expect(try swish.eval(#"(str/lower-case 'ASDF)"#) == .string("asdf"))
+        #expect(try swish.eval(#"(str/lower-case 'ASDF/ASDF)"#) == .string("asdf/asdf"))
+    }
+
+    @Test("lower-case coerces keyword to colon+name lowercased")
+    func lowerCaseKeyword() throws {
+        #expect(try swish.eval(#"(str/lower-case :ASDF)"#) == .string(":asdf"))
+        #expect(try swish.eval(#"(str/lower-case :ASDF/ASDF)"#) == .string(":asdf/asdf"))
+    }
+
     @Test("starts-with? returns true when string starts with substr")
     func startsWithMatch() throws {
         #expect(try swish.eval(#"(str/starts-with? "hello" "hel")"#) == .boolean(true))

@@ -201,10 +201,10 @@ private let coreUpperCase = Expr.nativeFunction(name: "upper-case", arity: .fixe
 }
 
 private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixed(1)) { args in
-    guard case .string(let s) = args[0] else {
+    if case .nil = args[0] {
         throw EvaluatorError.invalidArgument(function: "lower-case", message: "argument must be a string")
     }
-    return .string(s.lowercased())
+    return .string(corePrinter.strString(args[0]).lowercased())
 }
 
 private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .fixed(2)) { args in
