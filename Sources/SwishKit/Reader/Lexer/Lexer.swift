@@ -242,7 +242,7 @@ public class Lexer {
                 advance()
             }
             guard peek() == ";" else { break }
-            while let char = peek(), char != "\n" {
+            while let char = peek(), !char.isNewline {
                 advance()
             }
         }

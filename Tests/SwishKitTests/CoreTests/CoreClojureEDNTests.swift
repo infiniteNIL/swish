@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import SwishKit
 
@@ -185,5 +186,25 @@ struct CoreClojureEDNTests {
                 (inst-ms (edn/read-string "#inst \"2026-02-03\"")))
             """##)
         #expect(result == .integer(1770076800000))
+    }
+
+    @Test("edn/read-string skips #_ discard forms between tagged literal tag and data")
+    func readStringTaggedLiteralSkipsDiscards() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (edn/read-string "#uuid #_ignored \"550e8400-e29b-41d4-a716-446655440000\""))
+            """##)
+        #expect(result == .uuid(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000")!))
+    }
+
+    @Test("edn/read-string handles CRLF line ending in comment between tagged literal tag and data")
+    func readStringTaggedLiteralCRLFComment() throws {
+        // The jank test uses ";comment\r\n\t,#_foo" between the tag and the UUID string.
+        // Swift's \r\n forms a single grapheme cluster; the comment scanner must stop at it.
+        let result = try swish.eval("""
+            (do (require '[clojure.edn :as edn])
+                (edn/read-string (str "#uuid  ;comment\\r\\n\\t,#_foo\\"550e8400-e29b-41d4-a716-446655440000\\"")))
+            """)
+        #expect(result == .uuid(UUID(uuidString: "550e8400-e29b-41d4-a716-446655440000")!))
     }
 }

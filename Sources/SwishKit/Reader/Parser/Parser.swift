@@ -236,6 +236,11 @@ public class Parser {
         let col  = currentToken.column
         try advance()  // consume the tag token
 
+        while currentToken.type == .discard {
+            try advance()        // consume '#_'
+            _ = try parseExpr()  // read and discard the following form
+        }
+
         guard currentToken.type == .string else {
             throw ParserError.invalidTaggedLiteral(
                 "#\(tag) expects a string literal",
