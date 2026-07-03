@@ -218,9 +218,10 @@ private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .f
 }
 
 private let coreEndsWith = Expr.nativeFunction(name: "ends-with?", arity: .fixed(2)) { args in
-    guard case .string(let s) = args[0] else {
+    if case .nil = args[0] {
         throw EvaluatorError.invalidArgument(function: "ends-with?", message: "first argument must be a string")
     }
+    let s = corePrinter.strString(args[0])
     guard case .string(let substr) = args[1] else {
         throw EvaluatorError.invalidArgument(function: "ends-with?", message: "second argument must be a string")
     }

@@ -260,6 +260,18 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/ends-with? "" "")"#) == .boolean(true))
     }
 
+    @Test("ends-with? accepts symbol as first argument")
+    func endsWithSymbol() throws {
+        #expect(try swish.eval(#"(str/ends-with? 'ab "b")"#) == .boolean(true))
+        #expect(try swish.eval(#"(str/ends-with? 'ab "a")"#) == .boolean(false))
+    }
+
+    @Test("ends-with? accepts keyword as first argument")
+    func endsWithKeyword() throws {
+        #expect(try swish.eval(#"(str/ends-with? :ab "b")"#) == .boolean(true))
+        #expect(try swish.eval(#"(str/ends-with? :ab "a")"#) == .boolean(false))
+    }
+
     @Test("includes? returns true when substr is in the middle")
     func includesMatch() throws {
         #expect(try swish.eval(#"(str/includes? "hello" "ell")"#) == .boolean(true))
