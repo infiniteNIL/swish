@@ -43,6 +43,10 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["s"]],
         body: coreReadString)
 
+    evaluator.register(name: "edn-read-string*", arity: .fixed(2),
+        doc: "Low-level EDN reader used by clojure.edn/read-string. Accepts an opts map and source string; applies :default/:readers for unknown tagged literals and returns :eof sentinel for empty input.",
+        arglists: [["opts", "s"]]) { [evaluator] args in try ednReadString(evaluator, args) }
+
     evaluator.register(name: "swish-read-line!", arity: .fixed(1),
         doc: "Reads the next line from a SwishReader. Returns the line as a string, or nil at EOF.",
         arglists: [["rdr"]]) { args in
@@ -172,14 +176,58 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
     let exprs: [Expr]
     do {
         exprs = try Reader.readString(source)
-    }
-    catch {
+    } catch let e as ParserError {
+        if case .unknownTaggedLiteral(let tag, _, _, _) = e {
+            throw EvaluatorError.invalidArgument(function: "read-string",
+                message: "No reader function for tag #\(tag)")
+        }
+        throw EvaluatorError.invalidArgument(function: "read-string",
+            message: e.description)
+    } catch {
         throw EvaluatorError.invalidArgument(function: "read-string",
             message: error.localizedDescription)
     }
     guard let first = exprs.first else {
         throw EvaluatorError.invalidArgument(function: "read-string",
             message: "no forms found in string")
+    }
+    return first
+}
+
+private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .map(let opts, _) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "edn-read-string*",
+            message: "first argument must be a map")
+    }
+    guard case .string(let source) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "edn-read-string*",
+            message: "second argument must be a string")
+    }
+    let exprs: [Expr]
+    do {
+        exprs = try Reader.readString(source)
+    } catch let e as ParserError {
+        if case .unknownTaggedLiteral(let tag, let value, _, _) = e {
+            let tagSym = Expr.symbol(tag, metadata: nil)
+            if let readersExpr = opts[.keyword("readers")],
+               case .map(let readers, _) = readersExpr,
+               let fn = readers[tagSym] {
+                return try evaluator.call(fn, args: [tagSym, value])
+            }
+            if let defaultFn = opts[.keyword("default")] {
+                return try evaluator.call(defaultFn, args: [tagSym, value])
+            }
+            throw EvaluatorError.invalidArgument(function: "edn/read-string",
+                message: "No reader function for tag #\(tag)")
+        }
+        throw EvaluatorError.invalidArgument(function: "edn/read-string",
+            message: e.description)
+    } catch {
+        throw EvaluatorError.invalidArgument(function: "edn/read-string",
+            message: error.localizedDescription)
+    }
+    guard let first = exprs.first else {
+        return opts[.keyword("eof")] ?? .nil
     }
     return first
 }

@@ -9,8 +9,4 @@
             nil
             (throw e)))))
   ([opts s]
-   (try (clojure.core/read-string s)
-        (catch Exception e
-          (if (str/includes? e "no forms found in string")
-            (get opts :eof nil)
-            (throw e))))))
+   (edn-read-string* opts s)))

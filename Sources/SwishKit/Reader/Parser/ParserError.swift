@@ -21,6 +21,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case invalidReaderConditional(String, line: Int, column: Int)
     case splicingOutsideCollection(line: Int, column: Int)
     case invalidTaggedLiteral(String, line: Int, column: Int)
+    case unknownTaggedLiteral(tag: String, value: Expr, line: Int, column: Int)
 
     public var description: String {
         switch self {
@@ -89,6 +90,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .invalidTaggedLiteral(let message, let line, let column):
             "Invalid tagged literal (line \(line), column \(column)): \(message)."
+
+        case .unknownTaggedLiteral(let tag, _, let line, let column):
+            "No reader function for tag #\(tag) (line \(line), column \(column))."
         }
     }
 }

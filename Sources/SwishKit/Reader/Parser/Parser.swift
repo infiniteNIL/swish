@@ -241,35 +241,40 @@ public class Parser {
             _ = try parseExpr()  // read and discard the following form
         }
 
-        guard currentToken.type == .string else {
-            throw ParserError.invalidTaggedLiteral(
-                "#\(tag) expects a string literal",
-                line: line, column: col)
-        }
-        let value = currentToken.text
-        try advance()  // consume the string
-
         switch tag {
         case "inst":
-            guard let date = parseInstString(value) else {
+            guard currentToken.type == .string else {
                 throw ParserError.invalidTaggedLiteral(
-                    "invalid #inst date string: \"\(value)\"",
+                    "#inst expects a string literal",
+                    line: line, column: col)
+            }
+            let s = currentToken.text
+            try advance()
+            guard let date = parseInstString(s) else {
+                throw ParserError.invalidTaggedLiteral(
+                    "invalid #inst date string: \"\(s)\"",
                     line: line, column: col)
             }
             return .inst(date)
 
         case "uuid":
-            guard let uuid = UUID(uuidString: value) else {
+            guard currentToken.type == .string else {
                 throw ParserError.invalidTaggedLiteral(
-                    "invalid #uuid string: \"\(value)\"",
+                    "#uuid expects a string literal",
+                    line: line, column: col)
+            }
+            let s = currentToken.text
+            try advance()
+            guard let uuid = UUID(uuidString: s) else {
+                throw ParserError.invalidTaggedLiteral(
+                    "invalid #uuid string: \"\(s)\"",
                     line: line, column: col)
             }
             return .uuid(uuid)
 
         default:
-            throw ParserError.invalidTaggedLiteral(
-                "no reader function for tag #\(tag)",
-                line: line, column: col)
+            let value = try parseExpr()
+            throw ParserError.unknownTaggedLiteral(tag: tag, value: value, line: line, column: col)
         }
     }
 
