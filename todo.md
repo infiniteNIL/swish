@@ -18,6 +18,7 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
 - [x] all ERRORS fixed in jank suite
+- [x] jank suite moved to repo (edn/read-string modified to have :default branch for #inst that uses inst-ms)
 - [x] #inst with YYYY-MM-DD format
 - [x] inst-ms
 - [x] proper octal support \oXXX, or 010
