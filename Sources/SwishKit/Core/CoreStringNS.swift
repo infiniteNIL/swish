@@ -194,10 +194,10 @@ private let coreTrimNewline = Expr.nativeFunction(name: "trim-newline", arity: .
 }
 
 private let coreUpperCase = Expr.nativeFunction(name: "upper-case", arity: .fixed(1)) { args in
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "upper-case", message: "argument must be a string")
+    if case .nil = args[0] {
+        throw EvaluatorError.invalidArgument(function: "upper-case", message: "argument must not be nil")
     }
-    return .string(s.uppercased())
+    return .string(corePrinter.strString(args[0]).uppercased())
 }
 
 private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixed(1)) { args in

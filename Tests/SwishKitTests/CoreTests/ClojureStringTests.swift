@@ -205,6 +205,18 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/upper-case "")"#) == .string(""))
     }
 
+    @Test("upper-case coerces symbol")
+    func upperCaseSymbol() throws {
+        #expect(try swish.eval(#"(str/upper-case 'asdf)"#) == .string("ASDF"))
+        #expect(try swish.eval(#"(str/upper-case 'asdf/asdf)"#) == .string("ASDF/ASDF"))
+    }
+
+    @Test("upper-case coerces keyword")
+    func upperCaseKeyword() throws {
+        #expect(try swish.eval(#"(str/upper-case :asdf)"#) == .string(":ASDF"))
+        #expect(try swish.eval(#"(str/upper-case :asdf/asdf)"#) == .string(":ASDF/ASDF"))
+    }
+
     @Test("lower-case converts to all lowercase")
     func lowerCaseBasic() throws {
         #expect(try swish.eval(#"(str/lower-case "HELLO")"#) == .string("hello"))
