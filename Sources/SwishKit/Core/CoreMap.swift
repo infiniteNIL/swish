@@ -224,13 +224,16 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
 
     var isSortedMap = false
     var dict: [Expr: Expr]
+    var inputMeta: [Expr: Expr]? = nil
     switch args[0] {
-    case .map(let d, _):
+    case .map(let d, let m):
         dict = d
+        inputMeta = m
 
-    case .sortedMap(let d, _):
+    case .sortedMap(let d, let m):
         dict = d
         isSortedMap = true
+        inputMeta = m
 
     case .nil:
         dict = [:]
@@ -244,7 +247,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         }
         return .record(typeName: typeName, fields: fields, data: recordData, metadata: nil)
 
-    case .vector(let elements, _):
+    case .vector(let elements, let m):
         var result = elements
         var i = 1
         while i < args.count {
@@ -265,7 +268,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
             }
             i += 2
         }
-        return .vector(result, metadata: nil)
+        return .vector(result, metadata: m)
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -278,7 +281,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         dict[args[i]] = args[i + 1]
         i += 2
     }
-    return isSortedMap ? .sortedMap(dict, metadata: nil) : .map(dict, metadata: nil)
+    return isSortedMap ? .sortedMap(dict, metadata: inputMeta) : .map(dict, metadata: inputMeta)
 }
 
 private func coreGet(_ args: [Expr]) throws -> Expr {

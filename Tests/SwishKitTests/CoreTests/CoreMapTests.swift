@@ -431,6 +431,20 @@ struct CoreMapTests {
         #expect(try swish.eval("(get-in [[1 2] [3 4]] [1 0])") == .integer(3))
     }
 
+    // MARK: - assoc metadata preservation
+
+    @Test("assoc preserves metadata on map")
+    func assocPreservesMapMeta() throws {
+        let result = try swish.eval("(meta (assoc (with-meta {:a 1} {:tag :x}) :b 2))")
+        #expect(result == .map([.keyword("tag"): .keyword("x")], metadata: nil))
+    }
+
+    @Test("assoc preserves metadata on vector")
+    func assocPreservesVectorMeta() throws {
+        let result = try swish.eval("(meta (assoc (with-meta [1 2] {:tag :x}) 0 9))")
+        #expect(result == .map([.keyword("tag"): .keyword("x")], metadata: nil))
+    }
+
     // MARK: - assoc-in
 
     @Test("(assoc-in {:a 1} [:a] 99) single key — same as assoc")
