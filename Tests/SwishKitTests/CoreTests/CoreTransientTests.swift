@@ -71,4 +71,20 @@ struct CoreTransientTests {
     func conjBangMapMerge() throws {
         #expect(try swish.eval("(persistent! (conj! (transient {}) {:a 1}))") == .map([.keyword("a"): .integer(1)], metadata: nil))
     }
+
+    // MARK: - post-persistent! invalidation
+
+    @Test("assoc! throws after persistent! call on map")
+    func assocBangAfterPersistentMap() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient {:a 1}), _ (persistent! t)] (assoc! t :b 2))")
+        }
+    }
+
+    @Test("assoc! throws after persistent! call on vector")
+    func assocBangAfterPersistentVector() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient [1]), _ (persistent! t)] (assoc! t 0 2))")
+        }
+    }
 }

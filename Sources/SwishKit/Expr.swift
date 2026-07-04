@@ -17,6 +17,7 @@ public struct FnArity: Sendable, Equatable, Hashable {
 
 public final class TransientCollection: @unchecked Sendable {
     public var value: Expr
+    public var isInvalidated: Bool = false
     public init(_ value: Expr) { self.value = value }
 }
 

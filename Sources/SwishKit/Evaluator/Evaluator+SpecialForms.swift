@@ -306,8 +306,13 @@ extension Evaluator {
         let letEnv = Environment(parent: env)
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
             let bindings = try destructureBindings(bindingVec[i], bindingVec[i + 1])
-            for (name, expr) in bindings {
-                letEnv.set(name, try eval(expr, in: letEnv))
+            if bindings.isEmpty {
+                _ = try eval(bindingVec[i + 1], in: letEnv)
+            }
+            else {
+                for (name, expr) in bindings {
+                    letEnv.set(name, try eval(expr, in: letEnv))
+                }
             }
         }
         return try evalBody(Array(elements.dropFirst(2)), in: letEnv)

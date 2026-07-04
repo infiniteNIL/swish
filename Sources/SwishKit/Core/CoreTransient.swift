@@ -34,6 +34,7 @@ private func corePersistentBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "persistent!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
+    tc.isInvalidated = true
     return tc.value
 }
 
@@ -41,6 +42,10 @@ private func coreAssocBang(_ args: [Expr]) throws -> Expr {
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "assoc!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
+    }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "assoc!",
+            message: "Transient used after persistent! call")
     }
     guard args.count >= 3 else {
         throw EvaluatorError.arityMismatch(name: "assoc!", expected: .atLeastOne, got: args.count)
