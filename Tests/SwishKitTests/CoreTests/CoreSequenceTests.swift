@@ -60,6 +60,33 @@ struct CoreSequenceTests {
         }
     }
 
+    // MARK: - vector / list cross-type equality
+
+    @Test("(= [1 2 3] (cons 1 [2 3])) is true")
+    func vectorEqualsConsList() throws {
+        #expect(try swish.eval("(= [1 2 3] (cons 1 [2 3]))") == .boolean(true))
+    }
+
+    @Test("(= [1 2 3] (cons 1 '(2 3))) is true")
+    func vectorEqualsConsFromList() throws {
+        #expect(try swish.eval("(= [1 2 3] (cons 1 '(2 3)))") == .boolean(true))
+    }
+
+    @Test("(= (cons 1 '(2 3)) [1 2 3]) is true (reversed)")
+    func consListEqualsVector() throws {
+        #expect(try swish.eval("(= (cons 1 '(2 3)) [1 2 3])") == .boolean(true))
+    }
+
+    @Test("(= [1 2] '(1 2)) is true")
+    func vectorEqualsListLiteral() throws {
+        #expect(try swish.eval("(= [1 2] '(1 2))") == .boolean(true))
+    }
+
+    @Test("(= [1 2] '(1 3)) is false")
+    func vectorNotEqualsDifferentList() throws {
+        #expect(try swish.eval("(= [1 2] '(1 3))") == .boolean(false))
+    }
+
     // MARK: - take
 
     @Test("(take 3 [1 2 3 4 5]) returns first 3 elements")

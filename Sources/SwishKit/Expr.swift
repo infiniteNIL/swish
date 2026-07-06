@@ -192,6 +192,9 @@ extension Expr: Equatable {
         case (.vector, .lazySeq), (.lazySeq, .vector):
             return seqEqual(lhs, rhs)
 
+        case (.vector, .list), (.list, .vector):
+            return seqEqual(lhs, rhs)
+
         case (.reduced(let a), .reduced(let b)):
             return a == b
 
