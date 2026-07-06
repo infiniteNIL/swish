@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] cycle should throw when given a non-seq
 - [x] contains should throw when given non-integer key on a string
 - [x] = with vector and lists should work
 - [x] (conj) should return []
@@ -25,7 +26,7 @@
 - [x] compare should throw when comparing sets, maps, and lazy seqs.
 - [x] compare fixes for comparing symbols and keywords with namespaces
 - [x] fixes char (test expect throw when greater than 65535, Swift supports more than that)
-- [x] all ERRORS fixed in jank suite
+- [x] all ERRORs fixed in jank suite
 - [x] jank suite moved to repo (edn/read-string modified to have :default branch for #inst that uses inst-ms)
 - [x] #inst with YYYY-MM-DD format
 - [x] inst-ms

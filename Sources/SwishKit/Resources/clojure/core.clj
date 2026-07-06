@@ -398,8 +398,8 @@
   {:added "1.0"
    :static true}
   [coll]
-  (lazy-seq
-    (let [s (seq coll)]
+  (let [s (seq coll)]
+    (lazy-seq
       (when s
         (concat s (cycle coll))))))
 

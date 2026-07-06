@@ -62,6 +62,27 @@ struct LazySeqTests {
         #expect(try swish.eval("(take 4 (cycle [:a]))") == .list([.keyword("a"), .keyword("a"), .keyword("a"), .keyword("a")], metadata: nil))
     }
 
+    @Test("(cycle :k) throws for non-seqable keyword")
+    func cycleKeywordThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(cycle :k)")
+        }
+    }
+
+    @Test("(cycle 42) throws for non-seqable integer")
+    func cycleIntegerThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(cycle 42)")
+        }
+    }
+
+    @Test("(cycle 3.14) throws for non-seqable float")
+    func cycleFloatThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(cycle 3.14)")
+        }
+    }
+
     // MARK: - repeat
 
     @Test("repeat infinite sequence")
