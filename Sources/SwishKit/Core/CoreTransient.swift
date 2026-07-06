@@ -85,6 +85,10 @@ private func coreConjBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "conj!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "conj!",
+            message: "Transient used after persistent! call")
+    }
     for i in 1..<args.count {
         tc.value = try conjOne(tc.value, args[i])
     }
