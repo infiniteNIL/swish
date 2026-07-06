@@ -189,6 +189,9 @@ extension Expr: Equatable {
         case (.lazySeq, .list), (.list, .lazySeq):
             return seqEqual(lhs, rhs)
 
+        case (.vector, .lazySeq), (.lazySeq, .vector):
+            return seqEqual(lhs, rhs)
+
         case (.reduced(let a), .reduced(let b)):
             return a == b
 
@@ -249,6 +252,11 @@ extension Expr: Equatable {
         case .list(let elems, _):
             if elems.isEmpty { return nil }
             expr = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
+            return elems[0]
+
+        case .vector(let elems, _):
+            if elems.isEmpty { return nil }
+            expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
             return elems[0]
 
         case .lazySeq(let box):
