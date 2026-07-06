@@ -318,7 +318,7 @@ private func coreNext(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreConj(_ args: [Expr]) throws -> Expr {
-    guard !args.isEmpty else { return .nil }
+    guard !args.isEmpty else { return .vector([], metadata: nil) }
     var result = args[0]
     for item in args.dropFirst() { result = try conjOne(result, item) }
     return result
