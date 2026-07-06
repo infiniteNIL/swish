@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] dissoc disregarding metadata
 - [x] dissoc! should throw after persistent!
 - [x] cycle should throw when given a non-seq
 - [x] contains should throw when given non-integer key on a string

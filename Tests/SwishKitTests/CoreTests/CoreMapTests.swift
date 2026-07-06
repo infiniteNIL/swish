@@ -389,6 +389,13 @@ struct CoreMapTests {
         }
     }
 
+    @Test("dissoc preserves map metadata")
+    func dissocPreservesMeta() throws {
+        let result = try swish.eval(
+            "(let [m (with-meta {:a 1 :b 2} {:tag :test})] (meta (dissoc m :a)))")
+        #expect(result == .map([.keyword("tag"): .keyword("test")], metadata: nil))
+    }
+
     // MARK: - get-in
 
     @Test("(get-in {:a {:b 1}} [:a :b]) returns nested value")

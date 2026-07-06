@@ -130,17 +130,17 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(var dict, _):
+    case .map(var dict, let meta):
         for key in args.dropFirst() {
             dict.removeValue(forKey: key)
         }
-        return .map(dict, metadata: nil)
+        return .map(dict, metadata: meta)
 
-    case .sortedMap(var dict, _):
+    case .sortedMap(var dict, let meta):
         for key in args.dropFirst() {
             dict.removeValue(forKey: key)
         }
-        return .sortedMap(dict, metadata: nil)
+        return .sortedMap(dict, metadata: meta)
 
     case .record(let typeName, let fields, var data, _):
         var removedBaseField = false
