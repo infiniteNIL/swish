@@ -85,6 +85,25 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
     }
 }
 
+private func splitNamed(_ s: String) -> (ns: String?, name: String) {
+    guard let slash = s.firstIndex(of: "/") else { return (nil, s) }
+    return (String(s[..<slash]), String(s[s.index(after: slash)...]))
+}
+
+private func compareNamed(_ a: String, _ b: String) -> Int {
+    let (aNs, aName) = splitNamed(a)
+    let (bNs, bName) = splitNamed(b)
+    if let aNs, let bNs {
+        let nsCmp = aNs < bNs ? -1 : aNs > bNs ? 1 : 0
+        if nsCmp != 0 { return nsCmp }
+    } else if aNs == nil, bNs != nil {
+        return -1
+    } else if aNs != nil, bNs == nil {
+        return 1
+    }
+    return aName < bName ? -1 : aName > bName ? 1 : 0
+}
+
 func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
     switch (x, y) {
     case (.nil, .nil):
@@ -113,13 +132,13 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
         return a < b ? -1 : a > b ? 1 : 0
 
     case (.keyword(let a), .keyword(let b)):
-        return a < b ? -1 : a > b ? 1 : 0
+        return compareNamed(a, b)
 
     case (.character(let a), .character(let b)):
         return a < b ? -1 : a > b ? 1 : 0
 
     case (.symbol(let a, _), .symbol(let b, _)):
-        return a < b ? -1 : a > b ? 1 : 0
+        return compareNamed(a, b)
 
     case (.vector(let a, _), .vector(let b, _)):
         for i in 0..<min(a.count, b.count) {

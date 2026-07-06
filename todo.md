@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] compare fixes for comparing symbols and keywords with namespaces
 - [x] fixes char (test expect throw when greater than 65535, Swift supports more than that)
 - [x] all ERRORS fixed in jank suite
 - [x] jank suite moved to repo (edn/read-string modified to have :default branch for #inst that uses inst-ms)
