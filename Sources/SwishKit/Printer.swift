@@ -199,7 +199,7 @@ public struct Printer {
         case .map(let dict, let meta):
             return (includeMeta ? metaPrefix(meta) : "") + printMapString(dict, transform: transform)
 
-        case .set(let elements, let meta):
+        case .set(let elements, _, let meta):
             return (includeMeta ? metaPrefix(meta) : "") + printSetString(elements, transform: transform)
 
         case .sortedSet(let elements, let meta):

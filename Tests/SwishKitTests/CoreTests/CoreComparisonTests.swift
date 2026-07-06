@@ -385,4 +385,28 @@ struct CoreComparisonTests {
         guard case .integer(let n) = result else { Issue.record("expected integer"); return }
         #expect(n < 0)
     }
+
+    // MARK: - identical?
+
+    @Test("identical? on maps with different metadata returns false")
+    func identicalMapDifferentMeta() throws {
+        #expect(try swish.eval(
+            "(identical? {:k :v} (with-meta {:k :v} {:whatever true}))") == .boolean(false))
+    }
+
+    @Test("identical? on same map binding returns true")
+    func identicalMapSameBinding() throws {
+        #expect(try swish.eval("(let [m {:k :v}] (identical? m m))") == .boolean(true))
+    }
+
+    @Test("identical? on separately-constructed equal sets returns false")
+    func identicalSeparateSets() throws {
+        #expect(try swish.eval(
+            "(identical? #{:a :b :c} (set [:a :b :c]))") == .boolean(false))
+    }
+
+    @Test("identical? on same set binding returns true")
+    func identicalSameSet() throws {
+        #expect(try swish.eval("(let [s #{:a :b :c}] (identical? s s))") == .boolean(true))
+    }
 }

@@ -38,12 +38,12 @@ extension Evaluator {
         case .sortedMap(let dict, let mapMeta):
             return transformSortedMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
 
-        case .set(let elements, let setMeta):
+        case .set(let elements, _, let setMeta):
             var result: Set<Expr> = []
             for element in elements {
                 result.insert(expandAliasesInExpr(element, locals: locals))
             }
-            return .set(result, metadata: setMeta)
+            return .set(result, _id: CollectionID(), metadata: setMeta)
 
         case .sortedSet(let elements, let setMeta):
             return .sortedSet(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: setMeta)

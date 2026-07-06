@@ -21,6 +21,12 @@ public final class TransientCollection: @unchecked Sendable {
     public init(_ value: Expr) { self.value = value }
 }
 
+/// Opaque reference that gives each set construction a unique runtime identity.
+/// When a `.set` Expr is copied (e.g. during variable lookup), the CollectionID
+/// reference is copied too, so `(identical? s s)` sees the same instance.
+/// Two separately-constructed sets always get distinct CollectionID instances.
+public final class CollectionID: @unchecked Sendable {}
+
 /// AST node types for Swish expressions
 public indirect enum Expr: Sendable {
     case integer(Int)
@@ -37,7 +43,7 @@ public indirect enum Expr: Sendable {
     case list([Expr], metadata: [Expr: Expr]?)
     case vector([Expr], metadata: [Expr: Expr]?)
     case map([Expr: Expr], metadata: [Expr: Expr]?)
-    case set(Set<Expr>, metadata: [Expr: Expr]?)
+    case set(Set<Expr>, _id: CollectionID, metadata: [Expr: Expr]?)
     case sortedSet([Expr], metadata: [Expr: Expr]?)
     case sortedMap([Expr: Expr], metadata: [Expr: Expr]?)
     case function(name: String?, params: [String], body: [Expr], capturedEnv: Environment?, metadata: [Expr: Expr]?)
@@ -131,16 +137,16 @@ extension Expr: Equatable {
         case (.map(let a, _), .map(let b, _)):
             return a == b
 
-        case (.set(let a, _), .set(let b, _)):
+        case (.set(let a, _, _), .set(let b, _, _)):
             return a == b
 
         case (.sortedSet(let a, _), .sortedSet(let b, _)):
             return Set(a) == Set(b)
 
-        case (.sortedSet(let a, _), .set(let b, _)):
+        case (.sortedSet(let a, _), .set(let b, _, _)):
             return Set(a) == b
 
-        case (.set(let a, _), .sortedSet(let b, _)):
+        case (.set(let a, _, _), .sortedSet(let b, _)):
             return a == Set(b)
 
         case (.sortedMap(let a, _), .sortedMap(let b, _)):
@@ -276,6 +282,17 @@ extension Expr: Equatable {
     }
 }
 
+// MARK: - Convenience constructors
+
+extension Expr {
+    /// Convenience: creates a `.set` with a fresh `CollectionID`.
+    /// Callers that do not need to control identity (e.g. test assertions,
+    /// structural comparisons) can use this 2-argument form.
+    public static func set(_ elements: Set<Expr>, metadata: [Expr: Expr]?) -> Expr {
+        .set(elements, _id: CollectionID(), metadata: metadata)
+    }
+}
+
 // MARK: - Hash discriminants
 
 /// Named type discriminants for Expr.hash(into:).
@@ -359,7 +376,7 @@ extension Expr: Hashable {
         case .sortedMap(let v, _):
             hasher.combine(ExprHash.map);       hasher.combine(v)
 
-        case .set(let v, _):
+        case .set(let v, _, _):
             hasher.combine(ExprHash.set);       hasher.combine(v)
 
         case .sortedSet(let v, _):
@@ -551,7 +568,7 @@ extension Expr {
         case .vector(let e, let m):                    return .vector(e, metadata: merged(m))
         case .map(let d, let m):                       return .map(d, metadata: merged(m))
         case .sortedMap(let d, let m):                 return .sortedMap(d, metadata: merged(m))
-        case .set(let s, let m):                       return .set(s, metadata: merged(m))
+        case .set(let s, _, let m):                    return .set(s, _id: CollectionID(), metadata: merged(m))
         case .sortedSet(let s, let m):                 return .sortedSet(s, metadata: merged(m))
         case .function(let n, let p, let b, let e, let m):
             return .function(name: n, params: p, body: b, capturedEnv: e, metadata: merged(m))

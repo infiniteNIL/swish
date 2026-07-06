@@ -82,7 +82,7 @@ public class Evaluator {
             }
             return .sortedMap(result, metadata: mapMeta)
 
-        case .set(let elements, let setMeta):
+        case .set(let elements, _, let setMeta):
             var result: Set<Expr> = []
             for element in elements {
                 let evaled = try eval(element, in: env)
@@ -91,7 +91,7 @@ public class Evaluator {
                     throw EvaluatorError.duplicateSetElement(Printer().printString(evaled))
                 }
             }
-            return .set(result, metadata: setMeta)
+            return .set(result, _id: CollectionID(), metadata: setMeta)
 
         case .sortedSet(let elements, let setMeta):
             var result: [Expr] = []

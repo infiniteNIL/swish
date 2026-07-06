@@ -14,7 +14,7 @@ struct ParserSetTests {
     func parsesSetWithIntegers() throws {
         let exprs = try Reader.readString("#{1 2 3}")
         #expect(exprs.count == 1)
-        guard case .set(let elements, _) = exprs[0] else {
+        guard case .set(let elements, _, _) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
@@ -24,7 +24,7 @@ struct ParserSetTests {
     @Test("Parses set with keyword literals")
     func parsesSetWithKeywords() throws {
         let exprs = try Reader.readString("#{:a :b :c}")
-        guard case .set(let elements, _) = exprs[0] else {
+        guard case .set(let elements, _, _) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
@@ -34,7 +34,7 @@ struct ParserSetTests {
     @Test("Parses set with mixed types")
     func parsesSetWithMixedTypes() throws {
         let exprs = try Reader.readString("#{1 :key \"hello\"}")
-        guard case .set(let elements, _) = exprs[0] else {
+        guard case .set(let elements, _, _) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
@@ -67,7 +67,7 @@ struct ParserSetTests {
     @Test("Parses nested set")
     func parsesNestedSet() throws {
         let exprs = try Reader.readString("#{#{1 2} 3}")
-        guard case .set(let outer, _) = exprs[0] else {
+        guard case .set(let outer, _, _) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }

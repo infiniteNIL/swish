@@ -28,14 +28,11 @@ func registerComparison(into evaluator: Evaluator) {
         doc: "Comparator. Returns a negative number, zero, or a positive number when x is logically 'less than', 'equal to', or 'greater than' y.",
         arglists: [["x", "y"]],
         body: coreCompare)
+    
     evaluator.register(name: "identical?", arity: .fixed(2),
         doc: "Tests if 2 arguments are the same object.",
-        arglists: [["x", "y"]]) { args in
-        if case .atom(let a) = args[0], case .atom(let b) = args[1] {
-            return .boolean(a === b)
-        }
-        return .boolean(args[0] == args[1])
-    }
+        arglists: [["x", "y"]],
+        body: coreIdentical)
 }
 
 // MARK: - Implementations
@@ -58,6 +55,26 @@ private func coreGreaterOrEqual(_ args: [Expr]) throws -> Expr {
 
 private func coreEqual(_ args: [Expr]) throws -> Expr {
     try compareConsecutivePairs(args, singleArgResult: true) { $0 == $1 }
+}
+
+private func coreIdentical(_ args: [Expr]) throws -> Expr {
+    if case .atom(let a) = args[0], case .atom(let b) = args[1] {
+        return .boolean(a === b)
+    }
+
+    switch (args[0], args[1]) {
+    case (.set(_, let ai, _), .set(_, let bi, _)):
+        return .boolean(ai === bi)
+
+    case (.map(let a, let am), .map(let b, let bm)):
+        return .boolean(a == b && am == bm)
+
+    case (.sortedMap(let a, let am), .sortedMap(let b, let bm)):
+        return .boolean(a == b && am == bm)
+
+    default:
+        return .boolean(args[0] == args[1])
+    }
 }
 
 private func coreCompare(_ args: [Expr]) throws -> Expr {

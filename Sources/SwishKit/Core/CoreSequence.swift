@@ -168,7 +168,7 @@ func asSequence(_ expr: Expr) -> [Expr]? {
         let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
         return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
 
-    case .set(let elements, _):
+    case .set(let elements, _, _):
         return Array(elements)
 
     case .sortedSet(let elements, _):
@@ -260,7 +260,7 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .map(let dict, _), .sortedMap(let dict, _):
         return .integer(dict.count)
 
-    case .set(let elements, _):
+    case .set(let elements, _, _):
         return .integer(elements.count)
 
     case .sortedSet(let elements, _):
@@ -368,9 +368,9 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         dict[entry[0]] = entry[1]
         return .sortedMap(dict, metadata: meta)
 
-    case .set(var elems, let meta):
+    case .set(var elems, _, let meta):
         elems.insert(item)
-        return .set(elems, metadata: meta)
+        return .set(elems, _id: CollectionID(), metadata: meta)
 
     case .sortedSet(let elems, let meta):
         return .sortedSet(try sortedSetInsert(elems, item), metadata: meta)
@@ -399,7 +399,7 @@ private func coreHashMap(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreHashSet(_ args: [Expr]) throws -> Expr {
-    .set(Set(args), metadata: nil)
+    .set(Set(args), _id: CollectionID(), metadata: nil)
 }
 
 private func coreContains(_ args: [Expr]) throws -> Expr {
@@ -411,7 +411,7 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .map(let dict, _), .sortedMap(let dict, _):
         return .boolean(dict[key] != nil)
 
-    case .set(let elements, _):
+    case .set(let elements, _, _):
         return .boolean(elements.contains(key))
 
     case .sortedSet(let elements, _):

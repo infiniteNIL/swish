@@ -538,7 +538,7 @@ public class Parser {
                 throw ParserError.duplicateSetElement(key, line: startToken.line, column: startToken.column)
             }
         }
-        return .set(set, metadata: nil)
+        return .set(set, _id: CollectionID(), metadata: nil)
     }
 
     // MARK: - Anonymous function literal
@@ -610,7 +610,7 @@ public class Parser {
                 collectAnonFnRefsInExpr(k, into: &refs)
                 collectAnonFnRefsInExpr(v, into: &refs)
             }
-        case .set(let elems, _):
+        case .set(let elems, _, _):
             collectAnonFnRefs(Array(elems), into: &refs)
         case .sortedSet(let elems, _):
             collectAnonFnRefs(elems, into: &refs)
@@ -644,8 +644,8 @@ public class Parser {
             for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
             return .sortedMap(result, metadata: meta)
 
-        case .set(let elems, let meta):
-            return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), metadata: meta)
+        case .set(let elems, _, let meta):
+            return .set(Set(elems.map { normalizeAnonFnArgRef($0) }), _id: CollectionID(), metadata: meta)
 
         case .sortedSet(let elems, let meta):
             return .sortedSet(elems.map { normalizeAnonFnArgRef($0) }, metadata: meta)

@@ -187,7 +187,7 @@ struct EvaluatorDefrecordTests {
     func keysOnRecord() throws {
         _ = try swish.eval("(defrecord DRKeys [a b])")
         let result = try swish.eval("(set (keys (DRKeys. 1 2)))")
-        if case .set(let s, _) = result {
+        if case .set(let s, _, _) = result {
             #expect(s.contains(.keyword("a")))
             #expect(s.contains(.keyword("b")))
         } else {
@@ -199,7 +199,7 @@ struct EvaluatorDefrecordTests {
     func valsOnRecord() throws {
         _ = try swish.eval("(defrecord DRVals [a b])")
         let result = try swish.eval("(set (vals (DRVals. 10 20)))")
-        if case .set(let s, _) = result {
+        if case .set(let s, _, _) = result {
             #expect(s.contains(.integer(10)))
             #expect(s.contains(.integer(20)))
         } else {

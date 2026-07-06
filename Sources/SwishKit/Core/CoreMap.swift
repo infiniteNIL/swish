@@ -316,7 +316,7 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
         else { return notFound }
         return .character(s[i])
 
-    case .set(let elements, _):
+    case .set(let elements, _, _):
         return elements.contains(args[1]) ? args[1] : notFound
 
     case .sortedSet(let elements, _):
