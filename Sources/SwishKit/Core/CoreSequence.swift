@@ -421,7 +421,10 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         return .boolean(idx >= 0 && idx < elements.count)
 
     case .string(let s):
-        guard case .integer(let idx) = key else { return .boolean(false) }
+        guard case .integer(let idx) = key else {
+            throw EvaluatorError.invalidArgument(function: "contains?",
+                message: "contains? on string requires integer key, got \(corePrinter.printString(key))")
+        }
         return .boolean(idx >= 0 && idx < s.count)
 
     case .transient(let tc):

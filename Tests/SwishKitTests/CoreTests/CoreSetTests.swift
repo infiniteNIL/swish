@@ -133,6 +133,23 @@ struct CoreSetTests {
         #expect(try swish.eval("(contains? #{1 2 3} 99)") == .boolean(false))
     }
 
+    @Test("(contains? \"abc\" 0) returns true (index in range)")
+    func containsStringIntKeyInRange() throws {
+        #expect(try swish.eval("(contains? \"abc\" 0)") == .boolean(true))
+    }
+
+    @Test("(contains? \"abc\" 3) returns false (index out of range)")
+    func containsStringIntKeyOutOfRange() throws {
+        #expect(try swish.eval("(contains? \"abc\" 3)") == .boolean(false))
+    }
+
+    @Test("(contains? \"abc\" \"a\") throws for non-integer key on string")
+    func containsStringNonIntKeyThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(contains? \"abc\" \"a\")")
+        }
+    }
+
     // MARK: - get
 
     @Test("get on a set returns the element when it exists")
