@@ -157,7 +157,6 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
         return aArr.count < bArr.count ? -1 : aArr.count > bArr.count ? 1 : 0
 
     default:
-        if x == y { return 0 }
         throw EvaluatorError.invalidArgument(function: "compare",
             message: "cannot compare \(corePrinter.printString(x)) and \(corePrinter.printString(y))")
     }
