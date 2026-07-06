@@ -17,6 +17,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] add Swift unit tests to cover exposed bugs
+- [x] (conj) should return []
 - [x] conj! should throw after persistent!
 - [x] fixed bug when test equality for vectors and lazy-seqs.
 - [x] compare should throw when comparing sets, maps, and lazy seqs.

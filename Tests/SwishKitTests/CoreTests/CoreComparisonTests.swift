@@ -284,6 +284,52 @@ struct CoreComparisonTests {
         #expect(try swish.eval("(min 1 3 2)") == .integer(1))
     }
 
+    // MARK: - compare namespaced keywords
+
+    @Test("(compare :cat :animal/cat) is negative (nil ns < non-nil ns)")
+    func compareKeywordsNilNsLess() throws {
+        let result = try swish.eval("(compare :cat :animal/cat)")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n < 0)
+    }
+
+    @Test("(compare :animal/cat :cat) is positive (non-nil ns > nil ns)")
+    func compareKeywordsNilNsGreater() throws {
+        let result = try swish.eval("(compare :animal/cat :cat)")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n > 0)
+    }
+
+    @Test("(compare :animal/cat :animal/dog) compares names when namespaces equal")
+    func compareKeywordsSameNsDifferentName() throws {
+        let result = try swish.eval("(compare :animal/cat :animal/dog)")
+        guard case .integer(let n) = result else { Issue.record("expected integer"); return }
+        #expect(n < 0)
+    }
+
+    // MARK: - compare throws for non-Comparable types
+
+    @Test("(compare #{1} #{1}) throws")
+    func compareEqualSetsThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(compare #{1} #{1})")
+        }
+    }
+
+    @Test("(compare {1 2} {1 2}) throws")
+    func compareEqualMapsThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(compare {1 2} {1 2})")
+        }
+    }
+
+    @Test("(compare #{} (sorted-set)) throws even though sets are equal")
+    func compareSetAndSortedSetThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(compare #{} (sorted-set))")
+        }
+    }
+
     // MARK: - compare symbols
 
     @Test("(compare 'cat 'dog) is negative")

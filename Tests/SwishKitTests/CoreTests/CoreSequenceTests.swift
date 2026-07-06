@@ -454,4 +454,16 @@ struct CoreSequenceTests {
     func arrayMapNotList() throws {
         #expect(try swish.eval("(list? (array-map :a 1))") == .boolean(false))
     }
+
+    // MARK: - conj
+
+    @Test("(conj) returns empty vector")
+    func conjNoArgs() throws {
+        #expect(try swish.eval("(conj)") == .vector([], metadata: nil))
+    }
+
+    @Test("(conj [1 2] 3) appends to vector")
+    func conjVectorAppend() throws {
+        #expect(try swish.eval("(conj [1 2] 3)") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
 }

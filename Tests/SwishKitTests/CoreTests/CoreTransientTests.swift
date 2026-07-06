@@ -74,6 +74,13 @@ struct CoreTransientTests {
 
     // MARK: - post-persistent! invalidation
 
+    @Test("conj! throws after persistent! call on vector")
+    func conjBangAfterPersistentVector() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient [1 2]), _ (persistent! t)] (conj! t 3))")
+        }
+    }
+
     @Test("assoc! throws after persistent! call on map")
     func assocBangAfterPersistentMap() throws {
         #expect(throws: (any Error).self) {
