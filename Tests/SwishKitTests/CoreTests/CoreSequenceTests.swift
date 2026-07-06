@@ -60,6 +60,11 @@ struct CoreSequenceTests {
         }
     }
 
+    @Test("(cons 1 {:2 2 :3 3}) yields entries in sorted key order")
+    func consMapSortedOrder() throws {
+        #expect(try swish.eval("(= [1 [:2 2] [:3 3]] (cons 1 {:2 2 :3 3}))") == .boolean(true))
+    }
+
     // MARK: - vector / list cross-type equality
 
     @Test("(= [1 2 3] (cons 1 [2 3])) is true")

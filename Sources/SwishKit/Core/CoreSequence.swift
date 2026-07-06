@@ -161,7 +161,8 @@ func asSequence(_ expr: Expr) -> [Expr]? {
         return []
 
     case .map(let dict, _):
-        return dict.map { .vector([$0.key, $0.value], metadata: nil) }
+        let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
+        return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
 
     case .sortedMap(let dict, _):
         let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }

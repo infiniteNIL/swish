@@ -94,4 +94,11 @@ struct CoreTransientTests {
             try swish.eval("(let [t (transient [1]), _ (persistent! t)] (assoc! t 0 2))")
         }
     }
+
+    @Test("dissoc! throws after persistent! call on map")
+    func dissocBangAfterPersistentMap() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient {:a 1}), _ (persistent! t)] (dissoc! t :a))")
+        }
+    }
 }

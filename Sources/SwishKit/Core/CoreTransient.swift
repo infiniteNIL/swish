@@ -72,6 +72,10 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "dissoc!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "dissoc!",
+            message: "Transient used after persistent! call")
+    }
     tc.value = try coreDissoc([tc.value] + Array(args.dropFirst()))
     return args[0]
 }
