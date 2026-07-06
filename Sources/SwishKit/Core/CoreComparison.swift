@@ -136,8 +136,9 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
         if a == b { return 0 }
         return a ? 1 : -1
 
-    case (.integer, .integer), (.float, .float),
-         (.integer, .float), (.float, .integer),
+    case (.integer, .integer), (.double, .double),
+         (.integer, .double), (.double, .integer),
+         (.float, _), (_, .float),
          (.ratio, _), (_, .ratio),
          (.bigInteger, _), (_, .bigInteger),
          (.bigDecimal, _), (_, .bigDecimal):

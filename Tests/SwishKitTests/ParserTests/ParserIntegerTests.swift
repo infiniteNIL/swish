@@ -138,7 +138,7 @@ struct ParserIntegerTests {
         let lexer = Lexer("foo 42 \"hello\" bar 1.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo", metadata: nil), .integer(42), .string("hello"), .symbol("bar", metadata: nil), .float(1.5)])
+        #expect(exprs == [.symbol("foo", metadata: nil), .integer(42), .string("hello"), .symbol("bar", metadata: nil), .double(1.5)])
     }
 
     // MARK: - Hexadecimal integer literals

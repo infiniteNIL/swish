@@ -10,7 +10,7 @@ struct ParserFloatTests {
         let lexer = Lexer("1.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(1.5)])
+        #expect(exprs == [.double(1.5)])
     }
 
     @Test("Parses negative float")
@@ -18,7 +18,7 @@ struct ParserFloatTests {
         let lexer = Lexer("-3.14")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(-3.14)])
+        #expect(exprs == [.double(-3.14)])
     }
 
     @Test("Parses positive float with plus sign")
@@ -26,7 +26,7 @@ struct ParserFloatTests {
         let lexer = Lexer("+3.14")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(3.14)])
+        #expect(exprs == [.double(3.14)])
     }
 
     @Test("Parses float with exponent")
@@ -34,7 +34,7 @@ struct ParserFloatTests {
         let lexer = Lexer("1.5e2")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(150.0)])
+        #expect(exprs == [.double(150.0)])
     }
 
     @Test("Parses float with negative exponent")
@@ -42,7 +42,7 @@ struct ParserFloatTests {
         let lexer = Lexer("1e-2")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(0.01)])
+        #expect(exprs == [.double(0.01)])
     }
 
     @Test("Parses float with uppercase exponent")
@@ -50,7 +50,7 @@ struct ParserFloatTests {
         let lexer = Lexer("2.5E3")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(2500.0)])
+        #expect(exprs == [.double(2500.0)])
     }
 
     @Test("Parses zero point zero")
@@ -58,7 +58,7 @@ struct ParserFloatTests {
         let lexer = Lexer("0.0")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(0.0)])
+        #expect(exprs == [.double(0.0)])
     }
 
     @Test("Parses multiple floats")
@@ -66,7 +66,7 @@ struct ParserFloatTests {
         let lexer = Lexer("1.5 2.5 3.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.float(1.5), .float(2.5), .float(3.5)])
+        #expect(exprs == [.double(1.5), .double(2.5), .double(3.5)])
     }
 
     @Test("Parses mixed integers and floats")
@@ -74,6 +74,6 @@ struct ParserFloatTests {
         let lexer = Lexer("1 2.5 3")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(1), .float(2.5), .integer(3)])
+        #expect(exprs == [.integer(1), .double(2.5), .integer(3)])
     }
 }

@@ -82,6 +82,6 @@ struct ParserRatioTests {
         let lexer = Lexer("1 1.5 1/2")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(1), .float(1.5), .ratio(Ratio(1, 2))])
+        #expect(exprs == [.integer(1), .double(1.5), .ratio(Ratio(1, 2))])
     }
 }

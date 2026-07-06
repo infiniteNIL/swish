@@ -30,7 +30,8 @@ public final class CollectionID: @unchecked Sendable {}
 /// AST node types for Swish expressions
 public indirect enum Expr: Sendable {
     case integer(Int)
-    case float(Double)
+    case float(Float)
+    case double(Double)
     case ratio(Ratio)
     case bigInteger(BigInt)
     case bigDecimal(BigDecimal)
@@ -92,8 +93,17 @@ extension Expr: Equatable {
         case (.integer(let a), .integer(let b)):
             return a == b
 
+        case (.double(let a), .double(let b)):
+            return a == b
+
         case (.float(let a), .float(let b)):
             return a == b
+
+        case (.float(let a), .double(let b)):
+            return Double(a) == b
+
+        case (.double(let a), .float(let b)):
+            return a == Double(b)
 
         case (.ratio(let a), .ratio(let b)):
             return a == b
@@ -340,8 +350,11 @@ extension Expr: Hashable {
         case .integer(let v):
             hasher.combine(ExprHash.integer);   hasher.combine(BigInt(v))
 
-        case .float(let v):
+        case .double(let v):
             hasher.combine(ExprHash.float);     hasher.combine(v)
+
+        case .float(let v):
+            hasher.combine(ExprHash.float);     hasher.combine(Double(v))
 
         case .ratio(let v):
             hasher.combine(ExprHash.ratio);     hasher.combine(v)
@@ -468,6 +481,9 @@ extension Expr: CustomStringConvertible {
 
         case .float:
             return "float"
+
+        case .double:
+            return "double"
 
         case .bigDecimal:
             return "bigDecimal"

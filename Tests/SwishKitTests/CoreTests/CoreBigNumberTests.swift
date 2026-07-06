@@ -107,7 +107,7 @@ struct CoreBigNumberTests {
 
     @Test("(+ 1N 2.0) promotes BigInt to Double")
     func addBigIntAndFloat() throws {
-        #expect(try swish.eval("(+ 1N 2.0)") == .float(3.0))
+        #expect(try swish.eval("(+ 1N 2.0)") == .double(3.0))
     }
 
     @Test("(+ 1N 1.5M) promotes BigInt to BigDecimal")
@@ -245,22 +245,22 @@ struct CoreBigNumberTests {
 
     @Test("(float 1) returns 1.0")
     func floatFromInt() throws {
-        #expect(try swish.eval("(float 1)") == .float(1.0))
+        #expect(try swish.eval("(float 1)") == .double(1.0))
     }
 
     @Test("(float 1/2) returns 0.5")
     func floatFromRatio() throws {
-        #expect(try swish.eval("(float 1/2)") == .float(0.5))
+        #expect(try swish.eval("(float 1/2)") == .double(0.5))
     }
 
     @Test("(float 2N) returns 2.0")
     func floatFromBigInteger() throws {
-        #expect(try swish.eval("(float 2N)") == .float(2.0))
+        #expect(try swish.eval("(float 2N)") == .double(2.0))
     }
 
     @Test("(double 3) returns 3.0")
     func doubleFromInt() throws {
-        #expect(try swish.eval("(double 3)") == .float(3.0))
+        #expect(try swish.eval("(double 3)") == .double(3.0))
     }
 
     @Test("(float? (float 1.0)) returns true")

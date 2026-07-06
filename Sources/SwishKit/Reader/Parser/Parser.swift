@@ -173,7 +173,7 @@ public class Parser {
             value = v
         }
         try advance()
-        return .float(value)
+        return .double(value)
     }
 
     private func parseRatio() throws -> Expr {

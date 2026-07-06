@@ -42,7 +42,7 @@ struct ParserLiteralsTests {
         let lexer = Lexer("1 \"hello\" 1.5 1/2")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.integer(1), .string("hello"), .float(1.5), .ratio(Ratio(1, 2))])
+        #expect(exprs == [.integer(1), .string("hello"), .double(1.5), .ratio(Ratio(1, 2))])
     }
 
     // MARK: - Character literals
@@ -100,7 +100,7 @@ struct ParserLiteralsTests {
         let lexer = Lexer("\\a 42 \"hello\" 1.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.character("a"), .integer(42), .string("hello"), .float(1.5)])
+        #expect(exprs == [.character("a"), .integer(42), .string("hello"), .double(1.5)])
     }
 
     // MARK: - Boolean literals
@@ -134,7 +134,7 @@ struct ParserLiteralsTests {
         let lexer = Lexer("true 42 \"hello\" false 1.5")
         let parser = try Parser(lexer)
         let exprs = try parser.parse()
-        #expect(exprs == [.boolean(true), .integer(42), .string("hello"), .boolean(false), .float(1.5)])
+        #expect(exprs == [.boolean(true), .integer(42), .string("hello"), .boolean(false), .double(1.5)])
     }
 
     // MARK: - Nil literal

@@ -30,8 +30,11 @@ public struct Printer {
         case .integer(let value):
             String(value)
 
-        case .float(let value):
+        case .double(let value):
             floatFormatter.string(from: NSNumber(value: value)) ?? String(value)
+
+        case .float(let value):
+            floatFormatter.string(from: NSNumber(value: Double(value))) ?? String(value)
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
@@ -168,6 +171,9 @@ public struct Printer {
     /// Like `printString` but floats use `String(value)` for exact round-trip fidelity.
     public func sourceForm(_ expr: Expr) -> String {
         switch expr {
+        case .double(let value):
+            String(value)
+
         case .float(let value):
             String(value)
 

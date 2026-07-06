@@ -25,12 +25,12 @@ struct CoreMathTests {
 
     @Test("(+ 1.0 2.0) returns 3.0")
     func addFloats() throws {
-        #expect(try swish.eval("(+ 1.0 2.0)") == .float(3.0))
+        #expect(try swish.eval("(+ 1.0 2.0)") == .double(3.0))
     }
 
     @Test("(+ 1 2.0) returns 3.0 (int + float promotes to float)")
     func addIntAndFloat() throws {
-        #expect(try swish.eval("(+ 1 2.0)") == .float(3.0))
+        #expect(try swish.eval("(+ 1 2.0)") == .double(3.0))
     }
 
     @Test("(+ 1/2 1/3) returns 5/6")
@@ -50,12 +50,12 @@ struct CoreMathTests {
 
     @Test("(+ 1/2 0.5) returns 1.0 (ratio + float promotes to float)")
     func addRatioAndFloat() throws {
-        #expect(try swish.eval("(+ 1/2 0.5)") == .float(1.0))
+        #expect(try swish.eval("(+ 1/2 0.5)") == .double(1.0))
     }
 
     @Test("(+ 1.5) returns 1.5 (single float)")
     func addOneFloat() throws {
-        #expect(try swish.eval("(+ 1.5)") == .float(1.5))
+        #expect(try swish.eval("(+ 1.5)") == .double(1.5))
     }
 
     @Test("(+ 1/3) returns 1/3 (single ratio)")
@@ -86,7 +86,7 @@ struct CoreMathTests {
 
     @Test("(- 3.0) negates float")
     func negateFloat() throws {
-        #expect(try swish.eval("(- 3.0)") == .float(-3.0))
+        #expect(try swish.eval("(- 3.0)") == .double(-3.0))
     }
 
     @Test("(- 1/3) negates ratio")
@@ -101,7 +101,7 @@ struct CoreMathTests {
 
     @Test("(- 1.0 0.5) subtracts floats")
     func subtractFloats() throws {
-        #expect(try swish.eval("(- 1.0 0.5)") == .float(0.5))
+        #expect(try swish.eval("(- 1.0 0.5)") == .double(0.5))
     }
 
     @Test("(- 1 1/2) subtracts int and ratio")
@@ -128,12 +128,12 @@ struct CoreMathTests {
 
     @Test("(* 2.0 3.0) returns 6.0")
     func multiplyFloats() throws {
-        #expect(try swish.eval("(* 2.0 3.0)") == .float(6.0))
+        #expect(try swish.eval("(* 2.0 3.0)") == .double(6.0))
     }
 
     @Test("(* 2 3.0) returns 6.0 (int * float promotes to float)")
     func multiplyIntAndFloat() throws {
-        #expect(try swish.eval("(* 2 3.0)") == .float(6.0))
+        #expect(try swish.eval("(* 2 3.0)") == .double(6.0))
     }
 
     @Test("(* 2/3 3/4) returns 1/2")
@@ -148,7 +148,7 @@ struct CoreMathTests {
 
     @Test("(* 1/2 2.0) returns 1.0 (ratio * float promotes to float)")
     func multiplyRatioAndFloat() throws {
-        #expect(try swish.eval("(* 1/2 2.0)") == .float(1.0))
+        #expect(try swish.eval("(* 1/2 2.0)") == .double(1.0))
     }
 
     // MARK: - /
@@ -172,7 +172,7 @@ struct CoreMathTests {
 
     @Test("(/ 2.0) returns 0.5 (reciprocal of float)")
     func reciprocalFloat() throws {
-        #expect(try swish.eval("(/ 2.0)") == .float(0.5))
+        #expect(try swish.eval("(/ 2.0)") == .double(0.5))
     }
 
     @Test("(/ 1/3) returns 3 (reciprocal of ratio reduces to integer)")
@@ -202,7 +202,7 @@ struct CoreMathTests {
 
     @Test("(/ 1.0 4.0) returns 0.25")
     func divideFloats() throws {
-        #expect(try swish.eval("(/ 1.0 4.0)") == .float(0.25))
+        #expect(try swish.eval("(/ 1.0 4.0)") == .double(0.25))
     }
 
     @Test("(/ 1/2 1/4) returns 2")
@@ -231,7 +231,7 @@ struct CoreMathTests {
 
     @Test("(inc 1.5) returns 2.5")
     func incFloat() throws {
-        #expect(try swish.eval("(inc 1.5)") == .float(2.5))
+        #expect(try swish.eval("(inc 1.5)") == .double(2.5))
     }
 
     // MARK: - dec
@@ -248,7 +248,7 @@ struct CoreMathTests {
 
     @Test("(dec 1.5) returns 0.5")
     func decFloat() throws {
-        #expect(try swish.eval("(dec 1.5)") == .float(0.5))
+        #expect(try swish.eval("(dec 1.5)") == .double(0.5))
     }
 
     // MARK: - BigInt-backed Ratio overflow
@@ -257,7 +257,7 @@ struct CoreMathTests {
     func subtractMaxIntRatio() throws {
         let result = try swish.eval("(- \(Int.max) -1/2)")
         switch result {
-        case .ratio, .bigInteger, .float, .integer: break
+        case .ratio, .bigInteger, .double, .float, .integer: break
         default: Issue.record("Expected a number, got \(result)")
         }
     }
@@ -266,7 +266,7 @@ struct CoreMathTests {
     func subtractMinIntRatio() throws {
         let result = try swish.eval("(- \(Int.min) 1/2)")
         switch result {
-        case .ratio, .bigInteger, .float, .integer: break
+        case .ratio, .bigInteger, .double, .float, .integer: break
         default: Issue.record("Expected a number, got \(result)")
         }
     }
@@ -275,21 +275,21 @@ struct CoreMathTests {
 
     @Test("(mod 10 3.0) returns 1.0")
     func modIntFloat() throws {
-        #expect(try swish.eval("(mod 10 3.0)") == .float(1.0))
+        #expect(try swish.eval("(mod 10 3.0)") == .double(1.0))
     }
 
     @Test("(mod -10 3.0) returns 2.0")
     func modNegIntFloat() throws {
-        #expect(try swish.eval("(mod -10 3.0)") == .float(2.0))
+        #expect(try swish.eval("(mod -10 3.0)") == .double(2.0))
     }
 
     @Test("(mod 10 -3.0) returns -2.0")
     func modIntNegFloat() throws {
-        #expect(try swish.eval("(mod 10 -3.0)") == .float(-2.0))
+        #expect(try swish.eval("(mod 10 -3.0)") == .double(-2.0))
     }
 
     @Test("(mod -10 -3.0) returns -1.0")
     func modNegIntNegFloat() throws {
-        #expect(try swish.eval("(mod -10 -3.0)") == .float(-1.0))
+        #expect(try swish.eval("(mod -10 -3.0)") == .double(-1.0))
     }
 }

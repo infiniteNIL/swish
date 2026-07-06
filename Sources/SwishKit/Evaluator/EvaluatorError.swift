@@ -69,7 +69,8 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
             let rep: String
             switch expr {
             case .integer(let n):  rep = String(n)
-            case .float(let n):    rep = String(n)
+            case .double(let n):   rep = String(n)
+            case .float(let n):    rep = String(Double(n))
             case .ratio(let r):    rep = "\(r.numerator)/\(r.denominator)"
             case .boolean(let b):  rep = b ? "true" : "false"
             case .nil:             rep = "nil"

@@ -28,20 +28,20 @@ struct EvaluatorLiteralsTests {
 
     @Test("Float evaluates to itself")
     func floatSelfEvaluates() throws {
-        let result = try evaluator.eval(.float(3.14))
-        #expect(result == .float(3.14))
+        let result = try evaluator.eval(.double(3.14))
+        #expect(result == .double(3.14))
     }
 
     @Test("Negative float evaluates to itself")
     func negativeFloatSelfEvaluates() throws {
-        let result = try evaluator.eval(.float(-2.5))
-        #expect(result == .float(-2.5))
+        let result = try evaluator.eval(.double(-2.5))
+        #expect(result == .double(-2.5))
     }
 
     @Test("Float zero evaluates to itself")
     func floatZeroSelfEvaluates() throws {
-        let result = try evaluator.eval(.float(0.0))
-        #expect(result == .float(0.0))
+        let result = try evaluator.eval(.double(0.0))
+        #expect(result == .double(0.0))
     }
 
     // MARK: - Ratio literals
@@ -180,9 +180,9 @@ struct EvaluatorLiteralsTests {
     @Test("Symbol registered in clojure.core is visible in user namespace")
     func coreEnvironmentSymbolVisibleDuringEval() throws {
         let evaluator = Evaluator()
-        evaluator.findNs("clojure.core")!.intern(name: "pi", value: .float(3.14159))
+        evaluator.findNs("clojure.core")!.intern(name: "pi", value: .double(3.14159))
         let result = try evaluator.eval(.symbol("pi", metadata: nil))
-        #expect(result == .float(3.14159))
+        #expect(result == .double(3.14159))
     }
 
     @Test("def interns into user namespace, not clojure.core")

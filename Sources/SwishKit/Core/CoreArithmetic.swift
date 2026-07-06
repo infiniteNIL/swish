@@ -28,68 +28,190 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "quot[ient] of dividing numerator by denominator.",
         arglists: [["num", "div"]],
         body: coreQuot)
-    evaluator.register(name: "number?",  arity: .fixed(1), doc: "Returns true if x is a Number",                     arglists: [["x"]]) { args in switch args[0] { case .integer, .float, .ratio, .bigInteger, .bigDecimal: return .boolean(true); default: return .boolean(false) } }
-    evaluator.register(name: "integer?", arity: .fixed(1), doc: "Returns true if n is an integer",                   arglists: [["n"]]) { args in switch args[0] { case .integer, .bigInteger: return .boolean(true); default: return .boolean(false) } }
-    evaluator.register(name: "int?",     arity: .fixed(1), doc: "Return true if x is a fixed-precision integer.",     arglists: [["x"]]) { args in if case .integer = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "float?",   arity: .fixed(1), doc: "Returns true if n is a floating point number",      arglists: [["n"]]) { args in if case .float   = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "ratio?",   arity: .fixed(1), doc: "Returns true if n is a Ratio",                      arglists: [["n"]]) { args in if case .ratio   = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "bigint?",  arity: .fixed(1), doc: "Returns true if n is an arbitrary-precision integer", arglists: [["n"]]) { args in if case .bigInteger = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "decimal?", arity: .fixed(1), doc: "Returns true if n is a BigDecimal",                 arglists: [["n"]]) { args in if case .bigDecimal = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "NaN?",     arity: .fixed(1), doc: "Returns true if num is NaN, else false.",           arglists: [["num"]]) { args in
-        if case .float(let f) = args[0] { return .boolean(f.isNaN) }
-        return .boolean(false)
-    }
+    evaluator.register(
+        name: "number?",
+        arity: .fixed(1),
+        doc: "Returns true if x is a Number",
+        arglists: [["x"]],
+        body: coreIsNumber
+    )
+    evaluator.register(
+        name: "integer?",
+        arity: .fixed(1),
+        doc: "Returns true if n is an integer",
+        arglists: [["n"]],
+        body: coreIsInteger
+    )
+    evaluator.register(
+        name: "int?",
+        arity: .fixed(1),
+        doc: "Return true if x is a fixed-precision integer.",
+        arglists: [["x"]],
+        body: coreIsInt
+    )
+    evaluator.register(
+        name: "float?",
+        arity: .fixed(1),
+        doc: "Returns true if n is a floating point number",
+        arglists: [["n"]],
+        body: coreIsFloat
+    )
+    evaluator.register(
+        name: "double?",
+        arity: .fixed(1),
+        doc: "Returns true if x is a 64-bit floating point Double",
+        arglists: [["x"]],
+        body: coreIsDouble
+    )
+    evaluator.register(
+        name: "ratio?",
+        arity: .fixed(1),
+        doc: "Returns true if n is a Ratio",
+        arglists: [["n"]],
+        body: coreIsRatio
+    )
+    evaluator.register(
+        name: "bigint?",
+        arity: .fixed(1),
+        doc: "Returns true if n is an arbitrary-precision integer",
+        arglists: [["n"]],
+        body: coreIsBigInt
+    )
+    evaluator.register(
+        name: "decimal?",
+        arity: .fixed(1),
+        doc: "Returns true if n is a BigDecimal",
+        arglists: [["n"]],
+        body: coreIsDecimal
+    )
+    evaluator.register(
+        name: "NaN?",
+        arity: .fixed(1),
+        doc: "Returns true if num is NaN, else false.",
+        arglists: [["num"]],
+        body: coreIsNaN
+    )
     evaluator.register(name: "int", arity: .fixed(1),
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
         body: coreInt)
     evaluator.register(name: "char", arity: .fixed(1),
         doc: "Coerce to char. Accepts an integer Unicode code point or a character.",
-        arglists: [["x"]]) { args in
-        switch args[0] {
-        case .character:
-            return args[0]
-
-        case .integer(let n):
-            guard n >= 0, n <= 65535,
-                  let scalar = Unicode.Scalar(UInt32(n)) else {
-                throw EvaluatorError.invalidArgument(function: "char",
-                    message: "Value out of range for char: \(n)")
-            }
-            return .character(Character(scalar))
-
-        default:
-            throw EvaluatorError.invalidArgument(function: "char",
-                message: "Value out of range for char")
-        }
-    }
-    evaluator.register(name: "float", arity: .fixed(1),
-        doc: "Coerces x to a floating-point number.",
         arglists: [["x"]],
-        body: coreToFloat)
+        body: coreToChar)
+    evaluator.register(name: "float", arity: .fixed(1),
+        doc: "Coerces x to a 32-bit floating-point number.",
+        arglists: [["x"]],
+        body: coreToSingleFloat)
     evaluator.register(name: "double", arity: .fixed(1),
-        doc: "Coerces x to a floating-point number.",
+        doc: "Coerces x to a 64-bit floating-point number.",
         arglists: [["x"]],
         body: coreToFloat)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
-        arglists: [[], ["n"]]) { args in
-        if args.isEmpty { return .float(Double.random(in: 0.0..<1.0)) }
-
-        switch args[0] {
-        case .integer(let n):
-            return .float(Double.random(in: 0.0..<Double(n)))
-
-        case .float(let n):
-            return .float(Double.random(in: 0.0..<n))
-
-        default:
-            throw EvaluatorError.invalidArgument(function: "rand", message: "n must be a number")
-        }
-    }
+        arglists: [[], ["n"]],
+        body: coreRand)
 }
 
 // MARK: - Implementations
+
+private func coreIsNumber(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer, .float, .double, .ratio, .bigInteger, .bigDecimal:
+        return .boolean(true)
+
+    default:
+        return .boolean(false)
+    }
+}
+
+private func coreIsInteger(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer, .bigInteger:
+        return .boolean(true)
+
+    default:
+        return .boolean(false)
+    }
+}
+
+private func coreIsInt(_ args: [Expr]) throws -> Expr {
+    if case .integer = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsFloat(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .float, .double:
+        return .boolean(true)
+
+    default:
+        return .boolean(false)
+    }
+}
+
+private func coreIsDouble(_ args: [Expr]) throws -> Expr {
+    if case .double = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsRatio(_ args: [Expr]) throws -> Expr {
+    if case .ratio = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsBigInt(_ args: [Expr]) throws -> Expr {
+    if case .bigInteger = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsDecimal(_ args: [Expr]) throws -> Expr {
+    if case .bigDecimal = args[0] { return .boolean(true) }
+    return .boolean(false)
+}
+
+private func coreIsNaN(_ args: [Expr]) throws -> Expr {
+    if case .double(let f) = args[0] { return .boolean(f.isNaN) }
+    if case .float(let f) = args[0] { return .boolean(f.isNaN) }
+    return .boolean(false)
+}
+
+private func coreToChar(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .character:
+        return args[0]
+
+    case .integer(let n):
+        guard n >= 0, n <= 65535,
+              let scalar = Unicode.Scalar(UInt32(n)) else {
+            throw EvaluatorError.invalidArgument(function: "char",
+                message: "Value out of range for char: \(n)")
+        }
+        return .character(Character(scalar))
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "char",
+            message: "Value out of range for char")
+    }
+}
+
+private func coreRand(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty { return .double(Double.random(in: 0.0..<1.0)) }
+
+    switch args[0] {
+    case .integer(let n):
+        return .double(Double.random(in: 0.0..<Double(n)))
+
+    case .double(let n):
+        return .double(Double.random(in: 0.0..<n))
+
+    case .float(let n):
+        return .double(Double.random(in: 0.0..<Double(n)))
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "rand", message: "n must be a number")
+    }
+}
 
 private func coreAdd(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
@@ -114,6 +236,9 @@ private func coreSubtract(_ args: [Expr]) throws -> Expr {
             let (result, overflow) = (0 as Int).subtractingReportingOverflow(x)
             if overflow { throw EvaluatorError.integerOverflow(operation: "-", lhs: 0, rhs: x) }
             return .integer(result)
+
+        case .double(let x):
+            return .double(-x)
 
         case .float(let x):
             return .float(-x)
@@ -159,6 +284,9 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
             }
             return ratioExpr(Ratio(1, x))
 
+        case .double(let x):
+            return .double(1.0 / x)
+
         case .float(let x):
             return .float(1.0 / x)
 
@@ -196,23 +324,27 @@ enum NumericPair {
 }
 
 func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> NumericPair {
+    // Normalize single-precision float to double before processing
+    if case .float(let x) = a { return try coerceNumericPair(.double(Double(x)), b, function: function) }
+    if case .float(let y) = b { return try coerceNumericPair(a, .double(Double(y)), function: function) }
+
     switch (a, b) {
     case (.integer(let x), .integer(let y)):
         return .ints(x, y)
 
-    case (.float(let x), .float(let y)):
+    case (.double(let x), .double(let y)):
         return .floats(x, y)
 
-    case (.float(let x), .integer(let y)):
+    case (.double(let x), .integer(let y)):
         return .floats(x, Double(y))
 
-    case (.integer(let x), .float(let y)):
+    case (.integer(let x), .double(let y)):
         return .floats(Double(x), y)
 
-    case (.float(let x), .ratio(let y)):
+    case (.double(let x), .ratio(let y)):
         return .floats(x, Double(y.numerator) / Double(y.denominator))
 
-    case (.ratio(let x), .float(let y)):
+    case (.ratio(let x), .double(let y)):
         return .floats(Double(x.numerator) / Double(x.denominator), y)
 
     case (.ratio(let x), .ratio(let y)):
@@ -228,11 +360,11 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.bigDecimal(let x), .bigDecimal(let y)): return .bigDecimals(x, y)
     case (.bigDecimal(let x), .integer(let y)):    return .bigDecimals(x, BigDecimal(integerValue: BigInt(y), scale: 0))
     case (.integer(let x),    .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x), scale: 0), y)
-    case (.bigDecimal(let x), .float(let y)):
+    case (.bigDecimal(let x), .double(let y)):
         guard !y.isNaN && !y.isInfinite else { return .floats(Double(x.description) ?? 0.0, y) }
         return .bigDecimals(x, BigDecimal(floatLiteral: y))
 
-    case (.float(let x), .bigDecimal(let y)):
+    case (.double(let x), .bigDecimal(let y)):
         guard !x.isNaN && !x.isInfinite else { return .floats(x, Double(y.description) ?? 0.0) }
         return .bigDecimals(BigDecimal(floatLiteral: x), y)
 
@@ -247,8 +379,8 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.bigInteger(let x), .bigInteger(let y)): return .bigInts(x, y)
     case (.bigInteger(let x), .integer(let y)):    return .bigInts(x, BigInt(y))
     case (.integer(let x),    .bigInteger(let y)): return .bigInts(BigInt(x), y)
-    case (.bigInteger(let x), .float(let y)):      return .floats(Double(x), y)
-    case (.float(let x),      .bigInteger(let y)): return .floats(x, Double(y))
+    case (.bigInteger(let x), .double(let y)):     return .floats(Double(x), y)
+    case (.double(let x),     .bigInteger(let y)): return .floats(x, Double(y))
     case (.bigInteger(let x), .ratio(let y)):      return .floats(Double(x), Double(y.numerator) / Double(y.denominator))
     case (.ratio(let x),      .bigInteger(let y)): return .floats(Double(x.numerator) / Double(x.denominator), Double(y))
 
@@ -269,7 +401,7 @@ private func ratioExpr(_ r: Ratio) -> Expr {
 
 private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
     switch arg {
-    case .integer, .float, .ratio, .bigInteger, .bigDecimal:
+    case .integer, .float, .double, .ratio, .bigInteger, .bigDecimal:
         return arg
 
     default:
@@ -286,7 +418,7 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
         return .integer(result)
 
     case .floats(let x, let y):
-        return .float(x + y)
+        return .double(x + y)
 
     case .ratios(let x, let y):
         return ratioExpr(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
@@ -305,7 +437,7 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
         return .integer(result)
 
     case .floats(let x, let y):
-        return .float(x - y)
+        return .double(x - y)
 
     case .ratios(let x, let y):
         return ratioExpr(Ratio(x.numerator * y.denominator - y.numerator * x.denominator,
@@ -324,7 +456,7 @@ private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
         return .integer(result)
 
     case .floats(let x, let y):
-        return .float(x * y)
+        return .double(x * y)
 
     case .ratios(let x, let y):
         return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
@@ -343,7 +475,7 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
         return ratioExpr(Ratio(x, y))
 
     case .floats(let x, let y):
-        return .float(x / y)
+        return .double(x / y)
 
     case .ratios(let x, let y):
         if y.numerator == 0 {
@@ -371,17 +503,19 @@ private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigI
 }
 
 private func coreRem(_ args: [Expr]) throws -> Expr {
+    if case .float(let x) = args[0] { return try coreRem([.double(Double(x)), args[1]]) }
+    if case .float(let y) = args[1] { return try coreRem([args[0], .double(Double(y))]) }
     switch (args[0], args[1]) {
-    case (.float(let a), .float(let b)):
+    case (.double(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-        return .float(a.truncatingRemainder(dividingBy: b))
-    case (.float(let a), .integer(let b)):
+        return .double(a.truncatingRemainder(dividingBy: b))
+    case (.double(let a), .integer(let b)):
         let fb = Double(b)
         guard fb != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-        return .float(a.truncatingRemainder(dividingBy: fb))
-    case (.integer(let a), .float(let b)):
+        return .double(a.truncatingRemainder(dividingBy: fb))
+    case (.integer(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-        return .float(Double(a).truncatingRemainder(dividingBy: b))
+        return .double(Double(a).truncatingRemainder(dividingBy: b))
     case (.bigDecimal(let a), .bigDecimal(let b)):
         guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
         return .bigDecimal(a.remainder(dividingBy: b))
@@ -391,10 +525,10 @@ private func coreRem(_ args: [Expr]) throws -> Expr {
     case (.integer(let a), .bigDecimal(let b)):
         guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
         return .bigDecimal(BigDecimal(integerValue: BigInt(a), scale: 0).remainder(dividingBy: b))
-    case (.bigDecimal(let a), .float(let b)):
+    case (.bigDecimal(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
         return .bigDecimal(a.remainder(dividingBy: BigDecimal(floatLiteral: b)))
-    case (.float(let a), .bigDecimal(let b)):
+    case (.double(let a), .bigDecimal(let b)):
         guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
         return .bigDecimal(BigDecimal(floatLiteral: a).remainder(dividingBy: b))
     case (.ratio(let ra), .ratio(let rb)):
@@ -430,23 +564,25 @@ private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
 }
 
 private func coreQuot(_ args: [Expr]) throws -> Expr {
+    if case .float(let x) = args[0] { return try coreQuot([.double(Double(x)), args[1]]) }
+    if case .float(let y) = args[1] { return try coreQuot([args[0], .double(Double(y))]) }
     switch (args[0], args[1]) {
-    // Float wins over all — (a/b) truncated toward zero
-    case (.float(let a), .float(let b)):
+    // Double wins over all — (a/b) truncated toward zero
+    case (.double(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-        return .float((a / b).rounded(.towardZero))
-    case (.float(let a), .integer(let b)):
+        return .double((a / b).rounded(.towardZero))
+    case (.double(let a), .integer(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-        return .float((a / Double(b)).rounded(.towardZero))
-    case (.integer(let a), .float(let b)):
+        return .double((a / Double(b)).rounded(.towardZero))
+    case (.integer(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-        return .float((Double(a) / b).rounded(.towardZero))
-    case (.float(let a), .bigDecimal(let b)):
+        return .double((Double(a) / b).rounded(.towardZero))
+    case (.double(let a), .bigDecimal(let b)):
         guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-        return .float((a / (Double(b.description) ?? 0)).rounded(.towardZero))
-    case (.bigDecimal(let a), .float(let b)):
+        return .double((a / (Double(b.description) ?? 0)).rounded(.towardZero))
+    case (.bigDecimal(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
-        return .float(((Double(a.description) ?? 0) / b).rounded(.towardZero))
+        return .double(((Double(a.description) ?? 0) / b).rounded(.towardZero))
     // BigDecimal — (a - rem(a,b)) / b gives exact integral quotient
     case (.bigDecimal(let a), .bigDecimal(let b)):
         guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
@@ -489,20 +625,50 @@ private func ratioQuot(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
 
 private func coreToFloat(_ args: [Expr]) throws -> Expr {
     switch args[0] {
+    case .double:
+        return args[0]
+
+    case .float(let f):
+        return .double(Double(f))
+
+    case .integer(let n):
+        return .double(Double(n))
+
+    case .bigInteger(let n):
+        return .double(Double(n))
+
+    case .bigDecimal(let d):
+        return .double(Double(d.description) ?? Double.nan)
+
+    case .ratio(let r):
+        return .double(Double(r.numerator) / Double(r.denominator))
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "double",
+            message: "cannot convert \(corePrinter.printString(args[0])) to double")
+    }
+}
+
+private func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
     case .float:
         return args[0]
 
+    case .double(let d):
+        return .float(Float(d))
+
     case .integer(let n):
-        return .float(Double(n))
+        return .float(Float(n))
 
     case .bigInteger(let n):
-        return .float(Double(n))
+        return .float(Float(Double(n)))
 
     case .bigDecimal(let d):
-        return .float(Double(d.description) ?? Double.nan)
+        return .float(Float(Double(d.description) ?? Double.nan))
 
     case .ratio(let r):
-        return .float(Double(r.numerator) / Double(r.denominator))
+        return .float(Float(Double(r.numerator) / Double(r.denominator)))
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -521,6 +687,12 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
             throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
         }
         return .integer(i)
+
+    case .double(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "int", message: "cannot convert \(f) to integer")
+        }
+        return .integer(Int(f))
 
     case .float(let f):
         guard !f.isInfinite && !f.isNaN else {
