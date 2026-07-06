@@ -83,11 +83,7 @@ extension Evaluator {
             return transformMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
 
         case .sortedMap(let dict, let meta):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[preExpandSyntaxQuote(k, gensyms: &gensyms)] = preExpandSyntaxQuote(v, gensyms: &gensyms)
-            }
-            return .sortedMap(result, metadata: meta)
+            return transformSortedMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
 
         case .set(let elements, let meta):
             return .set(Set(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)

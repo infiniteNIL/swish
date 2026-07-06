@@ -36,11 +36,7 @@ extension Evaluator {
             return transformMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
 
         case .sortedMap(let dict, let mapMeta):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[expandAliasesInExpr(k, locals: locals)] = expandAliasesInExpr(v, locals: locals)
-            }
-            return .sortedMap(result, metadata: mapMeta)
+            return transformSortedMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
 
         case .set(let elements, let setMeta):
             var result: Set<Expr> = []

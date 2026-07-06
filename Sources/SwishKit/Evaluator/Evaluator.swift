@@ -220,6 +220,14 @@ public class Evaluator {
         }
         return .map(result, metadata: metadata)
     }
+
+    func transformSortedMap(_ dict: [Expr: Expr], metadata: [Expr: Expr]? = nil, _ transform: (Expr) throws -> Expr) rethrows -> Expr {
+        var result: [Expr: Expr] = [:]
+        for (k, v) in dict {
+            result[try transform(k)] = try transform(v)
+        }
+        return .sortedMap(result, metadata: metadata)
+    }
 }
 
 extension Evaluator: @unchecked Sendable {}

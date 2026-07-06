@@ -15,6 +15,22 @@ extension Evaluator {
         return meta
     }
 
+    private func requireBindingVector(_ elements: [Expr], function: String, message: String) throws -> [Expr] {
+        guard elements.count >= 2, case .vector(let vec, _) = elements[1] else {
+            throw EvaluatorError.invalidArgument(function: function, message: message)
+        }
+        return vec
+    }
+
+    private func extractDocAndAttr(_ elements: [Expr], startingAt idx: Int) -> (doc: String?, attrs: [Expr: Expr]?, nextIdx: Int) {
+        var i = idx
+        var doc: String? = nil
+        var attrs: [Expr: Expr]? = nil
+        if i < elements.count, case .string(let s) = elements[i] { doc = s; i += 1 }
+        if i < elements.count, case .map(let m, _) = elements[i] { attrs = m; i += 1 }
+        return (doc, attrs, i)
+    }
+
     /// `(delay body...)` — special form.
     ///
     /// Captures the body and current lexical environment. Returns a `.delay`
@@ -77,12 +93,7 @@ extension Evaluator {
             throw EvaluatorError.invalidArgument(function: "ns",
                 message: "requires at least one symbol argument")
         }
-        var idx = 2
-        var docString: String? = nil
-        var attrMap: [Expr: Expr]? = nil
-        if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
-        if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
-
+        let (docString, attrMap, idx) = extractDocAndAttr(elements, startingAt: 2)
         let meta = buildMeta(from: symMeta, attrMap: attrMap, docString: docString)
 
         let ns = findOrCreateNs(name)
@@ -256,11 +267,8 @@ extension Evaluator {
     }
 
     func evalBinding(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
-        else {
-            throw EvaluatorError.invalidArgument(function: "binding",
-                message: "requires a vector of var/value pairs")
-        }
+        let bindingVec = try requireBindingVector(elements, function: "binding",
+            message: "requires a vector of var/value pairs")
         guard bindingVec.count % 2 == 0
         else {
             throw EvaluatorError.invalidArgument(function: "binding",
@@ -298,11 +306,8 @@ extension Evaluator {
     }
 
     func evalLet(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
-        else {
-            throw EvaluatorError.invalidArgument(function: "let",
-                message: "first argument must be a vector of bindings")
-        }
+        let bindingVec = try requireBindingVector(elements, function: "let",
+            message: "first argument must be a vector of bindings")
         let letEnv = Environment(parent: env)
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
             let bindings = try destructureBindings(bindingVec[i], bindingVec[i + 1])
@@ -319,11 +324,8 @@ extension Evaluator {
     }
 
     func evalLetfn(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 2, case .vector(let specs, _) = elements[1]
-        else {
-            throw EvaluatorError.invalidArgument(function: "letfn",
-                message: "first argument must be a vector of function specs")
-        }
+        let specs = try requireBindingVector(elements, function: "letfn",
+            message: "first argument must be a vector of function specs")
         let letfnEnv = Environment(parent: env)
         var bindings: [(String, Expr)] = []
         for spec in specs {
@@ -348,11 +350,8 @@ extension Evaluator {
     }
 
     func evalLoop(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 2, case .vector(let bindingVec, _) = elements[1]
-        else {
-            throw EvaluatorError.invalidArgument(function: "loop",
-                message: "first argument must be a vector of bindings")
-        }
+        let bindingVec = try requireBindingVector(elements, function: "loop",
+            message: "first argument must be a vector of bindings")
         let loopEnv = Environment(parent: env)
         var names: [String] = []
         var patternBindings: [(Expr, String)] = []
@@ -550,11 +549,7 @@ extension Evaluator {
         else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
-        var idx = 2
-        var docString: String? = nil
-        var attrMap: [Expr: Expr]? = nil
-        if idx < elements.count, case .string(let s) = elements[idx] { docString = s; idx += 1 }
-        if idx < elements.count, case .map(let m, _) = elements[idx] { attrMap = m; idx += 1 }
+        let (docString, attrMap, idx) = extractDocAndAttr(elements, startingAt: 2)
         guard idx < elements.count else {
             throw EvaluatorError.invalidArgument(function: "defmacro", message: "invalid syntax")
         }
