@@ -51,7 +51,7 @@ func registerArithmetic(into evaluator: Evaluator) {
             return args[0]
 
         case .integer(let n):
-            guard n >= 0,
+            guard n >= 0, n <= 65535,
                   let scalar = Unicode.Scalar(UInt32(n)) else {
                 throw EvaluatorError.invalidArgument(function: "char",
                     message: "Value out of range for char: \(n)")
