@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] fixed int for strings and out of range Int32
 - [x] symbols and vars and now callable
 - [x] fix identical? for maps
 - [x] fix >= and <= when used with NaN

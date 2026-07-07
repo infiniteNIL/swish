@@ -685,11 +685,14 @@ private func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
 
 private func coreInt(_ args: [Expr]) throws -> Expr {
     switch args[0] {
-    case .integer:
+    case .integer(let n):
+        guard n >= Int(Int32.min) && n <= Int(Int32.max) else {
+            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        }
         return args[0]
 
     case .bigInteger(let n):
-        guard let i = Int(exactly: n) else {
+        guard let i = Int(exactly: n), i >= Int(Int32.min) && i <= Int(Int32.max) else {
             throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
         }
         return .integer(i)
@@ -698,31 +701,32 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
         guard !f.isInfinite && !f.isNaN else {
             throw EvaluatorError.invalidArgument(function: "int", message: "cannot convert \(f) to integer")
         }
-        return .integer(Int(f))
+        guard f >= Double(Int32.min) && f <= Double(Int32.max) else {
+            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        }
+        return .integer(Int(Int32(f)))
 
     case .float(let f):
         guard !f.isInfinite && !f.isNaN else {
             throw EvaluatorError.invalidArgument(function: "int", message: "cannot convert \(f) to integer")
         }
-        return .integer(Int(f))
+        let d = Double(f)
+        guard d >= Double(Int32.min) && d <= Double(Int32.max) else {
+            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        }
+        return .integer(Int(Int32(f)))
 
     case .bigDecimal(let d):
         let truncated = d.withScale(0)
-        guard let i = Int(exactly: truncated.integerValue) else {
+        guard let i = Int(exactly: truncated.integerValue), i >= Int(Int32.min) && i <= Int(Int32.max) else {
             throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
         }
         return .integer(i)
 
     case .ratio(let r):
         let truncated = r.numerator / r.denominator
-        guard let i = Int(exactly: truncated) else {
+        guard let i = Int(exactly: truncated), i >= Int(Int32.min) && i <= Int(Int32.max) else {
             throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
-        }
-        return .integer(i)
-
-    case .string(let s):
-        guard let i = Int(s) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "not a valid integer: \"\(s)\"")
         }
         return .integer(i)
 

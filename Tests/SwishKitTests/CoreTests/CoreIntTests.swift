@@ -86,21 +86,27 @@ struct CoreIntTests {
         #expect(try swish.eval("(int 6/3)") == .integer(2))
     }
 
-    // MARK: - string input
+    // MARK: - string input throws (ClojureJVM semantics)
 
-    @Test("(int \"42\") returns 42")
+    @Test("(int \"42\") throws")
     func fromStringPositive() throws {
-        #expect(try swish.eval("(int \"42\")") == .integer(42))
+        #expect(throws: (any Error).self) {
+            try swish.eval("(int \"42\")")
+        }
     }
 
-    @Test("(int \"-7\") returns -7")
+    @Test("(int \"-7\") throws")
     func fromStringNegative() throws {
-        #expect(try swish.eval("(int \"-7\")") == .integer(-7))
+        #expect(throws: (any Error).self) {
+            try swish.eval("(int \"-7\")")
+        }
     }
 
-    @Test("(int \"0\") returns 0")
+    @Test("(int \"0\") throws")
     func fromStringZero() throws {
-        #expect(try swish.eval("(int \"0\")") == .integer(0))
+        #expect(throws: (any Error).self) {
+            try swish.eval("(int \"0\")")
+        }
     }
 
     // MARK: - error cases
@@ -138,6 +144,38 @@ struct CoreIntTests {
         #expect(throws: (any Error).self) {
             try swish.eval("(int 1 2)")
         }
+    }
+
+    // MARK: - Int32 range enforcement
+
+    @Test("int accepts Int32.min boundary")
+    func intMinBoundary() throws {
+        #expect(try swish.eval("(int -2147483648)") == .integer(-2147483648))
+    }
+
+    @Test("int accepts Int32.max boundary")
+    func intMaxBoundary() throws {
+        #expect(try swish.eval("(int 2147483647)") == .integer(2147483647))
+    }
+
+    @Test("int throws for integer below Int32.min")
+    func intThrowsBelowMin() {
+        #expect(throws: (any Error).self) { try swish.eval("(int -2147483649)") }
+    }
+
+    @Test("int throws for integer above Int32.max")
+    func intThrowsAboveMax() {
+        #expect(throws: (any Error).self) { try swish.eval("(int 2147483648)") }
+    }
+
+    @Test("int throws for double below Int32.min")
+    func intThrowsDoubleBelowMin() {
+        #expect(throws: (any Error).self) { try swish.eval("(int -2147483648.000001)") }
+    }
+
+    @Test("int throws for double above Int32.max")
+    func intThrowsDoubleAboveMax() {
+        #expect(throws: (any Error).self) { try swish.eval("(int 2147483647.000001)") }
     }
 
     // MARK: - result is a fixed-precision integer
