@@ -203,6 +203,12 @@ private func coreKeys(_ args: [Expr]) throws -> Expr {
         return keys.isEmpty ? .nil : .list(keys, metadata: nil)
 
     default:
+        // Empty seqable collections produce nil (Clojure: seq([]) → nil → KeySeq.create(nil) → nil).
+        // Non-seqable values (integers, etc.) throw like Clojure's seq does.
+        guard let elements = try? seqOf(args[0], function: "keys"), elements.isEmpty else {
+            throw EvaluatorError.invalidArgument(function: "keys",
+                message: "not a map: \(corePrinter.printString(args[0]))")
+        }
         return .nil
     }
 }
@@ -225,6 +231,10 @@ private func coreVals(_ args: [Expr]) throws -> Expr {
         return vals.isEmpty ? .nil : .list(vals, metadata: nil)
 
     default:
+        guard let elements = try? seqOf(args[0], function: "vals"), elements.isEmpty else {
+            throw EvaluatorError.invalidArgument(function: "vals",
+                message: "not a map: \(corePrinter.printString(args[0]))")
+        }
         return .nil
     }
 }

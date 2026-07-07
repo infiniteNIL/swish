@@ -525,9 +525,9 @@ struct CoreMapTests {
         #expect(try swish.eval("(keys nil)") == .nil)
     }
 
-    @Test("(keys 42) returns nil for non-map")
-    func keysNonMapReturnsNil() throws {
-        #expect(try swish.eval("(keys 42)") == .nil)
+    @Test("(keys 42) throws for non-map")
+    func keysNonMapThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(keys 42)") }
     }
 
     // MARK: - vals
@@ -547,9 +547,9 @@ struct CoreMapTests {
         #expect(try swish.eval("(vals nil)") == .nil)
     }
 
-    @Test("(vals 42) returns nil for non-map")
-    func valsNonMapReturnsNil() throws {
-        #expect(try swish.eval("(vals 42)") == .nil)
+    @Test("(vals 42) throws for non-map")
+    func valsNonMapThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(vals 42)") }
     }
 
     // MARK: - find
@@ -682,22 +682,22 @@ struct CoreMapTests {
         #expect(try swish.eval("(find [1 2 3] :a)") == .nil)
     }
 
-    @Test("(keys []) returns nil")
+    @Test("(keys []) returns nil for empty vector")
     func keysVector() throws {
         #expect(try swish.eval("(keys [])") == .nil)
     }
 
-    @Test("(keys '()) returns nil")
+    @Test("(keys '()) returns nil for empty list")
     func keysList() throws {
         #expect(try swish.eval("(keys '())") == .nil)
     }
 
-    @Test("(keys #{}) returns nil")
+    @Test("(keys #{}) returns nil for empty set")
     func keysSet() throws {
         #expect(try swish.eval("(keys #{})") == .nil)
     }
 
-    @Test("(keys \"\") returns nil")
+    @Test("(keys \"\") returns nil for empty string")
     func keysString() throws {
         #expect(try swish.eval("(keys \"\")") == .nil)
     }
