@@ -590,6 +590,14 @@ private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
 private func coreQuot(_ args: [Expr]) throws -> Expr {
     if case .float(let x) = args[0] { return try coreQuot([.double(Double(x)), args[1]]) }
     if case .float(let y) = args[1] { return try coreQuot([args[0], .double(Double(y))]) }
+    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
+        throw EvaluatorError.invalidArgument(function: "quot",
+            message: "No exact numeric value for Infinity or NaN")
+    }
+    if case .double(let b) = args[1], b.isNaN {
+        throw EvaluatorError.invalidArgument(function: "quot",
+            message: "No exact numeric value for NaN")
+    }
     switch (args[0], args[1]) {
     // Double wins over all — (a/b) truncated toward zero
     case (.double(let a), .double(let b)):

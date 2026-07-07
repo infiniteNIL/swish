@@ -294,6 +294,28 @@ struct CoreMathTests {
         #expect(try swish.eval("(mod -10 -3.0)") == .double(-1.0))
     }
 
+    // MARK: - quot (infinity / NaN)
+
+    @Test("(quot ##Inf 1) throws")
+    func quotInfThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(quot ##Inf 1)") }
+    }
+
+    @Test("(quot ##-Inf 1) throws")
+    func quotNegInfThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(quot ##-Inf 1)") }
+    }
+
+    @Test("(quot ##NaN 1) throws")
+    func quotNaNThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(quot ##NaN 1)") }
+    }
+
+    @Test("(quot 1 ##NaN) throws")
+    func quotDenomNaNThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(quot 1 ##NaN)") }
+    }
+
     // MARK: - mod (infinity / NaN)
 
     @Test("(mod ##Inf 1) throws")
