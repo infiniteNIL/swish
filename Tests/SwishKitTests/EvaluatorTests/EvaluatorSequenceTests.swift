@@ -41,9 +41,9 @@ struct EvaluatorSequenceTests {
     @Test("seq of map returns entries as map entries")
     func seqOfMap() throws {
         let result = try evaluator.eval("(seq {:a 1})")
-        guard case .list(let entries, _) = result, entries.count == 1,
+        guard case .seq(let entries) = result, entries.count == 1,
               case .mapEntry(let k, let v) = entries[0]
-        else { Issue.record("Expected list of one map entry"); return }
+        else { Issue.record("Expected seq of one map entry"); return }
         #expect(k == .keyword("a"))
         #expect(v == .integer(1))
     }

@@ -74,7 +74,7 @@ func registerSequence(into evaluator: Evaluator) {
         }
     }
     evaluator.register(name: "list?", arity: .fixed(1), doc: "Returns true if x implements IPersistentList",        arglists: [["x"]]) { args in if case .list = args[0] { return .boolean(true) }; return .boolean(false) }
-    evaluator.register(name: "seq?",      arity: .fixed(1), doc: "Returns true if x implements ISeq",               arglists: [["x"]]) { args in switch args[0] { case .list, .lazySeq: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "seq?",      arity: .fixed(1), doc: "Returns true if x implements ISeq",               arglists: [["x"]]) { args in switch args[0] { case .list, .seq, .lazySeq: return .boolean(true); default: return .boolean(false) } }
     evaluator.register(name: "lazy-seq?", arity: .fixed(1), doc: "Return true if x is a LazySeq.",                   arglists: [["x"]]) { args in if case .lazySeq = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "realized?", arity: .fixed(1),
         doc: "Returns true if a lazy sequence or delay has been forced.",
@@ -156,6 +156,9 @@ func asSequence(_ expr: Expr) -> [Expr]? {
     case .list(let elements, _):
         return elements
 
+    case .seq(let elements):
+        return elements
+
     case .vector(let elements, _):
         return elements
 
@@ -234,6 +237,9 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
     case .list(let elements, _):
         tail = elements
 
+    case .seq(let elements):
+        tail = elements
+
     case .vector(let elements, _):
         tail = elements
 
@@ -260,6 +266,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
         return .integer(0)
 
     case .list(let elements, _):
+        return .integer(elements.count)
+
+    case .seq(let elements):
         return .integer(elements.count)
 
     case .vector(let elements, _):
@@ -312,13 +321,19 @@ private func coreCons(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreSeq(_ args: [Expr]) throws -> Expr {
-    if case .lazySeq(let box) = args[0] {
+    switch args[0] {
+    case .lazySeq(let box):
         guard let head = try box.forceHead() else { return .nil }
         let tail = try box.forceTail()
         return .lazySeq(LazySeqBox(head: head, tail: tail))
+
+    case .list(let elements, _):
+        return elements.isEmpty ? .nil : .list(elements, metadata: nil)
+
+    default:
+        let elements = try seqOf(args[0], function: "seq")
+        return elements.isEmpty ? .nil : .seq(elements)
     }
-    let elements = try seqOf(args[0], function: "seq")
-    return elements.isEmpty ? .nil : .list(elements, metadata: nil)
 }
 
 private func coreNext(_ args: [Expr]) throws -> Expr {
@@ -346,6 +361,9 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
 
     case .list(let elems, let meta):
         return .list([item] + elems, metadata: meta)
+
+    case .seq(let elems):
+        return .seq([item] + elems)
 
     case .vector(let elems, let meta):
         return .vector(elems + [item], metadata: meta)

@@ -37,6 +37,9 @@ public indirect enum Expr: Sendable {
     case symbol(String, metadata: [Expr: Expr]?)
     case keyword(String)
     case list([Expr], metadata: [Expr: Expr]?)
+    /// An eager, non-list seq — returned by `seq` on non-list collections (vector, map, set, etc.).
+    /// Satisfies `seq?` but not `list?` or `lazy-seq?`, matching Clojure's ISeq-not-IPersistentList.
+    case seq([Expr])
     case vector([Expr], metadata: [Expr: Expr]?)
     /// A key-value pair from map iteration. Semantically equivalent to a 2-element vector.
     case mapEntry(Expr, Expr)
@@ -138,6 +141,9 @@ extension Expr: Equatable {
         case (.list(let a, _), .list(let b, _)):
             return a == b
 
+        case (.seq(let a), .seq(let b)):
+            return a == b
+
         case (.vector(let a, _), .vector(let b, _)):
             return a == b
 
@@ -217,6 +223,15 @@ extension Expr: Equatable {
         case (.vector, .list), (.list, .vector):
             return seqEqual(lhs, rhs)
 
+        case (.seq, .list), (.list, .seq):
+            return seqEqual(lhs, rhs)
+
+        case (.seq, .vector), (.vector, .seq):
+            return seqEqual(lhs, rhs)
+
+        case (.seq, .lazySeq), (.lazySeq, .seq):
+            return seqEqual(lhs, rhs)
+
         case (.reduced(let a), .reduced(let b)):
             return a == b
 
@@ -279,6 +294,11 @@ extension Expr: Equatable {
             expr = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
             return elems[0]
 
+        case .seq(let elems):
+            if elems.isEmpty { return nil }
+            expr = elems.count == 1 ? .nil : .seq(Array(elems.dropFirst()))
+            return elems[0]
+
         case .vector(let elems, _):
             if elems.isEmpty { return nil }
             expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
@@ -325,7 +345,7 @@ private enum ExprHash {
     static let `nil`              = 6
     static let symbol             = 7
     static let keyword            = 8
-    static let list               = 9
+    static let list               = 9  // .seq shares this discriminant for cross-type equality
     static let vector             = 10  // mapEntry shares this for cross-type equality
     static let map                = 11  // sortedMap shares this for cross-type equality
     static let set                = 12  // sortedSet shares this for cross-type equality
@@ -385,6 +405,9 @@ extension Expr: Hashable {
             hasher.combine(ExprHash.keyword);   hasher.combine(v)
 
         case .list(let v, _):
+            hasher.combine(ExprHash.list);      hasher.combine(v)
+
+        case .seq(let v):
             hasher.combine(ExprHash.list);      hasher.combine(v)
 
         case .vector(let v, _):
@@ -515,6 +538,9 @@ extension Expr: CustomStringConvertible {
 
         case .list:
             return "list"
+
+        case .seq:
+            return "seq"
 
         case .vector:
             return "vector"

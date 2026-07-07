@@ -40,4 +40,34 @@ struct CoreListPredicateTests {
     func listPredicateInteger() throws {
         #expect(try swish.eval("(list? 42)") == .boolean(false))
     }
+
+    @Test("list? returns false for (seq [1 2 3])")
+    func listPredicateSeqOfVector() throws {
+        #expect(try swish.eval("(list? (seq [1 2 3]))") == .boolean(false))
+    }
+
+    @Test("list? returns false for (seq (sorted-set :a))")
+    func listPredicateSeqOfSortedSet() throws {
+        #expect(try swish.eval("(list? (seq (sorted-set :a)))") == .boolean(false))
+    }
+
+    @Test("list? returns false for (seq (sorted-map :a 1))")
+    func listPredicateSeqOfSortedMap() throws {
+        #expect(try swish.eval("(list? (seq (sorted-map :a 1)))") == .boolean(false))
+    }
+
+    @Test("list? returns true for (seq '(1 2 3))")
+    func listPredicateSeqOfList() throws {
+        #expect(try swish.eval("(list? (seq '(1 2 3)))") == .boolean(true))
+    }
+
+    @Test("seq? returns true for (seq [1 2 3])")
+    func seqPredicateSeqOfVector() throws {
+        #expect(try swish.eval("(seq? (seq [1 2 3]))") == .boolean(true))
+    }
+
+    @Test("lazy-seq? returns false for (seq [1 2 3])")
+    func lazySeqPredicateSeqOfVector() throws {
+        #expect(try swish.eval("(lazy-seq? (seq [1 2 3]))") == .boolean(false))
+    }
 }
