@@ -171,9 +171,15 @@ private func coreIsDecimal(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreIsNaN(_ args: [Expr]) throws -> Expr {
-    if case .double(let f) = args[0] { return .boolean(f.isNaN) }
-    if case .float(let f) = args[0] { return .boolean(f.isNaN) }
-    return .boolean(false)
+    switch args[0] {
+    case .double(let f): return .boolean(f.isNaN)
+    case .float(let f):  return .boolean(f.isNaN)
+    case .integer, .bigInteger, .ratio, .bigDecimal:
+        return .boolean(false)
+    default:
+        throw EvaluatorError.invalidArgument(function: "NaN?",
+            message: "expected a number, got \(corePrinter.printString(args[0]))")
+    }
 }
 
 private func coreToChar(_ args: [Expr]) throws -> Expr {
