@@ -365,6 +365,9 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     case .seq(let elems):
         return .seq([item] + elems)
 
+    case .mapEntry(let k, let v):
+        return .vector([k, v, item], metadata: nil)
+
     case .vector(let elems, let meta):
         return .vector(elems + [item], metadata: meta)
 
