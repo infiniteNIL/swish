@@ -397,6 +397,14 @@ private func ratioExpr(_ r: Ratio) -> Expr {
     return .bigInteger(r.numerator)
 }
 
+// Used for ratio+ratio arithmetic: when the result simplifies to a whole
+// number, JVM Clojure returns BigInt (not Long) because the numerator/
+// denominator are BigInteger objects throughout.
+private func ratioExprBig(_ r: Ratio) -> Expr {
+    guard r.denominator == 1 else { return .ratio(r) }
+    return .bigInteger(r.numerator)
+}
+
 private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
     switch arg {
     case .integer, .float, .double, .ratio, .bigInteger, .bigDecimal:
@@ -419,8 +427,8 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
         return .double(x + y)
 
     case .ratios(let x, let y):
-        return ratioExpr(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
-                               x.denominator * y.denominator))
+        return ratioExprBig(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
+                                  x.denominator * y.denominator))
 
     case .bigInts(let x, let y):     return .bigInteger(x + y)
     case .bigDecimals(let x, let y): return .bigDecimal(x + y)

@@ -1,5 +1,6 @@
 import Testing
 @testable import SwishKit
+import BigInt
 
 @Suite("Core Math Tests", .serialized)
 struct CoreMathTests {
@@ -291,5 +292,37 @@ struct CoreMathTests {
     @Test("(mod -10 -3.0) returns -1.0")
     func modNegIntNegFloat() throws {
         #expect(try swish.eval("(mod -10 -3.0)") == .double(-1.0))
+    }
+
+    // MARK: - mod (integer / ratio → BigInteger)
+
+    @Test("(mod 3 -4/3) returns -1N")
+    func modIntNegRatioReturnsBigInt() throws {
+        #expect(try swish.eval("(mod 3 -4/3)") == .bigInteger(BigInt(-1)))
+    }
+
+    @Test("(bigint? (mod 3 -4/3)) is true")
+    func modIntNegRatioIsBigInt() throws {
+        #expect(try swish.eval("(bigint? (mod 3 -4/3))") == .boolean(true))
+    }
+
+    @Test("(= -1N (mod 3 -4/3)) is true")
+    func modIntNegRatioEqualsExpected() throws {
+        #expect(try swish.eval("(= -1N (mod 3 -4/3))") == .boolean(true))
+    }
+
+    @Test("(mod -3 4/3) returns 1N")
+    func modNegIntRatioReturnsBigInt() throws {
+        #expect(try swish.eval("(mod -3 4/3)") == .bigInteger(BigInt(1)))
+    }
+
+    @Test("(bigint? (mod -3 4/3)) is true")
+    func modNegIntRatioIsBigInt() throws {
+        #expect(try swish.eval("(bigint? (mod -3 4/3))") == .boolean(true))
+    }
+
+    @Test("(= 1N (mod -3 4/3)) is true")
+    func modNegIntRatioEqualsExpected() throws {
+        #expect(try swish.eval("(= 1N (mod -3 4/3))") == .boolean(true))
     }
 }
