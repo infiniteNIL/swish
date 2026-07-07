@@ -566,18 +566,22 @@
   {:added "1.0"
    :static true}
   ([x] x)
-  ([x y] (if (> x y) x y))
+  ([x y] (if (NaN? x) x (if (NaN? y) y (if (> x y) x y))))
   ([x y & more]
-   (reduce (fn [m n] (if (> m n) m n)) (if (> x y) x y) more)))
+   (reduce (fn [m n] (if (NaN? m) m (if (NaN? n) n (if (> m n) m n))))
+           (if (NaN? x) x (if (NaN? y) y (if (> x y) x y)))
+           more)))
 
 (defn min
   "Returns the least of its arguments."
   {:added "1.0"
    :static true}
   ([x] x)
-  ([x y] (if (< x y) x y))
+  ([x y] (if (NaN? x) x (if (NaN? y) y (if (< x y) x y))))
   ([x y & more]
-   (reduce (fn [m n] (if (< m n) m n)) (if (< x y) x y) more)))
+   (reduce (fn [m n] (if (NaN? m) m (if (NaN? n) n (if (< m n) m n))))
+           (if (NaN? x) x (if (NaN? y) y (if (< x y) x y)))
+           more)))
 
 (defn mod
   "Modulus of num and div. Truncates toward negative infinity."
