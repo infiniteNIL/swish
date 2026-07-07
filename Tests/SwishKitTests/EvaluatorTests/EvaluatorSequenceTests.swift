@@ -38,14 +38,14 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(seq \"ab\")") == .list([.character("a"), .character("b")], metadata: nil))
     }
 
-    @Test("seq of map returns entries as vectors")
+    @Test("seq of map returns entries as map entries")
     func seqOfMap() throws {
         let result = try evaluator.eval("(seq {:a 1})")
         guard case .list(let entries, _) = result, entries.count == 1,
-              case .vector(let pair, _) = entries[0], pair.count == 2
-        else { Issue.record("Expected list of one vector pair"); return }
-        #expect(pair[0] == .keyword("a"))
-        #expect(pair[1] == .integer(1))
+              case .mapEntry(let k, let v) = entries[0]
+        else { Issue.record("Expected list of one map entry"); return }
+        #expect(k == .keyword("a"))
+        #expect(v == .integer(1))
     }
 
     @Test("seq of set returns elements")
@@ -169,14 +169,14 @@ struct EvaluatorSequenceTests {
 
     // MARK: - first on non-list collection types
 
-    @Test("first on map returns a key-value vector")
+    @Test("first on map returns a map entry")
     func firstOnMap() throws {
         let result = try evaluator.eval("(first {:a 1})")
-        guard case .vector(let pair, _) = result, pair.count == 2 else {
-            Issue.record("Expected [k v] vector"); return
+        guard case .mapEntry(let k, let v) = result else {
+            Issue.record("Expected map entry"); return
         }
-        #expect(pair[0] == .keyword("a"))
-        #expect(pair[1] == .integer(1))
+        #expect(k == .keyword("a"))
+        #expect(v == .integer(1))
     }
 
     @Test("first on set returns an element")

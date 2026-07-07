@@ -583,14 +583,24 @@ struct CoreMapTests {
 
     // MARK: - key / val
 
-    @Test("(key [:a 1]) returns the key")
+    @Test("key returns key of a map entry")
     func keyReturnsKey() throws {
-        #expect(try swish.eval("(key [:a 1])") == .keyword("a"))
+        #expect(try swish.eval("(key (first {:a 1}))") == .keyword("a"))
     }
 
-    @Test("(val [:a 1]) returns the value")
+    @Test("val returns value of a map entry")
     func valReturnsVal() throws {
-        #expect(try swish.eval("(val [:a 1])") == .integer(1))
+        #expect(try swish.eval("(val (first {:a 1}))") == .integer(1))
+    }
+
+    @Test("key throws for a plain vector")
+    func keyThrowsForVector() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(key [:a 1])") }
+    }
+
+    @Test("val throws for a plain vector")
+    func valThrowsForVector() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(val [:a 1])") }
     }
 
     // MARK: - select-keys

@@ -38,6 +38,8 @@ public indirect enum Expr: Sendable {
     case keyword(String)
     case list([Expr], metadata: [Expr: Expr]?)
     case vector([Expr], metadata: [Expr: Expr]?)
+    /// A key-value pair from map iteration. Semantically equivalent to a 2-element vector.
+    case mapEntry(Expr, Expr)
     case map(SwishMap)
     case set(SwishSet)
     case sortedSet([Expr], metadata: [Expr: Expr]?)
@@ -138,6 +140,15 @@ extension Expr: Equatable {
 
         case (.vector(let a, _), .vector(let b, _)):
             return a == b
+
+        case (.mapEntry(let k1, let v1), .mapEntry(let k2, let v2)):
+            return k1 == k2 && v1 == v2
+
+        case (.mapEntry(let k, let v), .vector(let elems, _)):
+            return elems.count == 2 && k == elems[0] && v == elems[1]
+
+        case (.vector(let elems, _), .mapEntry(let k, let v)):
+            return elems.count == 2 && elems[0] == k && elems[1] == v
 
         case (.map(let a), .map(let b)):
             return a == b
@@ -315,7 +326,7 @@ private enum ExprHash {
     static let symbol             = 7
     static let keyword            = 8
     static let list               = 9
-    static let vector             = 10
+    static let vector             = 10  // mapEntry shares this for cross-type equality
     static let map                = 11  // sortedMap shares this for cross-type equality
     static let set                = 12  // sortedSet shares this for cross-type equality
     static let function           = 13
@@ -378,6 +389,9 @@ extension Expr: Hashable {
 
         case .vector(let v, _):
             hasher.combine(ExprHash.vector);    hasher.combine(v)
+
+        case .mapEntry(let k, let v):
+            hasher.combine(ExprHash.vector);    hasher.combine([k, v])
 
         case .map(let sm):
             hasher.combine(ExprHash.map);       hasher.combine(sm)
@@ -504,6 +518,9 @@ extension Expr: CustomStringConvertible {
 
         case .vector:
             return "vector"
+
+        case .mapEntry:
+            return "map-entry"
 
         case .map:
             return "map"

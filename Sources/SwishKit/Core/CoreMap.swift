@@ -48,6 +48,26 @@ func registerMap(into evaluator: Evaluator) {
         default: return .boolean(false)
         }
     }
+
+    evaluator.register(name: "key", arity: .fixed(1),
+        doc: "Returns the key of the map entry.",
+        arglists: [["e"]]) { args in
+        guard case .mapEntry(let k, _) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "key",
+                message: "Doesn't implement IMapEntry: \(corePrinter.printString(args[0]))")
+        }
+        return k
+    }
+
+    evaluator.register(name: "val", arity: .fixed(1),
+        doc: "Returns the value of the map entry.",
+        arglists: [["e"]]) { args in
+        guard case .mapEntry(_, let v) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "val",
+                message: "Doesn't implement IMapEntry: \(corePrinter.printString(args[0]))")
+        }
+        return v
+    }
 }
 
 private func coreFind(_ args: [Expr]) throws -> Expr {
@@ -57,15 +77,15 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
 
     case .map(let sm):
         guard let value = sm.dict[args[1]] else { return .nil }
-        return .vector([args[1], value], metadata: nil)
+        return .mapEntry(args[1], value)
 
     case .sortedMap(let dict, _):
         guard let value = dict[args[1]] else { return .nil }
-        return .vector([args[1], value], metadata: nil)
+        return .mapEntry(args[1], value)
 
     case .record(_, _, let data, _):
         guard let value = data[args[1]] else { return .nil }
-        return .vector([args[1], value], metadata: nil)
+        return .mapEntry(args[1], value)
 
     case .vector(let elements, _):
         guard case .integer(let idx) = args[1],

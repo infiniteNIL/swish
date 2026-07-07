@@ -894,17 +894,6 @@
           (next keys)))
       (with-meta ret (meta map)))))
 
-(defn key
-  "Returns the key of the map entry."
-  {:added "1.0"
-   :static true}
-  [e] (first e))
-
-(defn val
-  "Returns the value of the map entry."
-  {:added "1.0"
-   :static true}
-  [e] (second e))
 
 (defn merge-with
   "Returns a map that consists of the rest of the maps conj-ed onto

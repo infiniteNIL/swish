@@ -42,7 +42,7 @@ extension Evaluator {
                                         args: evaluated, in: maf.capturedEnv ?? env,
                                         selfExpr: callee)
 
-        case .map, .sortedMap, .keyword, .vector, .set, .record, .transient, .symbol, .varRef:
+        case .map, .sortedMap, .keyword, .vector, .mapEntry, .set, .record, .transient, .symbol, .varRef:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -130,6 +130,19 @@ extension Evaluator {
                     message: "index \(idx) out of bounds for vector of size \(elements.count)")
             }
             return elements[idx]
+
+        case .mapEntry(let k, let v):
+            guard args.count == 1
+            else {
+                throw EvaluatorError.invalidArgument(function: "map-entry",
+                    message: "requires 1 argument, got \(args.count)")
+            }
+            guard case .integer(let idx) = args[0], idx == 0 || idx == 1
+            else {
+                throw EvaluatorError.invalidArgument(function: "map-entry",
+                    message: "index must be 0 or 1")
+            }
+            return idx == 0 ? k : v
 
         case .set(let ss):
             guard args.count == 1

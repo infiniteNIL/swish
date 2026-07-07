@@ -25,7 +25,12 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns the number of items in the collection. (count nil) returns 0. Also works on strings, arrays, and Java Collections and Maps.",
         arglists: [["coll"]],
         body: coreCount)
-    evaluator.register(name: "vector?", arity: .fixed(1), doc: "Return true if x implements IPersistentVector",    arglists: [["x"]]) { args in if case .vector = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "vector?", arity: .fixed(1), doc: "Return true if x implements IPersistentVector",    arglists: [["x"]]) { args in
+        switch args[0] {
+        case .vector, .mapEntry: return .boolean(true)
+        default:                 return .boolean(false)
+        }
+    }
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
@@ -162,11 +167,14 @@ func asSequence(_ expr: Expr) -> [Expr]? {
 
     case .map(let sm):
         let sortedKeys = sm.dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-        return sortedKeys.map { .vector([$0, sm.dict[$0]!], metadata: nil) }
+        return sortedKeys.map { .mapEntry($0, sm.dict[$0]!) }
 
     case .sortedMap(let dict, _):
         let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-        return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
+        return sortedKeys.map { .mapEntry($0, dict[$0]!) }
+
+    case .mapEntry(let k, let v):
+        return [k, v]
 
     case .set(let ss):
         return Array(ss.elements)
@@ -256,6 +264,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
 
     case .vector(let elements, _):
         return .integer(elements.count)
+
+    case .mapEntry:
+        return .integer(2)
 
     case .map(let sm):
         return .integer(sm.dict.count)
@@ -350,6 +361,10 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
             for (k, v) in other { dict[k] = v }
             return .map(dict, metadata: sm.metadata)
         }
+        if case .mapEntry(let k, let v) = item {
+            dict[k] = v
+            return .map(dict, metadata: sm.metadata)
+        }
         guard case .vector(let entry, _) = item, entry.count == 2
         else {
             throw EvaluatorError.invalidArgument(function: "conj",
@@ -366,6 +381,10 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         }
         if case .map(let other) = item {
             for (k, v) in other.dict { dict[k] = v }
+            return .sortedMap(dict, metadata: meta)
+        }
+        if case .mapEntry(let k, let v) = item {
+            dict[k] = v
             return .sortedMap(dict, metadata: meta)
         }
         guard case .vector(let entry, _) = item, entry.count == 2
