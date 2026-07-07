@@ -66,8 +66,11 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
-             .reader, .writer, .record, .inst, .uuid, .mapEntry, .seq:
+             .reader, .writer, .record, .inst, .uuid, .mapEntry:
             return expr
+
+        case .seq(let elements):
+            return try evalList(elements, in: env)
 
         case .vector(let elements, let vecMeta):
             return .vector(try elements.map { try eval($0, in: env) }, metadata: vecMeta)

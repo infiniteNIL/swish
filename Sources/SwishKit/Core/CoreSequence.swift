@@ -317,7 +317,7 @@ private func coreCons(_ args: [Expr]) throws -> Expr {
             function: "cons",
             message: "cannot cons onto \(corePrinter.printString(args[1]))")
     }
-    return .list([args[0]] + elements, metadata: nil)
+    return .seq([args[0]] + elements)
 }
 
 private func coreSeq(_ args: [Expr]) throws -> Expr {
