@@ -179,6 +179,17 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
         }
         return a.count < b.count ? -1 : a.count > b.count ? 1 : 0
 
+    case (.mapEntry(let k1, let v1), .mapEntry(let k2, let v2)):
+        let cmp = try compareExprValue(k1, k2)
+        if cmp != 0 { return cmp }
+        return try compareExprValue(v1, v2)
+
+    case (.mapEntry(let k, let v), .vector(let b, _)):
+        return try compareExprValue(.vector([k, v], metadata: nil), .vector(b, metadata: nil))
+
+    case (.vector(let a, _), .mapEntry(let k, let v)):
+        return try compareExprValue(.vector(a, metadata: nil), .vector([k, v], metadata: nil))
+
     case (.list(let a, _), .list(let b, _)):
         let aArr = Array(a)
         let bArr = Array(b)
