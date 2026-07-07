@@ -34,6 +34,10 @@ private func corePersistentBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "persistent!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
     }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "persistent!",
+            message: "Transient used after persistent! call")
+    }
     tc.isInvalidated = true
     return tc.value
 }
