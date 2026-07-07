@@ -294,6 +294,40 @@ struct CoreMathTests {
         #expect(try swish.eval("(mod -10 -3.0)") == .double(-1.0))
     }
 
+    // MARK: - mod (infinity / NaN)
+
+    @Test("(mod ##Inf 1) throws")
+    func modInfThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(mod ##Inf 1)") }
+    }
+
+    @Test("(mod 1 ##Inf) returns NaN")
+    func modOneOverInf() throws {
+        #expect(try swish.eval("(NaN? (mod 1 ##Inf))") == .boolean(true))
+        #expect(try swish.eval("(double? (mod 1 ##Inf))") == .boolean(true))
+    }
+
+    @Test("(mod ##-Inf 1) throws")
+    func modNegInfThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(mod ##-Inf 1)") }
+    }
+
+    @Test("(mod 1 ##-Inf) returns NaN")
+    func modOneOverNegInf() throws {
+        #expect(try swish.eval("(NaN? (mod 1 ##-Inf))") == .boolean(true))
+        #expect(try swish.eval("(double? (mod 1 ##-Inf))") == .boolean(true))
+    }
+
+    @Test("(mod ##NaN 1) throws")
+    func modNaNThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(mod ##NaN 1)") }
+    }
+
+    @Test("(mod 1 ##NaN) throws")
+    func modOneOverNaN() {
+        #expect(throws: (any Error).self) { try swish.eval("(mod 1 ##NaN)") }
+    }
+
     // MARK: - mod (integer / ratio → BigInteger)
 
     @Test("(mod 3 -4/3) returns -1N")

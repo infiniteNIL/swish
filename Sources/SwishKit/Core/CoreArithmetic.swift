@@ -511,6 +511,17 @@ private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigI
 private func coreRem(_ args: [Expr]) throws -> Expr {
     if case .float(let x) = args[0] { return try coreRem([.double(Double(x)), args[1]]) }
     if case .float(let y) = args[1] { return try coreRem([args[0], .double(Double(y))]) }
+    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
+        throw EvaluatorError.invalidArgument(function: "rem",
+            message: "No exact numeric value for Infinity or NaN")
+    }
+    if case .double(let b) = args[1] {
+        if b.isNaN {
+            throw EvaluatorError.invalidArgument(function: "rem",
+                message: "No exact numeric value for NaN")
+        }
+        if b.isInfinite { return .double(.nan) }
+    }
     switch (args[0], args[1]) {
     case (.double(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
