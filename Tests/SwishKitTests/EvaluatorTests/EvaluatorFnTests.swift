@@ -9,13 +9,17 @@ struct EvaluatorFnTests {
     @Test("fn evaluates to a function value")
     func fnEvaluatesToFunction() throws {
         let result = try evaluator.eval(.list([.symbol("fn", metadata: nil), .vector([.symbol("x", metadata: nil)], metadata: nil), .symbol("x", metadata: nil)], metadata: nil))
-        #expect(result == .function(name: nil, params: ["x"], body: [.symbol("x", metadata: nil)], capturedEnv: nil, metadata: nil))
+        guard case .function(let f) = result else { Issue.record("expected .function, got \(result)"); return }
+        #expect(f.name == nil)
+        #expect(f.params == ["x"])
     }
 
     @Test("fn with no params evaluates to a zero-param function")
     func fnNoParamsEvaluatesToFunction() throws {
         let result = try evaluator.eval(.list([.symbol("fn", metadata: nil), .vector([], metadata: nil), .integer(42)], metadata: nil))
-        #expect(result == .function(name: nil, params: [], body: [.integer(42)], capturedEnv: nil, metadata: nil))
+        guard case .function(let f) = result else { Issue.record("expected .function, got \(result)"); return }
+        #expect(f.params == [])
+        #expect(f.body == [.integer(42)])
     }
 
     @Test("Named fn evaluates to a function with name")
@@ -25,13 +29,9 @@ struct EvaluatorFnTests {
             .vector([.symbol("x", metadata: nil)], metadata: nil),
             .list([.symbol("*", metadata: nil), .symbol("x", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)
         ], metadata: nil))
-        #expect(result == .function(
-            name: "square",
-            params: ["x"],
-            body: [.list([.symbol("clojure.core/*", metadata: nil), .symbol("x", metadata: nil), .symbol("x", metadata: nil)], metadata: nil)],
-            capturedEnv: nil,
-            metadata: nil
-        ))
+        guard case .function(let f) = result else { Issue.record("expected .function, got \(result)"); return }
+        #expect(f.name == "square")
+        #expect(f.params == ["x"])
     }
 
     @Test("Immediately invoked fn returns body result")

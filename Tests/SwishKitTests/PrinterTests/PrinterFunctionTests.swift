@@ -7,11 +7,11 @@ struct PrinterFunctionTests {
 
     @Test("prints anonymous function")
     func printsAnonymousFunction() {
-        #expect(printer.printString(.function(name: nil, params: ["x"], body: [.symbol("x", metadata: nil)], capturedEnv: nil, metadata: nil)) == "#<fn>")
+        #expect(printer.printString(.function(SwishFunction(name: nil, params: ["x"], body: [.symbol("x", metadata: nil)], capturedEnv: nil, metadata: nil))) == "#<fn>")
     }
 
     @Test("prints named function")
     func printsNamedFunction() {
-        #expect(printer.printString(.function(name: "add", params: ["x", "y"], body: [.symbol("x", metadata: nil)], capturedEnv: nil, metadata: nil)) == "#<fn add>")
+        #expect(printer.printString(.function(SwishFunction(name: "add", params: ["x", "y"], body: [.symbol("x", metadata: nil)], capturedEnv: nil, metadata: nil))) == "#<fn add>")
     }
 }

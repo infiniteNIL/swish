@@ -13,14 +13,13 @@ struct EvaluatorMultiArityTests {
         let result = try evaluator.eval(
             "(fn ([x] x) ([x y] y))"
         )
-        if case .multiArityFunction(let name, let arities, _, _) = result {
-            #expect(name == nil)
-            #expect(arities.count == 2)
-            #expect(arities[0].params == ["x"])
-            #expect(arities[1].params == ["x", "y"])
-        } else {
-            Issue.record("Expected .multiArityFunction, got \(result)")
+        guard case .multiArityFunction(let maf) = result else {
+            Issue.record("Expected .multiArityFunction, got \(result)"); return
         }
+        #expect(maf.name == nil)
+        #expect(maf.arities.count == 2)
+        #expect(maf.arities[0].params == ["x"])
+        #expect(maf.arities[1].params == ["x", "y"])
     }
 
     @Test("named fn with multi-arity syntax captures name")
@@ -28,22 +27,20 @@ struct EvaluatorMultiArityTests {
         let result = try evaluator.eval(
             "(fn add ([x] x) ([x y] (+ x y)))"
         )
-        if case .multiArityFunction(let name, let arities, _, _) = result {
-            #expect(name == "add")
-            #expect(arities.count == 2)
-        } else {
-            Issue.record("Expected .multiArityFunction, got \(result)")
+        guard case .multiArityFunction(let maf) = result else {
+            Issue.record("Expected .multiArityFunction, got \(result)"); return
         }
+        #expect(maf.name == "add")
+        #expect(maf.arities.count == 2)
     }
 
     @Test("fn with single arity in list syntax produces multiArityFunction")
     func fnSingleArityListSyntax() throws {
         let result = try evaluator.eval("(fn ([x] x))")
-        if case .multiArityFunction(_, let arities, _, _) = result {
-            #expect(arities.count == 1)
-        } else {
-            Issue.record("Expected .multiArityFunction, got \(result)")
+        guard case .multiArityFunction(let maf) = result else {
+            Issue.record("Expected .multiArityFunction, got \(result)"); return
         }
+        #expect(maf.arities.count == 1)
     }
 
     // MARK: - Dispatch
@@ -193,14 +190,14 @@ struct EvaluatorMultiArityTests {
     @Test("anonymous multi-arity fn prints as #<fn>")
     func printMultiArityFn() {
         let printer = Printer()
-        let expr = Expr.multiArityFunction(name: nil, arities: [], capturedEnv: nil, metadata: nil)
+        let expr = Expr.multiArityFunction(SwishMultiArityFunction(name: nil, arities: [], capturedEnv: nil, metadata: nil))
         #expect(printer.printString(expr) == "#<fn>")
     }
 
     @Test("named multi-arity fn prints name")
     func printNamedMultiArityFn() {
         let printer = Printer()
-        let expr = Expr.multiArityFunction(name: "add", arities: [], capturedEnv: nil, metadata: nil)
+        let expr = Expr.multiArityFunction(SwishMultiArityFunction(name: "add", arities: [], capturedEnv: nil, metadata: nil))
         #expect(printer.printString(expr) == "#<fn add>")
     }
 

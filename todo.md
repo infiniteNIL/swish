@@ -17,6 +17,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] fix = with functions
+- [x] fix comparing regexes
 - [x] now have float backed by Float and double by by Swift Double (before just float backed by Double)
 - [x] fixes to identical? and sets
 - [x] dissoc disregarding metadata

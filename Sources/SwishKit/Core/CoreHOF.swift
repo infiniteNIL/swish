@@ -65,11 +65,11 @@ func seqOf(_ expr: Expr, function name: String) throws -> [Expr] {
 
 private func variadicFixedCount(_ f: Expr) -> Int? {
     switch f {
-    case .function(_, let params, _, _, _):
-        return params.firstIndex(of: "&")
+    case .function(let f):
+        return f.params.firstIndex(of: "&")
 
-    case .multiArityFunction(_, let arities, _, _):
-        for a in arities {
+    case .multiArityFunction(let maf):
+        for a in maf.arities {
             if let i = a.params.firstIndex(of: "&") { return i }
         }
         return nil

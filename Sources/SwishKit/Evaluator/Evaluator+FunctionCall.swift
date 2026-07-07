@@ -30,13 +30,17 @@ extension Evaluator {
         case .nativeFunction(let name, let arity, let body):
             return try callNativeFunction(name: name, arity: arity, body: body, args: evalArgs(args, in: env))
 
-        case .function(let name, let params, let body, let capturedEnv, _):
-            return try callUserFunction(name: name, params: params, body: body, args: evalArgs(args, in: env), in: capturedEnv ?? env)
+        case .function(let f):
+            return try callUserFunction(name: f.name, params: f.params, body: f.body,
+                                        args: evalArgs(args, in: env), in: f.capturedEnv ?? env,
+                                        selfExpr: callee)
 
-        case .multiArityFunction(let name, let arities, let capturedEnv, _):
+        case .multiArityFunction(let maf):
             let evaluated = try evalArgs(args, in: env)
-            let chosen = try selectArity(from: arities, argCount: evaluated.count, name: name ?? "fn")
-            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: evaluated, in: capturedEnv ?? env)
+            let chosen = try selectArity(from: maf.arities, argCount: evaluated.count, name: maf.name ?? "fn")
+            return try callUserFunction(name: maf.name, params: chosen.params, body: chosen.body,
+                                        args: evaluated, in: maf.capturedEnv ?? env,
+                                        selfExpr: callee)
 
         case .map, .sortedMap, .keyword, .vector, .set, .record, .transient:
             return try call(callee, args: evalArgs(args, in: env))
@@ -53,12 +57,16 @@ extension Evaluator {
         case .nativeFunction(let name, let arity, let body):
             return try callNativeFunction(name: name, arity: arity, body: body, args: args)
 
-        case .function(let name, let params, let body, let capturedEnv, _):
-            return try callUserFunction(name: name, params: params, body: body, args: args, in: capturedEnv ?? Environment())
+        case .function(let f):
+            return try callUserFunction(name: f.name, params: f.params, body: f.body,
+                                        args: args, in: f.capturedEnv ?? Environment(),
+                                        selfExpr: callee)
 
-        case .multiArityFunction(let name, let arities, let capturedEnv, _):
-            let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "fn")
-            return try callUserFunction(name: name, params: chosen.params, body: chosen.body, args: args, in: capturedEnv ?? Environment())
+        case .multiArityFunction(let maf):
+            let chosen = try selectArity(from: maf.arities, argCount: args.count, name: maf.name ?? "fn")
+            return try callUserFunction(name: maf.name, params: chosen.params, body: chosen.body,
+                                        args: args, in: maf.capturedEnv ?? Environment(),
+                                        selfExpr: callee)
 
         case .macro(let name, let params, let body, _):
             return try callMacro(name: name, params: params, body: body, args: args[...], in: Environment())
@@ -160,7 +168,7 @@ extension Evaluator {
     }
 
     func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr],
-                          in env: Environment, rest: Expr? = nil) throws -> Expr {
+                          in env: Environment, rest: Expr? = nil, selfExpr: Expr? = nil) throws -> Expr {
         guard callDepth < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
         }
@@ -174,8 +182,9 @@ extension Evaluator {
             try bindParams(params, to: currentArgs, in: fnEnv, name: name ?? "fn",
                            prebuiltRest: currentRest)
             if let fnName = name {
-                fnEnv.set(fnName, .function(name: name, params: params, body: body,
-                                            capturedEnv: env, metadata: nil))
+                fnEnv.set(fnName, selfExpr ?? .function(SwishFunction(name: name, params: params,
+                                                                      body: body, capturedEnv: env,
+                                                                      metadata: nil)))
             }
             do {
                 return try evalBody(body, in: fnEnv)
@@ -191,14 +200,16 @@ extension Evaluator {
     /// Used by `apply` when the spread argument is a lazy seq that must not be forced.
     public func call(_ callee: Expr, args: [Expr], rest: Expr) throws -> Expr {
         switch callee {
-        case .function(let name, let params, let body, let capturedEnv, _):
-            return try callUserFunction(name: name, params: params, body: body,
-                                        args: args, in: capturedEnv ?? Environment(), rest: rest)
+        case .function(let f):
+            return try callUserFunction(name: f.name, params: f.params, body: f.body,
+                                        args: args, in: f.capturedEnv ?? Environment(),
+                                        rest: rest, selfExpr: callee)
 
-        case .multiArityFunction(let name, let arities, let capturedEnv, _):
-            let chosen = try selectArity(from: arities, argCount: args.count + 1, name: name ?? "fn")
-            return try callUserFunction(name: name, params: chosen.params, body: chosen.body,
-                                        args: args, in: capturedEnv ?? Environment(), rest: rest)
+        case .multiArityFunction(let maf):
+            let chosen = try selectArity(from: maf.arities, argCount: args.count + 1, name: maf.name ?? "fn")
+            return try callUserFunction(name: maf.name, params: chosen.params, body: chosen.body,
+                                        args: args, in: maf.capturedEnv ?? Environment(),
+                                        rest: rest, selfExpr: callee)
             
         default:
             throw EvaluatorError.notAFunction(callee)

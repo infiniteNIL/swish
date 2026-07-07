@@ -68,12 +68,12 @@ public struct Printer {
         case .list, .vector, .map, .sortedMap, .set, .sortedSet:
             formatCollection(expr, transform: printString, includeMeta: true) ?? ""
 
-        case .function(let name, _, _, _, let meta):
-            if let name {
-                metaPrefix(meta) + "#<fn \(name)>"
+        case .function(let f):
+            if let name = f.name {
+                metaPrefix(f.metadata) + "#<fn \(name)>"
             }
             else {
-                metaPrefix(meta) + "#<fn>"
+                metaPrefix(f.metadata) + "#<fn>"
             }
 
         case .macro(let name, _, _, let meta):
@@ -84,8 +84,8 @@ public struct Printer {
                 metaPrefix(meta) + "#<macro>"
             }
 
-        case .multiArityFunction(let name, _, _, let meta):
-            metaPrefix(meta) + (name.map { "#<fn \($0)>" } ?? "#<fn>")
+        case .multiArityFunction(let maf):
+            metaPrefix(maf.metadata) + (maf.name.map { "#<fn \($0)>" } ?? "#<fn>")
 
         case .multiArityMacro(let name, _, let meta):
             metaPrefix(meta) + (name.map { "#<macro \($0)>" } ?? "#<macro>")

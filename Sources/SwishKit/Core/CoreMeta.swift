@@ -29,11 +29,19 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
         guard let m else { return .nil }
         return .map(m, metadata: nil)
 
-    case .function(_, _, _, _, let m), .macro(_, _, _, let m):
+    case .function(let f):
+        guard let m = f.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .macro(_, _, _, let m):
         guard let m else { return .nil }
         return .map(m, metadata: nil)
 
-    case .multiArityFunction(_, _, _, let m), .multiArityMacro(_, _, let m):
+    case .multiArityFunction(let maf):
+        guard let m = maf.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .multiArityMacro(_, _, let m):
         guard let m else { return .nil }
         return .map(m, metadata: nil)
 
@@ -91,14 +99,16 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
     case .sortedMap(let d, _):
         return .sortedMap(d, metadata: newMeta)
 
-    case .function(let n, let p, let b, let capturedEnv, _):
-        return .function(name: n, params: p, body: b, capturedEnv: capturedEnv, metadata: newMeta)
+    case .function(let f):
+        f.metadata = newMeta
+        return .function(f)
 
     case .macro(let n, let p, let b, _):
         return .macro(name: n, params: p, body: b, metadata: newMeta)
 
-    case .multiArityFunction(let n, let a, let capturedEnv, _):
-        return .multiArityFunction(name: n, arities: a, capturedEnv: capturedEnv, metadata: newMeta)
+    case .multiArityFunction(let maf):
+        maf.metadata = newMeta
+        return .multiArityFunction(maf)
 
     case .multiArityMacro(let n, let a, _):
         return .multiArityMacro(name: n, arities: a, metadata: newMeta)

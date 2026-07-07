@@ -47,9 +47,9 @@ public indirect enum Expr: Sendable {
     case set(Set<Expr>, _id: CollectionID, metadata: [Expr: Expr]?)
     case sortedSet([Expr], metadata: [Expr: Expr]?)
     case sortedMap([Expr: Expr], metadata: [Expr: Expr]?)
-    case function(name: String?, params: [String], body: [Expr], capturedEnv: Environment?, metadata: [Expr: Expr]?)
+    case function(SwishFunction)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
-    case multiArityFunction(name: String?, arities: [FnArity], capturedEnv: Environment?, metadata: [Expr: Expr]?)
+    case multiArityFunction(SwishMultiArityFunction)
     case multiArityMacro(name: String?, arities: [FnArity], metadata: [Expr: Expr]?)
     case nativeFunction(name: String, arity: Arity, body: @Sendable ([Expr]) throws -> Expr)
     case varRef(Var)
@@ -168,14 +168,14 @@ extension Expr: Equatable {
         case (.map(let a, _), .sortedMap(let b, _)):
             return a == b
 
-        case (.function(let n1, let p1, let b1, _, _), .function(let n2, let p2, let b2, _, _)):
-            return n1 == n2 && p1 == p2 && b1 == b2
+        case (.function(let a), .function(let b)):
+            return a === b
 
         case (.macro(let n1, let p1, let b1, _), .macro(let n2, let p2, let b2, _)):
             return n1 == n2 && p1 == p2 && b1 == b2
 
-        case (.multiArityFunction(let n1, let a1, _, _), .multiArityFunction(let n2, let a2, _, _)):
-            return n1 == n2 && a1 == a2
+        case (.multiArityFunction(let a), .multiArityFunction(let b)):
+            return a === b
 
         case (.multiArityMacro(let n1, let a1, _), .multiArityMacro(let n2, let a2, _)):
             return n1 == n2 && a1 == a2
@@ -395,14 +395,14 @@ extension Expr: Hashable {
         case .sortedSet(let v, _):
             hasher.combine(ExprHash.set);       hasher.combine(Set(v))
 
-        case .function(let n, let p, let b, _, _):
-            hasher.combine(ExprHash.function);  hasher.combine(n); hasher.combine(p); hasher.combine(b)
+        case .function(let f):
+            hasher.combine(ExprHash.function);          hasher.combine(ObjectIdentifier(f))
 
         case .macro(let n, let p, let b, _):
-            hasher.combine(ExprHash.macro);     hasher.combine(n); hasher.combine(p); hasher.combine(b)
+            hasher.combine(ExprHash.macro);             hasher.combine(n); hasher.combine(p); hasher.combine(b)
 
-        case .multiArityFunction(let n, let a, _, _):
-            hasher.combine(ExprHash.multiArityFunction); hasher.combine(n); hasher.combine(a)
+        case .multiArityFunction(let maf):
+            hasher.combine(ExprHash.multiArityFunction); hasher.combine(ObjectIdentifier(maf))
 
         case .multiArityMacro(let n, let a, _):
             hasher.combine(ExprHash.multiArityMacro);    hasher.combine(n); hasher.combine(a)
@@ -586,11 +586,13 @@ extension Expr {
         case .sortedMap(let d, let m):                 return .sortedMap(d, metadata: merged(m))
         case .set(let s, _, let m):                    return .set(s, _id: CollectionID(), metadata: merged(m))
         case .sortedSet(let s, let m):                 return .sortedSet(s, metadata: merged(m))
-        case .function(let n, let p, let b, let e, let m):
-            return .function(name: n, params: p, body: b, capturedEnv: e, metadata: merged(m))
+        case .function(let f):
+            f.metadata = merged(f.metadata)
+            return .function(f)
         case .macro(let n, let p, let b, let m):       return .macro(name: n, params: p, body: b, metadata: merged(m))
-        case .multiArityFunction(let n, let a, let e, let m):
-            return .multiArityFunction(name: n, arities: a, capturedEnv: e, metadata: merged(m))
+        case .multiArityFunction(let maf):
+            maf.metadata = merged(maf.metadata)
+            return .multiArityFunction(maf)
         case .multiArityMacro(let n, let a, let m):    return .multiArityMacro(name: n, arities: a, metadata: merged(m))
         default: return nil
         }
