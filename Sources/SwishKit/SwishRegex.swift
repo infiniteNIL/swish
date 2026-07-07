@@ -1,4 +1,4 @@
-public struct SwishRegex: @unchecked Sendable {
+public final class SwishRegex: @unchecked Sendable {
     public let pattern: String
     public let regex: Regex<AnyRegexOutput>
 
@@ -10,12 +10,12 @@ public struct SwishRegex: @unchecked Sendable {
 
 extension SwishRegex: Equatable {
     public static func == (lhs: SwishRegex, rhs: SwishRegex) -> Bool {
-        lhs.pattern == rhs.pattern
+        lhs === rhs
     }
 }
 
 extension SwishRegex: Hashable {
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(pattern)
+        hasher.combine(ObjectIdentifier(self))
     }
 }

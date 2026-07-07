@@ -22,11 +22,16 @@ struct RegexTests {
         #expect(Printer().printString(result) == #"#"\d+""#)
     }
 
-    @Test("two regexes with the same pattern are equal")
+    @Test("two separately-created regexes with the same pattern are not equal")
     func regexEqualitySamePattern() throws {
         let a = try swish.eval(#"#"\d+""#)
         let b = try swish.eval(#"#"\d+""#)
-        #expect(a == b)
+        #expect(a != b)
+    }
+
+    @Test("the same regex binding is equal to itself")
+    func regexIdentity() throws {
+        #expect(try swish.eval(#"(let [r #"\d+"] (= r r))"#) == .boolean(true))
     }
 
     @Test("two regexes with different patterns are not equal")
@@ -36,15 +41,9 @@ struct RegexTests {
         #expect(a != b)
     }
 
-    @Test("regex can be used as a map key")
+    @Test("regex can be used as a map key when looked up by the same instance")
     func regexAsMapKey() throws {
-        let result = try swish.eval(#"{#"\d+" :digits}"#)
-        guard case .map(let m, _) = result else {
-            Issue.record("expected .map, got \(result)")
-            return
-        }
-        let key = Expr.regex(try SwishRegex(pattern: #"\d+"#))
-        #expect(m[key] == .keyword("digits"))
+        #expect(try swish.eval(#"(let [r #"\d+"] (get {r :digits} r))"#) == .keyword("digits"))
     }
 
     @Test("escaped quote inside regex pattern")
