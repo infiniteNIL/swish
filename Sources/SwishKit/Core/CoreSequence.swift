@@ -499,13 +499,18 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
     else {
         throw EvaluatorError.invalidArgument(function: "nth", message: "index must be an integer")
     }
-    let notFound: Expr = args.count >= 3 ? args[2] : .nil
+    let notFound: Expr? = args.count >= 3 ? args[2] : nil
+    func outOfBounds() throws -> Expr {
+        if let nf = notFound { return nf }
+        throw EvaluatorError.invalidArgument(function: "nth",
+            message: "Index \(idx) out of bounds")
+    }
     switch args[0] {
     case .nil:
-        return notFound
+        return notFound ?? .nil
 
     case .vector(let elements, _):
-        guard idx >= 0 && idx < elements.count else { return notFound }
+        guard idx >= 0 && idx < elements.count else { return try outOfBounds() }
         return elements[idx]
 
     case .lazySeq:
@@ -514,18 +519,18 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
         while true {
             switch current {
             case .lazySeq(let box):
-                guard let head = try box.forceHead() else { return notFound }
+                guard let head = try box.forceHead() else { return try outOfBounds() }
                 if i == idx { return head }
                 current = try box.forceTail()
                 i += 1
 
             case .list(let elems, _):
                 let remaining = idx - i
-                guard remaining >= 0 && remaining < elems.count else { return notFound }
+                guard remaining >= 0 && remaining < elems.count else { return try outOfBounds() }
                 return elems[remaining]
 
             default:
-                return notFound
+                return try outOfBounds()
             }
         }
 
@@ -536,7 +541,7 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
 
     default:
         let elements = try seqOf(args[0], function: "nth")
-        guard idx >= 0 && idx < elements.count else { return notFound }
+        guard idx >= 0 && idx < elements.count else { return try outOfBounds() }
         return elements[idx]
     }
 }

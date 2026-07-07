@@ -18,9 +18,14 @@ struct CoreNthListStarTests {
         #expect(try swish.eval("(nth [1 2 3] 2)") == .integer(3))
     }
 
-    @Test("(nth [1 2 3] 5) returns nil when out of bounds")
-    func nthOutOfBoundsReturnsNil() throws {
-        #expect(try swish.eval("(nth [1 2 3] 5)") == .nil)
+    @Test("(nth [1 2 3] 5) throws when out of bounds")
+    func nthOutOfBoundsThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(nth [1 2 3] 5)") }
+    }
+
+    @Test("(nth [1 2 3] -1) throws for negative index")
+    func nthNegativeIndexThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(nth [1 2 3] -1)") }
     }
 
     @Test("(nth [1 2 3] 5 :missing) returns default when out of bounds")
