@@ -168,8 +168,8 @@ func asSequence(_ expr: Expr) -> [Expr]? {
         let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
         return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
 
-    case .set(let elements, _, _):
-        return Array(elements)
+    case .set(let ss):
+        return Array(ss.elements)
 
     case .sortedSet(let elements, _):
         return elements
@@ -260,8 +260,8 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .map(let dict, _), .sortedMap(let dict, _):
         return .integer(dict.count)
 
-    case .set(let elements, _, _):
-        return .integer(elements.count)
+    case .set(let ss):
+        return .integer(ss.elements.count)
 
     case .sortedSet(let elements, _):
         return .integer(elements.count)
@@ -368,9 +368,10 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         dict[entry[0]] = entry[1]
         return .sortedMap(dict, metadata: meta)
 
-    case .set(var elems, _, let meta):
+    case .set(let ss):
+        var elems = ss.elements
         elems.insert(item)
-        return .set(elems, _id: CollectionID(), metadata: meta)
+        return .set(SwishSet(elements: elems, metadata: ss.metadata))
 
     case .sortedSet(let elems, let meta):
         return .sortedSet(try sortedSetInsert(elems, item), metadata: meta)
@@ -399,7 +400,7 @@ private func coreHashMap(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreHashSet(_ args: [Expr]) throws -> Expr {
-    .set(Set(args), _id: CollectionID(), metadata: nil)
+    .set(SwishSet(elements: Set(args), metadata: nil))
 }
 
 private func coreContains(_ args: [Expr]) throws -> Expr {
@@ -411,8 +412,8 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .map(let dict, _), .sortedMap(let dict, _):
         return .boolean(dict[key] != nil)
 
-    case .set(let elements, _, _):
-        return .boolean(elements.contains(key))
+    case .set(let ss):
+        return .boolean(ss.elements.contains(key))
 
     case .sortedSet(let elements, _):
         return .boolean((try? sortedSetContains(elements, key)) ?? elements.contains(key))

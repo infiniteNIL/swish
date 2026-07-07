@@ -85,8 +85,8 @@ extension Evaluator {
         case .sortedMap(let dict, let meta):
             return transformSortedMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
 
-        case .set(let elements, _, let meta):
-            return .set(Set(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), _id: CollectionID(), metadata: meta)
+        case .set(let ss):
+            return .set(SwishSet(elements: Set(ss.elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: ss.metadata))
 
         case .sortedSet(let elements, let meta):
             return .sortedSet(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)

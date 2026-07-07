@@ -14,33 +14,33 @@ struct ParserSetTests {
     func parsesSetWithIntegers() throws {
         let exprs = try Reader.readString("#{1 2 3}")
         #expect(exprs.count == 1)
-        guard case .set(let elements, _, _) = exprs[0] else {
+        guard case .set(let ss) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
-        #expect(elements == [.integer(1), .integer(2), .integer(3)])
+        #expect(ss.elements == [.integer(1), .integer(2), .integer(3)])
     }
 
     @Test("Parses set with keyword literals")
     func parsesSetWithKeywords() throws {
         let exprs = try Reader.readString("#{:a :b :c}")
-        guard case .set(let elements, _, _) = exprs[0] else {
+        guard case .set(let ss) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
-        #expect(elements == [.keyword("a"), .keyword("b"), .keyword("c")])
+        #expect(ss.elements == [.keyword("a"), .keyword("b"), .keyword("c")])
     }
 
     @Test("Parses set with mixed types")
     func parsesSetWithMixedTypes() throws {
         let exprs = try Reader.readString("#{1 :key \"hello\"}")
-        guard case .set(let elements, _, _) = exprs[0] else {
+        guard case .set(let ss) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
-        #expect(elements.contains(.integer(1)))
-        #expect(elements.contains(.keyword("key")))
-        #expect(elements.contains(.string("hello")))
+        #expect(ss.elements.contains(.integer(1)))
+        #expect(ss.elements.contains(.keyword("key")))
+        #expect(ss.elements.contains(.string("hello")))
     }
 
     @Test("Throws on duplicate literal element")
@@ -67,12 +67,12 @@ struct ParserSetTests {
     @Test("Parses nested set")
     func parsesNestedSet() throws {
         let exprs = try Reader.readString("#{#{1 2} 3}")
-        guard case .set(let outer, _, _) = exprs[0] else {
+        guard case .set(let outer) = exprs[0] else {
             Issue.record("Expected .set")
             return
         }
-        #expect(outer.contains(.set([.integer(1), .integer(2)], metadata: nil)))
-        #expect(outer.contains(.integer(3)))
+        #expect(outer.elements.contains(.set([.integer(1), .integer(2)], metadata: nil)))
+        #expect(outer.elements.contains(.integer(3)))
     }
 
     @Test("Parses set alongside other forms")

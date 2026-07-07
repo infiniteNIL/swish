@@ -82,16 +82,16 @@ public class Evaluator {
             }
             return .sortedMap(result, metadata: mapMeta)
 
-        case .set(let elements, _, let setMeta):
+        case .set(let ss):
             var result: Set<Expr> = []
-            for element in elements {
+            for element in ss.elements {
                 let evaled = try eval(element, in: env)
                 let (inserted, _) = result.insert(evaled)
                 if !inserted {
                     throw EvaluatorError.duplicateSetElement(Printer().printString(evaled))
                 }
             }
-            return .set(result, _id: CollectionID(), metadata: setMeta)
+            return .set(SwishSet(elements: result, metadata: ss.metadata))
 
         case .sortedSet(let elements, let setMeta):
             var result: [Expr] = []

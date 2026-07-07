@@ -59,12 +59,12 @@ extension Evaluator {
         case .sortedMap(let dict, let mapMeta):
             return try transformSortedMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
 
-        case .set(let elements, _, let setMeta):
+        case .set(let ss):
             var result: Set<Expr> = []
-            for element in elements {
+            for element in ss.elements {
                 result.insert(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
             }
-            return .set(result, _id: CollectionID(), metadata: setMeta)
+            return .set(SwishSet(elements: result, metadata: ss.metadata))
 
         case .sortedSet(let elements, let setMeta):
             var result: [Expr] = []

@@ -11,9 +11,10 @@ func registerSet(into evaluator: Evaluator) {
         doc: "disj[oin]. Returns a new set that does not contain key(s).",
         arglists: [["set"], ["set", "key"], ["set", "key", "&", "ks"]]) { args in
         switch args[0] {
-        case .set(var elements, _, let meta):
+        case .set(let ss):
+            var elements = ss.elements
             for key in args.dropFirst() { elements.remove(key) }
-            return .set(elements, _id: CollectionID(), metadata: meta)
+            return .set(SwishSet(elements: elements, metadata: ss.metadata))
 
         case .sortedSet(let elements, let meta):
             var result = elements

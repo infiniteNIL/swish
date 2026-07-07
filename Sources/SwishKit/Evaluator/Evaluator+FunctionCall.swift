@@ -101,7 +101,7 @@ extension Evaluator {
             switch args[0] {
             case .map(let dict, _):          return dict[.keyword(name)] ?? notFound
             case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
-            case .set(let elements, _, _):   return elements.contains(.keyword(name)) ? .keyword(name) : notFound
+            case .set(let ss):               return ss.elements.contains(.keyword(name)) ? .keyword(name) : notFound
             default:                         return notFound
             }
 
@@ -123,13 +123,13 @@ extension Evaluator {
             }
             return elements[idx]
 
-        case .set(let elements, _, _):
+        case .set(let ss):
             guard args.count == 1
             else {
                 throw EvaluatorError.invalidArgument(function: "set",
                     message: "requires 1 argument, got \(args.count)")
             }
-            return elements.contains(args[0]) ? args[0] : .nil
+            return ss.elements.contains(args[0]) ? args[0] : .nil
 
         case .sortedSet(let elements, _):
             guard args.count == 1

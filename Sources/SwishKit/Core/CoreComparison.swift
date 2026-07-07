@@ -63,8 +63,8 @@ private func coreIdentical(_ args: [Expr]) throws -> Expr {
     }
 
     switch (args[0], args[1]) {
-    case (.set(_, let ai, _), .set(_, let bi, _)):
-        return .boolean(ai === bi)
+    case (.set(let a), .set(let b)):
+        return .boolean(a === b)
 
     case (.map(let a, let am), .map(let b, let bm)):
         return .boolean(a == b && am == bm)

@@ -187,9 +187,9 @@ struct EvaluatorDefrecordTests {
     func keysOnRecord() throws {
         _ = try swish.eval("(defrecord DRKeys [a b])")
         let result = try swish.eval("(set (keys (DRKeys. 1 2)))")
-        if case .set(let s, _, _) = result {
-            #expect(s.contains(.keyword("a")))
-            #expect(s.contains(.keyword("b")))
+        if case .set(let ss) = result {
+            #expect(ss.elements.contains(.keyword("a")))
+            #expect(ss.elements.contains(.keyword("b")))
         } else {
             Issue.record("Expected .set from (set (keys ...)), got \(result)")
         }
@@ -199,9 +199,9 @@ struct EvaluatorDefrecordTests {
     func valsOnRecord() throws {
         _ = try swish.eval("(defrecord DRVals [a b])")
         let result = try swish.eval("(set (vals (DRVals. 10 20)))")
-        if case .set(let s, _, _) = result {
-            #expect(s.contains(.integer(10)))
-            #expect(s.contains(.integer(20)))
+        if case .set(let ss) = result {
+            #expect(ss.elements.contains(.integer(10)))
+            #expect(ss.elements.contains(.integer(20)))
         } else {
             Issue.record("Expected .set from (set (vals ...)), got \(result)")
         }

@@ -205,8 +205,8 @@ public struct Printer {
         case .map(let dict, let meta):
             return (includeMeta ? metaPrefix(meta) : "") + printMapString(dict, transform: transform)
 
-        case .set(let elements, _, let meta):
-            return (includeMeta ? metaPrefix(meta) : "") + printSetString(elements, transform: transform)
+        case .set(let ss):
+            return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(ss.elements, transform: transform)
 
         case .sortedSet(let elements, let meta):
             let body = elements.map(transform).joined(separator: " ")
