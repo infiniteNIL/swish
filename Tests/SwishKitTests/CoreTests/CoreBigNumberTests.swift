@@ -142,9 +142,9 @@ struct CoreBigNumberTests {
         #expect(try swish.eval("(decimal? (+ 1 1.5M))") == .boolean(true))
     }
 
-    @Test("(+ 1.0 1.5M) promotes Double to BigDecimal")
+    @Test("(+ 1.0 1.5M) Double is contagious over BigDecimal")
     func addFloatAndBigDecimal() throws {
-        #expect(try swish.eval("(decimal? (+ 1.0 1.5M))") == .boolean(true))
+        #expect(try swish.eval("(double? (+ 1.0 1.5M))") == .boolean(true))
     }
 
     @Test("BigDecimal wins over BigInt in mixed arithmetic")

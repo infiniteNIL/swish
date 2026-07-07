@@ -361,12 +361,10 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.bigDecimal(let x), .integer(let y)):    return .bigDecimals(x, BigDecimal(integerValue: BigInt(y), scale: 0))
     case (.integer(let x),    .bigDecimal(let y)): return .bigDecimals(BigDecimal(integerValue: BigInt(x), scale: 0), y)
     case (.bigDecimal(let x), .double(let y)):
-        guard !y.isNaN && !y.isInfinite else { return .floats(Double(x.description) ?? 0.0, y) }
-        return .bigDecimals(x, BigDecimal(floatLiteral: y))
+        return .floats(Double(x.description) ?? 0.0, y)
 
     case (.double(let x), .bigDecimal(let y)):
-        guard !x.isNaN && !x.isInfinite else { return .floats(x, Double(y.description) ?? 0.0) }
-        return .bigDecimals(BigDecimal(floatLiteral: x), y)
+        return .floats(x, Double(y.description) ?? 0.0)
 
     case (.bigDecimal(let x), .ratio(let y)):      return .bigDecimals(x, BigDecimal(integerValue: y.numerator, scale: 0) / BigDecimal(integerValue: y.denominator, scale: 0))
 
@@ -527,10 +525,11 @@ private func coreRem(_ args: [Expr]) throws -> Expr {
         return .bigDecimal(BigDecimal(integerValue: BigInt(a), scale: 0).remainder(dividingBy: b))
     case (.bigDecimal(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-        return .bigDecimal(a.remainder(dividingBy: BigDecimal(floatLiteral: b)))
+        return .double((Double(a.description) ?? 0.0).truncatingRemainder(dividingBy: b))
     case (.double(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
-        return .bigDecimal(BigDecimal(floatLiteral: a).remainder(dividingBy: b))
+        let bd = Double(b.description) ?? 0.0
+        guard bd != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        return .double(a.truncatingRemainder(dividingBy: bd))
     case (.ratio(let ra), .ratio(let rb)):
         return try ratioRem(ra, rb)
     case (.ratio(let ra), .integer(let b)):
