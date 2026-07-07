@@ -381,8 +381,8 @@ func coerceNumericPair(_ a: Expr, _ b: Expr, function: String) throws -> Numeric
     case (.integer(let x),    .bigInteger(let y)): return .bigInts(BigInt(x), y)
     case (.bigInteger(let x), .double(let y)):     return .floats(Double(x), y)
     case (.double(let x),     .bigInteger(let y)): return .floats(x, Double(y))
-    case (.bigInteger(let x), .ratio(let y)):      return .floats(Double(x), Double(y.numerator) / Double(y.denominator))
-    case (.ratio(let x),      .bigInteger(let y)): return .floats(Double(x.numerator) / Double(x.denominator), Double(y))
+    case (.bigInteger(let x), .ratio(let y)):      return .ratios(Ratio(x, BigInt(1)), y)
+    case (.ratio(let x),      .bigInteger(let y)): return .ratios(x, Ratio(y, BigInt(1)))
 
     default:
         throw EvaluatorError.invalidArgument(
