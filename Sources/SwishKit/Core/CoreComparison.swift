@@ -46,11 +46,25 @@ private func coreGreaterThan(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreLessOrEqual(_ args: [Expr]) throws -> Expr {
-    try compareConsecutivePairs(args, singleArgResult: true) { try !numericLessThan($1, $0, function: "<=") }
+    try compareConsecutivePairs(args, singleArgResult: true) { a, b in
+        guard !isNumericNaN(a) && !isNumericNaN(b) else { return false }
+        return try !numericLessThan(b, a, function: "<=")
+    }
 }
 
 private func coreGreaterOrEqual(_ args: [Expr]) throws -> Expr {
-    try compareConsecutivePairs(args, singleArgResult: true) { try !numericLessThan($0, $1, function: ">=") }
+    try compareConsecutivePairs(args, singleArgResult: true) { a, b in
+        guard !isNumericNaN(a) && !isNumericNaN(b) else { return false }
+        return try !numericLessThan(a, b, function: ">=")
+    }
+}
+
+private func isNumericNaN(_ expr: Expr) -> Bool {
+    switch expr {
+    case .double(let d): return d.isNaN
+    case .float(let f):  return f.isNaN
+    default:             return false
+    }
 }
 
 private func coreEqual(_ args: [Expr]) throws -> Expr {
