@@ -42,7 +42,7 @@ extension Evaluator {
                                         args: evaluated, in: maf.capturedEnv ?? env,
                                         selfExpr: callee)
 
-        case .map, .sortedMap, .keyword, .vector, .set, .record, .transient:
+        case .map, .sortedMap, .keyword, .vector, .set, .record, .transient, .symbol, .varRef:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -149,6 +149,28 @@ extension Evaluator {
 
         case .transient(let tc):
             return try call(tc.value, args: args)
+
+        case .symbol(let name, _):
+            guard args.count == 1 || args.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "symbol",
+                    message: "requires 1 or 2 arguments, got \(args.count)")
+            }
+            let notFound: Expr = args.count == 2 ? args[1] : .nil
+            let sym = Expr.symbol(name, metadata: nil)
+            switch args[0] {
+            case .map(let sm):              return sm.dict[sym] ?? notFound
+            case .sortedMap(let d, _):      return d[sym] ?? notFound
+            case .set(let ss):              return ss.elements.contains(sym) ? sym : notFound
+            case .sortedSet(let elems, _):  return ((try? sortedSetContains(elems, sym)) == true) ? sym : notFound
+            default:                        return notFound
+            }
+
+        case .varRef(let v):
+            guard let val = v.value else {
+                throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+            }
+            return try call(val, args: args)
 
         default:
             throw EvaluatorError.notAFunction(callee)
