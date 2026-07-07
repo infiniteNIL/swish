@@ -592,7 +592,10 @@
 (defn even?
   "Returns true if n is even, throws if n is not an integer."
   {:added "1.0"}
-  [n] (= 0 (mod n 2)))
+  [n]
+  (if (integer? n)
+    (= 0 (mod n 2))
+    (throw (str "Argument must be an integer: " n))))
 
 (defn odd?
   "Returns true if n is odd, throws if n is not an integer."
