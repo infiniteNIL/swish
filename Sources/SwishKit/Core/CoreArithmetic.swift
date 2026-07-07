@@ -656,7 +656,13 @@ private func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
         return args[0]
 
     case .double(let d):
-        return .float(Float(d))
+        let f = Float(d)
+        if f.isInfinite {
+            throw EvaluatorError.invalidArgument(
+                function: "float",
+                message: "Value out of range for float: \(corePrinter.printString(args[0]))")
+        }
+        return .float(f)
 
     case .integer(let n):
         return .float(Float(n))
