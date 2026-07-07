@@ -9,8 +9,8 @@ struct CoreDocTests {
     @Test("native map has :doc in metadata")
     func mapHasDoc() throws {
         let result = try swish.eval("(meta #'clojure.core/map)")
-        guard case .map(let m, _) = result,
-              case .string = m[.keyword("doc")]
+        guard case .map(let sm) = result,
+              case .string = sm.dict[.keyword("doc")]
         else { Issue.record("Expected :doc string in map metadata"); return }
     }
 
@@ -26,8 +26,8 @@ struct CoreDocTests {
     @Test("native + has :doc in metadata")
     func addHasDoc() throws {
         let result = try swish.eval("(meta #'clojure.core/+)")
-        guard case .map(let m, _) = result,
-              case .string = m[.keyword("doc")]
+        guard case .map(let sm) = result,
+              case .string = sm.dict[.keyword("doc")]
         else { Issue.record("Expected :doc string in + metadata"); return }
     }
 

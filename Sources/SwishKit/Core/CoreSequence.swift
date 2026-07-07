@@ -160,9 +160,9 @@ func asSequence(_ expr: Expr) -> [Expr]? {
     case .nil:
         return []
 
-    case .map(let dict, _):
-        let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-        return sortedKeys.map { .vector([$0, dict[$0]!], metadata: nil) }
+    case .map(let sm):
+        let sortedKeys = sm.dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
+        return sortedKeys.map { .vector([$0, sm.dict[$0]!], metadata: nil) }
 
     case .sortedMap(let dict, _):
         let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
@@ -257,7 +257,10 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .vector(let elements, _):
         return .integer(elements.count)
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        return .integer(sm.dict.count)
+
+    case .sortedMap(let dict, _):
         return .integer(dict.count)
 
     case .set(let ss):
@@ -336,11 +339,16 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     case .vector(let elems, let meta):
         return .vector(elems + [item], metadata: meta)
 
-    case .map(var dict, let meta):
+    case .map(let sm):
         if case .nil = item { return coll }
-        if case .map(let other, _) = item {
+        var dict = sm.dict
+        if case .map(let other) = item {
+            for (k, v) in other.dict { dict[k] = v }
+            return .map(dict, metadata: sm.metadata)
+        }
+        if case .sortedMap(let other, _) = item {
             for (k, v) in other { dict[k] = v }
-            return .map(dict, metadata: meta)
+            return .map(dict, metadata: sm.metadata)
         }
         guard case .vector(let entry, _) = item, entry.count == 2
         else {
@@ -348,7 +356,7 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
                 message: "map conj requires a [key val] vector")
         }
         dict[entry[0]] = entry[1]
-        return .map(dict, metadata: meta)
+        return .map(dict, metadata: sm.metadata)
 
     case .sortedMap(var dict, let meta):
         if case .nil = item { return coll }
@@ -356,8 +364,8 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
             for (k, v) in other { dict[k] = v }
             return .sortedMap(dict, metadata: meta)
         }
-        if case .map(let other, _) = item {
-            for (k, v) in other { dict[k] = v }
+        if case .map(let other) = item {
+            for (k, v) in other.dict { dict[k] = v }
             return .sortedMap(dict, metadata: meta)
         }
         guard case .vector(let entry, _) = item, entry.count == 2
@@ -409,7 +417,10 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .boolean(false)
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        return .boolean(sm.dict[key] != nil)
+
+    case .sortedMap(let dict, _):
         return .boolean(dict[key] != nil)
 
     case .set(let ss):

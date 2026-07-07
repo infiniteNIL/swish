@@ -38,7 +38,7 @@ public indirect enum Expr: Sendable {
     case keyword(String)
     case list([Expr], metadata: [Expr: Expr]?)
     case vector([Expr], metadata: [Expr: Expr]?)
-    case map([Expr: Expr], metadata: [Expr: Expr]?)
+    case map(SwishMap)
     case set(SwishSet)
     case sortedSet([Expr], metadata: [Expr: Expr]?)
     case sortedMap([Expr: Expr], metadata: [Expr: Expr]?)
@@ -139,7 +139,7 @@ extension Expr: Equatable {
         case (.vector(let a, _), .vector(let b, _)):
             return a == b
 
-        case (.map(let a, _), .map(let b, _)):
+        case (.map(let a), .map(let b)):
             return a == b
 
         case (.set(let a), .set(let b)):
@@ -157,11 +157,11 @@ extension Expr: Equatable {
         case (.sortedMap(let a, _), .sortedMap(let b, _)):
             return a == b
 
-        case (.sortedMap(let a, _), .map(let b, _)):
-            return a == b
+        case (.sortedMap(let a, _), .map(let b)):
+            return a == b.dict
 
-        case (.map(let a, _), .sortedMap(let b, _)):
-            return a == b
+        case (.map(let a), .sortedMap(let b, _)):
+            return a.dict == b
 
         case (.function(let a), .function(let b)):
             return a === b
@@ -293,6 +293,10 @@ extension Expr {
     public static func set(_ elements: Set<Expr>, metadata: [Expr: Expr]?) -> Expr {
         .set(SwishSet(elements: elements, metadata: metadata))
     }
+
+    public static func map(_ dict: [Expr: Expr], metadata: [Expr: Expr]?) -> Expr {
+        .map(SwishMap(dict: dict, metadata: metadata))
+    }
 }
 
 // MARK: - Hash discriminants
@@ -375,8 +379,8 @@ extension Expr: Hashable {
         case .vector(let v, _):
             hasher.combine(ExprHash.vector);    hasher.combine(v)
 
-        case .map(let v, _):
-            hasher.combine(ExprHash.map);       hasher.combine(v)
+        case .map(let sm):
+            hasher.combine(ExprHash.map);       hasher.combine(sm)
 
         case .sortedMap(let v, _):
             hasher.combine(ExprHash.map);       hasher.combine(v)
@@ -574,7 +578,7 @@ extension Expr {
         case .symbol(let n, let m):                    return .symbol(n, metadata: merged(m))
         case .list(let e, let m):                      return .list(e, metadata: merged(m))
         case .vector(let e, let m):                    return .vector(e, metadata: merged(m))
-        case .map(let d, let m):                       return .map(d, metadata: merged(m))
+        case .map(let sm):                             return .map(SwishMap(dict: sm.dict, metadata: merged(sm.metadata)))
         case .sortedMap(let d, let m):                 return .sortedMap(d, metadata: merged(m))
         case .set(let s):                              return .set(SwishSet(elements: s.elements, metadata: merged(s.metadata)))
         case .sortedSet(let s, let m):                 return .sortedSet(s, metadata: merged(m))

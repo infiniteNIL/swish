@@ -80,8 +80,8 @@ private func coreIdentical(_ args: [Expr]) throws -> Expr {
     case (.set(let a), .set(let b)):
         return .boolean(a === b)
 
-    case (.map(let a, let am), .map(let b, let bm)):
-        return .boolean(a == b && am == bm)
+    case (.map(let a), .map(let b)):
+        return .boolean(a === b)
 
     case (.sortedMap(let a, let am), .sortedMap(let b, let bm)):
         return .boolean(a == b && am == bm)

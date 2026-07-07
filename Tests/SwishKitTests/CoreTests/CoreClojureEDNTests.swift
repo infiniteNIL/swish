@@ -130,12 +130,12 @@ struct CoreClojureEDNTests {
             (do (require '[clojure.edn :as edn])
                 (edn/read-string "#:foo{:bar 1 :baz 2}"))
             """##)
-        guard case .map(let dict, _) = result else {
+        guard case .map(let sm) = result else {
             Issue.record("Expected map, got \(result)")
             return
         }
-        #expect(dict[.keyword("foo/bar")] == .integer(1))
-        #expect(dict[.keyword("foo/baz")] == .integer(2))
+        #expect(sm.dict[.keyword("foo/bar")] == .integer(1))
+        #expect(sm.dict[.keyword("foo/baz")] == .integer(2))
     }
 
     @Test("edn/read-string namespace map leaves already-qualified keys unchanged")
@@ -144,11 +144,11 @@ struct CoreClojureEDNTests {
             (do (require '[clojure.edn :as edn])
                 (edn/read-string "#:foo{:other/bar 1}"))
             """##)
-        guard case .map(let dict, _) = result else {
+        guard case .map(let sm) = result else {
             Issue.record("Expected map, got \(result)")
             return
         }
-        #expect(dict[.keyword("other/bar")] == .integer(1))
+        #expect(sm.dict[.keyword("other/bar")] == .integer(1))
     }
 
     @Test("edn/read-string namespace map does not prefix nested map value keys")
@@ -157,15 +157,15 @@ struct CoreClojureEDNTests {
             (do (require '[clojure.edn :as edn])
                 (edn/read-string "#:foo{:bar {:buzz 2}}"))
             """##)
-        guard case .map(let dict, _) = result else {
+        guard case .map(let sm) = result else {
             Issue.record("Expected map, got \(result)")
             return
         }
-        guard case .map(let inner, _) = dict[.keyword("foo/bar")] else {
+        guard case .map(let innerSm) = sm.dict[.keyword("foo/bar")] else {
             Issue.record("Expected inner map at :foo/bar")
             return
         }
-        #expect(inner[.keyword("buzz")] == .integer(2))
+        #expect(innerSm.dict[.keyword("buzz")] == .integer(2))
     }
 
     // MARK: - inst-ms

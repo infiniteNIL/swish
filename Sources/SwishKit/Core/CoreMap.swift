@@ -55,7 +55,11 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        guard let value = sm.dict[args[1]] else { return .nil }
+        return .vector([args[1], value], metadata: nil)
+
+    case .sortedMap(let dict, _):
         guard let value = dict[args[1]] else { return .nil }
         return .vector([args[1], value], metadata: nil)
 
@@ -102,7 +106,11 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     var current = args[0]
     for key in keys {
         switch current {
-        case .map(let dict, _), .sortedMap(let dict, _):
+        case .map(let sm):
+            guard let value = sm.dict[key] else { return notFound }
+            current = value
+
+        case .sortedMap(let dict, _):
             guard let value = dict[key] else { return notFound }
             current = value
 
@@ -130,11 +138,10 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(var dict, let meta):
-        for key in args.dropFirst() {
-            dict.removeValue(forKey: key)
-        }
-        return .map(dict, metadata: meta)
+    case .map(let sm):
+        var dict = sm.dict
+        for key in args.dropFirst() { dict.removeValue(forKey: key) }
+        return .map(dict, metadata: sm.metadata)
 
     case .sortedMap(var dict, let meta):
         for key in args.dropFirst() {
@@ -163,7 +170,11 @@ private func coreKeys(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        let keys = Array(sm.dict.keys)
+        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+
+    case .sortedMap(let dict, _):
         let keys = Array(dict.keys)
         return keys.isEmpty ? .nil : .list(keys, metadata: nil)
 
@@ -181,7 +192,11 @@ private func coreVals(_ args: [Expr]) throws -> Expr {
     case .nil:
         return .nil
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        let vals = Array(sm.dict.values)
+        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
+
+    case .sortedMap(let dict, _):
         let vals = Array(dict.values)
         return vals.isEmpty ? .nil : .list(vals, metadata: nil)
 
@@ -199,7 +214,11 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
     var hadMapArg = false
     for arg in args {
         switch arg {
-        case .map(let d, _), .sortedMap(let d, _):
+        case .map(let sm):
+            hadMapArg = true
+            for (k, v) in sm.dict { result[k] = v }
+
+        case .sortedMap(let d, _):
             hadMapArg = true
             for (k, v) in d { result[k] = v }
 
@@ -226,9 +245,9 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
     var dict: [Expr: Expr]
     var inputMeta: [Expr: Expr]? = nil
     switch args[0] {
-    case .map(let d, let m):
-        dict = d
-        inputMeta = m
+    case .map(let sm):
+        dict = sm.dict
+        inputMeta = sm.metadata
 
     case .sortedMap(let d, let m):
         dict = d
@@ -297,7 +316,10 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
     case .nil:
         return notFound
 
-    case .map(let dict, _), .sortedMap(let dict, _):
+    case .map(let sm):
+        return sm.dict[args[1]] ?? notFound
+
+    case .sortedMap(let dict, _):
         return dict[args[1]] ?? notFound
 
     case .record(_, _, let data, _):

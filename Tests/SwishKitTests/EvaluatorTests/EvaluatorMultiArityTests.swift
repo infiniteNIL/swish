@@ -141,8 +141,8 @@ struct EvaluatorMultiArityTests {
     func defnDocstringMultiArity() throws {
         _ = try evaluator.eval("(defn greet2 \"Greets\" ([name] name) ([a b] b))")
         let m = try evaluator.eval("(meta #'user/greet2)")
-        if case .map(let dict, _) = m {
-            #expect(dict[.keyword("doc")] == .string("Greets"))
+        if case .map(let sm) = m {
+            #expect(sm.dict[.keyword("doc")] == .string("Greets"))
         } else {
             Issue.record("Expected map metadata")
         }

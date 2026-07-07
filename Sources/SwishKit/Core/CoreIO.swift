@@ -195,10 +195,11 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
 }
 
 private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .map(let opts, _) = args[0] else {
+    guard case .map(let optsMap) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "edn-read-string*",
             message: "first argument must be a map")
     }
+    let opts = optsMap.dict
     guard case .string(let source) = args[1] else {
         throw EvaluatorError.invalidArgument(function: "edn-read-string*",
             message: "second argument must be a string")
@@ -208,8 +209,8 @@ private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
         let tagSym = Expr.symbol(tag, metadata: nil)
         // :readers override takes precedence (even over uuid/inst built-ins)
         if let readersExpr = opts[.keyword("readers")],
-           case .map(let readers, _) = readersExpr,
-           let fn = readers[tagSym] {
+           case .map(let readersMap) = readersExpr,
+           let fn = readersMap.dict[tagSym] {
             return try evaluator.call(fn, args: [value])
         }
         // Built-in handling for uuid and inst

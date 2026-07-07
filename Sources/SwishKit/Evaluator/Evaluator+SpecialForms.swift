@@ -27,7 +27,7 @@ extension Evaluator {
         var doc: String? = nil
         var attrs: [Expr: Expr]? = nil
         if i < elements.count, case .string(let s) = elements[i] { doc = s; i += 1 }
-        if i < elements.count, case .map(let m, _) = elements[i] { attrs = m; i += 1 }
+        if i < elements.count, case .map(let sm) = elements[i] { attrs = sm.dict; i += 1 }
         return (doc, attrs, i)
     }
 
@@ -666,9 +666,9 @@ extension Evaluator {
         case .vector(let elements, _):
             return elements.contains { recurAppears(in: $0) }
 
-        case .map(let dict, _):
-            return dict.keys.contains { recurAppears(in: $0) }
-                || dict.values.contains { recurAppears(in: $0) }
+        case .map(let sm):
+            return sm.dict.keys.contains { recurAppears(in: $0) }
+                || sm.dict.values.contains { recurAppears(in: $0) }
 
         default:
             return false

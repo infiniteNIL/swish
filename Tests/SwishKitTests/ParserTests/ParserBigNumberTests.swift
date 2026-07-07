@@ -169,9 +169,9 @@ struct ParserBigNumberTests {
     func parseDigitKeywordsInMap() throws {
         let exprs = try Reader.readString("{:0 \"zero\" :1 \"one\"}")
         #expect(exprs.count == 1)
-        if case .map(let m, _) = exprs[0] {
-            #expect(m[.keyword("0")] == .string("zero"))
-            #expect(m[.keyword("1")] == .string("one"))
+        if case .map(let sm) = exprs[0] {
+            #expect(sm.dict[.keyword("0")] == .string("zero"))
+            #expect(sm.dict[.keyword("1")] == .string("one"))
         } else {
             Issue.record("Expected .map, got \(exprs[0])")
         }

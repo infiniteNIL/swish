@@ -72,8 +72,8 @@ struct EvaluatorDestructuringTests {
             Issue.record("Expected [a m] vector"); return
         }
         #expect(elems[0] == .integer(1))
-        if case .map(let dict, _) = elems[1] {
-            #expect(dict[.keyword("b")] == .integer(2))
+        if case .map(let sm) = elems[1] {
+            #expect(sm.dict[.keyword("b")] == .integer(2))
         } else {
             Issue.record("Expected map for :as binding")
         }

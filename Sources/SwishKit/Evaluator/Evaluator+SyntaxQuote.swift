@@ -79,8 +79,12 @@ extension Evaluator {
         case .vector(let elements, let meta):
             return .vector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
 
-        case .map(let dict, let meta):
-            return transformMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
+        case .map(let sm):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                result[preExpandSyntaxQuote(k, gensyms: &gensyms)] = preExpandSyntaxQuote(v, gensyms: &gensyms)
+            }
+            return .map(result, metadata: sm.metadata)
 
         case .sortedMap(let dict, let meta):
             return transformSortedMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }

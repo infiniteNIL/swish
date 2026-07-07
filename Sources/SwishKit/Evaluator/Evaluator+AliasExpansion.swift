@@ -32,8 +32,12 @@ extension Evaluator {
         case .vector(let elements, let vecMeta):
             return .vector(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: vecMeta)
 
-        case .map(let dict, let mapMeta):
-            return transformMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
+        case .map(let sm):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                result[expandAliasesInExpr(k, locals: locals)] = expandAliasesInExpr(v, locals: locals)
+            }
+            return .map(result, metadata: sm.metadata)
 
         case .sortedMap(let dict, let mapMeta):
             return transformSortedMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }

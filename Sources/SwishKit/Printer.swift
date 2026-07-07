@@ -202,8 +202,8 @@ public struct Printer {
         case .vector(let elements, let meta):
             return (includeMeta ? metaPrefix(meta) : "") + "[" + elements.map(transform).joined(separator: " ") + "]"
 
-        case .map(let dict, let meta):
-            return (includeMeta ? metaPrefix(meta) : "") + printMapString(dict, transform: transform)
+        case .map(let sm):
+            return (includeMeta ? metaPrefix(sm.metadata) : "") + printMapString(sm.dict, transform: transform)
 
         case .set(let ss):
             return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(ss.elements, transform: transform)

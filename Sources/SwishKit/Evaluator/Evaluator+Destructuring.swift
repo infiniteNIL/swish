@@ -53,8 +53,12 @@ extension Evaluator {
             try expandSplicingElements(elements, into: &result, in: env, gensyms: &gensyms)
             return .vector(result, metadata: vecMeta)
 
-        case .map(let dict, let mapMeta):
-            return try transformMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
+        case .map(let sm):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                result[try syntaxQuoteExpand(k, in: env, gensyms: &gensyms)] = try syntaxQuoteExpand(v, in: env, gensyms: &gensyms)
+            }
+            return .map(result, metadata: sm.metadata)
 
         case .sortedMap(let dict, let mapMeta):
             return try transformSortedMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
@@ -142,8 +146,9 @@ extension Evaluator {
             }
             return names
 
-        case .map(let dict, _):
+        case .map(let sm):
             var names = Set<String>()
+            let dict = sm.dict
             for key in [Expr.keyword("keys"), .keyword("strs"), .keyword("syms")] {
                 if let vecExpr = dict[key], case .vector(let syms, _) = vecExpr {
                     for s in syms { if case .symbol(let n, _) = s { names.insert(n) } }
@@ -205,8 +210,8 @@ extension Evaluator {
         case .vector(let elements, _):
             return try destructureVectorPattern(elements, value: valueExpr)
 
-        case .map(let dict, _):
-            return try destructureMapPattern(dict, value: valueExpr)
+        case .map(let sm):
+            return try destructureMapPattern(sm.dict, value: valueExpr)
 
         default:
             return []
@@ -269,7 +274,7 @@ extension Evaluator {
         var result: [(String, Expr)] = [(tmpName, valueExpr)]
 
         let orMap: [Expr: Expr]
-        if let orExpr = dict[.keyword("or")], case .map(let m, _) = orExpr { orMap = m } else { orMap = [:] }
+        if let orExpr = dict[.keyword("or")], case .map(let orSm) = orExpr { orMap = orSm.dict } else { orMap = [:] }
 
         func addBinding(_ name: String, _ getExpr: Expr) {
             let keySym = Expr.symbol(name, metadata: nil)

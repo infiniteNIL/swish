@@ -75,7 +75,15 @@ extension Evaluator {
             let chosen = try selectArity(from: arities, argCount: args.count, name: name ?? "macro")
             return try callMacro(name: name, params: chosen.params, body: chosen.body, args: args[...], in: Environment())
 
-        case .map(let dict, _), .sortedMap(let dict, _):
+        case .map(let sm):
+            guard args.count == 1 || args.count == 2
+            else {
+                throw EvaluatorError.invalidArgument(function: "map",
+                    message: "requires 1 or 2 arguments, got \(args.count)")
+            }
+            return sm.dict[args[0]] ?? (args.count == 2 ? args[1] : .nil)
+
+        case .sortedMap(let dict, _):
             guard args.count == 1 || args.count == 2
             else {
                 throw EvaluatorError.invalidArgument(function: "map",
@@ -99,7 +107,7 @@ extension Evaluator {
             }
             let notFound: Expr = args.count == 2 ? args[1] : .nil
             switch args[0] {
-            case .map(let dict, _):          return dict[.keyword(name)] ?? notFound
+            case .map(let sm):               return sm.dict[.keyword(name)] ?? notFound
             case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
             case .set(let ss):               return ss.elements.contains(.keyword(name)) ? .keyword(name) : notFound
             default:                         return notFound

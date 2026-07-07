@@ -163,9 +163,9 @@ struct EvaluatorDefrecordTests {
     func dissocDeclaredFieldReturnsMap() throws {
         _ = try swish.eval("(defrecord DRDissoc [a b c])")
         let result = try swish.eval("(let [r (DRDissoc. 1 2 3)] (dissoc r :a))")
-        if case .map(let dict, _) = result {
-            #expect(dict[.keyword("a")] == nil)
-            #expect(dict[.keyword("b")] == .integer(2))
+        if case .map(let sm) = result {
+            #expect(sm.dict[.keyword("a")] == nil)
+            #expect(sm.dict[.keyword("b")] == .integer(2))
         } else {
             Issue.record("Expected plain .map after dissoc of base field, got \(result)")
         }

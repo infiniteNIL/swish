@@ -25,8 +25,12 @@ func registerMeta(into evaluator: Evaluator) {
 
 private func coreMeta(_ args: [Expr]) throws -> Expr {
     switch args[0] {
-    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .map(_, let m), .sortedMap(_, let m), .sortedSet(_, let m):
+    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .sortedMap(_, let m), .sortedSet(_, let m):
         guard let m else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .map(let sm):
+        guard let m = sm.metadata else { return .nil }
         return .map(m, metadata: nil)
 
     case .set(let ss):
@@ -69,8 +73,8 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
 private func coreWithMeta(_ args: [Expr]) throws -> Expr {
     let newMeta: [Expr: Expr]?
     switch args[1] {
-    case .map(let m, _):
-        newMeta = m
+    case .map(let sm):
+        newMeta = sm.dict
 
     case .nil:
         newMeta = nil
@@ -91,8 +95,8 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
     case .vector(let e, _):
         return .vector(e, metadata: newMeta)
 
-    case .map(let d, _):
-        return .map(d, metadata: newMeta)
+    case .map(let sm):
+        return .map(SwishMap(dict: sm.dict, metadata: newMeta))
 
     case .set(let ss):
         return .set(SwishSet(elements: ss.elements, metadata: newMeta))
@@ -154,12 +158,12 @@ private func coreAlterMeta(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
             function: "alter-meta!",
             message: "first argument must be a var reference")
     }
-    let currentMeta: Expr = v.metadata.map { .map($0, metadata: nil) } ?? .nil
+    let currentMeta: Expr = v.metadata.map { Expr.map($0, metadata: nil) } ?? .nil
     let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
     switch newMeta {
-    case .map(let m, _):
-        v.metadata = m
-        return .map(m, metadata: nil)
+    case .map(let sm):
+        v.metadata = sm.dict
+        return .map(sm.dict, metadata: nil)
 
     case .nil:
         v.metadata = nil
@@ -179,9 +183,9 @@ private func coreResetMeta(_ args: [Expr]) throws -> Expr {
             message: "first argument must be a var reference")
     }
     switch args[1] {
-    case .map(let m, _):
-        v.metadata = m
-        return .map(m, metadata: nil)
+    case .map(let sm):
+        v.metadata = sm.dict
+        return .map(sm.dict, metadata: nil)
 
     case .nil:
         v.metadata = nil

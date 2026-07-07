@@ -27,12 +27,12 @@ extension Evaluator {
         }
 
         let mapCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
-            guard args.count == 1, case .map(let dict, _) = args[0] else {
+            guard args.count == 1, case .map(let sm) = args[0] else {
                 throw EvaluatorError.invalidArgument(
                     function: "map->\(typeName)", message: "requires a single map")
             }
             var data: [Expr: Expr] = [:]
-            for f in fields { data[.keyword(f)] = dict[.keyword(f)] ?? .nil }
+            for f in fields { data[.keyword(f)] = sm.dict[.keyword(f)] ?? .nil }
             return .record(typeName: qualifiedName, fields: fields, data: data, metadata: nil)
         }
 

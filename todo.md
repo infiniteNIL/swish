@@ -17,6 +17,10 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] fix identical? for maps
+- [x] fix >= and <= when used with NaN
+- [x] float now throws when arg out of range (too large for Float32)
+- [x] even? and odd? throw on non integers
 - [x] fix = with functions
 - [x] fix comparing regexes
 - [x] now have float backed by Float and double by by Swift Double (before just float backed by Double)

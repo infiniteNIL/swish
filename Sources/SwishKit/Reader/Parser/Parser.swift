@@ -371,8 +371,8 @@ public class Parser {
         case .string(let s):
             return [.keyword("tag"): .string(s)]
 
-        case .map(let dict, _):
-            return dict
+        case .map(let sm):
+            return sm.dict
 
         default:
             throw ParserError.invalidMetadataSpec(line: token.line, column: token.column)
@@ -480,14 +480,14 @@ public class Parser {
             throw ParserError.unexpectedToken(currentToken)
         }
         let mapExpr = try parseMap()
-        guard case .map(let dict, let meta) = mapExpr else {
+        guard case .map(let sm) = mapExpr else {
             return mapExpr
         }
         var qualified: [Expr: Expr] = [:]
-        for (key, val) in dict {
+        for (key, val) in sm.dict {
             qualified[qualifyMapKey(key, ns: ns)] = val
         }
-        return .map(qualified, metadata: meta)
+        return .map(qualified, metadata: sm.metadata)
     }
 
     private func qualifyMapKey(_ key: Expr, ns: String) -> Expr {
@@ -605,7 +605,12 @@ public class Parser {
             collectAnonFnRefs(elems, into: &refs)
         case .vector(let elems, _):
             collectAnonFnRefs(elems, into: &refs)
-        case .map(let dict, _), .sortedMap(let dict, _):
+        case .map(let sm):
+            for (k, v) in sm.dict {
+                collectAnonFnRefsInExpr(k, into: &refs)
+                collectAnonFnRefsInExpr(v, into: &refs)
+            }
+        case .sortedMap(let dict, _):
             for (k, v) in dict {
                 collectAnonFnRefsInExpr(k, into: &refs)
                 collectAnonFnRefsInExpr(v, into: &refs)
@@ -634,10 +639,10 @@ public class Parser {
         case .vector(let elems, let meta):
             return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)
 
-        case .map(let dict, let meta):
+        case .map(let sm):
             var result: [Expr: Expr] = [:]
-            for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
-            return .map(result, metadata: meta)
+            for (k, v) in sm.dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
+            return .map(result, metadata: sm.metadata)
 
         case .sortedMap(let dict, let meta):
             var result: [Expr: Expr] = [:]

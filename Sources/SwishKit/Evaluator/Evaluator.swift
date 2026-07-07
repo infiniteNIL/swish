@@ -72,8 +72,12 @@ public class Evaluator {
         case .vector(let elements, let vecMeta):
             return .vector(try elements.map { try eval($0, in: env) }, metadata: vecMeta)
 
-        case .map(let dict, let mapMeta):
-            return try transformMap(dict, metadata: mapMeta) { try eval($0, in: env) }
+        case .map(let sm):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                result[try eval(k, in: env)] = try eval(v, in: env)
+            }
+            return .map(result, metadata: sm.metadata)
 
         case .sortedMap(let dict, let mapMeta):
             var result: [Expr: Expr] = [:]

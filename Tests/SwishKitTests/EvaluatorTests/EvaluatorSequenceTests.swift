@@ -98,9 +98,9 @@ struct EvaluatorSequenceTests {
     @Test("conj onto map adds entry")
     func conjOntoMap() throws {
         let result = try evaluator.eval("(conj {:a 1} [:b 2])")
-        guard case .map(let dict, _) = result else { Issue.record("Expected map"); return }
-        #expect(dict[.keyword("a")] == .integer(1))
-        #expect(dict[.keyword("b")] == .integer(2))
+        guard case .map(let sm) = result else { Issue.record("Expected map"); return }
+        #expect(sm.dict[.keyword("a")] == .integer(1))
+        #expect(sm.dict[.keyword("b")] == .integer(2))
     }
 
     @Test("conj onto set adds element")
@@ -129,9 +129,9 @@ struct EvaluatorSequenceTests {
     @Test("hash-map creates a map from pairs")
     func hashMapConstructor() throws {
         let result = try evaluator.eval("(hash-map :a 1 :b 2)")
-        guard case .map(let dict, _) = result else { Issue.record("Expected map"); return }
-        #expect(dict[.keyword("a")] == .integer(1))
-        #expect(dict[.keyword("b")] == .integer(2))
+        guard case .map(let sm) = result else { Issue.record("Expected map"); return }
+        #expect(sm.dict[.keyword("a")] == .integer(1))
+        #expect(sm.dict[.keyword("b")] == .integer(2))
     }
 
     @Test("hash-map with no args creates empty map")
@@ -294,9 +294,9 @@ struct EvaluatorSequenceTests {
     @Test("into pours pairs into map")
     func intoPairsToMap() throws {
         let result = try evaluator.eval("(into {} [[:a 1] [:b 2]])")
-        guard case .map(let dict, _) = result else { Issue.record("Expected map"); return }
-        #expect(dict[.keyword("a")] == .integer(1))
-        #expect(dict[.keyword("b")] == .integer(2))
+        guard case .map(let sm) = result else { Issue.record("Expected map"); return }
+        #expect(sm.dict[.keyword("a")] == .integer(1))
+        #expect(sm.dict[.keyword("b")] == .integer(2))
     }
 
     // MARK: - empty? / not-empty
