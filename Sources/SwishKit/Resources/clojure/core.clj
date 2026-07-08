@@ -203,13 +203,6 @@
   [coll]
   (reduce conj () (seq coll)))
 
-(defn to-array
-  "Returns a vector containing the contents of coll."
-  {:added "1.0"
-   :static true}
-  [coll]
-  (vec coll))
-
 (defn object-array
   "Returns a vector of n nils (stub; no Java array semantics)."
   [n]

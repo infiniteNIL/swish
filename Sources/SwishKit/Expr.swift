@@ -40,6 +40,8 @@ public indirect enum Expr: Sendable {
     /// An eager, non-list seq — returned by `seq` on non-list collections (vector, map, set, etc.).
     /// Satisfies `seq?` but not `list?` or `lazy-seq?`, matching Clojure's ISeq-not-IPersistentList.
     case seq([Expr])
+    /// A Java-style object array: seqable but not sequential or associative.
+    case array([Expr])
     case vector([Expr], metadata: [Expr: Expr]?)
     /// A key-value pair from map iteration. Semantically equivalent to a 2-element vector.
     case mapEntry(Expr, Expr)
@@ -142,6 +144,9 @@ extension Expr: Equatable {
             return a == b
 
         case (.seq(let a), .seq(let b)):
+            return a == b
+
+        case (.array(let a), .array(let b)):
             return a == b
 
         case (.vector(let a, _), .vector(let b, _)):
@@ -303,6 +308,11 @@ extension Expr: Equatable {
             expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
             return elems[0]
 
+        case .array(let elems):
+            if elems.isEmpty { return nil }
+            expr = elems.count == 1 ? .nil : .array(Array(elems.dropFirst()))
+            return elems[0]
+
         case .lazySeq(let box):
             guard let head = try? box.forceHead() else {
                 expr = .nil
@@ -368,6 +378,7 @@ private enum ExprHash {
     static let inst               = 30
     static let uuid               = 31
     static let delay              = 32
+    static let array              = 33
 }
 
 extension Expr: Hashable {
@@ -408,6 +419,9 @@ extension Expr: Hashable {
 
         case .seq(let v):
             hasher.combine(ExprHash.list);      hasher.combine(v)
+
+        case .array(let v):
+            hasher.combine(ExprHash.array);     hasher.combine(v)
 
         case .vector(let v, _):
             hasher.combine(ExprHash.vector);    hasher.combine(v)
@@ -603,6 +617,9 @@ extension Expr: CustomStringConvertible {
 
         case .uuid:
             return "uuid"
+
+        case .array:
+            return "array"
         }
     }
 }

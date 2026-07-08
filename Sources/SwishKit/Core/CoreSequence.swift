@@ -113,6 +113,12 @@ func registerSequence(into evaluator: Evaluator) {
                 message: "\(corePrinter.printString(args[0])) doesn't support rseq")
         }
     }
+    evaluator.register(name: "to-array", arity: .fixed(1),
+        doc: "Returns an array of the elements of coll.",
+        arglists: [["coll"]]) { args in
+        let elements = asSequence(args[0]) ?? []
+        return .array(elements)
+    }
     evaluator.register(name: "next", arity: .fixed(1),
         doc: "Returns a seq of the items after the first. Calls seq on its argument. If there are no more items, returns nil.",
         arglists: [["coll"]],
@@ -158,6 +164,9 @@ func asSequence(_ expr: Expr) -> [Expr]? {
         return elements
 
     case .vector(let elements, _):
+        return elements
+
+    case .array(let elements):
         return elements
 
     case .string(let s):
@@ -270,6 +279,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
         return .integer(elements.count)
 
     case .vector(let elements, _):
+        return .integer(elements.count)
+
+    case .array(let elements):
         return .integer(elements.count)
 
     case .mapEntry:

@@ -462,9 +462,9 @@ struct CoreSequenceTests {
         #expect(try swish.eval("(not-empty nil)") == .nil)
     }
 
-    @Test("(to-array [1 2 3]) returns a vector")
-    func toArrayReturnsVector() throws {
-        #expect(try swish.eval("(to-array [1 2 3])") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    @Test("(to-array [1 2 3]) returns an array")
+    func toArrayReturnsArray() throws {
+        #expect(try swish.eval("(to-array [1 2 3])") == .array([.integer(1), .integer(2), .integer(3)]))
     }
 
     @Test("(get (to-array [1 2]) 0) returns first element")

@@ -66,7 +66,7 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
-             .reader, .writer, .record, .inst, .uuid, .mapEntry:
+             .reader, .writer, .record, .inst, .uuid, .mapEntry, .array:
             return expr
 
         case .seq(let elements):
