@@ -498,4 +498,21 @@ struct CoreSequenceTests {
     func conjVectorAppend() throws {
         #expect(try swish.eval("(conj [1 2] 3)") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
+
+    // MARK: - rseq
+
+    @Test("(rseq [1 2 3]) returns reversed seq")
+    func rseqVector() throws {
+        #expect(try swish.eval("(rseq [1 2 3])") == .list([.integer(3), .integer(2), .integer(1)], metadata: nil))
+    }
+
+    @Test("(rseq []) returns nil")
+    func rseqEmptyVector() throws {
+        #expect(try swish.eval("(rseq [])") == .nil)
+    }
+
+    @Test("(rseq nil) throws")
+    func rseqNilThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(rseq nil)") }
+    }
 }

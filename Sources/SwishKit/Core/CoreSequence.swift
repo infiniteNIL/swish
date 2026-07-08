@@ -95,9 +95,6 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns, in constant time, a seq of the items in rev (supports vector and sorted-map), in reverse order. If coll is empty returns nil.",
         arglists: [["coll"]]) { args in
         switch args[0] {
-        case .nil:
-            return .nil
-
         case .vector(let elems, _):
             if elems.isEmpty { return .nil }
             return .list(elems.reversed(), metadata: nil)
