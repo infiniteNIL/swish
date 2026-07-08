@@ -95,6 +95,31 @@ struct LazySeqTests {
         #expect(try swish.eval("(repeat 3 :x)") == .list([.keyword("x"), .keyword("x"), .keyword("x")], metadata: nil))
     }
 
+    @Test("(repeat 3.14 :x) truncates to 3 elements")
+    func repeatFloatCount() throws {
+        #expect(try swish.eval("(repeat 3.14 :x)") == .list([.keyword("x"), .keyword("x"), .keyword("x")], metadata: nil))
+    }
+
+    @Test("(repeat 3.99 :x) truncates to 3 elements")
+    func repeatFloat399Count() throws {
+        #expect(try swish.eval("(repeat 3.99 :x)") == .list([.keyword("x"), .keyword("x"), .keyword("x")], metadata: nil))
+    }
+
+    @Test("(repeat nil :x) throws")
+    func repeatNilCountThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(repeat nil :x)") }
+    }
+
+    @Test("(repeat \"a\" :x) throws")
+    func repeatStringCountThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(repeat \"a\" :x)") }
+    }
+
+    @Test("(repeat :kw :x) throws")
+    func repeatKeywordCountThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(repeat :kw :x)") }
+    }
+
     // MARK: - repeatedly
 
     @Test("repeatedly calls function each time")

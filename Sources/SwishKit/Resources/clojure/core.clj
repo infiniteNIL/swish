@@ -376,7 +376,7 @@
   ([x]
    (lazy-seq (cons x (repeat x))))
   ([n x]
-   (take n (repeat x))))
+   (take (int n) (repeat x))))
 
 (defn repeatedly
   "Takes a function of no args, presumably with side effects, and
