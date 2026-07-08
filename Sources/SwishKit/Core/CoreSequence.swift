@@ -101,7 +101,8 @@ func registerSequence(into evaluator: Evaluator) {
 
         case .sortedMap(let m, _):
             if m.isEmpty { return .nil }
-            let entries = Array(m.keys).reversed().map { k -> Expr in
+            let sortedKeys = m.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
+            let entries = sortedKeys.reversed().map { k -> Expr in
                 .vector([k, m[k]!], metadata: nil)
             }
             return .list(entries, metadata: nil)

@@ -515,4 +515,20 @@ struct CoreSequenceTests {
     func rseqNilThrows() {
         #expect(throws: (any Error).self) { try swish.eval("(rseq nil)") }
     }
+
+    @Test("(rseq (sorted-map :a 0 :b 1 :c 2)) returns reversed entries")
+    func rseqSortedMap() throws {
+        let result = try swish.eval("(rseq (sorted-map :a 0 :b 1 :c 2))")
+        let expected = Expr.list([
+            .vector([.keyword("c"), .integer(2)], metadata: nil),
+            .vector([.keyword("b"), .integer(1)], metadata: nil),
+            .vector([.keyword("a"), .integer(0)], metadata: nil),
+        ], metadata: nil)
+        #expect(result == expected)
+    }
+
+    @Test("(rseq (sorted-map)) returns nil")
+    func rseqEmptySortedMap() throws {
+        #expect(try swish.eval("(rseq (sorted-map))") == .nil)
+    }
 }
