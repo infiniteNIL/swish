@@ -204,7 +204,7 @@ private func coreSymbol(_ args: [Expr]) throws -> Expr {
 
         case .keyword(let k): return .symbol(k, metadata: nil)
 
-        case .varRef(let v): return .symbol(v.name, metadata: nil)
+        case .varRef(let v): return .symbol("\(v.namespace.name)/\(v.name)", metadata: nil)
 
         default:
             throw EvaluatorError.invalidArgument(

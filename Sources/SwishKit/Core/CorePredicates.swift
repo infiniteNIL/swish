@@ -55,11 +55,11 @@ func registerPredicates(into evaluator: Evaluator) {
         switch args[0] {
         case .keyword(let k):
             guard k.contains("/") else { return .nil }
-            return .string(String(k.split(separator: "/", maxSplits: 1).first!))
+            return .string(String(k.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false).first!))
 
         case .symbol(let s, _):
             guard s.contains("/") else { return .nil }
-            return .string(String(s.split(separator: "/", maxSplits: 1).first!))
+            return .string(String(s.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: false).first!))
 
         case .string:
             return .nil

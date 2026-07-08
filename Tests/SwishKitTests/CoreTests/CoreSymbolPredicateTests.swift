@@ -30,4 +30,14 @@ struct CoreSymbolPredicateTests {
     func symbolPredicateNil() throws {
         #expect(try swish.eval("(symbol? nil)") == .boolean(false))
     }
+
+    @Test("(symbol #'+) returns fully qualified symbol clojure.core/+")
+    func symbolFromVarRef() throws {
+        #expect(try swish.eval("(symbol #'+)") == .symbol("clojure.core/+", metadata: nil))
+    }
+
+    @Test("(namespace (symbol \"\" \"hi\")) returns empty string")
+    func namespaceOfSymbolWithEmptyNs() throws {
+        #expect(try swish.eval(#"(namespace (symbol "" "hi"))"#) == .string(""))
+    }
 }
