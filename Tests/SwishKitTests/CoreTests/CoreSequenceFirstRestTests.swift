@@ -124,6 +124,21 @@ struct CoreSequenceFirstRestTests {
         #expect(try swish.eval("(reverse nil)") == .list([], metadata: nil))
     }
 
+    @Test("(reverse \\a) throws for char")
+    func reverseCharThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(reverse \\a)") }
+    }
+
+    @Test("(reverse 0) throws for integer")
+    func reverseIntThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(reverse 0)") }
+    }
+
+    @Test("(reverse 0.0) throws for float")
+    func reverseFloatThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(reverse 0.0)") }
+    }
+
     // MARK: - rest
 
     @Test("(rest '(1 2 3)) returns (2 3)")

@@ -201,7 +201,7 @@
   {:added "1.0"
    :static true}
   [coll]
-  (reduce conj () coll))
+  (reduce conj () (seq coll)))
 
 (defn to-array
   "Returns a vector containing the contents of coll."
