@@ -648,11 +648,13 @@
 (defn some-fn
   "Takes a set of predicates and returns a fn that returns the first
    logical true value returned by one of its predicates against any of
-   its arguments, else nil."
+   its arguments, else false."
   {:added "1.3"}
   [& preds]
-  (fn [& args]
-    (some #(some % args) preds)))
+  (if (empty? preds)
+    (throw "some-fn requires at least one predicate")
+    (fn [& args]
+      (or (some #(some % args) preds) false))))
 
 (defn juxt
   "Takes a set of functions and returns a fn that is the juxtaposition
