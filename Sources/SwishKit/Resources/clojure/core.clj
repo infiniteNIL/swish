@@ -747,7 +747,7 @@
   "Returns a set of the distinct elements of coll."
   {:added "1.0"}
   [coll]
-  (reduce conj #{} coll))
+  (reduce conj #{} (seq coll)))
 
 (defn vec
   "Creates a new vector containing the contents of coll."
