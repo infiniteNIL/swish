@@ -266,7 +266,7 @@ extension Expr: Equatable {
     private static func seqEqual(_ lhs: Expr, _ rhs: Expr) -> Bool {
         var l = lhs
         var r = rhs
-        for _ in 0..<1_000 {
+        while true {
             let lh = advanceSeq(&l)
             let rh = advanceSeq(&r)
             switch (lh, rh) {
@@ -280,7 +280,6 @@ extension Expr: Equatable {
                 return false
             }
         }
-        return false  // cap exceeded — conservative: not equal
     }
 
     /// Advances `expr` one step through a seq, returning the head (or `nil` for empty).
