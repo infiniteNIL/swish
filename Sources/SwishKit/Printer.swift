@@ -156,6 +156,15 @@ public struct Printer {
         case .lazySeq(let box):
             formatLazySeq(box, transform: strString)
 
+        case .double(let value):
+            value.isInfinite ? (value > 0 ? "Infinity" : "-Infinity") : printString(.double(value))
+
+        case .bigInteger(let v):
+            "\(v)"
+
+        case .bigDecimal(let v):
+            "\(v)"
+
         case .reduced:
             printString(expr)
 

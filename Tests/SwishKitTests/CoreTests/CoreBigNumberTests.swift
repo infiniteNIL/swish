@@ -77,32 +77,32 @@ struct CoreBigNumberTests {
 
     @Test("(+ 1N 2N) returns 3N")
     func addBigInts() throws {
-        #expect(try swish.eval("(str (+ 1N 2N))") == .string("3N"))
+        #expect(try swish.eval("(str (+ 1N 2N))") == .string("3"))
     }
 
     @Test("(- 10N 3N) returns 7N")
     func subtractBigInts() throws {
-        #expect(try swish.eval("(str (- 10N 3N))") == .string("7N"))
+        #expect(try swish.eval("(str (- 10N 3N))") == .string("7"))
     }
 
     @Test("(* 6N 7N) returns 42N")
     func multiplyBigInts() throws {
-        #expect(try swish.eval("(str (* 6N 7N))") == .string("42N"))
+        #expect(try swish.eval("(str (* 6N 7N))") == .string("42"))
     }
 
     @Test("(/ 10N 3N) returns 3N (truncating division)")
     func divideBigInts() throws {
-        #expect(try swish.eval("(str (/ 10N 3N))") == .string("3N"))
+        #expect(try swish.eval("(str (/ 10N 3N))") == .string("3"))
     }
 
     @Test("(- 5N) negates BigInt")
     func negateBigInt() throws {
-        #expect(try swish.eval("(str (- 5N))") == .string("-5N"))
+        #expect(try swish.eval("(str (- 5N))") == .string("-5"))
     }
 
     @Test("(+ 1N 2) promotes Int to BigInt")
     func addBigIntAndInt() throws {
-        #expect(try swish.eval("(str (+ 1N 2))") == .string("3N"))
+        #expect(try swish.eval("(str (+ 1N 2))") == .string("3"))
     }
 
     @Test("(+ 1N 2.0) promotes BigInt to Double")
