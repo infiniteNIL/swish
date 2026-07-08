@@ -120,6 +120,16 @@ struct LazySeqTests {
         #expect(throws: (any Error).self) { try swish.eval("(repeat :kw :x)") }
     }
 
+    @Test("(repeat true :x) returns one element")
+    func repeatTrueCount() throws {
+        #expect(try swish.eval("(repeat true :x)") == .list([.keyword("x")], metadata: nil))
+    }
+
+    @Test("(repeat false :x) returns empty")
+    func repeatFalseCount() throws {
+        #expect(try swish.eval("(repeat false :x)") == .list([], metadata: nil))
+    }
+
     // MARK: - repeatedly
 
     @Test("repeatedly calls function each time")

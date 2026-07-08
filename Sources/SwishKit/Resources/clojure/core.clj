@@ -376,7 +376,7 @@
   ([x]
    (lazy-seq (cons x (repeat x))))
   ([n x]
-   (take (int n) (repeat x))))
+   (take (cond (true? n) 1 (false? n) 0 :else (int n)) (repeat x))))
 
 (defn repeatedly
   "Takes a function of no args, presumably with side effects, and
