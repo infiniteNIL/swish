@@ -703,7 +703,7 @@ public class Parser {
             if currentToken.type == .discard {
                 try advance()
                 if currentToken.type == .eof { throw ParserError.unexpectedEOF }
-                _ = try parseFormSkipDiscards()
+                guard try parseFormSkipDiscards() != nil else { throw ParserError.unexpectedEOF }
                 continue
             }
             if currentToken.type == .readerConditional {
@@ -735,7 +735,7 @@ public class Parser {
             case .discard:
                 try advance()
                 guard currentToken.type != .eof else { throw ParserError.unexpectedEOF }
-                _ = try parseFormSkipDiscards()
+                guard try parseFormSkipDiscards() != nil else { throw ParserError.unexpectedEOF }
 
             case .readerConditional:
                 let startToken = currentToken

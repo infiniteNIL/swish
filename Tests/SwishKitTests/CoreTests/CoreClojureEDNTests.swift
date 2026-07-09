@@ -144,6 +144,26 @@ struct CoreClojureEDNTests {
         }
     }
 
+    @Test("edn/read-string throws on [#_] — discard without element in vector")
+    func readStringThrowsOnDiscardWithoutElementInVector() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "[#_]"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on #_ #_ 1 — nested discards exhaust input")
+    func readStringThrowsOnNestedDiscardExhaustingInput() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "#_ #_ 1"))
+                """)
+        }
+    }
+
     @Test("edn/read-string throws on map with duplicate keyword keys")
     func readStringThrowsOnDuplicateKeywordKeys() {
         #expect(throws: (any Error).self) {
