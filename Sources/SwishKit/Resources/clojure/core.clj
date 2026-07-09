@@ -537,7 +537,7 @@
 (defn zero?
   "Returns true if num is zero, else false."
   {:added "1.0"}
-  [x] (not (or (pos? x) (neg? x))))
+  [x] (if (NaN? x) false (not (or (pos? x) (neg? x)))))
 
 (defn pos?
   "Returns true if num is greater than zero, else false."
