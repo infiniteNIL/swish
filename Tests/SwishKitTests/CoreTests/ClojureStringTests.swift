@@ -360,6 +360,31 @@ struct ClojureStringTests {
         #expect(try swish.eval("(str/blank? \"\u{2007}\")") == .boolean(true))
     }
 
+    @Test("reverse returns empty string for empty input")
+    func reverseEmpty() throws {
+        #expect(try swish.eval(#"(str/reverse "")"#) == .string(""))
+    }
+
+    @Test("reverse handles single grapheme cluster (U+058E Armenian)")
+    func reverseGraphemeCluster() throws {
+        #expect(try swish.eval("(str/reverse \"\u{058E}\")") == .string("\u{058E}"))
+    }
+
+    @Test("reverse reverses grapheme clusters correctly")
+    func reverseGraphemeClusters() throws {
+        #expect(try swish.eval("(str/reverse \"\u{058E}a\")") == .string("a\u{058E}"))
+    }
+
+    @Test("reverse reverses ASCII string")
+    func reverseASCII() throws {
+        #expect(try swish.eval(#"(str/reverse "a-test")"#) == .string("tset-a"))
+    }
+
+    @Test("reverse throws for nil")
+    func reverseNilThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(str/reverse nil)") }
+    }
+
     @Test("replace string/string replaces all occurrences")
     func replaceStringString() throws {
         #expect(try swish.eval(#"(str/replace "hello world" "o" "0")"#) == .string("hell0 w0rld"))

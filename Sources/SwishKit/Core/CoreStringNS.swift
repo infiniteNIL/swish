@@ -49,6 +49,10 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "True if s is nil, empty, or contains only whitespace.",
             arglists: [["s"]])
 
+        ns.register(name: "reverse", value: coreStringReverse,
+            doc: "Returns s with its characters reversed.",
+            arglists: [["s"]])
+
         ns.register(name: "replace", value: makeReplaceFunction(evaluator: evaluator),
             doc: "Replaces all instances of match with replacement in s. " +
                  "match/replacement can be: string/string, char/char, " +
@@ -243,6 +247,13 @@ private let coreBlank = Expr.nativeFunction(name: "blank?", arity: .fixed(1)) { 
     default:
         throw EvaluatorError.invalidArgument(function: "blank?", message: "argument must be a string or nil")
     }
+}
+
+private let coreStringReverse = Expr.nativeFunction(name: "reverse", arity: .fixed(1)) { args in
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "reverse", message: "argument must be a string")
+    }
+    return .string(String(s.reversed()))
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {
