@@ -293,14 +293,45 @@ public class Parser {
     static func parseInstString(_ s: String) -> Date? {
         let fmtFrac = ISO8601DateFormatter()
         fmtFrac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = fmtFrac.date(from: s) { return d }
+        if let d = fmtFrac.date(from: s) { return validatedInst(s, d) }
         let fmt = ISO8601DateFormatter()
         fmt.formatOptions = [.withInternetDateTime]
-        if let d = fmt.date(from: s) { return d }
+        if let d = fmt.date(from: s) { return validatedInst(s, d) }
         // Date-only: "2026-02-03" → midnight UTC
         let fmtDate = ISO8601DateFormatter()
         fmtDate.formatOptions = [.withFullDate]
-        return fmtDate.date(from: s)
+        if let d = fmtDate.date(from: s) { return validatedInst(s, d) }
+        return nil
+    }
+
+    private static func validatedInst(_ s: String, _ d: Date) -> Date? {
+        let start = s.startIndex
+
+        // Validate the date portion by re-constructing it from the string fields
+        // and checking that Calendar accepts it unchanged. This catches invalid
+        // dates like 2010-02-29 (non-leap year) regardless of timezone offset.
+        if s.count >= 10,
+           let year  = Int(s[s.index(start, offsetBy: 0) ..< s.index(start, offsetBy: 4)]),
+           let month = Int(s[s.index(start, offsetBy: 5) ..< s.index(start, offsetBy: 7)]),
+           let day   = Int(s[s.index(start, offsetBy: 8) ..< s.index(start, offsetBy: 10)]) {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone(abbreviation: "UTC")!
+            var comps = DateComponents()
+            comps.year = year; comps.month = month; comps.day = day
+            guard let check = cal.date(from: comps) else { return nil }
+            let actual = cal.dateComponents([.year, .month, .day], from: check)
+            if actual.year != year || actual.month != month || actual.day != day { return nil }
+        }
+
+        // Validate hour — T24:... is not valid (0–23 only); some formatters
+        // accept it and roll to midnight of the next day
+        if let tIdx = s.firstIndex(of: "T") {
+            let h0 = s.index(after: tIdx)
+            if let h1 = s.index(h0, offsetBy: 2, limitedBy: s.endIndex),
+               let hour = Int(s[h0..<h1]), hour >= 24 { return nil }
+        }
+
+        return d
     }
 
     private func parseCharacter() throws -> Expr {
