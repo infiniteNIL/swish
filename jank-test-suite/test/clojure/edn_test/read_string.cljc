@@ -352,8 +352,9 @@
         (let [parsed-uid (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
               uid        #uuid "550e8400-e29b-41d4-a716-446655440000"]
           (is (= uid parsed-uid))
-          ;; CLR uuids are value types; always `identical?`
+          ;; CLR and Swish uuids are value types; always `identical?`
           #?(:cljr    (is (identical? uid parsed-uid))
+             :swish   (is (identical? uid parsed-uid))
              :default (is (not (identical? uid parsed-uid))))))
 
       (testing "Unknown Tag"

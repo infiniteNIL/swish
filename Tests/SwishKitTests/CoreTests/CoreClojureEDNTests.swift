@@ -314,6 +314,27 @@ struct CoreClojureEDNTests {
         #expect(elems[1] == .integer(42))
     }
 
+    @Test("identical? returns true for two equal UUID values (value-type semantics)")
+    func identicalUUIDsReturnTrue() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (let [a (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
+                      b (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")]
+                  (identical? a b)))
+            """##)
+        #expect(result == .boolean(true))
+    }
+
+    @Test("= returns true for equal UUID values")
+    func equalUUIDsReturnTrue() throws {
+        let result = try swish.eval(##"""
+            (do (require '[clojure.edn :as edn])
+                (= (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
+                   (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")))
+            """##)
+        #expect(result == .boolean(true))
+    }
+
     @Test("edn/read-string handles CRLF line ending in comment between tagged literal tag and data")
     func readStringTaggedLiteralCRLFComment() throws {
         // The jank test uses ";comment\r\n\t,#_foo" between the tag and the UUID string.
