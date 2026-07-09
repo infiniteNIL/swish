@@ -27,8 +27,8 @@ func registerSequence(into evaluator: Evaluator) {
         body: coreCount)
     evaluator.register(name: "vector?", arity: .fixed(1), doc: "Return true if x implements IPersistentVector",    arglists: [["x"]]) { args in
         switch args[0] {
-        case .vector, .mapEntry: return .boolean(true)
-        default:                 return .boolean(false)
+        case .vector, .sharedVector, .mapEntry: return .boolean(true)
+        default:                                return .boolean(false)
         }
     }
     evaluator.register(name: "peek", arity: .fixed(1),
@@ -37,6 +37,9 @@ func registerSequence(into evaluator: Evaluator) {
         switch args[0] {
         case .vector(let elems, _):
             return elems.last ?? .nil
+
+        case .sharedVector(let sa, _):
+            return sa.elements.last ?? .nil
 
         case .list(let elems, _):
             return elems.first ?? .nil
@@ -58,6 +61,13 @@ func registerSequence(into evaluator: Evaluator) {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
             }
             return .vector(Array(elems.dropLast()), metadata: nil)
+
+        case .sharedVector(let sa, _):
+            guard !sa.elements.isEmpty
+            else {
+                throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
+            }
+            return .vector(Array(sa.elements.dropLast()), metadata: nil)
 
         case .list(let elems, _):
             guard !elems.isEmpty
@@ -99,6 +109,10 @@ func registerSequence(into evaluator: Evaluator) {
             if elems.isEmpty { return .nil }
             return .list(elems.reversed(), metadata: nil)
 
+        case .sharedVector(let sa, _):
+            if sa.elements.isEmpty { return .nil }
+            return .list(sa.elements.reversed(), metadata: nil)
+
         case .sortedMap(let m, _):
             if m.isEmpty { return .nil }
             let sortedKeys = m.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
@@ -117,7 +131,29 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns an array of the elements of coll.",
         arglists: [["coll"]]) { args in
         let elements = asSequence(args[0]) ?? []
-        return .array(elements)
+        return .array(SwishArray(elements))
+    }
+    evaluator.register(name: "vec", arity: .fixed(1),
+        doc: "Creates a new vector containing the contents of coll.",
+        arglists: [["coll"]]) { args in
+        if case .array(let sa) = args[0] {
+            return .sharedVector(sa, metadata: nil)
+        }
+        return .vector(try seqOf(args[0], function: "vec"), metadata: nil)
+    }
+    evaluator.register(name: "aset", arity: .fixed(3),
+        doc: "Sets the value at index i in array a. Returns val.",
+        arglists: [["array", "i", "val"]]) { args in
+        guard case .array(let sa) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "aset",
+                message: "first argument must be an array")
+        }
+        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
+            throw EvaluatorError.invalidArgument(function: "aset",
+                message: "index out of bounds")
+        }
+        sa.elements[idx] = args[2]
+        return args[2]
     }
     evaluator.register(name: "next", arity: .fixed(1),
         doc: "Returns a seq of the items after the first. Calls seq on its argument. If there are no more items, returns nil.",
@@ -166,8 +202,11 @@ func asSequence(_ expr: Expr) -> [Expr]? {
     case .vector(let elements, _):
         return elements
 
-    case .array(let elements):
-        return elements
+    case .array(let sa):
+        return sa.elements
+
+    case .sharedVector(let sa, _):
+        return sa.elements
 
     case .string(let s):
         return s.map { .character($0) }
@@ -281,8 +320,11 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .vector(let elements, _):
         return .integer(elements.count)
 
-    case .array(let elements):
-        return .integer(elements.count)
+    case .array(let sa):
+        return .integer(sa.elements.count)
+
+    case .sharedVector(let sa, _):
+        return .integer(sa.elements.count)
 
     case .mapEntry:
         return .integer(2)
@@ -380,6 +422,9 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
 
     case .vector(let elems, let meta):
         return .vector(elems + [item], metadata: meta)
+
+    case .sharedVector(let sa, let meta):
+        return .vector(sa.elements + [item], metadata: meta)
 
     case .map(let sm):
         if case .nil = item { return coll }
@@ -483,6 +528,10 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         guard case .integer(let idx) = key else { return .boolean(false) }
         return .boolean(idx >= 0 && idx < elements.count)
 
+    case .sharedVector(let sa, _):
+        guard case .integer(let idx) = key else { return .boolean(false) }
+        return .boolean(idx >= 0 && idx < sa.elements.count)
+
     case .string(let s):
         guard case .integer(let idx) = key else {
             throw EvaluatorError.invalidArgument(function: "contains?",
@@ -522,6 +571,10 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
     case .vector(let elements, _):
         guard idx >= 0 && idx < elements.count else { return try outOfBounds() }
         return elements[idx]
+
+    case .sharedVector(let sa, _):
+        guard idx >= 0 && idx < sa.elements.count else { return try outOfBounds() }
+        return sa.elements[idx]
 
     case .lazySeq:
         var current: Expr = args[0]

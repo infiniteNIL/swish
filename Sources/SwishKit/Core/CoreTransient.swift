@@ -30,6 +30,9 @@ private func coreTransient(_ args: [Expr]) throws -> Expr {
     case .vector, .map, .set:
         return .transient(TransientCollection(args[0]))
 
+    case .sharedVector(let sa, let meta):
+        return .transient(TransientCollection(.vector(sa.elements, metadata: meta)))
+
     default:
         throw EvaluatorError.invalidArgument(function: "transient",
             message: "cannot make a transient of \(corePrinter.printString(args[0]))")

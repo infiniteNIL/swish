@@ -42,7 +42,7 @@ extension Evaluator {
                                         args: evaluated, in: maf.capturedEnv ?? env,
                                         selfExpr: callee)
 
-        case .map, .sortedMap, .keyword, .vector, .mapEntry, .set, .record, .transient, .symbol, .varRef:
+        case .map, .sortedMap, .keyword, .vector, .sharedVector, .mapEntry, .set, .record, .transient, .symbol, .varRef:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -144,6 +144,24 @@ extension Evaluator {
                     message: "index \(idx) out of bounds for vector of size \(elements.count)")
             }
             return elements[idx]
+
+        case .sharedVector(let sa, _):
+            guard args.count == 1
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "requires 1 argument, got \(args.count)")
+            }
+            guard case .integer(let idx) = args[0]
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "index must be an integer")
+            }
+            guard idx >= 0, idx < sa.elements.count
+            else {
+                throw EvaluatorError.invalidArgument(function: "vector",
+                    message: "index \(idx) out of bounds for vector of size \(sa.elements.count)")
+            }
+            return sa.elements[idx]
 
         case .mapEntry(let k, let v):
             guard args.count == 1

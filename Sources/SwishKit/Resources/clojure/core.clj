@@ -236,11 +236,6 @@
   ([size _init-val-or-seq]
    (vec (repeat size 0.0))))
 
-(defn aset
-  "Sets the value at index i in array a (stub — no mutable array semantics)."
-  [_array _i val]
-  val)
-
 (def array-map
   "Returns a map created from kvs (delegates to hash-map)."
   hash-map)
@@ -750,12 +745,6 @@
   {:added "1.0"}
   [coll]
   (reduce conj #{} (seq coll)))
-
-(defn vec
-  "Creates a new vector containing the contents of coll."
-  {:added "1.0"}
-  [coll]
-  (into [] (seq coll)))
 
 (defmacro assert
   "Evaluates expr and throws an exception if it does not evaluate to

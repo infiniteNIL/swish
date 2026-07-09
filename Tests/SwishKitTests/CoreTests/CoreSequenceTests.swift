@@ -464,7 +464,12 @@ struct CoreSequenceTests {
 
     @Test("(to-array [1 2 3]) returns an array")
     func toArrayReturnsArray() throws {
-        #expect(try swish.eval("(to-array [1 2 3])") == .array([.integer(1), .integer(2), .integer(3)]))
+        let result = try swish.eval("(to-array [1 2 3])")
+        guard case .array(let sa) = result else {
+            Issue.record("Expected .array, got \(result)")
+            return
+        }
+        #expect(sa.elements == [.integer(1), .integer(2), .integer(3)])
     }
 
     @Test("(get (to-array [1 2]) 0) returns first element")

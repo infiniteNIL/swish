@@ -32,4 +32,22 @@ struct CoreVecTests {
     func vecThrowsForTransient() {
         #expect(throws: (any Error).self) { try swish.eval("(vec (transient []))") }
     }
+
+    // MARK: - array aliasing
+
+    @Test("(vec arr) aliases the array so aset mutations are visible through v")
+    func vecAliasesArrayStorage() throws {
+        let result = try swish.eval("""
+            (let [arr (to-array [1 2 3])
+                  v   (vec arr)]
+              (aset arr 0 -1)
+              (= [-1 2 3] v))
+            """)
+        #expect(result == .boolean(true))
+    }
+
+    @Test("arrays are not equal to vectors with same elements")
+    func arrayNotEqualToVector() throws {
+        #expect(try swish.eval("(= (to-array [1 2]) [1 2])") == .boolean(false))
+    }
 }

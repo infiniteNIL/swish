@@ -21,6 +21,13 @@ public final class TransientCollection: @unchecked Sendable {
     public init(_ value: Expr) { self.value = value }
 }
 
+/// Mutable reference-type backing for Java-style arrays.
+/// Shared between a `.array` and any `.sharedVector` produced by `(vec arr)`.
+public final class SwishArray: @unchecked Sendable {
+    public var elements: [Expr]
+    public init(_ elements: [Expr]) { self.elements = elements }
+}
+
 
 /// AST node types for Swish expressions
 public indirect enum Expr: Sendable {
@@ -41,8 +48,12 @@ public indirect enum Expr: Sendable {
     /// Satisfies `seq?` but not `list?` or `lazy-seq?`, matching Clojure's ISeq-not-IPersistentList.
     case seq([Expr])
     /// A Java-style object array: seqable but not sequential or associative.
-    case array([Expr])
+    /// Uses reference semantics so `aset` mutations are visible through all aliases.
+    case array(SwishArray)
     case vector([Expr], metadata: [Expr: Expr]?)
+    /// A persistent-vector view over a `SwishArray`. Produced by `(vec arr)`.
+    /// Sequential and vector?=true; shares mutable storage with the source array.
+    case sharedVector(SwishArray, metadata: [Expr: Expr]?)
     /// A key-value pair from map iteration. Semantically equivalent to a 2-element vector.
     case mapEntry(Expr, Expr)
     case map(SwishMap)
@@ -147,10 +158,19 @@ extension Expr: Equatable {
             return a == b
 
         case (.array(let a), .array(let b)):
-            return a == b
+            return a === b   // identity equality: Java arrays compare by reference
 
         case (.vector(let a, _), .vector(let b, _)):
             return a == b
+
+        case (.sharedVector(let a, _), .sharedVector(let b, _)):
+            return a.elements == b.elements
+
+        case (.sharedVector(let a, _), .vector(let b, _)):
+            return a.elements == b
+
+        case (.vector(let a, _), .sharedVector(let b, _)):
+            return a == b.elements
 
         case (.mapEntry(let k1, let v1), .mapEntry(let k2, let v2)):
             return k1 == k2 && v1 == v2
@@ -225,13 +245,22 @@ extension Expr: Equatable {
         case (.vector, .lazySeq), (.lazySeq, .vector):
             return seqEqual(lhs, rhs)
 
+        case (.sharedVector, .lazySeq), (.lazySeq, .sharedVector):
+            return seqEqual(lhs, rhs)
+
         case (.vector, .list), (.list, .vector):
+            return seqEqual(lhs, rhs)
+
+        case (.sharedVector, .list), (.list, .sharedVector):
             return seqEqual(lhs, rhs)
 
         case (.seq, .list), (.list, .seq):
             return seqEqual(lhs, rhs)
 
         case (.seq, .vector), (.vector, .seq):
+            return seqEqual(lhs, rhs)
+
+        case (.seq, .sharedVector), (.sharedVector, .seq):
             return seqEqual(lhs, rhs)
 
         case (.seq, .lazySeq), (.lazySeq, .seq):
@@ -308,9 +337,16 @@ extension Expr: Equatable {
             expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
             return elems[0]
 
-        case .array(let elems):
+        case .array(let sa):
+            let elems = sa.elements
             if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .array(Array(elems.dropFirst()))
+            expr = elems.count == 1 ? .nil : .array(SwishArray(Array(elems.dropFirst())))
+            return elems[0]
+
+        case .sharedVector(let sa, _):
+            let elems = sa.elements
+            if elems.isEmpty { return nil }
+            expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
             return elems[0]
 
         case .lazySeq(let box):
@@ -420,11 +456,14 @@ extension Expr: Hashable {
         case .seq(let v):
             hasher.combine(ExprHash.list);      hasher.combine(v)
 
-        case .array(let v):
-            hasher.combine(ExprHash.array);     hasher.combine(v)
+        case .array(let sa):
+            hasher.combine(ExprHash.array);     hasher.combine(ObjectIdentifier(sa))
 
         case .vector(let v, _):
             hasher.combine(ExprHash.vector);    hasher.combine(v)
+
+        case .sharedVector(let sa, _):
+            hasher.combine(ExprHash.vector);    hasher.combine(sa.elements)
 
         case .mapEntry(let k, let v):
             hasher.combine(ExprHash.vector);    hasher.combine([k, v])
@@ -555,7 +594,7 @@ extension Expr: CustomStringConvertible {
         case .seq:
             return "seq"
 
-        case .vector:
+        case .vector, .sharedVector:
             return "vector"
 
         case .mapEntry:

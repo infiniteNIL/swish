@@ -93,6 +93,12 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
         else { return .nil }
         return .vector([args[1], elements[idx]], metadata: nil)
 
+    case .sharedVector(let sa, _):
+        guard case .integer(let idx) = args[1],
+              idx >= 0, idx < sa.elements.count
+        else { return .nil }
+        return .vector([args[1], sa.elements[idx]], metadata: nil)
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "find",
@@ -111,6 +117,9 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     switch args[1] {
     case .vector(let elems, _):
         keys = elems
+
+    case .sharedVector(let sa, _):
+        keys = sa.elements
 
     case .list(let elems, _):
         keys = elems
@@ -137,6 +146,10 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
         case .vector(let elems, _):
             guard case .integer(let idx) = key, idx >= 0, idx < elems.count else { return notFound }
             current = elems[idx]
+
+        case .sharedVector(let sa, _):
+            guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return notFound }
+            current = sa.elements[idx]
 
         case .nil:
             return notFound
@@ -319,6 +332,9 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         }
         return .vector(result, metadata: m)
 
+    case .sharedVector(let sa, let m):
+        return try coreAssoc([.vector(sa.elements, metadata: m)] + Array(args.dropFirst()))
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "assoc",
@@ -374,11 +390,17 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
     case .sortedSet(let elements, _):
         return ((try? sortedSetContains(elements, args[1])) == true) ? args[1] : notFound
 
-    case .array(let elements):
-        guard case .integer(let idx) = args[1], idx >= 0, idx < elements.count else {
+    case .array(let sa):
+        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
             return notFound
         }
-        return elements[idx]
+        return sa.elements[idx]
+
+    case .sharedVector(let sa, _):
+        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
+            return notFound
+        }
+        return sa.elements[idx]
 
     case .transient(let tc):
         return try coreGet([tc.value] + Array(args.dropFirst()))
