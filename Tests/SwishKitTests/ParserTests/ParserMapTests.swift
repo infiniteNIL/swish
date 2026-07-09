@@ -78,11 +78,10 @@ struct ParserMapTests {
         }
     }
 
-    @Test("Duplicate keys — last value wins")
-    func duplicateKeysLastWins() throws {
+    @Test("Duplicate keys throw")
+    func duplicateKeysThrow() throws {
         let lexer = Lexer("{:a 1 :a 2}")
         let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.map([.keyword("a"): .integer(2)], metadata: nil)])
+        #expect(throws: (any Error).self) { try parser.parse() }
     }
 }

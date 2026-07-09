@@ -144,6 +144,26 @@ struct CoreClojureEDNTests {
         }
     }
 
+    @Test("edn/read-string throws on map with duplicate keyword keys")
+    func readStringThrowsOnDuplicateKeywordKeys() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "{:a 1 :a 2}"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on map with duplicate uuid keys")
+    func readStringThrowsOnDuplicateUUIDKeys() {
+        #expect(throws: (any Error).self) {
+            try swish.eval(##"""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "{#uuid \"550e8400-e29b-41d4-a716-446655440000\" 1 #uuid \"550e8400-e29b-41d4-a716-446655440000\" 2}"))
+                """##)
+        }
+    }
+
     // MARK: - clojure.edn/read-string 2-arity
 
     @Test("edn/read-string with opts returns :eof value for blank string")

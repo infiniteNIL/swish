@@ -9,6 +9,7 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case oddNumberOfMapForms(line: Int, column: Int)
     case unterminatedSet(line: Int, column: Int)
     case duplicateSetElement(String, line: Int, column: Int)
+    case duplicateMapKey(String, line: Int, column: Int)
     case invalidMetadataSpec(line: Int, column: Int)
     case metadataOnUnsupportedForm(line: Int, column: Int)
     case invalidDef(String)
@@ -54,6 +55,9 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
 
         case .duplicateSetElement(let key, let line, let column):
             "Duplicate key: \(key) (set literal at line \(line), column \(column))."
+
+        case .duplicateMapKey(let key, let line, let column):
+            "Map literal contains duplicate key: \(key) (line \(line), column \(column))."
 
         case .invalidMetadataSpec(let line, let column):
             "Invalid metadata spec (line \(line), column \(column)): must be a keyword, symbol, string, or map."

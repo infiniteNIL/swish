@@ -468,7 +468,12 @@ public class Parser {
 
         var dict: [Expr: Expr] = [:]
         for i in stride(from: 0, to: forms.count, by: 2) {
-            dict[forms[i]] = forms[i + 1]
+            let key = forms[i]
+            if dict[key] != nil {
+                throw ParserError.duplicateMapKey(Printer().printString(key),
+                    line: startToken.line, column: startToken.column)
+            }
+            dict[key] = forms[i + 1]
         }
         return .map(dict, metadata: nil)
     }
