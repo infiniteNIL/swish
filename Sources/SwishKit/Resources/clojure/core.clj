@@ -755,7 +755,7 @@
   "Creates a new vector containing the contents of coll."
   {:added "1.0"}
   [coll]
-  (into [] coll))
+  (into [] (seq coll)))
 
 (defmacro assert
   "Evaluates expr and throws an exception if it does not evaluate to
