@@ -3,6 +3,6 @@
 
 (defn read-string
   ([s]
-   (edn-read-string* {} s))
+   (edn-read-string* {:eof nil} s))
   ([opts s]
    (edn-read-string* opts s)))

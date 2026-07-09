@@ -252,7 +252,11 @@ private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
             message: error.localizedDescription)
     }
     guard let first = exprs.first else {
-        return opts[.keyword("eof")] ?? .nil
+        guard let eofVal = opts[.keyword("eof")] else {
+            throw EvaluatorError.invalidArgument(function: "edn/read-string",
+                message: "EOF while reading")
+        }
+        return eofVal
     }
     return first
 }

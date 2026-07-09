@@ -184,11 +184,21 @@ struct CoreClojureEDNTests {
         #expect(result == .keyword("END"))
     }
 
-    @Test("edn/read-string with opts returns nil eof default for blank string")
-    func readStringOptsReturnsNilEOFDefault() throws {
+    @Test("edn/read-string with empty opts throws on EOF (no :eof key)")
+    func readStringEmptyOptsThrowsOnEOF() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string {} " "))
+                """)
+        }
+    }
+
+    @Test("edn/read-string with :eof nil returns nil for blank string")
+    func readStringEOFNilReturnsNilForBlank() throws {
         let result = try swish.eval("""
             (do (require '[clojure.edn :as edn])
-                (edn/read-string {} " "))
+                (edn/read-string {:eof nil} " "))
             """)
         #expect(result == .nil)
     }
