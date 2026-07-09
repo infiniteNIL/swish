@@ -204,9 +204,9 @@
   (reduce conj () (seq coll)))
 
 (defn object-array
-  "Returns a vector of n nils (stub; no Java array semantics)."
+  "Returns an array of n nils."
   [n]
-  (vec (repeat n nil)))
+  (to-array (repeat n nil)))
 
 (defn int-array
   "Returns a vector from a collection, or a vector of n zeros."

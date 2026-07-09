@@ -50,4 +50,9 @@ struct CoreVecTests {
     func arrayNotEqualToVector() throws {
         #expect(try swish.eval("(= (to-array [1 2]) [1 2])") == .boolean(false))
     }
+
+    @Test("(vector? (object-array 3)) is false")
+    func objectArrayIsNotVector() throws {
+        #expect(try swish.eval("(vector? (object-array 3))") == .boolean(false))
+    }
 }
