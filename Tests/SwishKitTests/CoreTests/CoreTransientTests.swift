@@ -102,6 +102,29 @@ struct CoreTransientTests {
         }
     }
 
+    // MARK: - transient of transient throws
+
+    @Test("(transient (transient [...])) throws for transient vector")
+    func transientOfTransientVectorThrows() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(transient (transient [1 2 3]))")
+        }
+    }
+
+    @Test("(transient (transient {...})) throws for transient map")
+    func transientOfTransientMapThrows() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(transient (transient {:x 1}))")
+        }
+    }
+
+    @Test("(transient (transient #{...})) throws for transient set")
+    func transientOfTransientSetThrows() {
+        #expect(throws: (any Error).self) {
+            try swish.eval(#"(transient (transient #{"a" 1}))"#)
+        }
+    }
+
     // MARK: - keyword lookup on transient map
 
     @Test("keyword lookup on transient map returns value")
