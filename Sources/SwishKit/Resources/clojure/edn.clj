@@ -3,10 +3,6 @@
 
 (defn read-string
   ([s]
-   (try (clojure.core/read-string s)
-        (catch Exception e
-          (if (str/includes? e "no forms found in string")
-            nil
-            (throw e)))))
+   (edn-read-string* {} s))
   ([opts s]
    (edn-read-string* opts s)))

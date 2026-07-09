@@ -84,6 +84,66 @@ struct CoreClojureEDNTests {
         }
     }
 
+    @Test("edn/read-string throws on ::foo (auto-qualified keyword)")
+    func readStringThrowsOnAutoQualifiedKeyword() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "::foo"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on :/foo (slash after colon)")
+    func readStringThrowsOnColonSlashKeyword() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string ":/foo"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on foo/ (trailing slash)")
+    func readStringThrowsOnTrailingSlashSymbol() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "foo/"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on /foo (leading slash)")
+    func readStringThrowsOnLeadingSlashSymbol() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "/foo"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on foo/bar/baz (multiple slashes)")
+    func readStringThrowsOnMultipleSlashSymbol() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string "foo/bar/baz"))
+                """)
+        }
+    }
+
+    @Test("edn/read-string throws on :foo/bar/baz (multiple slashes in keyword)")
+    func readStringThrowsOnMultipleSlashKeyword() {
+        #expect(throws: (any Error).self) {
+            try swish.eval("""
+                (do (require '[clojure.edn :as edn])
+                    (edn/read-string ":foo/bar/baz"))
+                """)
+        }
+    }
+
     // MARK: - clojure.edn/read-string 2-arity
 
     @Test("edn/read-string with opts returns :eof value for blank string")

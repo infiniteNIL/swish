@@ -33,12 +33,17 @@ public class Lexer {
                 let sign = String(advance())
                 return try scanNumber(startLine: startLine, startColumn: startColumn, prefix: sign)
             }
-            return scanSymbol(startLine: startLine, startColumn: startColumn)
+            return try scanSymbol(startLine: startLine, startColumn: startColumn)
         }
 
-        // Handle / as division symbol (standalone)
+        // Handle / as division symbol (standalone), but /foo is an invalid qualified symbol
         if char == "/" {
             _ = advance()
+            if let next = peek(), isSymbolStart(next) || next.isNumber {
+                var text = "/" + String(advance())
+                while let c = peek(), isSymbolContinuation(c) || c == "/" { text.append(advance()) }
+                throw LexerError.invalidSymbol(text, line: startLine, column: startColumn)
+            }
             return Token(type: .symbol, text: "/", line: startLine, column: startColumn)
         }
 
@@ -166,7 +171,7 @@ public class Lexer {
         }
 
         if isSymbolStart(char) {
-            return scanSymbol(startLine: startLine, startColumn: startColumn)
+            return try scanSymbol(startLine: startLine, startColumn: startColumn)
         }
 
         throw LexerError.illegalCharacter(char, line: startLine, column: startColumn)

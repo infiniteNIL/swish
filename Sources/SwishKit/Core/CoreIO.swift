@@ -236,6 +236,12 @@ private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
             message: "No reader function for tag #\(tag)")
     }
 
+    // Pre-validate: reject auto-qualified keywords (::), which are Clojure-specific
+    if sourceContainsAutoQualifiedKeyword(source) {
+        throw EvaluatorError.invalidArgument(function: "edn/read-string",
+            message: "Invalid token: auto-qualified keywords (::) are not valid EDN")
+    }
+
     let exprs: [Expr]
     do {
         exprs = try Reader.readEDN(source, tagResolver: tagResolver)
@@ -249,6 +255,44 @@ private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
         return opts[.keyword("eof")] ?? .nil
     }
     return first
+}
+
+// MARK: - EDN helpers
+
+private func sourceContainsAutoQualifiedKeyword(_ source: String) -> Bool {
+    var i = source.startIndex
+    while i < source.endIndex {
+        let c = source[i]
+        let next = source.index(after: i)
+        if c == ";" {
+            while i < source.endIndex && source[i] != "\n" {
+                i = source.index(after: i)
+            }
+        }
+        else if c == "\"" {
+            i = next
+            while i < source.endIndex {
+                if source[i] == "\\" {
+                    i = source.index(after: i)
+                    if i < source.endIndex { i = source.index(after: i) }
+                }
+                else if source[i] == "\"" {
+                    i = source.index(after: i)
+                    break
+                }
+                else {
+                    i = source.index(after: i)
+                }
+            }
+        }
+        else if c == ":" && next < source.endIndex && source[next] == ":" {
+            return true
+        }
+        else {
+            i = next
+        }
+    }
+    return false
 }
 
 // MARK: - Print implementations

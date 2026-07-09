@@ -84,8 +84,14 @@ extension Lexer {
         return Token(type: .character, text: String(Character(scalar)), line: startLine, column: startColumn)
     }
 
-    func scanSymbol(startLine: Int, startColumn: Int) -> Token {
+    func scanSymbol(startLine: Int, startColumn: Int) throws -> Token {
         let text = scanQualifiedName()
+        if let next = peek(), next == "/" {
+            var full = text + "/"
+            _ = advance()
+            while let c = peek(), isSymbolContinuation(c) || c == "/" { full.append(advance()) }
+            throw LexerError.invalidSymbol(full, line: startLine, column: startColumn)
+        }
         switch text {
         case "true", "false":
             return Token(type: .boolean, text: text, line: startLine, column: startColumn)
@@ -119,9 +125,14 @@ extension Lexer {
             throw LexerError.invalidKeyword("whitespace after ':'", line: startLine, column: startColumn)
         }
 
-        // Special single-char keywords: :/ and :. (with possible continuation)
+        // :/ is valid only as a standalone keyword; :/foo is invalid
         if char == "/" {
             _ = advance()
+            if let next = peek(), isSymbolStart(next) || next.isNumber {
+                var full = ":/" + String(advance())
+                while let c = peek(), isSymbolContinuation(c) || c == "/" { full.append(advance()) }
+                throw LexerError.invalidKeyword("invalid keyword '\(full)'", line: startLine, column: startColumn)
+            }
             return Token(type: .keyword, text: "/", line: startLine, column: startColumn)
         }
         if char == "." {
@@ -146,6 +157,12 @@ extension Lexer {
             }
         } else {
             text = scanQualifiedName()
+        }
+        if let next = peek(), next == "/" {
+            var full = ":" + text + "/"
+            _ = advance()
+            while let c = peek(), isSymbolContinuation(c) || c == "/" { full.append(advance()) }
+            throw LexerError.invalidKeyword("invalid keyword '\(full)': multiple namespace separators", line: startLine, column: startColumn)
         }
         return Token(type: .keyword, text: text, line: startLine, column: startColumn)
     }

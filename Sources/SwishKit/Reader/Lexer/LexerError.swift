@@ -12,6 +12,7 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
     case invalidCharacterLiteral(String, line: Int, column: Int)
     case unknownNamedCharacter(String, line: Int, column: Int)
     case invalidKeyword(String, line: Int, column: Int)
+    case invalidSymbol(String, line: Int, column: Int)
     case unsupportedAutoResolvedKeyword(line: Int, column: Int)  // kept for unused-case safety
 
     public var description: String {
@@ -51,6 +52,9 @@ public enum LexerError: Error, Equatable, CustomStringConvertible {
 
         case .invalidKeyword(let reason, let line, let column):
             "Invalid keyword: \(reason) (line \(line), column \(column))."
+
+        case .invalidSymbol(let text, let line, let column):
+            "Invalid token: \(text) (line \(line), column \(column))."
 
         case .unsupportedAutoResolvedKeyword(let line, let column):
             "Auto-resolved keywords (::) are not yet supported (line \(line), column \(column))."
