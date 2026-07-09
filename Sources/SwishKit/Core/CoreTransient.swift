@@ -26,11 +26,14 @@ func registerTransient(into evaluator: Evaluator) {
 // MARK: - Implementations
 
 private func coreTransient(_ args: [Expr]) throws -> Expr {
-    if case .transient = args[0] {
+    switch args[0] {
+    case .vector, .map, .set:
+        return .transient(TransientCollection(args[0]))
+
+    default:
         throw EvaluatorError.invalidArgument(function: "transient",
-            message: "cannot make a transient of a transient")
+            message: "cannot make a transient of \(corePrinter.printString(args[0]))")
     }
-    return .transient(TransientCollection(args[0]))
 }
 
 private func corePersistentBang(_ args: [Expr]) throws -> Expr {

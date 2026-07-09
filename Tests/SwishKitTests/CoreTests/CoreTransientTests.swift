@@ -102,6 +102,53 @@ struct CoreTransientTests {
         }
     }
 
+    // MARK: - transient rejects non-persistent-collection inputs
+
+    @Test("(transient 'sym) throws for symbol")
+    func transientSymbolThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient 'sym)") }
+    }
+
+    @Test("(transient \"str\") throws for string")
+    func transientStringThrows() {
+        #expect(throws: (any Error).self) { try swish.eval(#"(transient "meow")"#) }
+    }
+
+    @Test("(transient 1) throws for integer")
+    func transientIntegerThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient 1)") }
+    }
+
+    @Test("(transient nil) throws for nil")
+    func transientNilThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient nil)") }
+    }
+
+    @Test("(transient :kw) throws for keyword")
+    func transientKeywordThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient :kw)") }
+    }
+
+    @Test("(transient '(1 2 3)) throws for list")
+    func transientListThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient '(1 2 3))") }
+    }
+
+    @Test("(transient (sorted-map :a 1)) throws for sorted-map")
+    func transientSortedMapThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient (sorted-map :a 1))") }
+    }
+
+    @Test("(transient (sorted-set 1 2)) throws for sorted-set")
+    func transientSortedSetThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient (sorted-set 1 2))") }
+    }
+
+    @Test("(transient (range)) throws for lazy-seq")
+    func transientLazySeqThrows() {
+        #expect(throws: (any Error).self) { try swish.eval("(transient (range))") }
+    }
+
     // MARK: - transient of transient throws
 
     @Test("(transient (transient [...])) throws for transient vector")
