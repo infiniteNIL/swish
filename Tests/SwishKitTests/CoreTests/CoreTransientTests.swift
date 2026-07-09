@@ -101,4 +101,21 @@ struct CoreTransientTests {
             try swish.eval("(let [t (transient {:a 1}), _ (persistent! t)] (dissoc! t :a))")
         }
     }
+
+    // MARK: - keyword lookup on transient map
+
+    @Test("keyword lookup on transient map returns value")
+    func keywordLookupTransientMap() throws {
+        #expect(try swish.eval("(:x (transient {:x 42}))") == .integer(42))
+    }
+
+    @Test("keyword lookup on transient map returns nil for missing key")
+    func keywordLookupTransientMapMissing() throws {
+        #expect(try swish.eval("(:y (transient {:x 42}))") == .nil)
+    }
+
+    @Test("keyword lookup on transient map uses notFound argument")
+    func keywordLookupTransientMapNotFound() throws {
+        #expect(try swish.eval("(:y (transient {:x 42}) :default)") == .keyword("default"))
+    }
 }

@@ -108,8 +108,22 @@ extension Evaluator {
             let notFound: Expr = args.count == 2 ? args[1] : .nil
             switch args[0] {
             case .map(let sm):               return sm.dict[.keyword(name)] ?? notFound
+
             case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
+
             case .set(let ss):               return ss.elements.contains(.keyword(name)) ? .keyword(name) : notFound
+
+            case .transient(let tc):
+                switch tc.value {
+                case .map(let sm):               return sm.dict[.keyword(name)] ?? notFound
+
+                case .record(_, _, let data, _): return data[.keyword(name)] ?? notFound
+
+                case .set(let ss):               return ss.elements.contains(.keyword(name)) ? .keyword(name) : notFound
+
+                default:                         return notFound
+                }
+
             default:                         return notFound
             }
 
