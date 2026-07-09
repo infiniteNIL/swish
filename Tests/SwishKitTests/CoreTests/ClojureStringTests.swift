@@ -355,6 +355,11 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/blank? "  hi  ")"#) == .boolean(false))
     }
 
+    @Test("blank? returns true for U+2007 (Figure Space — whitespace in Swift/Unicode)")
+    func blankFigureSpace() throws {
+        #expect(try swish.eval("(str/blank? \"\u{2007}\")") == .boolean(true))
+    }
+
     @Test("replace string/string replaces all occurrences")
     func replaceStringString() throws {
         #expect(try swish.eval(#"(str/replace "hello world" "o" "0")"#) == .string("hell0 w0rld"))
