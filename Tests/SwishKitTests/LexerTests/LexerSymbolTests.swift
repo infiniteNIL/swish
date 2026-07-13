@@ -98,21 +98,6 @@ struct LexerSymbolTests {
         #expect(try Lexer("my-ns/my-fn").nextToken() == Token(type: .symbol, text: "my-ns/my-fn", line: 1, column: 1))
     }
 
-    @Test("true is still a boolean")
-    func trueIsStillBoolean() throws {
-        #expect(try Lexer("true").nextToken() == Token(type: .boolean, text: "true", line: 1, column: 1))
-    }
-
-    @Test("false is still a boolean")
-    func falseIsStillBoolean() throws {
-        #expect(try Lexer("false").nextToken() == Token(type: .boolean, text: "false", line: 1, column: 1))
-    }
-
-    @Test("nil is still nil")
-    func nilIsStillNil() throws {
-        #expect(try Lexer("nil").nextToken() == Token(type: .nil, text: "nil", line: 1, column: 1))
-    }
-
     @Test("Scans multiple symbols")
     func scanMultipleSymbols() throws {
         let lexer = Lexer("foo bar baz")

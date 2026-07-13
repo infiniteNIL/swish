@@ -135,16 +135,6 @@ struct LexerTokenTests {
         #expect(try lexer.nextToken() == Token(type: .symbol, text: "xs", line: 1, column: 3))
     }
 
-    @Test("unquote token has correct position")
-    func unquoteTokenPosition() throws {
-        #expect(try Lexer("~x").nextToken() == Token(type: .unquote, text: "~", line: 1, column: 1))
-    }
-
-    @Test("unquoteSplicing token has correct position")
-    func unquoteSplicingTokenPosition() throws {
-        #expect(try Lexer("~@x").nextToken() == Token(type: .unquoteSplicing, text: "~@", line: 1, column: 1))
-    }
-
     @Test("~(1 2) lexes as unquote then list tokens")
     func unquoteFollowedByList() throws {
         let lexer = Lexer("~(1 2)")

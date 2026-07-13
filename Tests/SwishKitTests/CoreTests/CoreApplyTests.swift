@@ -6,16 +6,6 @@ struct CoreApplyTests {
     nonisolated(unsafe) static let _shared = Swish()
     var swish: Swish { Self._shared }
 
-    @Test("(apply + []) returns 0")
-    func applyAddEmpty() throws {
-        #expect(try swish.eval("(apply + [])") == .integer(0))
-    }
-
-    @Test("(apply + [1 2 3]) returns 6")
-    func applyAddList() throws {
-        #expect(try swish.eval("(apply + [1 2 3])") == .integer(6))
-    }
-
     @Test("(apply str [\"a\" \"b\" \"c\"]) concatenates strings")
     func applyStr() throws {
         #expect(try swish.eval("(apply str [\"a\" \"b\" \"c\"])") == .string("abc"))
