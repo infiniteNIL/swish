@@ -5,65 +5,43 @@ import Testing
 struct ParserIntegerTests {
     @Test("Parses integer")
     func parseInteger() throws {
-        let lexer = Lexer("42")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(42)])
+        #expect(try Reader.readString("42") == [.integer(42)])
     }
 
     @Test("Parses negative integer")
     func parseNegativeInteger() throws {
-        let lexer = Lexer("-17")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(-17)])
+        #expect(try Reader.readString("-17") == [.integer(-17)])
     }
 
     @Test("Parses positive integer with plus sign")
     func parsePositiveInteger() throws {
-        let lexer = Lexer("+5")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(5)])
+        #expect(try Reader.readString("+5") == [.integer(5)])
     }
 
     @Test("Parses zero")
     func parseZero() throws {
-        let lexer = Lexer("0")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(0)])
+        #expect(try Reader.readString("0") == [.integer(0)])
     }
 
     @Test("Parses multiple integers")
     func parseMultipleIntegers() throws {
-        let lexer = Lexer("1 2 3")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(1), .integer(2), .integer(3)])
+        #expect(try Reader.readString("1 2 3") == [.integer(1), .integer(2), .integer(3)])
     }
 
     @Test("Returns empty array for empty input")
     func emptyInputReturnsEmptyArray() throws {
-        let lexer = Lexer("")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [])
+        #expect(try Reader.readString("") == [])
     }
 
     @Test("Returns empty array for whitespace-only input")
     func whitespaceOnlyReturnsEmptyArray() throws {
-        let lexer = Lexer("   \n\t  ")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [])
+        #expect(try Reader.readString("   \n\t  ") == [])
     }
 
     @Test("Lexer error propagates through parser init")
     func lexerErrorPropagates() throws {
-        let lexer = Lexer("¡")
         #expect(throws: LexerError.illegalCharacter("¡", line: 1, column: 1)) {
-            try Parser(lexer)
+            try Reader.readString("¡")
         }
     }
 
@@ -71,209 +49,136 @@ struct ParserIntegerTests {
 
     @Test("Parses simple symbol")
     func parseSimpleSymbol() throws {
-        let lexer = Lexer("foo")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo", metadata: nil)])
+        #expect(try Reader.readString("foo") == [.symbol("foo", metadata: nil)])
     }
 
     @Test("Parses hyphenated symbol")
     func parseHyphenatedSymbol() throws {
-        let lexer = Lexer("foo-bar")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo-bar", metadata: nil)])
+        #expect(try Reader.readString("foo-bar") == [.symbol("foo-bar", metadata: nil)])
     }
 
     @Test("Parses symbol with special chars")
     func parseSymbolWithSpecialChars() throws {
-        let lexer = Lexer("*foo*")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("*foo*", metadata: nil)])
+        #expect(try Reader.readString("*foo*") == [.symbol("*foo*", metadata: nil)])
     }
 
     @Test("Parses lone + as symbol")
     func parseLonePlusAsSymbol() throws {
-        let lexer = Lexer("+")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("+", metadata: nil)])
+        #expect(try Reader.readString("+") == [.symbol("+", metadata: nil)])
     }
 
     @Test("Parses lone - as symbol")
     func parseLoneMinusAsSymbol() throws {
-        let lexer = Lexer("-")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("-", metadata: nil)])
+        #expect(try Reader.readString("-") == [.symbol("-", metadata: nil)])
     }
 
     @Test("Parses / as symbol")
     func parseSlashAsSymbol() throws {
-        let lexer = Lexer("/")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("/", metadata: nil)])
+        #expect(try Reader.readString("/") == [.symbol("/", metadata: nil)])
     }
 
     @Test("Parses namespaced symbol")
     func parseNamespacedSymbol() throws {
-        let lexer = Lexer("clojure.core/map")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("clojure.core/map", metadata: nil)])
+        #expect(try Reader.readString("clojure.core/map") == [.symbol("clojure.core/map", metadata: nil)])
     }
 
     @Test("Parses multiple symbols")
     func parseMultipleSymbols() throws {
-        let lexer = Lexer("foo bar baz")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo", metadata: nil), .symbol("bar", metadata: nil), .symbol("baz", metadata: nil)])
+        #expect(try Reader.readString("foo bar baz") == [.symbol("foo", metadata: nil), .symbol("bar", metadata: nil), .symbol("baz", metadata: nil)])
     }
 
     @Test("Parses mixed types including symbols")
     func parseMixedTypesWithSymbols() throws {
-        let lexer = Lexer("foo 42 \"hello\" bar 1.5")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.symbol("foo", metadata: nil), .integer(42), .string("hello"), .symbol("bar", metadata: nil), .double(1.5)])
+        #expect(try Reader.readString("foo 42 \"hello\" bar 1.5") == [.symbol("foo", metadata: nil), .integer(42), .string("hello"), .symbol("bar", metadata: nil), .double(1.5)])
     }
 
     // MARK: - Hexadecimal integer literals
 
     @Test("Parses hex integer")
     func parseHexInteger() throws {
-        let lexer = Lexer("0xFF")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(255)])
+        #expect(try Reader.readString("0xFF") == [.integer(255)])
     }
 
     @Test("Parses negative hex integer")
     func parseNegativeHexInteger() throws {
-        let lexer = Lexer("-0x10")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(-16)])
+        #expect(try Reader.readString("-0x10") == [.integer(-16)])
     }
 
     @Test("Parses positive hex integer with plus sign")
     func parsePositiveHexInteger() throws {
-        let lexer = Lexer("+0x10")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(16)])
+        #expect(try Reader.readString("+0x10") == [.integer(16)])
     }
 
     @Test("Parses hex zero")
     func parseHexZero() throws {
-        let lexer = Lexer("0x0")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(0)])
+        #expect(try Reader.readString("0x0") == [.integer(0)])
     }
 
     @Test("Parses lowercase hex digits")
     func parseLowercaseHex() throws {
-        let lexer = Lexer("0x0a")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(10)])
+        #expect(try Reader.readString("0x0a") == [.integer(10)])
     }
 
     // MARK: - Binary integer literals
 
     @Test("Parses binary integer")
     func parseBinaryInteger() throws {
-        let lexer = Lexer("0b1010")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(10)])
+        #expect(try Reader.readString("0b1010") == [.integer(10)])
     }
 
     @Test("Parses negative binary integer")
     func parseNegativeBinaryInteger() throws {
-        let lexer = Lexer("-0b1010")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(-10)])
+        #expect(try Reader.readString("-0b1010") == [.integer(-10)])
     }
 
     @Test("Parses positive binary integer with plus sign")
     func parsePositiveBinaryInteger() throws {
-        let lexer = Lexer("+0b100")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(4)])
+        #expect(try Reader.readString("+0b100") == [.integer(4)])
     }
 
     @Test("Parses binary zero")
     func parseBinaryZero() throws {
-        let lexer = Lexer("0b0")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(0)])
+        #expect(try Reader.readString("0b0") == [.integer(0)])
     }
 
     // MARK: - Octal integer literals
 
     @Test("Parses octal integer")
     func parseOctalInteger() throws {
-        let lexer = Lexer("0o700")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(448)]) // 7*64 = 448
+        #expect(try Reader.readString("0o700") == [.integer(448)]) // 7*64 = 448
     }
 
     @Test("Parses negative octal integer")
     func parseNegativeOctalInteger() throws {
-        let lexer = Lexer("-0o700")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(-448)])
+        #expect(try Reader.readString("-0o700") == [.integer(-448)])
     }
 
     @Test("Parses positive octal integer with plus sign")
     func parsePositiveOctalInteger() throws {
-        let lexer = Lexer("+0o755")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(493)]) // 7*64 + 5*8 + 5 = 493
+        #expect(try Reader.readString("+0o755") == [.integer(493)]) // 7*64 + 5*8 + 5 = 493
     }
 
     @Test("Parses octal zero")
     func parseOctalZero() throws {
-        let lexer = Lexer("0o0")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(0)])
+        #expect(try Reader.readString("0o0") == [.integer(0)])
     }
 
     // MARK: - Clojure-style octal integers (leading zero)
 
     @Test("Parses leading zero as octal: 0700 = 448")
     func parseLeadingZeroAsOctal() throws {
-        let lexer = Lexer("0700")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(448)])
+        #expect(try Reader.readString("0700") == [.integer(448)])
     }
 
     @Test("Throws for invalid octal digit: 08")
     func parse08Throws() throws {
-        let lexer = Lexer("08")
         #expect(throws: (any Error).self) {
-            try Parser(lexer).parse()
+            try Reader.readString("08")
         }
     }
 
     @Test("Parses 00 as decimal zero")
     func parse00AsDecimal() throws {
-        let lexer = Lexer("00")
-        let parser = try Parser(lexer)
-        let exprs = try parser.parse()
-        #expect(exprs == [.integer(0)])
+        #expect(try Reader.readString("00") == [.integer(0)])
     }
 }

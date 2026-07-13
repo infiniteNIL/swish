@@ -5,92 +5,55 @@ import Testing
 struct LexerIntegerTests {
     @Test("Scans single integer")
     func scanSingleInteger() throws {
-        let lexer = Lexer("42")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "42")
-        #expect(token.line == 1)
-        #expect(token.column == 1)
+        #expect(try Lexer("42").nextToken() == Token(type: .integer, text: "42", line: 1, column: 1))
     }
 
     @Test("Scans negative integer")
     func scanNegativeInteger() throws {
-        let lexer = Lexer("-17")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-17")
-        #expect(token.line == 1)
-        #expect(token.column == 1)
+        #expect(try Lexer("-17").nextToken() == Token(type: .integer, text: "-17", line: 1, column: 1))
     }
 
     @Test("Scans positive integer with plus sign")
     func scanPositiveInteger() throws {
-        let lexer = Lexer("+5")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "+5")
-        #expect(token.line == 1)
-        #expect(token.column == 1)
+        #expect(try Lexer("+5").nextToken() == Token(type: .integer, text: "+5", line: 1, column: 1))
     }
 
     @Test("Scans zero")
     func scanZero() throws {
-        let lexer = Lexer("0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0")
+        #expect(try Lexer("0").nextToken() == Token(type: .integer, text: "0", line: 1, column: 1))
     }
 
     @Test("Scans negative zero")
     func scanNegativeZero() throws {
-        let lexer = Lexer("-0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-0")
+        #expect(try Lexer("-0").nextToken() == Token(type: .integer, text: "-0", line: 1, column: 1))
     }
 
     @Test("Scans integer with leading whitespace")
     func scanWithLeadingWhitespace() throws {
-        let lexer = Lexer("  123")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "123")
-        #expect(token.column == 3)
+        #expect(try Lexer("  123").nextToken() == Token(type: .integer, text: "123", line: 1, column: 3))
     }
 
     @Test("Scans integer with trailing whitespace then EOF")
     func scanWithTrailingWhitespace() throws {
         let lexer = Lexer("123  ")
-        let intToken = try lexer.nextToken()
-        #expect(intToken.type == .integer)
-        #expect(intToken.text == "123")
-
-        let eofToken = try lexer.nextToken()
-        #expect(eofToken.type == .eof)
+        #expect(try lexer.nextToken() == Token(type: .integer, text: "123", line: 1, column: 1))
+        #expect(try lexer.nextToken().type == .eof)
     }
 
     @Test("Returns EOF for empty string")
     func emptyStringReturnsEof() throws {
-        let lexer = Lexer("")
-        let token = try lexer.nextToken()
-        #expect(token.type == .eof)
-        #expect(token.text == "")
-        #expect(token.line == 1)
-        #expect(token.column == 1)
+        #expect(try Lexer("").nextToken() == Token(type: .eof, text: "", line: 1, column: 1))
     }
 
     @Test("Returns EOF for whitespace-only string")
     func whitespaceOnlyReturnsEof() throws {
-        let lexer = Lexer("   \n\t  ")
-        let token = try lexer.nextToken()
-        #expect(token.type == .eof)
+        #expect(try Lexer("   \n\t  ").nextToken().type == .eof)
     }
 
     @Test("Throws error for illegal character")
     func illegalCharacterThrows() throws {
-        let lexer = Lexer("¡")
         #expect(throws: LexerError.illegalCharacter("¡", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("¡").nextToken()
         }
     }
 
@@ -98,57 +61,40 @@ struct LexerIntegerTests {
 
     @Test("Scans integer with underscore separators")
     func scanIntegerWithUnderscores() throws {
-        let lexer = Lexer("1_000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "1000")
+        #expect(try Lexer("1_000").nextToken() == Token(type: .integer, text: "1000", line: 1, column: 1))
     }
 
     @Test("Scans integer with multiple underscore groups")
     func scanIntegerWithMultipleUnderscoreGroups() throws {
-        let lexer = Lexer("1_000_000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "1000000")
+        #expect(try Lexer("1_000_000").nextToken() == Token(type: .integer, text: "1000000", line: 1, column: 1))
     }
 
     @Test("Scans negative integer with underscores")
     func scanNegativeIntegerWithUnderscores() throws {
-        let lexer = Lexer("-1_000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-1000")
+        #expect(try Lexer("-1_000").nextToken() == Token(type: .integer, text: "-1000", line: 1, column: 1))
     }
 
     @Test("Scans positive integer with underscores")
     func scanPositiveIntegerWithUnderscores() throws {
-        let lexer = Lexer("+1_000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "+1000")
+        #expect(try Lexer("+1_000").nextToken() == Token(type: .integer, text: "+1000", line: 1, column: 1))
     }
 
     @Test("Scans integer with arbitrary underscore placement")
     func scanIntegerWithArbitraryUnderscores() throws {
-        let lexer = Lexer("1_2_3")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "123")
+        #expect(try Lexer("1_2_3").nextToken() == Token(type: .integer, text: "123", line: 1, column: 1))
     }
 
     @Test("Throws error for trailing underscore")
     func trailingUnderscoreThrows() throws {
-        let lexer = Lexer("100_")
         #expect(throws: LexerError.invalidNumberFormat("100_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("100_").nextToken()
         }
     }
 
     @Test("Throws error for consecutive underscores")
     func consecutiveUnderscoresThrows() throws {
-        let lexer = Lexer("1__000")
         #expect(throws: LexerError.invalidNumberFormat("1__", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("1__000").nextToken()
         }
     }
 
@@ -156,213 +102,155 @@ struct LexerIntegerTests {
 
     @Test("Scans basic hex integer")
     func scanBasicHex() throws {
-        let lexer = Lexer("0xFF")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0xFF")
+        #expect(try Lexer("0xFF").nextToken() == Token(type: .integer, text: "0xFF", line: 1, column: 1))
     }
 
     @Test("Scans hex with lowercase digits")
     func scanHexLowercase() throws {
-        let lexer = Lexer("0xab")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0xab")
+        #expect(try Lexer("0xab").nextToken() == Token(type: .integer, text: "0xab", line: 1, column: 1))
     }
 
     @Test("Scans hex with mixed case digits")
     func scanHexMixedCase() throws {
-        let lexer = Lexer("0xAbCd")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0xAbCd")
+        #expect(try Lexer("0xAbCd").nextToken() == Token(type: .integer, text: "0xAbCd", line: 1, column: 1))
     }
 
     @Test("Scans hex zero")
     func scanHexZero() throws {
-        let lexer = Lexer("0x0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0x0")
+        #expect(try Lexer("0x0").nextToken() == Token(type: .integer, text: "0x0", line: 1, column: 1))
     }
 
     @Test("Scans negative hex integer")
     func scanNegativeHex() throws {
-        let lexer = Lexer("-0xFF")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-0xFF")
+        #expect(try Lexer("-0xFF").nextToken() == Token(type: .integer, text: "-0xFF", line: 1, column: 1))
     }
 
     @Test("Scans positive hex integer with plus sign")
     func scanPositiveHex() throws {
-        let lexer = Lexer("+0x10")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "+0x10")
+        #expect(try Lexer("+0x10").nextToken() == Token(type: .integer, text: "+0x10", line: 1, column: 1))
     }
 
     @Test("Scans hex with underscore separators")
     func scanHexWithUnderscores() throws {
-        let lexer = Lexer("0x1_000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0x1000")
+        #expect(try Lexer("0x1_000").nextToken() == Token(type: .integer, text: "0x1000", line: 1, column: 1))
     }
 
     @Test("Scans hex with multiple underscore groups")
     func scanHexWithMultipleUnderscores() throws {
-        let lexer = Lexer("0xFF_FF")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0xFFFF")
+        #expect(try Lexer("0xFF_FF").nextToken() == Token(type: .integer, text: "0xFFFF", line: 1, column: 1))
     }
 
     @Test("Throws error for hex with no digits")
     func hexNoDigitsThrows() throws {
-        let lexer = Lexer("0x")
         #expect(throws: LexerError.invalidNumberFormat("0x", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0x").nextToken()
         }
     }
 
     @Test("Throws error for hex with leading underscore")
     func hexLeadingUnderscoreThrows() throws {
-        let lexer = Lexer("0x_FF")
         #expect(throws: LexerError.invalidNumberFormat("0x_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0x_FF").nextToken()
         }
     }
 
     @Test("Throws error for hex with trailing underscore")
     func hexTrailingUnderscoreThrows() throws {
-        let lexer = Lexer("0xFF_")
         #expect(throws: LexerError.invalidNumberFormat("0xFF_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0xFF_").nextToken()
         }
     }
 
     @Test("Throws error for hex with consecutive underscores")
     func hexConsecutiveUnderscoresThrows() throws {
-        let lexer = Lexer("0xF__F")
         #expect(throws: LexerError.invalidNumberFormat("0xF__", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0xF__F").nextToken()
         }
     }
 
     @Test("Uppercase X prefix is valid hex (0XFF = 255)")
     func uppercasePrefixHex() throws {
-        let lexer = Lexer("0XFF")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0XFF")
+        #expect(try Lexer("0XFF").nextToken() == Token(type: .integer, text: "0XFF", line: 1, column: 1))
     }
 
     // MARK: - Binary integer literals
 
     @Test("Scans basic binary integer")
     func scanBasicBinary() throws {
-        let lexer = Lexer("0b1010")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0b1010")
+        #expect(try Lexer("0b1010").nextToken() == Token(type: .integer, text: "0b1010", line: 1, column: 1))
     }
 
     @Test("Scans binary zero")
     func scanBinaryZero() throws {
-        let lexer = Lexer("0b0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0b0")
+        #expect(try Lexer("0b0").nextToken() == Token(type: .integer, text: "0b0", line: 1, column: 1))
     }
 
     @Test("Scans binary one")
     func scanBinaryOne() throws {
-        let lexer = Lexer("0b1")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0b1")
+        #expect(try Lexer("0b1").nextToken() == Token(type: .integer, text: "0b1", line: 1, column: 1))
     }
 
     @Test("Scans negative binary integer")
     func scanNegativeBinary() throws {
-        let lexer = Lexer("-0b1010")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-0b1010")
+        #expect(try Lexer("-0b1010").nextToken() == Token(type: .integer, text: "-0b1010", line: 1, column: 1))
     }
 
     @Test("Scans positive binary integer with plus sign")
     func scanPositiveBinary() throws {
-        let lexer = Lexer("+0b100")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "+0b100")
+        #expect(try Lexer("+0b100").nextToken() == Token(type: .integer, text: "+0b100", line: 1, column: 1))
     }
 
     @Test("Scans binary with underscore separators")
     func scanBinaryWithUnderscores() throws {
-        let lexer = Lexer("0b1111_0000")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0b11110000")
+        #expect(try Lexer("0b1111_0000").nextToken() == Token(type: .integer, text: "0b11110000", line: 1, column: 1))
     }
 
     @Test("Scans binary with multiple underscore groups")
     func scanBinaryWithMultipleUnderscores() throws {
-        let lexer = Lexer("0b1_0_1_0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0b1010")
+        #expect(try Lexer("0b1_0_1_0").nextToken() == Token(type: .integer, text: "0b1010", line: 1, column: 1))
     }
 
     @Test("Throws error for binary with no digits")
     func binaryNoDigitsThrows() throws {
-        let lexer = Lexer("0b")
         #expect(throws: LexerError.invalidNumberFormat("0b", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0b").nextToken()
         }
     }
 
     @Test("Throws error for binary with leading underscore")
     func binaryLeadingUnderscoreThrows() throws {
-        let lexer = Lexer("0b_1")
         #expect(throws: LexerError.invalidNumberFormat("0b_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0b_1").nextToken()
         }
     }
 
     @Test("Throws error for binary with trailing underscore")
     func binaryTrailingUnderscoreThrows() throws {
-        let lexer = Lexer("0b1_")
         #expect(throws: LexerError.invalidNumberFormat("0b1_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0b1_").nextToken()
         }
     }
 
     @Test("Throws error for binary with consecutive underscores")
     func binaryConsecutiveUnderscoresThrows() throws {
-        let lexer = Lexer("0b1__0")
         #expect(throws: LexerError.invalidNumberFormat("0b1__", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0b1__0").nextToken()
         }
     }
 
     @Test("Throws error for binary with invalid digit")
     func binaryInvalidDigitThrows() throws {
         // 0b2 should be lexed as 0b with no valid digits
-        let lexer = Lexer("0b2")
         #expect(throws: LexerError.invalidNumberFormat("0b", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0b2").nextToken()
         }
     }
 
     @Test("Uppercase prefix is not recognized as binary")
     func uppercasePrefixNotBinary() throws {
         // 0B1010 should be an error - 'B' is not a valid number terminator
-        let lexer = Lexer("0B1010")
         #expect(throws: LexerError.invalidNumberFormat("0B1010", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0B1010").nextToken()
         }
     }
 
@@ -370,99 +258,75 @@ struct LexerIntegerTests {
 
     @Test("Scans basic octal integer")
     func scanBasicOctal() throws {
-        let lexer = Lexer("0o700")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o700")
+        #expect(try Lexer("0o700").nextToken() == Token(type: .integer, text: "0o700", line: 1, column: 1))
     }
 
     @Test("Scans octal zero")
     func scanOctalZero() throws {
-        let lexer = Lexer("0o0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o0")
+        #expect(try Lexer("0o0").nextToken() == Token(type: .integer, text: "0o0", line: 1, column: 1))
     }
 
     @Test("Scans short octal")
     func scanShortOctal() throws {
-        let lexer = Lexer("0o7")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o7")
+        #expect(try Lexer("0o7").nextToken() == Token(type: .integer, text: "0o7", line: 1, column: 1))
     }
 
     @Test("Scans negative octal integer")
     func scanNegativeOctal() throws {
-        let lexer = Lexer("-0o700")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-0o700")
+        #expect(try Lexer("-0o700").nextToken() == Token(type: .integer, text: "-0o700", line: 1, column: 1))
     }
 
     @Test("Scans positive octal integer with plus sign")
     func scanPositiveOctal() throws {
-        let lexer = Lexer("+0o755")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "+0o755")
+        #expect(try Lexer("+0o755").nextToken() == Token(type: .integer, text: "+0o755", line: 1, column: 1))
     }
 
     @Test("Scans octal with underscore separators")
     func scanOctalWithUnderscores() throws {
-        let lexer = Lexer("0o7_55")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o755")
+        #expect(try Lexer("0o7_55").nextToken() == Token(type: .integer, text: "0o755", line: 1, column: 1))
     }
 
     @Test("Throws error for octal with no digits")
     func octalNoDigitsThrows() throws {
-        let lexer = Lexer("0o")
         #expect(throws: LexerError.invalidNumberFormat("0o", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0o").nextToken()
         }
     }
 
     @Test("Throws error for octal with leading underscore")
     func octalLeadingUnderscoreThrows() throws {
-        let lexer = Lexer("0o_7")
         #expect(throws: LexerError.invalidNumberFormat("0o_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0o_7").nextToken()
         }
     }
 
     @Test("Throws error for octal with trailing underscore")
     func octalTrailingUnderscoreThrows() throws {
-        let lexer = Lexer("0o7_")
         #expect(throws: LexerError.invalidNumberFormat("0o7_", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0o7_").nextToken()
         }
     }
 
     @Test("Throws error for octal with consecutive underscores")
     func octalConsecutiveUnderscoresThrows() throws {
-        let lexer = Lexer("0o7__5")
         #expect(throws: LexerError.invalidNumberFormat("0o7__", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0o7__5").nextToken()
         }
     }
 
     @Test("Throws error for octal with invalid digit")
     func octalInvalidDigitThrows() throws {
         // 0o8 should be lexed as 0o with no valid digits
-        let lexer = Lexer("0o8")
         #expect(throws: LexerError.invalidNumberFormat("0o", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0o8").nextToken()
         }
     }
 
     @Test("Uppercase prefix is not recognized as octal")
     func uppercasePrefixNotOctal() throws {
         // 0O7 should be an error - 'O' is not a valid number terminator
-        let lexer = Lexer("0O7")
         #expect(throws: LexerError.invalidNumberFormat("0O7", line: 1, column: 1)) {
-            try lexer.nextToken()
+            try Lexer("0O7").nextToken()
         }
     }
 
@@ -470,47 +334,31 @@ struct LexerIntegerTests {
 
     @Test("Leading zero scans as octal: 0700 = 448")
     func scanLeadingZeroOctal() throws {
-        let lexer = Lexer("0700")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o700")
+        #expect(try Lexer("0700").nextToken() == Token(type: .integer, text: "0o700", line: 1, column: 1))
     }
 
     @Test("Throws for invalid octal digit after leading zero: 08")
     func scanLeadingZero08Throws() throws {
-        let lexer = Lexer("08")
-        #expect(throws: (any Error).self) { try lexer.nextToken() }
+        #expect(throws: (any Error).self) { try Lexer("08").nextToken() }
     }
 
     @Test("Leading zero with double zero scans as octal 0: 00")
     func scanLeadingZero00() throws {
-        let lexer = Lexer("00")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0o0")
+        #expect(try Lexer("00").nextToken() == Token(type: .integer, text: "0o0", line: 1, column: 1))
     }
 
     @Test("Plain zero is still valid")
     func plainZeroStillValid() throws {
-        let lexer = Lexer("0")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "0")
+        #expect(try Lexer("0").nextToken() == Token(type: .integer, text: "0", line: 1, column: 1))
     }
 
     @Test("Uppercase R radix notation: 8R52 = 42")
     func uppercaseRRadix() throws {
-        let lexer = Lexer("8R52")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "8R52")
+        #expect(try Lexer("8R52").nextToken() == Token(type: .integer, text: "8R52", line: 1, column: 1))
     }
 
     @Test("Uppercase X hex notation: -0X2a = -42")
     func uppercaseXHex() throws {
-        let lexer = Lexer("-0X2a")
-        let token = try lexer.nextToken()
-        #expect(token.type == .integer)
-        #expect(token.text == "-0X2a")
+        #expect(try Lexer("-0X2a").nextToken() == Token(type: .integer, text: "-0X2a", line: 1, column: 1))
     }
 }
