@@ -203,22 +203,26 @@ public struct Printer {
         }
     }
 
+    private func formatSeq(open: String, close: String, elements: [Expr], meta: [Expr: Expr]?, includeMeta: Bool, transform: (Expr) -> String) -> String {
+        (includeMeta ? metaPrefix(meta) : "") + open + elements.map(transform).joined(separator: " ") + close
+    }
+
     private func formatCollection(_ expr: Expr, transform: (Expr) -> String, includeMeta: Bool) -> String? {
         switch expr {
         case .list(let elements, let meta):
-            return (includeMeta ? metaPrefix(meta) : "") + "(" + elements.map(transform).joined(separator: " ") + ")"
+            return formatSeq(open: "(", close: ")", elements: elements, meta: meta, includeMeta: includeMeta, transform: transform)
 
         case .seq(let elements):
-            return "(" + elements.map(transform).joined(separator: " ") + ")"
+            return formatSeq(open: "(", close: ")", elements: elements, meta: nil, includeMeta: false, transform: transform)
 
         case .vector(let elements, let meta):
-            return (includeMeta ? metaPrefix(meta) : "") + "[" + elements.map(transform).joined(separator: " ") + "]"
+            return formatSeq(open: "[", close: "]", elements: elements, meta: meta, includeMeta: includeMeta, transform: transform)
 
         case .array(let sa):
-            return "[" + sa.elements.map(transform).joined(separator: " ") + "]"
+            return formatSeq(open: "[", close: "]", elements: sa.elements, meta: nil, includeMeta: false, transform: transform)
 
         case .sharedVector(let sa, let meta):
-            return (includeMeta ? metaPrefix(meta) : "") + "[" + sa.elements.map(transform).joined(separator: " ") + "]"
+            return formatSeq(open: "[", close: "]", elements: sa.elements, meta: meta, includeMeta: includeMeta, transform: transform)
 
         case .mapEntry(let k, let v):
             return "[" + transform(k) + " " + transform(v) + "]"

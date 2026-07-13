@@ -198,58 +198,40 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreKeys(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
+private func mapCollection(_ coll: Expr, function: String, project: ([Expr: Expr]) -> [Expr]) throws -> Expr {
+    switch coll {
     case .nil:
         return .nil
 
     case .map(let sm):
-        let keys = Array(sm.dict.keys)
-        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+        let items = project(sm.dict)
+        return items.isEmpty ? .nil : .list(items, metadata: nil)
 
     case .sortedMap(let dict, _):
-        let keys = Array(dict.keys)
-        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+        let items = project(dict)
+        return items.isEmpty ? .nil : .list(items, metadata: nil)
 
     case .record(_, _, let data, _):
-        let keys = Array(data.keys)
-        return keys.isEmpty ? .nil : .list(keys, metadata: nil)
+        let items = project(data)
+        return items.isEmpty ? .nil : .list(items, metadata: nil)
 
     default:
         // Empty seqable collections produce nil (Clojure: seq([]) → nil → KeySeq.create(nil) → nil).
         // Non-seqable values (integers, etc.) throw like Clojure's seq does.
-        guard let elements = try? seqOf(args[0], function: "keys"), elements.isEmpty else {
-            throw EvaluatorError.invalidArgument(function: "keys",
-                message: "not a map: \(corePrinter.printString(args[0]))")
+        guard let elements = try? seqOf(coll, function: function), elements.isEmpty else {
+            throw EvaluatorError.invalidArgument(function: function,
+                message: "not a map: \(corePrinter.printString(coll))")
         }
         return .nil
     }
 }
 
+private func coreKeys(_ args: [Expr]) throws -> Expr {
+    try mapCollection(args[0], function: "keys") { Array($0.keys) }
+}
+
 private func coreVals(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .nil:
-        return .nil
-
-    case .map(let sm):
-        let vals = Array(sm.dict.values)
-        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
-
-    case .sortedMap(let dict, _):
-        let vals = Array(dict.values)
-        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
-
-    case .record(_, _, let data, _):
-        let vals = Array(data.values)
-        return vals.isEmpty ? .nil : .list(vals, metadata: nil)
-
-    default:
-        guard let elements = try? seqOf(args[0], function: "vals"), elements.isEmpty else {
-            throw EvaluatorError.invalidArgument(function: "vals",
-                message: "not a map: \(corePrinter.printString(args[0]))")
-        }
-        return .nil
-    }
+    try mapCollection(args[0], function: "vals") { Array($0.values) }
 }
 
 private func coreMerge(_ args: [Expr]) throws -> Expr {

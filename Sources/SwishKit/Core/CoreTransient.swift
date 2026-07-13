@@ -1,3 +1,5 @@
+private let transientExpired = "Transient used after persistent! call"
+
 // MARK: - Registration
 
 func registerTransient(into evaluator: Evaluator) {
@@ -46,7 +48,7 @@ private func corePersistentBang(_ args: [Expr]) throws -> Expr {
     }
     if tc.isInvalidated {
         throw EvaluatorError.invalidArgument(function: "persistent!",
-            message: "Transient used after persistent! call")
+            message: transientExpired)
     }
     tc.isInvalidated = true
     return tc.value
@@ -59,7 +61,7 @@ private func coreAssocBang(_ args: [Expr]) throws -> Expr {
     }
     if tc.isInvalidated {
         throw EvaluatorError.invalidArgument(function: "assoc!",
-            message: "Transient used after persistent! call")
+            message: transientExpired)
     }
     guard args.count >= 3 else {
         throw EvaluatorError.arityMismatch(name: "assoc!", expected: .atLeastOne, got: args.count)
@@ -88,7 +90,7 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
     }
     if tc.isInvalidated {
         throw EvaluatorError.invalidArgument(function: "dissoc!",
-            message: "Transient used after persistent! call")
+            message: transientExpired)
     }
     tc.value = try coreDissoc([tc.value] + Array(args.dropFirst()))
     return args[0]
@@ -105,7 +107,7 @@ private func coreConjBang(_ args: [Expr]) throws -> Expr {
     }
     if tc.isInvalidated {
         throw EvaluatorError.invalidArgument(function: "conj!",
-            message: "Transient used after persistent! call")
+            message: transientExpired)
     }
     for i in 1..<args.count {
         tc.value = try conjOne(tc.value, args[i])

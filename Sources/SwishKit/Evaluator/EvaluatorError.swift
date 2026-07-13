@@ -68,29 +68,11 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
         case .notAFunction(let expr):
             let rep: String
             switch expr {
-            case .integer(let n):  rep = String(n)
-            case .double(let n):   rep = String(n)
-            case .float(let n):    rep = String(Double(n))
-            case .ratio(let r):    rep = "\(r.numerator)/\(r.denominator)"
-            case .boolean(let b):  rep = b ? "true" : "false"
-            case .nil:             rep = "nil"
-            case .string(let s):   rep = "\"\(s)\""
-            case .keyword(let k):  rep = ":\(k)"
             case .vector:          rep = "a vector"
             case .list:            rep = "a list"
             case .set, .sortedSet: rep = "a set"
             case .sortedMap:       rep = "a sorted map"
-            case .function(let f):
-                rep = f.name.map { "#<fn \($0)>" } ?? "#<fn>"
-            case .macro(let name, _, _, _):
-                rep = name.map { "#<fn \($0)>" } ?? "#<fn>"
-            case .multiArityFunction(let maf):
-                rep = maf.name.map { "#<fn \($0)>" } ?? "#<fn>"
-            case .multiArityMacro(let name, _, _):
-                rep = name.map { "#<fn \($0)>" } ?? "#<fn>"
-            case .nativeFunction(let name, _, _):
-                rep = "#<native-fn \(name)>"
-            default:               rep = "a value"
+            default:               rep = Printer().printString(expr)
             }
             return "'\(rep)' is not a function."
         }

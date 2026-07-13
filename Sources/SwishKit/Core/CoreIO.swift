@@ -363,41 +363,31 @@ private func corePrintDoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
 
 // MARK: - File I/O implementations
 
-private func parseEncodingOpt(_ opts: ArraySlice<Expr>) -> String.Encoding? {
-    let opts = Array(opts)
-    var i = 0
-    while i + 1 < opts.count {
-        if case .keyword(let k) = opts[i], k == "encoding",
-           case .string(let enc) = opts[i + 1] {
-            switch enc.uppercased() {
-            case "UTF-8", "UTF8":
-                return .utf8
-            case "UTF-16", "UTF16":
-                return .utf16
-            case "ISO-8859-1", "ISO8859-1", "LATIN1":
-                return .isoLatin1
-            case "ASCII":
-                return .ascii
-            default:
-                return .utf8
-            }
+private func parseKVOpt(_ opts: ArraySlice<Expr>, key: String) -> Expr? {
+    var i = opts.startIndex
+    while i + 1 < opts.endIndex {
+        if case .keyword(let k) = opts[i], k == key {
+            return opts[i + 1]
         }
         i += 2
     }
     return nil
 }
 
-private func parseAppendOpt(_ opts: ArraySlice<Expr>) -> Bool {
-    let opts = Array(opts)
-    var i = 0
-    while i + 1 < opts.count {
-        if case .keyword(let k) = opts[i], k == "append",
-           case .boolean(let b) = opts[i + 1] {
-            return b
-        }
-        i += 2
+private func parseEncodingOpt(_ opts: ArraySlice<Expr>) -> String.Encoding? {
+    guard case .string(let enc) = parseKVOpt(opts, key: "encoding") else { return nil }
+    switch enc.uppercased() {
+    case "UTF-8", "UTF8":   return .utf8
+    case "UTF-16", "UTF16": return .utf16
+    case "ISO-8859-1", "ISO8859-1", "LATIN1": return .isoLatin1
+    case "ASCII":           return .ascii
+    default:                return .utf8
     }
-    return false
+}
+
+private func parseAppendOpt(_ opts: ArraySlice<Expr>) -> Bool {
+    guard case .boolean(let b) = parseKVOpt(opts, key: "append") else { return false }
+    return b
 }
 
 private func spitImpl(path: String, content: String, append: Bool) throws {

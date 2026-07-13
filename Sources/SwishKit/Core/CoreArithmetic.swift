@@ -1,6 +1,8 @@
 import BigInt
 import BigDecimal
 
+private let divisionByZero = "division by zero"
+
 // MARK: - Registration
 
 func registerArithmetic(into evaluator: Evaluator) {
@@ -286,7 +288,7 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
         switch args[0] {
         case .integer(let x):
             if x == 0 {
-                throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
+                throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero)
             }
             return ratioExpr(Ratio(1, x))
 
@@ -298,16 +300,16 @@ private func coreDivide(_ args: [Expr]) throws -> Expr {
 
         case .ratio(let x):
             if x.numerator == 0 {
-                throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
+                throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero)
             }
             return ratioExpr(Ratio(x.denominator, x.numerator))
 
         case .bigInteger(let x):
-            if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            if x == 0 { throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero) }
             return .bigDecimal(BigDecimal(integerLiteral: 1) / BigDecimal(integerValue: x, scale: 0))
 
         case .bigDecimal(let x):
-            if x.isZero { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+            if x.isZero { throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero) }
             return .bigDecimal(BigDecimal(1) / x)
 
         default:
@@ -482,7 +484,7 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
     switch try coerceNumericPair(a, b, function: "/") {
     case .ints(let x, let y):
         if y == 0 {
-            throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
+            throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero)
         }
         return ratioExpr(Ratio(x, y))
 
@@ -491,16 +493,16 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
 
     case .ratios(let x, let y):
         if y.numerator == 0 {
-            throw EvaluatorError.invalidArgument(function: "/", message: "division by zero")
+            throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero)
         }
         return ratioExpr(Ratio(x.numerator * y.denominator, x.denominator * y.numerator))
 
     case .bigInts(let x, let y):
-        if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+        if y == 0 { throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero) }
         return .bigInteger(x / y)
 
     case .bigDecimals(let x, let y):
-        if y.isZero { throw EvaluatorError.invalidArgument(function: "/", message: "division by zero") }
+        if y.isZero { throw EvaluatorError.invalidArgument(function: "/", message: divisionByZero) }
         return .bigDecimal(x / y)
     }
 }
@@ -530,30 +532,30 @@ private func coreRem(_ args: [Expr]) throws -> Expr {
     }
     switch (args[0], args[1]) {
     case (.double(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .double(a.truncatingRemainder(dividingBy: b))
     case (.double(let a), .integer(let b)):
         let fb = Double(b)
-        guard fb != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard fb != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .double(a.truncatingRemainder(dividingBy: fb))
     case (.integer(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .double(Double(a).truncatingRemainder(dividingBy: b))
     case (.bigDecimal(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .bigDecimal(a.remainder(dividingBy: b))
     case (.bigDecimal(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .bigDecimal(a.remainder(dividingBy: BigDecimal(integerValue: BigInt(b), scale: 0)))
     case (.integer(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .bigDecimal(BigDecimal(integerValue: BigInt(a), scale: 0).remainder(dividingBy: b))
     case (.bigDecimal(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .double((Double(a.description) ?? 0.0).truncatingRemainder(dividingBy: b))
     case (.double(let a), .bigDecimal(let b)):
         let bd = Double(b.description) ?? 0.0
-        guard bd != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+        guard bd != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
         return .double(a.truncatingRemainder(dividingBy: bd))
     case (.ratio(let ra), .ratio(let rb)):
         return try ratioRem(ra, rb)
@@ -570,13 +572,13 @@ private func coreRem(_ args: [Expr]) throws -> Expr {
     }
     let (a, aBig) = try extractIntLike(args[0], function: "rem")
     let (b, bBig) = try extractIntLike(args[1], function: "rem")
-    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero") }
+    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
     return (aBig || bBig) ? .bigInteger(a % b) : .integer(Int(a % b))
 }
 
 private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
     guard rb.numerator != 0 else {
-        throw EvaluatorError.invalidArgument(function: "rem", message: "division by zero")
+        throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero)
     }
     // q = truncate(ra / rb) via BigInt division (truncates toward zero)
     let q = (ra.numerator * rb.denominator) / (ra.denominator * rb.numerator)
@@ -601,30 +603,30 @@ private func coreQuot(_ args: [Expr]) throws -> Expr {
     switch (args[0], args[1]) {
     // Double wins over all — (a/b) truncated toward zero
     case (.double(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .double((a / b).rounded(.towardZero))
     case (.double(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .double((a / Double(b)).rounded(.towardZero))
     case (.integer(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .double((Double(a) / b).rounded(.towardZero))
     case (.double(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .double((a / (Double(b.description) ?? 0)).rounded(.towardZero))
     case (.bigDecimal(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .double(((Double(a.description) ?? 0) / b).rounded(.towardZero))
     // BigDecimal — (a - rem(a,b)) / b gives exact integral quotient
     case (.bigDecimal(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         return .bigDecimal((a - a.remainder(dividingBy: b)) / b)
     case (.bigDecimal(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         let bd = BigDecimal(integerValue: BigInt(b), scale: 0)
         return .bigDecimal((a - a.remainder(dividingBy: bd)) / bd)
     case (.integer(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
         let ad = BigDecimal(integerValue: BigInt(a), scale: 0)
         return .bigDecimal((ad - ad.remainder(dividingBy: b)) / b)
     // Ratio — truncate(ra/rb) via BigInt division → bigInteger
@@ -643,13 +645,13 @@ private func coreQuot(_ args: [Expr]) throws -> Expr {
     }
     let (a, aBig) = try extractIntLike(args[0], function: "quot")
     let (b, bBig) = try extractIntLike(args[1], function: "quot")
-    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero") }
+    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
     return (aBig || bBig) ? .bigInteger(a / b) : .integer(Int(a / b))
 }
 
 private func ratioQuot(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
     guard rb.numerator != 0 else {
-        throw EvaluatorError.invalidArgument(function: "quot", message: "division by zero")
+        throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero)
     }
     let q = (ra.numerator * rb.denominator) / (ra.denominator * rb.numerator)
     return .bigInteger(q)
