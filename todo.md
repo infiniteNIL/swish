@@ -17,6 +17,44 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] No ERRORS or FAILS in entire jank clojure test suite (still 105 SKIPs)
+- [x] Add clojure.string/reverse
+- [x] Fix #_ discard to throw when there is no following element
+- [x] Fix edn/read-string 2-arity to throw on EOF when :eof key is absent
+- [x] fix identical? for UUID (:swish branch on in suite)
+- [x] Fix #inst parsing to reject invalid dates
+- [x] Fix clojure.edn/read-string to throw on duplicate map keys
+- [x] Fix clojure.edn/read-string invalid token validation
+- [x] No ERRORs. No FAILs in clojure.core-test
+- [x] Fix (zero? NaN) returning true
+- [x] Fix (vector? (object-array n)) returning true
+- [x] Fix vec array aliasing (JVM-correct semantics)
+- [x] vec on non seq should throw
+- [x] Fix transient to throw for all non-persistent-collection inputs
+- [x] Fix transient to throw when called on an already-transient value
+- [x] Fix keyword-as-function lookup on transient maps
+- [x] Fix symbol: varRef → qualified name; namespace with empty-string ns
+- [x] fix str output for Double infinity, BigInteger, BigDecimal
+- [x] fix some-fn to return false instead of nil
+- [x] set now throws for non-seq arg.
+- [x] to-array returns an actual array type
+- [x] fix = on lazy-seq (had a cap on the length)
+- [x] fix rseq on sorted map
+- [x] rseq throws when given nil
+- [x] reverse now throws for non-seqs
+- [x] int now handles boolean
+- [x] fixed repeat when called with non-int
+- [x] fixed quot to throw for NaN and infinity
+- [x] nth/2 throws for out of bounds
+- [x] NaN? throws for non-numerics
+- [x] mod now handles NaN and ##Inf
+- [x] fix mod with ratios
+- [x] BigDecimal and Double arithetic should always return Double
+- [x] fix BigInteger and Ratio arithmetic
+- [x] min and max now handle NaN
+- [x] fixes to list? on seq
+- [x] keys and vals now throw for non-map argument
+- [x] iterating maps now uses MapEntry (fixes key and val)
 - [x] fixed int for strings and out of range Int32
 - [x] symbols and vars and now callable
 - [x] fix identical? for maps
