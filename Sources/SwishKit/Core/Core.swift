@@ -15,6 +15,8 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerSet(into: evaluator)
     registerMeta(into: evaluator)
     registerAtom(into: evaluator)
+    registerVar(into: evaluator)
+    registerWatch(into: evaluator)
     registerTransient(into: evaluator)
     registerSort(into: evaluator)
     registerSwiftIONamespace(into: evaluator)

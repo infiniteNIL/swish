@@ -17,6 +17,10 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] add-watch, remove-watch, alter-var-root
+- [x] aclone, aget, alength, int-array, object-array
+- [x] abs
+
 - [x] No ERRORS or FAILS in entire jank clojure test suite (still 105 SKIPs)
 - [x] Add clojure.string/reverse
 - [x] Fix #_ discard to throw when there is no following element

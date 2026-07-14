@@ -6,6 +6,7 @@ public final class Var: @unchecked Sendable {
     public var metadata: [Expr: Expr]? = nil
     public var isSystem: Bool = false
     public var isDynamic: Bool = false
+    public var watches: [Expr: Expr] = [:]
 
     public init(name: String, namespace: Namespace, value: Expr? = nil) {
         self.name = name

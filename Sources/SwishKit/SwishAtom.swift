@@ -3,6 +3,7 @@ public final class SwishAtom: @unchecked Sendable {
     var value: Expr
     var metadata: [Expr: Expr]?
     var validator: Expr?
+    var watches: [Expr: Expr] = [:]
 
     init(_ value: Expr, metadata: [Expr: Expr]? = nil, validator: Expr? = nil) {
         self.value = value
