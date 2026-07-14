@@ -155,6 +155,67 @@ func registerSequence(into evaluator: Evaluator) {
         sa.elements[idx] = args[2]
         return args[2]
     }
+    evaluator.register(name: "aget", arity: .fixed(2),
+        doc: "Returns the value at index i in array.",
+        arglists: [["array", "i"]]) { args in
+        guard case .array(let sa) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "aget",
+                message: "first argument must be an array")
+        }
+        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
+            throw EvaluatorError.invalidArgument(function: "aget",
+                message: "index out of bounds")
+        }
+        return sa.elements[idx]
+    }
+    evaluator.register(name: "alength", arity: .fixed(1),
+        doc: "Returns the length of the Java array.",
+        arglists: [["array"]]) { args in
+        guard case .array(let sa) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "alength",
+                message: "argument must be an array")
+        }
+        return .integer(sa.elements.count)
+    }
+    evaluator.register(name: "aclone", arity: .fixed(1),
+        doc: "Returns a clone of the Java array. Works on arrays of known types.",
+        arglists: [["array"]]) { args in
+        guard case .array(let sa) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "aclone",
+                message: "argument must be an array")
+        }
+        return .array(SwishArray(sa.elements))
+    }
+    evaluator.register(name: "int-array", arity: .variadic,
+        doc: "Creates an array of ints. Single arg: size (fills 0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        switch args[0] {
+        case .integer(let n):
+            guard n >= 0 else {
+                throw EvaluatorError.invalidArgument(function: "int-array",
+                    message: "size must be non-negative")
+            }
+            let fill: Expr = args.count > 1 ? args[1] : .integer(0)
+            return .array(SwishArray(Array(repeating: fill, count: n)))
+        default:
+            return .array(SwishArray(asSequence(args[0]) ?? []))
+        }
+    }
+    evaluator.register(name: "object-array", arity: .variadic,
+        doc: "Creates an array of objects. Single arg: size (fills nil) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        switch args[0] {
+        case .integer(let n):
+            guard n >= 0 else {
+                throw EvaluatorError.invalidArgument(function: "object-array",
+                    message: "size must be non-negative")
+            }
+            let fill: Expr = args.count > 1 ? args[1] : .nil
+            return .array(SwishArray(Array(repeating: fill, count: n)))
+        default:
+            return .array(SwishArray(asSequence(args[0]) ?? []))
+        }
+    }
     evaluator.register(name: "next", arity: .fixed(1),
         doc: "Returns a seq of the items after the first. Calls seq on its argument. If there are no more items, returns nil.",
         arglists: [["coll"]],
