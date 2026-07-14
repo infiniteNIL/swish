@@ -113,6 +113,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
         body: coreRand)
+    evaluator.register(name: "abs", arity: .fixed(1),
+        doc: "Returns the absolute value of a. If a is Long/MIN_VALUE => Long/MIN_VALUE.",
+        arglists: [["a"]],
+        body: coreAbs)
 }
 
 // MARK: - Implementations
@@ -767,6 +771,37 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
     default:
         throw EvaluatorError.invalidArgument(
             function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
+    }
+}
+
+private func coreAbs(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer(let x):
+        // Per Clojure spec: abs(Long/MIN_VALUE) == Long/MIN_VALUE (2's complement)
+        if x == Int.min { return .integer(Int.min) }
+        return .integer(x < 0 ? -x : x)
+
+    case .double(let x):
+        // Swift abs handles -0.0 → +0.0, ±Inf → +Inf, NaN → NaN correctly
+        return .double(Swift.abs(x))
+
+    case .float(let x):
+        return .float(Swift.abs(x))
+
+    case .ratio(let r):
+        // Ratio always has a positive denominator; just abs the numerator
+        return .ratio(Ratio(r.numerator < 0 ? -r.numerator : r.numerator, r.denominator))
+
+    case .bigInteger(let x):
+        return .bigInteger(x < 0 ? -x : x)
+
+    case .bigDecimal(let x):
+        return .bigDecimal(x < 0 ? -x : x)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "abs",
+            message: "expected a number, got \(corePrinter.printString(args[0]))")
     }
 }
 
