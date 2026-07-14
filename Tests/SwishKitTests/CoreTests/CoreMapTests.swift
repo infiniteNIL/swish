@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Map Tests", .serialized)
 struct CoreMapTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - get on map

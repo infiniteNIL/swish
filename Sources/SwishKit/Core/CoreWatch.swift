@@ -16,10 +16,10 @@ func registerWatch(into evaluator: Evaluator) {
 private func coreAddWatch(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .atom(let a):
-        a.watches[args[1]] = args[2]
+        a.addWatch(key: args[1], fn: args[2])
 
     case .varRef(let v):
-        v.watches[args[1]] = args[2]
+        v.addWatch(key: args[1], fn: args[2])
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -32,10 +32,10 @@ private func coreAddWatch(_ args: [Expr]) throws -> Expr {
 private func coreRemoveWatch(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .atom(let a):
-        a.watches.removeValue(forKey: args[1])
+        a.removeWatch(key: args[1])
 
     case .varRef(let v):
-        v.watches.removeValue(forKey: args[1])
+        v.removeWatch(key: args[1])
 
     default:
         throw EvaluatorError.invalidArgument(

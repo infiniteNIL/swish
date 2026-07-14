@@ -1,6 +1,16 @@
 import Foundation
 import BigInt
 import BigDecimal
+import Synchronization
+
+/// `Printer` is a struct (value type), so it can't hold a `Mutex` field directly.
+/// `NumberFormatter`/`ISO8601DateFormatter` are not safe for concurrent use on one
+/// instance, and `corePrinter` (`Core.swift`) is a single process-wide shared
+/// `Printer` used from error-message-building code across every native function —
+/// exactly the kind of code path that will run on background threads once
+/// agents/futures exist. This module-level lock serializes just the two
+/// formatter-touching call sites, without changing `Printer`'s value semantics.
+private let formatterLock = Mutex<Void>(())
 
 /// Printer for Swish expressions
 public struct Printer {
@@ -31,10 +41,10 @@ public struct Printer {
             String(value)
 
         case .double(let value):
-            floatFormatter.string(from: NSNumber(value: value)) ?? String(value)
+            formatterLock.withLock { _ in floatFormatter.string(from: NSNumber(value: value)) } ?? String(value)
 
         case .float(let value):
-            floatFormatter.string(from: NSNumber(value: Double(value))) ?? String(value)
+            formatterLock.withLock { _ in floatFormatter.string(from: NSNumber(value: Double(value))) } ?? String(value)
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
@@ -126,7 +136,7 @@ public struct Printer {
             "#<Writer \(w.path)>"
 
         case .inst(let date):
-            "#inst \"\(instFormatter.string(from: date))\""
+            "#inst \"\(formatterLock.withLock { _ in instFormatter.string(from: date) })\""
 
         case .uuid(let uuid):
             "#uuid \"\(uuid.uuidString.lowercased())\""

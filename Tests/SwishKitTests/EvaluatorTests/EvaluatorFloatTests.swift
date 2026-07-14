@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Evaluator float Tests", .serialized)
 struct EvaluatorFloatTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - Valid inputs

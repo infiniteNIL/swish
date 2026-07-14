@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Delay Tests", .serialized)
 struct CoreDelayTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("delay returns a delay object")

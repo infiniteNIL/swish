@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Higher Order Tests", .serialized)
 struct CoreHigherOrderTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - identity

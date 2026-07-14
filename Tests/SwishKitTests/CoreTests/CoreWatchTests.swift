@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Watch Tests", .serialized)
 struct CoreWatchTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - add-watch / remove-watch on atoms

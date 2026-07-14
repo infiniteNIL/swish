@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Count Tests", .serialized)
 struct CoreCountTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(count nil) returns 0")

@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Var (alter-var-root) Tests", .serialized)
 struct CoreVarTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // Each test uses a uniquely-named var: vars are interned once and reused

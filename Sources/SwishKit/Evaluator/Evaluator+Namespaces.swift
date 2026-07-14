@@ -3,21 +3,28 @@ extension Evaluator {
     // MARK: - Namespace registry
 
     public func findNs(_ name: String) -> Namespace? {
-        namespaces[name]
+        namespacesState.withLock { $0[name] }
     }
 
     public func findOrCreateNs(_ name: String) -> Namespace {
-        if let existing = namespaces[name] {
-            return existing
-        }
-        let ns = Namespace(name: name)
-        namespaces[name] = ns
-        if name != "clojure.core", let core = findNs("clojure.core") {
-            for (_, v) in core.mappings {
-                try? ns.refer(v)
+        // Insert *and* the auto-refer-from-clojure.core loop happen inside one
+        // lock acquisition, so a concurrent findNs can never observe a namespace
+        // before it's fully populated. Safe from deadlock: this only ever nests
+        // Evaluator.namespaces's lock -> some other Namespace's own lock (via
+        // ns.refer/core.mappings below), never the reverse order.
+        namespacesState.withLock { s -> Namespace in
+            if let existing = s[name] {
+                return existing
             }
+            let ns = Namespace(name: name)
+            s[name] = ns
+            if name != "clojure.core", let core = s["clojure.core"] {
+                for (_, v) in core.mappings {
+                    try? ns.refer(v)
+                }
+            }
+            return ns
         }
-        return ns
     }
 
     // MARK: - Current namespace
@@ -34,6 +41,13 @@ extension Evaluator {
         currentNs().name
     }
 
+    // *ns* is a normal Var (never marked `isDynamic`), so it's read/written via its
+    // root `.value` here rather than through `bindingFrames`. The Var-level lock
+    // (see Var.swift) makes concurrent access to *ns* data-race-*safe*, but this is
+    // NOT semantically per-thread-*correct*: two future threads calling `in-ns`
+    // would still share one root value and stomp on each other's "current
+    // namespace." Making *ns* genuinely dynamic + thread-local is deferred to
+    // whichever later step first introduces real background execution.
     func setCurrentNs(_ ns: Namespace) {
         findNs("clojure.core")!.findVar(name: "*ns*")!.value = .namespace(ns)
     }

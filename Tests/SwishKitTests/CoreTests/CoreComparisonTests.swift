@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Comparison Tests", .serialized)
 struct CoreComparisonTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - <

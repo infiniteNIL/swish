@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core vector? Tests", .serialized)
 struct CoreVectorPredicateTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("vector? returns true for a non-empty vector")

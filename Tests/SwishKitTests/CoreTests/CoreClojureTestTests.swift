@@ -3,7 +3,7 @@ import Testing
 
 @Suite("clojure.test Tests", .serialized)
 struct CoreClojureTestTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - ns-interns / all-ns / ns-name

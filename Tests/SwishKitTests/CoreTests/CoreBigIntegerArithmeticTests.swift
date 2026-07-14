@@ -4,7 +4,7 @@ import BigInt
 
 @Suite("BigInteger arithmetic Tests", .serialized)
 struct CoreBigIntegerArithmeticTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("even? returns false for odd BigInteger")

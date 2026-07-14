@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core list? Tests", .serialized)
 struct CoreListPredicateTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("list? returns true for a non-empty list")

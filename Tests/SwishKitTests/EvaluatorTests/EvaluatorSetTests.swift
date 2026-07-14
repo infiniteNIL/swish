@@ -5,7 +5,7 @@ import Testing
 struct EvaluatorSetTests {
     static let _sharedEvaluator = Evaluator()
     var evaluator: Evaluator { Self._sharedEvaluator }
-    nonisolated(unsafe) static let _sharedSwish = Swish()
+    static let _sharedSwish = Swish()
     var swish: Swish { Self._sharedSwish }
 
     @Test("Empty set evaluates to itself")

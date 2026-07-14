@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Callable Tests", .serialized)
 struct CoreCallableTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: Map as function

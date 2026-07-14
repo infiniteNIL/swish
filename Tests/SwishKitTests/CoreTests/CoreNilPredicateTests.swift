@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core nil? Tests", .serialized)
 struct CoreNilPredicateTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("nil? returns true for nil")

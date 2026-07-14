@@ -3,7 +3,7 @@ import Testing
 
 @Suite("clojure.set Tests", .serialized)
 struct ClojureSetTests {
-    nonisolated(unsafe) static let _shared: Swish = {
+    static let _shared: Swish = {
         let swish = Swish()
         _ = try? swish.eval("(require '[clojure.set :as s])")
         return swish

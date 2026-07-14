@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Float/Double Predicate Tests", .serialized)
 struct CoreFloatDoubleTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - double?

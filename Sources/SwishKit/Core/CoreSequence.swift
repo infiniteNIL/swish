@@ -152,7 +152,7 @@ func registerSequence(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "aset",
                 message: "index out of bounds")
         }
-        sa.elements[idx] = args[2]
+        sa.set(at: idx, to: args[2])
         return args[2]
     }
     evaluator.register(name: "aget", arity: .fixed(2),

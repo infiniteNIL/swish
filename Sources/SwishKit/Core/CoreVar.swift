@@ -21,12 +21,15 @@ private func coreAlterVarRoot(_ evaluator: Evaluator, _ args: [Expr]) throws -> 
             function: "alter-var-root",
             message: "first argument must be a var reference, got \(corePrinter.printString(args[0]))")
     }
-    guard let old = v.value
-    else {
-        throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+    while true {
+        guard let old = v.value
+        else {
+            throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+        }
+        let newValue = try evaluator.call(args[1], args: [old] + Array(args.dropFirst(2)))
+        if v.compareAndSetValue(expected: old, newValue: newValue) {
+            try notifyWatches(evaluator, watches: v.watches, ref: args[0], old: old, new: newValue)
+            return newValue
+        }
     }
-    let newValue = try evaluator.call(args[1], args: [old] + Array(args.dropFirst(2)))
-    v.value = newValue
-    try notifyWatches(evaluator, watches: v.watches, ref: args[0], old: old, new: newValue)
-    return newValue
 }

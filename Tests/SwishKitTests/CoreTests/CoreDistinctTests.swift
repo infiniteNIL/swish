@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Distinct Tests", .serialized)
 struct CoreDistinctTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(distinct [1 2 3]) returns unchanged when no duplicates")

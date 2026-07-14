@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Apply Tests", .serialized)
 struct CoreApplyTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(apply str [\"a\" \"b\" \"c\"]) concatenates strings")

@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Interpose Tests", .serialized)
 struct CoreInterposeTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(interpose \", \" [\"a\" \"b\" \"c\"]) inserts separator between strings")

@@ -1,16 +1,23 @@
+import Synchronization
+
 public final class SwishFunction: @unchecked Sendable {
     public let name: String?
     public let params: [String]
     public let body: [Expr]
     public let capturedEnv: Environment?
-    public var metadata: [Expr: Expr]?
+    private let metadataState: Mutex<[Expr: Expr]?>
+
+    public var metadata: [Expr: Expr]? {
+        get { metadataState.withLock { $0 } }
+        set { metadataState.withLock { $0 = newValue } }
+    }
 
     init(name: String?, params: [String], body: [Expr], capturedEnv: Environment?, metadata: [Expr: Expr]?) {
         self.name = name
         self.params = params
         self.body = body
         self.capturedEnv = capturedEnv
-        self.metadata = metadata
+        self.metadataState = Mutex(metadata)
     }
 }
 
@@ -30,13 +37,18 @@ public final class SwishMultiArityFunction: @unchecked Sendable {
     public let name: String?
     public let arities: [FnArity]
     public let capturedEnv: Environment?
-    public var metadata: [Expr: Expr]?
+    private let metadataState: Mutex<[Expr: Expr]?>
+
+    public var metadata: [Expr: Expr]? {
+        get { metadataState.withLock { $0 } }
+        set { metadataState.withLock { $0 = newValue } }
+    }
 
     init(name: String?, arities: [FnArity], capturedEnv: Environment?, metadata: [Expr: Expr]?) {
         self.name = name
         self.arities = arities
         self.capturedEnv = capturedEnv
-        self.metadata = metadata
+        self.metadataState = Mutex(metadata)
     }
 }
 

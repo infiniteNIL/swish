@@ -6,7 +6,7 @@
 import Foundation
 
 /// The main entry point for the Swish Lisp interpreter.
-public struct Swish {
+public struct Swish: @unchecked Sendable {
     let evaluator: Evaluator
 
     public init(sourcePaths: [String] = []) {

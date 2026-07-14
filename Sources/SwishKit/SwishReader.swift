@@ -1,11 +1,18 @@
 import Foundation
+import Synchronization
 
 public final class SwishReader: @unchecked Sendable {
     public let path: String
     private let handle: FileHandle
-    private var buffer: Data = Data()
-    private var eof: Bool = false
-    private(set) var closed: Bool = false
+
+    private struct State {
+        var buffer = Data()
+        var eof = false
+        var closed = false
+    }
+    private let state = Mutex(State())
+
+    var closed: Bool { state.withLock { $0.closed } }
 
     init(path: String) throws {
         guard let handle = FileHandle(forReadingAtPath: path) else {
@@ -16,44 +23,48 @@ public final class SwishReader: @unchecked Sendable {
     }
 
     func readLine() -> String? {
-        guard !closed else { return nil }
-        let newlineByte = UInt8(ascii: "\n")
+        state.withLock { s in
+            guard !s.closed else { return nil }
+            let newlineByte = UInt8(ascii: "\n")
 
-        while true {
-            if let idx = buffer.firstIndex(of: newlineByte) {
-                let lineData = buffer[buffer.startIndex..<idx]
-                buffer = Data(buffer[buffer.index(after: idx)...])
+            while true {
+                if let idx = s.buffer.firstIndex(of: newlineByte) {
+                    let lineData = s.buffer[s.buffer.startIndex..<idx]
+                    s.buffer = Data(s.buffer[s.buffer.index(after: idx)...])
+                    var line = String(data: lineData, encoding: .utf8) ?? ""
+                    if line.hasSuffix("\r") { line.removeLast() }
+                    return line
+                }
+
+                if s.eof { break }
+
+                let chunk = handle.readData(ofLength: 4096)
+                if chunk.isEmpty {
+                    s.eof = true
+                }
+                else {
+                    s.buffer.append(chunk)
+                }
+            }
+
+            if !s.buffer.isEmpty {
+                let lineData = s.buffer
+                s.buffer = Data()
                 var line = String(data: lineData, encoding: .utf8) ?? ""
                 if line.hasSuffix("\r") { line.removeLast() }
                 return line
             }
 
-            if eof { break }
-
-            let chunk = handle.readData(ofLength: 4096)
-            if chunk.isEmpty {
-                eof = true
-            }
-            else {
-                buffer.append(chunk)
-            }
+            return nil
         }
-
-        if !buffer.isEmpty {
-            let lineData = buffer
-            buffer = Data()
-            var line = String(data: lineData, encoding: .utf8) ?? ""
-            if line.hasSuffix("\r") { line.removeLast() }
-            return line
-        }
-
-        return nil
     }
 
     func close() {
-        guard !closed else { return }
-        handle.closeFile()
-        closed = true
+        state.withLock { s in
+            guard !s.closed else { return }
+            handle.closeFile()
+            s.closed = true
+        }
     }
 
     deinit {

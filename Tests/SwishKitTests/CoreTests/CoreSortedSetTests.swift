@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core sorted-set Tests", .serialized)
 struct CoreSortedSetTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(sorted-set 3 1 2) seqs to (1 2 3)")

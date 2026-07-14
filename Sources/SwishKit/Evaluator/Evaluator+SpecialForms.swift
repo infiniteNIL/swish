@@ -349,6 +349,15 @@ extension Evaluator {
         return try evalBody(Array(elements.dropFirst(2)), in: letfnEnv)
     }
 
+    // NOTE (thread-safety retrofit): `loopEnv` below is one `Environment` instance
+    // mutated repeatedly across `recur` iterations (locking makes each individual
+    // `.set` call memory-safe, but doesn't make the sequence of mutations
+    // logically race-free). If a closure created inside the loop body captures
+    // `loopEnv` and escapes to background execution (not possible today — this
+    // step adds no real threading — but will become possible once a later step
+    // adds real agent/future execution), that closure's later `.get` could
+    // observe any iteration's value depending on timing. Deferred until closures
+    // can actually escape to another thread.
     func evalLoop(_ elements: [Expr], in env: Environment) throws -> Expr {
         let bindingVec = try requireBindingVector(elements, function: "loop",
             message: "first argument must be a vector of bindings")

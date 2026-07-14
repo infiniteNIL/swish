@@ -1,6 +1,7 @@
 import Foundation
 import BigInt
 import BigDecimal
+import Synchronization
 
 /// Specifies how many arguments a function accepts
 public enum Arity: Equatable, Hashable, Sendable {
@@ -15,6 +16,10 @@ public struct FnArity: Sendable, Equatable, Hashable {
     public let body: [Expr]
 }
 
+// Deliberately left unsynchronized (thread-safety retrofit non-goal, not an
+// oversight): transients mirror real Clojure's, which are documented as
+// explicitly not thread-safe — single-owner-by-convention, scoped to one
+// `transient`/`assoc!`/`dissoc!`/`conj!`/`persistent!` chain.
 public final class TransientCollection: @unchecked Sendable {
     public var value: Expr
     public var isInvalidated: Bool = false
@@ -24,8 +29,20 @@ public final class TransientCollection: @unchecked Sendable {
 /// Mutable reference-type backing for Java-style arrays.
 /// Shared between a `.array` and any `.sharedVector` produced by `(vec arr)`.
 public final class SwishArray: @unchecked Sendable {
-    public var elements: [Expr]
-    public init(_ elements: [Expr]) { self.elements = elements }
+    private let state: Mutex<[Expr]>
+
+    public var elements: [Expr] {
+        get { state.withLock { $0 } }
+        set { state.withLock { $0 = newValue } }
+    }
+
+    public init(_ elements: [Expr]) { state = Mutex(elements) }
+
+    /// Atomically sets the element at `index`. Use instead of `elements[index] = value`,
+    /// which would race under concurrent index-writes (locked read-copy-mutate-locked write).
+    func set(at index: Int, to value: Expr) {
+        state.withLock { $0[index] = value }
+    }
 }
 
 

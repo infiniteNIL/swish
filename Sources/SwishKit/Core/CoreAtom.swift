@@ -120,8 +120,7 @@ private func coreReset(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     if let vf = a.validator {
         try checkValidator(evaluator, fn: vf, value: args[1], context: "reset!")
     }
-    let old = a.value
-    a.value = args[1]
+    let old = a.getAndSet(args[1])
     try notifyWatches(evaluator, watches: a.watches, ref: args[0], old: old, new: args[1])
     return args[1]
 }
@@ -139,12 +138,15 @@ private func coreSwap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             function: "swap!",
             message: "first argument must be an atom, got \(corePrinter.printString(args[0]))")
     }
-    let old = a.value
-    let newValue = try evaluator.call(args[1], args: [old] + Array(args.dropFirst(2)))
-    if let vf = a.validator {
-        try checkValidator(evaluator, fn: vf, value: newValue, context: "swap!")
-    }
-    a.value = newValue
+    var old: Expr
+    var newValue: Expr
+    repeat {
+        old = a.value
+        newValue = try evaluator.call(args[1], args: [old] + Array(args.dropFirst(2)))
+        if let vf = a.validator {
+            try checkValidator(evaluator, fn: vf, value: newValue, context: "swap!")
+        }
+    } while !a.compareAndSet(expected: old, newValue: newValue)
     try notifyWatches(evaluator, watches: a.watches, ref: args[0], old: old, new: newValue)
     return newValue
 }

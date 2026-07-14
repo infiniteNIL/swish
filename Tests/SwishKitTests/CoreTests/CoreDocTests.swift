@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Doc Tests", .serialized)
 struct CoreDocTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("native map has :doc in metadata")

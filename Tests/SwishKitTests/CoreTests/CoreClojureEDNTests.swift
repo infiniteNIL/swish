@@ -4,7 +4,7 @@ import Testing
 
 @Suite("clojure.edn Tests", .serialized)
 struct CoreClojureEDNTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - clojure.edn/read-string 1-arity

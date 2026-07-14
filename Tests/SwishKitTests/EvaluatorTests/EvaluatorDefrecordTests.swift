@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Evaluator defrecord Tests", .serialized)
 struct EvaluatorDefrecordTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - Constructor registration

@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core char Tests", .serialized)
 struct CoreCharTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(char 65) returns character 'A'")

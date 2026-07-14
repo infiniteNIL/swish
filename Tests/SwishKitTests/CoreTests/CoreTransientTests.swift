@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Transient Tests", .serialized)
 struct CoreTransientTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - assoc! on transient vectors

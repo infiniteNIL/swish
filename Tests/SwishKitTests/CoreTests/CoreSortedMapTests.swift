@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core sorted-map Tests", .serialized)
 struct CoreSortedMapTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("sorted-map equals a regular map with same entries")

@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Regex Literal Tests", .serialized)
 struct RegexTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("regex literal evaluates to itself")

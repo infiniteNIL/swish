@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Evaluator cond Tests", .serialized)
 struct EvaluatorCondTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - cond basics

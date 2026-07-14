@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core BigInt / BigDecimal Tests", .serialized)
 struct CoreBigNumberTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - Predicates

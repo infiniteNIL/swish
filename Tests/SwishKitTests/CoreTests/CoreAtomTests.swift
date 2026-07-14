@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Atom Tests", .serialized)
 struct CoreAtomTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - atom creation and deref
@@ -131,5 +131,22 @@ struct CoreAtomTests {
     @Test("swap! runs validator and accepts valid result")
     func swapValidatorAccepts() throws {
         #expect(try swish.eval("(swap! (atom 1 :validator odd?) + 2)") == .integer(3))
+    }
+
+    // MARK: - swap! reentrancy (thread-safety retrofit: swap! is a CAS-retry loop)
+
+    @Test("swap! update fn that reentrantly swap!s the same atom retries instead of clobbering the inner write")
+    func swapReentrantRetries() throws {
+        // f reads x=1, reentrantly sets the atom to 100, then returns x+1=2.
+        // A naive (non-CAS) swap! would overwrite the inner write with 2.
+        // The CAS-retry loop instead detects the concurrent (well, reentrant)
+        // change, retries with the now-current value (100), and converges to 101.
+        #expect(try swish.eval("""
+            (def a (atom 1))
+            (def calls (atom 0))
+            (swap! a (fn [x] (swap! calls inc) (swap! a (fn [_] 100)) (+ x 1)))
+            @a
+            """) == .integer(101))
+        #expect(try swish.eval("@calls") == .integer(2))
     }
 }

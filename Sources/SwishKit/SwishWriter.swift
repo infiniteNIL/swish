@@ -1,9 +1,12 @@
 import Foundation
+import Synchronization
 
 public final class SwishWriter: @unchecked Sendable {
     public let path: String
     private let handle: FileHandle
-    private(set) var closed: Bool = false
+    private let closedState = Mutex(false)
+
+    var closed: Bool { closedState.withLock { $0 } }
 
     init(path: String, append: Bool) throws {
         if !FileManager.default.fileExists(atPath: path) {
@@ -23,15 +26,19 @@ public final class SwishWriter: @unchecked Sendable {
     }
 
     func write(_ s: String) throws {
-        guard !closed else { throw SwishIOError.writerClosed }
-        guard let data = s.data(using: .utf8) else { return }
-        handle.write(data)
+        try closedState.withLock { closed in
+            guard !closed else { throw SwishIOError.writerClosed }
+            guard let data = s.data(using: .utf8) else { return }
+            handle.write(data)
+        }
     }
 
     func close() {
-        guard !closed else { return }
-        handle.closeFile()
-        closed = true
+        closedState.withLock { closed in
+            guard !closed else { return }
+            handle.closeFile()
+            closed = true
+        }
     }
 
     deinit {

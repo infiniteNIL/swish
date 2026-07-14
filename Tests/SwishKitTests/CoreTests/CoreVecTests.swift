@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core vec Tests", .serialized)
 struct CoreVecTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     // MARK: - bad shape inputs throw

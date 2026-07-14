@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Core Interleave Tests", .serialized)
 struct CoreInterleaveTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("(interleave) returns empty list")

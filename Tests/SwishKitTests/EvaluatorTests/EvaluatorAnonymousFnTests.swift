@@ -3,7 +3,7 @@ import Testing
 
 @Suite("Evaluator Anonymous Fn Tests", .serialized)
 struct EvaluatorAnonymousFnTests {
-    nonisolated(unsafe) static let _shared = Swish()
+    static let _shared = Swish()
     var swish: Swish { Self._shared }
 
     @Test("Single arg with %")

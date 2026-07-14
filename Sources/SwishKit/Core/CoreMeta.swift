@@ -158,21 +158,26 @@ private func coreAlterMeta(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
             function: "alter-meta!",
             message: "first argument must be a var reference")
     }
-    let currentMeta: Expr = v.metadata.map { Expr.map($0, metadata: nil) } ?? .nil
-    let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
-    switch newMeta {
-    case .map(let sm):
-        v.metadata = sm.dict
-        return .map(sm.dict, metadata: nil)
+    while true {
+        let old = v.metadata
+        let currentMeta: Expr = old.map { Expr.map($0, metadata: nil) } ?? .nil
+        let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
+        let newMetaDict: [Expr: Expr]?
+        switch newMeta {
+        case .map(let sm):
+            newMetaDict = sm.dict
 
-    case .nil:
-        v.metadata = nil
-        return .nil
+        case .nil:
+            newMetaDict = nil
 
-    default:
-        throw EvaluatorError.invalidArgument(
-            function: "alter-meta!",
-            message: "function must return a map or nil, got \(corePrinter.printString(newMeta))")
+        default:
+            throw EvaluatorError.invalidArgument(
+                function: "alter-meta!",
+                message: "function must return a map or nil, got \(corePrinter.printString(newMeta))")
+        }
+        if v.compareAndSetMetadata(expected: old, newValue: newMetaDict) {
+            return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
+        }
     }
 }
 

@@ -1,19 +1,62 @@
+import Foundation
+import Synchronization
+
 struct RecurSignal: Error {
     let args: [Expr]
 }
 
 /// Evaluator for Swish expressions
 public class Evaluator {
-    var namespaces: [String: Namespace] = [:]
+    let namespacesState = Mutex<[String: Namespace]>([:])
+
+    /// Snapshot of all registered namespaces. Dictionaries are value types
+    /// (copy-on-write), so this is a safe, cheap point-in-time copy.
+    var namespaces: [String: Namespace] { namespacesState.withLock { $0 } }
+
+    private final class ThreadLocalBox<T> {
+        var value: T
+        init(_ value: T) { self.value = value }
+    }
+    private static let bindingFramesKey = "swish.evaluator.bindingFrames"
+    private static let callDepthKey = "swish.evaluator.callDepth"
+
+    private func threadLocalBox<T>(for key: String, default def: @autoclosure () -> T) -> ThreadLocalBox<T> {
+        if let existing = Thread.current.threadDictionary[key] as? ThreadLocalBox<T> {
+            return existing
+        }
+        let box = ThreadLocalBox(def())
+        Thread.current.threadDictionary[key] = box
+        return box
+    }
 
     /// Stack of dynamic-binding frames. Each frame maps var identity → current value.
-    /// Pushed/popped by the `binding` special form. Single-threaded, so no thread-local needed.
-    var bindingFrames: [[ObjectIdentifier: Expr]] = []
+    /// Pushed/popped by the `binding` special form. Thread-local (via
+    /// `Thread.current.threadDictionary`): each real OS thread gets its own stack, so
+    /// independent logical call-stacks (e.g. separate agent/future executions once a
+    /// later step adds real background execution) can't corrupt each other's dynamic
+    /// bindings. A lock alone wouldn't be correct here — it would prevent memory
+    /// corruption but not the logical-correctness problem of two unrelated call
+    /// stacks sharing one frame stack. Today, with only one thread ever running,
+    /// this always resolves to the same bucket it always did — no behavior change.
+    var bindingFrames: [[ObjectIdentifier: Expr]] {
+        get { threadLocalBox(for: Self.bindingFramesKey, default: [[ObjectIdentifier: Expr]]()).value }
+        set { threadLocalBox(for: Self.bindingFramesKey, default: [[ObjectIdentifier: Expr]]()).value = newValue }
+    }
 
     let sourcePaths: [String]
 
-    private var gensymCounter = 0
-    var callDepth = 0
+    /// Global uniqueness counter for `gensym`. Stays global (not thread-local,
+    /// unlike `bindingFrames`/`callDepth`) since gensym uniqueness must hold even
+    /// across concurrent macro-expansion on different threads.
+    private let gensymCounterState = Mutex<Int>(0)
+
+    /// Recursion-depth guard, thread-local for the same reason as `bindingFrames`:
+    /// a shared counter would let two threads' independent call-stacks corrupt each
+    /// other's depth tracking (falsely tripping, or masking real overflow).
+    var callDepth: Int {
+        get { threadLocalBox(for: Self.callDepthKey, default: 0).value }
+        set { threadLocalBox(for: Self.callDepthKey, default: 0).value = newValue }
+    }
     let maxCallDepth = 1_000
     var interruptionCheck: (() -> Bool)? = nil
 
@@ -21,7 +64,7 @@ public class Evaluator {
         self.sourcePaths = sourcePaths
         // 1. Create clojure.core first — register() interns into it
         let coreNs = Namespace(name: "clojure.core")
-        namespaces["clojure.core"] = coreNs
+        namespacesState.withLock { $0["clojure.core"] = coreNs }
 
         // 2. Populate clojure.core with all native built-ins
         registerCoreFunctions(into: self)
@@ -47,8 +90,11 @@ public class Evaluator {
 
     /// Generates a unique symbol with the given prefix
     func gensym(prefix: String = "G__") -> String {
-        gensymCounter += 1
-        return "\(prefix)\(gensymCounter)"
+        let n = gensymCounterState.withLock { c -> Int in
+            c += 1
+            return c
+        }
+        return "\(prefix)\(n)"
     }
 
     /// Evaluates a Swish expression
