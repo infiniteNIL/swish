@@ -1443,3 +1443,10 @@
   same bindings in effect as in the thread at the time bound-fn was called."
   [& fntail]
   `(bound-fn* (fn ~@fntail)))
+
+(defmacro dosync
+  "Runs the body (in an implicit do) in a transaction that encompasses
+  all ref operations in body. Starts a transaction if none is already
+  running on this thread, else runs in the existing transaction."
+  [& body]
+  `(dosync-call (fn [] ~@body)))

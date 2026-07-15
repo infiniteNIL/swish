@@ -108,6 +108,10 @@ public indirect enum Expr: Sendable {
     /// `deliver`.
     case promise(PromiseBox)
 
+    /// A transactional mutable reference created by `ref`. Mutated only within a
+    /// `dosync` transaction via `ref-set`/`alter`/`commute`.
+    case ref(SwishRef)
+
     /// A compiled regular expression literal (`#"pattern"`).
     case regex(SwishRegex)
 
@@ -311,6 +315,9 @@ extension Expr: Equatable {
         case (.promise(let a), .promise(let b)):
             return a === b
 
+        case (.ref(let a), .ref(let b)):
+            return a === b
+
         case (.regex(let a), .regex(let b)):
             return a == b
 
@@ -457,6 +464,7 @@ private enum ExprHash {
     static let agent              = 34
     static let future              = 35
     static let promise             = 36
+    static let ref                 = 37
 }
 
 extension Expr: Hashable {
@@ -568,6 +576,9 @@ extension Expr: Hashable {
 
         case .promise(let v):
             hasher.combine(ExprHash.promise);   hasher.combine(ObjectIdentifier(v))
+
+        case .ref(let v):
+            hasher.combine(ExprHash.ref);       hasher.combine(ObjectIdentifier(v))
 
         case .regex(let v):
             hasher.combine(ExprHash.regex);     hasher.combine(v)
@@ -686,6 +697,9 @@ extension Expr: CustomStringConvertible {
 
         case .promise:
             return "promise"
+
+        case .ref:
+            return "ref"
 
         case .reduced:
             return "reduced"

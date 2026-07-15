@@ -150,31 +150,7 @@ func registerConcurrency(into evaluator: Evaluator) {
 
 private func coreAgent(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let initialValue = args[0]
-    var agentMeta: [Expr: Expr]? = nil
-    var agentValidator: Expr? = nil
-
-    var i = 1
-    while i + 1 < args.count {
-        let key = args[i]
-        let val = args[i + 1]
-        if key == .keyword("meta") {
-            switch val {
-            case .map(let sm):
-                agentMeta = sm.dict
-            case .sortedMap(let m, _):
-                agentMeta = m
-            case .nil:
-                agentMeta = nil
-            default:
-                throw EvaluatorError.invalidArgument(function: "agent",
-                    message: "metadata must be a map or nil, got \(corePrinter.printString(val))")
-            }
-        }
-        else if key == .keyword("validator") {
-            agentValidator = (val == .nil) ? nil : val
-        }
-        i += 2
-    }
+    let (agentMeta, agentValidator) = try parseMetaValidatorOptions(args, startingAt: 1, functionName: "agent")
 
     let a = SwishAgent(initialValue, metadata: agentMeta, validator: agentValidator)
     if let vf = agentValidator {

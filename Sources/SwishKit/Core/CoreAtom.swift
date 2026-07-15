@@ -30,6 +30,7 @@ func registerAtom(into evaluator: Evaluator) {
             switch args[0] {
             case .atom(let a):  return a.validator ?? .nil
             case .agent(let a): return a.validator ?? .nil
+            case .ref(let r):   return r.validator ?? .nil
             default:            return .nil
             }
         }
@@ -42,37 +43,45 @@ private func coreAtom(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         throw EvaluatorError.arityMismatch(name: "atom", expected: .atLeastOne, got: 0)
     }
     let initialValue = args[0]
-    var atomMeta: [Expr: Expr]? = nil
-    var atomValidator: Expr? = nil
-
-    var i = 1
-    while i + 1 < args.count {
-        let key = args[i]
-        let val = args[i + 1]
-        if key == .keyword("meta") {
-            switch val {
-            case .map(let sm):
-                atomMeta = sm.dict
-            case .sortedMap(let m, _):
-                atomMeta = m
-            case .nil:
-                atomMeta = nil
-            default:
-                throw EvaluatorError.invalidArgument(function: "atom",
-                    message: "metadata must be a map or nil, got \(corePrinter.printString(val))")
-            }
-        }
-        else if key == .keyword("validator") {
-            atomValidator = (val == .nil) ? nil : val
-        }
-        i += 2
-    }
+    let (atomMeta, atomValidator) = try parseMetaValidatorOptions(args, startingAt: 1, functionName: "atom")
 
     let a = SwishAtom(initialValue, metadata: atomMeta, validator: atomValidator)
     if let vf = atomValidator {
         try checkValidator(evaluator, fn: vf, value: initialValue, context: "atom")
     }
     return .atom(a)
+}
+
+/// Shared `:meta`/`:validator` option-vararg parsing for `atom`/`agent`/`ref`,
+/// which all accept an initial value followed by these two keyword options in
+/// any order.
+func parseMetaValidatorOptions(_ args: [Expr], startingAt start: Int, functionName: String) throws -> (meta: [Expr: Expr]?, validator: Expr?) {
+    var meta: [Expr: Expr]? = nil
+    var validator: Expr? = nil
+
+    var i = start
+    while i + 1 < args.count {
+        let key = args[i]
+        let val = args[i + 1]
+        if key == .keyword("meta") {
+            switch val {
+            case .map(let sm):
+                meta = sm.dict
+            case .sortedMap(let m, _):
+                meta = m
+            case .nil:
+                meta = nil
+            default:
+                throw EvaluatorError.invalidArgument(function: functionName,
+                    message: "metadata must be a map or nil, got \(corePrinter.printString(val))")
+            }
+        }
+        else if key == .keyword("validator") {
+            validator = (val == .nil) ? nil : val
+        }
+        i += 2
+    }
+    return (meta, validator)
 }
 
 func checkValidator(_ evaluator: Evaluator, fn: Expr, value: Expr, context: String) throws {
@@ -115,10 +124,16 @@ private func coreDeref(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     case .future(let box):
         return try box.deref()
 
+    case .ref(let r):
+        if let tx = evaluator.currentTransaction {
+            return tx.read(r, refExpr: args[0])
+        }
+        return r.value
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "deref",
-            message: "argument must be an atom, var, delay, agent, promise, or future, got \(corePrinter.printString(args[0]))")
+            message: "argument must be an atom, var, delay, agent, promise, future, or ref, got \(corePrinter.printString(args[0]))")
     }
 }
 

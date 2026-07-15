@@ -3,10 +3,11 @@
             [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists]]))
 
 ;; Swish-specific overlay for remove_watch.cljc from the Jank Clojure Test Suite.
-;; "remove watch refs"/"remove watch agents" exercise ref/dosync and
-;; agent/send/await, which Swish doesn't implement (see CLAUDE.md Known
-;; Limitations). They're guarded with when-var-exists so they skip cleanly
-;; instead of erroring.
+;; "remove watch refs" and "remove watch agents" exercise ref/dosync (Step 3:
+;; STM) and agent/send/await (Step 2: real concurrency), both now implemented.
+;; They're still guarded with when-var-exists (left in place rather than
+;; removed, matching how the analogous agent guard was handled in Step 2) so
+;; they simply run for real now instead of skipping.
 
 (when-var-exists remove-watch
   (deftest test-remove-watch

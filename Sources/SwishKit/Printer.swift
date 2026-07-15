@@ -141,6 +141,9 @@ public struct Printer {
                 ? "#<Promise@\(printString(box.deref()))>"
                 : "#<Promise@pending>"
 
+        case .ref(let r):
+            "#<Ref: \(printString(r.value))>"
+
         case .regex(let r):
             "#\"\(r.pattern)\""
 

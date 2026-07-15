@@ -113,7 +113,7 @@ public class Evaluator {
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
              .reader, .writer, .record, .inst, .uuid, .mapEntry, .array, .sharedVector,
-             .agent, .future, .promise:
+             .agent, .future, .promise, .ref:
             return expr
 
         case .seq(let elements):

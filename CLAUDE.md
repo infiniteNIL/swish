@@ -66,7 +66,13 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 
 ### STM (Software Transactional Memory)
 
-`ref`, `dosync`, `commute`, `alter`, `ensure` are not implemented. `clojure.test` uses an `atom` instead of a `ref` for `*report-counters*`, and `swap!` instead of `dosync`/`commute`.
+`ref`, `dosync`, `ref-set`, `alter`, `commute`, `ensure` are implemented (`SwishRef.swift`, `Evaluator+STM.swift`, `CoreRef.swift`), using optimistic concurrency control with three deliberate simplifications vs. real Clojure:
+
+- **Conflict detection covers every touched ref, not just written ones.** Commit verifies the version of every ref read *or* written by the transaction, not just Clojure's narrower write-focused read-set. This is strictly conservative (never wrong, only possibly more retries under contention) and has two consequences: `ensure` reduces to a transactional read that requires an active transaction, and `commute` reduces to `alter`'s full conflict-checked behavior (giving up Clojure's relaxed/deferred-to-commit throughput optimization for commutative ops, since it's untested anywhere).
+- **A single global commit lock**, not per-ref lock ordering. Transaction *bodies* run fully unlocked/concurrently; the lock is held only for the brief two-phase verify-then-write commit (verify all touched refs' versions first, then write only if every check passed — never interleaved, to avoid partially committing a transaction that's actually aborting).
+- **Exceptions abort immediately; only version conflicts retry.** A transaction body that throws propagates the exception right away rather than retrying (bounded at 10000 attempts, mirroring Clojure's `RETRY_LIMIT`).
+
+`clojure.test` still uses an `atom` instead of a `ref` for `*report-counters*`, and `swap!` instead of `dosync`/`commute` (`test.clj`) — left untouched as an optional follow-up, not required for STM support.
 
 ### Nested syntax-quote depth tracking
 

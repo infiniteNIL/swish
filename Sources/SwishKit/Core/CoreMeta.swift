@@ -65,6 +65,10 @@ private func coreMeta(_ args: [Expr]) throws -> Expr {
         guard let m = a.metadata else { return .nil }
         return .map(m, metadata: nil)
 
+    case .ref(let r):
+        guard let m = r.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
     default:
         return .nil
     }

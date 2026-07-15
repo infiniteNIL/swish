@@ -14,11 +14,11 @@
 ;;    ex-info/ex-data. Since Swish's `catch` already binds `e` to exactly the
 ;;    thrown value (rather than requiring ex-data to unwrap it), these blocks
 ;;    throw/catch the raw data map directly instead of going through ex-info.
-;; 2. "watch ref" exercises ref/dosync, which Swish doesn't implement yet (see
-;;    CLAUDE.md Known Limitations — STM is a later step). Its when-var-exists
-;;    guard still skips it cleanly. "watch agent" is guarded the same way, but
-;;    that guard now passes — agent/send/await/agent-error/restart-agent are
-;;    implemented (see Step 2: real concurrency) — so it runs for real.
+;; 2. "watch ref" and "watch agent" are both guarded with when-var-exists.
+;;    Both guards now pass for real: agent/send/await/agent-error/restart-agent
+;;    were implemented in Step 2 (real concurrency), and ref/dosync/ref-set/
+;;    alter/commute/ensure were implemented in Step 3 (STM) — so both sections
+;;    run for real now.
 
 (when-var-exists add-watch
   (deftest test-add-watch
@@ -157,16 +157,13 @@
               tester1 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 1}))
               tester2 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 2}))
               err (fn [key ref old new]
-                    (throw (ex-info "test" {:key key :ref ref :old old :new new :tester :err})))
+                    (throw {:key key :ref ref :old old :new new :tester :err}))
               r (ref 10)
               update! (fn []
                         (try
                           (dosync (ref-set r (inc @r)))
-                          (catch #?(:cljs :default
-                                    :clj clojure.lang.ExceptionInfo
-                                    :cljr clojure.lang.ExceptionInfo) e
-                            (let [{:keys [_old] :as data} (ex-data e)]
-                              (vswap! state conj data)))))
+                          (catch Exception e
+                            (vswap! state conj e))))
               keyed (fn [k s] (filter #(= k (:key %)) s))]
 
           ;; add a watch to the ref

@@ -2,7 +2,7 @@
 
 func registerWatch(into evaluator: Evaluator) {
     evaluator.register(name: "add-watch", arity: .fixed(3),
-        doc: "Adds a watch function to an atom/var/agent reference. The watch fn must be a fn of 4 args: key, reference, old-state, new-state. Whenever the reference's state changes, any registered watches will have their functions called. The 'key' is an arbitrary user-chosen key to identify this watch; add-watch of a key that already exists replaces that watch. Returns the reference.",
+        doc: "Adds a watch function to an atom/var/agent/ref reference. The watch fn must be a fn of 4 args: key, reference, old-state, new-state. Whenever the reference's state changes, any registered watches will have their functions called. The 'key' is an arbitrary user-chosen key to identify this watch; add-watch of a key that already exists replaces that watch. Returns the reference.",
         arglists: [["reference", "key", "fn"]],
         body: coreAddWatch)
     evaluator.register(name: "remove-watch", arity: .fixed(2),
@@ -24,10 +24,13 @@ private func coreAddWatch(_ args: [Expr]) throws -> Expr {
     case .agent(let a):
         a.addWatch(key: args[1], fn: args[2])
 
+    case .ref(let r):
+        r.addWatch(key: args[1], fn: args[2])
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "add-watch",
-            message: "first argument must be an atom, var, or agent, got \(corePrinter.printString(args[0]))")
+            message: "first argument must be an atom, var, agent, or ref, got \(corePrinter.printString(args[0]))")
     }
     return args[0]
 }
@@ -43,10 +46,13 @@ private func coreRemoveWatch(_ args: [Expr]) throws -> Expr {
     case .agent(let a):
         a.removeWatch(key: args[1])
 
+    case .ref(let r):
+        r.removeWatch(key: args[1])
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "remove-watch",
-            message: "first argument must be an atom, var, or agent, got \(corePrinter.printString(args[0]))")
+            message: "first argument must be an atom, var, agent, or ref, got \(corePrinter.printString(args[0]))")
     }
     return args[0]
 }
