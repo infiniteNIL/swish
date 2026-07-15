@@ -117,6 +117,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerce to BigDecimal.",
         arglists: [["x"]],
         body: coreBigDec)
+    evaluator.register(name: "boolean", arity: .fixed(1),
+        doc: "Coerce to boolean",
+        arglists: [["x"]],
+        body: coreBoolean)
+    evaluator.register(name: "parse-boolean", arity: .fixed(1),
+        doc: "Parse a string as a Boolean, returning true/false, or nil if not a valid Boolean.",
+        arglists: [["s"]],
+        body: coreParseBoolean)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
@@ -888,6 +896,33 @@ private func coreBigDec(_ args: [Expr]) throws -> Expr {
     default:
         throw EvaluatorError.invalidArgument(
             function: "bigdec", message: "cannot convert \(corePrinter.printString(args[0])) to bigdec")
+    }
+}
+
+private func coreBoolean(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .nil, .boolean(false):
+        return .boolean(false)
+
+    default:
+        return .boolean(true)
+    }
+}
+
+private func coreParseBoolean(_ args: [Expr]) throws -> Expr {
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "parse-boolean",
+            message: "expected a string, got \(corePrinter.printString(args[0]))")
+    }
+    switch s {
+    case "true":
+        return .boolean(true)
+
+    case "false":
+        return .boolean(false)
+
+    default:
+        return .nil
     }
 }
 
