@@ -16,6 +16,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] bigdec, bigint, inc', dec'
 - [x] keyword
 - [x] deftype
 - [x] protocols (not on built-in types, such Int, Double, etc.)
