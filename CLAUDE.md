@@ -71,8 +71,13 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 - **Conflict detection covers every touched ref, not just written ones.** Commit verifies the version of every ref read *or* written by the transaction, not just Clojure's narrower write-focused read-set. This is strictly conservative (never wrong, only possibly more retries under contention) and has two consequences: `ensure` reduces to a transactional read that requires an active transaction, and `commute` reduces to `alter`'s full conflict-checked behavior (giving up Clojure's relaxed/deferred-to-commit throughput optimization for commutative ops, since it's untested anywhere).
 - **A single global commit lock**, not per-ref lock ordering. Transaction *bodies* run fully unlocked/concurrently; the lock is held only for the brief two-phase verify-then-write commit (verify all touched refs' versions first, then write only if every check passed — never interleaved, to avoid partially committing a transaction that's actually aborting).
 - **Exceptions abort immediately; only version conflicts retry.** A transaction body that throws propagates the exception right away rather than retrying (bounded at 10000 attempts, mirroring Clojure's `RETRY_LIMIT`).
+- **No ref history retention.** `ref-min-history`/`ref-max-history` are real get/set pairs and `ref-history-count` always returns 0, but none of them affect transactional behavior. Real Clojure's history exists so an `ensure`-protected reader can be served a slightly-stale value instead of blocking on an in-progress writer's commit; Swish's optimistic-retry design (above) already never blocks readers on writers, so history has no role left to play.
 
 `clojure.test` still uses an `atom` instead of a `ref` for `*report-counters*`, and `swap!` instead of `dosync`/`commute` (`test.clj`) — left untouched as an optional follow-up, not required for STM support.
+
+### Agent lifecycle no-ops
+
+`shutdown-agents` and `restart-agent`'s `:clear-actions` option are accepted (for source compatibility with ported Clojure code) but have no observable effect. Real Clojure's `send`/`send-off` share process-wide thread pools that `shutdown-agents` tears down, and a failed agent holds a real backlog of not-yet-run actions that `:clear-actions` can discard; Swish instead gives every agent its own dedicated GCD queue and dispatches each `send` onto it eagerly, so a "failed" action has already run (as a no-op) by the time it would matter — there is no shared executor to shut down and no held-back backlog to clear.
 
 ### Nested syntax-quote depth tracking
 

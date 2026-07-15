@@ -9,6 +9,11 @@ public final class SwishRef: @unchecked Sendable {
         var metadata: [Expr: Expr]?
         var validator: Expr?
         var watches: [Expr: Expr] = [:]
+        /// Recorded for API compatibility with `ref-min-history`/`ref-max-history`;
+        /// this implementation does not retain ref history (see CLAUDE.md Known
+        /// Limitations), so these have no effect on transactional behavior.
+        var minHistory: Int = 0
+        var maxHistory: Int = 10
     }
 
     private let state: Mutex<State>
@@ -30,6 +35,14 @@ public final class SwishRef: @unchecked Sendable {
     /// Snapshot of the current watches. Safe to iterate without holding the lock.
     var watches: [Expr: Expr] {
         state.withLock { $0.watches }
+    }
+    var minHistory: Int {
+        get { state.withLock { $0.minHistory } }
+        set { state.withLock { $0.minHistory = newValue } }
+    }
+    var maxHistory: Int {
+        get { state.withLock { $0.maxHistory } }
+        set { state.withLock { $0.maxHistory = newValue } }
     }
 
     init(_ value: Expr, metadata: [Expr: Expr]? = nil, validator: Expr? = nil) {

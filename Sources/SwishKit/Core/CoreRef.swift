@@ -27,6 +27,20 @@ func registerRef(into evaluator: Evaluator) {
     evaluator.register(name: "ensure", arity: .fixed(1),
         doc: "Must be called in a transaction. Protects the ref from modification by other transactions and returns its in-transaction-value. Returns the value.",
         arglists: [["ref"]]) { [evaluator] args in try coreEnsure(evaluator, args) }
+    evaluator.register(name: "ref-history-count", arity: .fixed(1),
+        doc: "Returns the history count for ref. Always 0 in this implementation — see ref-min-history/ref-max-history.",
+        arglists: [["ref"]]) { args in
+        guard case .ref = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "ref-history-count", message: "argument must be a ref")
+        }
+        return .integer(0)
+    }
+    evaluator.register(name: "ref-min-history", arity: .atLeastOne,
+        doc: "Gets/sets the min-history of ref (default 0). Recorded for API compatibility; this implementation does not retain ref history (see CLAUDE.md Known Limitations), so it has no effect on ref-history-count or transactional read behavior.",
+        arglists: [["ref"], ["ref", "n"]]) { args in try coreRefHistory(args, which: \.minHistory, functionName: "ref-min-history") }
+    evaluator.register(name: "ref-max-history", arity: .atLeastOne,
+        doc: "Gets/sets the max-history of ref (default 10). Recorded for API compatibility; this implementation does not retain ref history (see CLAUDE.md Known Limitations), so it has no effect on ref-history-count or transactional read behavior.",
+        arglists: [["ref"], ["ref", "n"]]) { args in try coreRefHistory(args, which: \.maxHistory, functionName: "ref-max-history") }
 }
 
 // MARK: - Helpers
@@ -129,4 +143,18 @@ private func coreEnsure(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     }
     let tx = try requireTransaction(evaluator, function: "ensure")
     return tx.read(r, refExpr: args[0])
+}
+
+private func coreRefHistory(_ args: [Expr], which keyPath: ReferenceWritableKeyPath<SwishRef, Int>, functionName: String) throws -> Expr {
+    guard case .ref(let r) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: functionName, message: "first argument must be a ref")
+    }
+    if args.count >= 2 {
+        guard case .integer(let n) = args[1] else {
+            throw EvaluatorError.invalidArgument(function: functionName, message: "second argument must be an integer")
+        }
+        r[keyPath: keyPath] = n
+        return args[0]
+    }
+    return .integer(r[keyPath: keyPath])
 }

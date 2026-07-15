@@ -189,4 +189,32 @@ struct CoreRefTests {
             @calls
             """) == .integer(1))
     }
+
+    // MARK: - ref history
+
+    @Test("ref-min-history/ref-max-history default to 0/10")
+    func refHistoryDefaults() throws {
+        #expect(try swish.eval("(ref-min-history (ref 1))") == .integer(0))
+        #expect(try swish.eval("(ref-max-history (ref 1))") == .integer(10))
+    }
+
+    @Test("ref-min-history/ref-max-history get/set roundtrip, setter returns the ref")
+    func refHistoryRoundtrip() throws {
+        #expect(try swish.eval("""
+            (def r (ref 1))
+            (= r (ref-min-history r 5))
+            """) == .boolean(true))
+        #expect(try swish.eval("(def r (ref 1)) (ref-min-history r 5) (ref-min-history r)") == .integer(5))
+        #expect(try swish.eval("(def r2 (ref 1)) (ref-max-history r2 20) (ref-max-history r2)") == .integer(20))
+    }
+
+    @Test("ref-history-count always returns 0, including after a commit")
+    func refHistoryCountAlwaysZero() throws {
+        #expect(try swish.eval("(ref-history-count (ref 1))") == .integer(0))
+        #expect(try swish.eval("""
+            (def r (ref 1))
+            (dosync (alter r inc))
+            (ref-history-count r)
+            """) == .integer(0))
+    }
 }

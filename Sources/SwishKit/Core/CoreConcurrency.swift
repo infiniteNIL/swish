@@ -104,6 +104,22 @@ func registerConcurrency(into evaluator: Evaluator) {
         }
         return .nil
     }
+    evaluator.register(name: "await-for", arity: .atLeastOne,
+        doc: "Blocks the current thread until all actions dispatched thus far to each of the agents have occurred, or the timeout (in milliseconds) has elapsed. Returns false if it returned due to timeout, true otherwise.",
+        arglists: [["timeout-ms", "&", "agents"]]) { [evaluator] args in
+        guard case .integer(let ms) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "await-for", message: "first argument must be an integer timeout in milliseconds")
+        }
+        let group = DispatchGroup()
+        for a in args.dropFirst() {
+            guard case .agent(let agent) = a else {
+                throw EvaluatorError.invalidArgument(function: "await-for", message: "argument must be an agent, got \(corePrinter.printString(a))")
+            }
+            agent.awaitAsync(evaluator: evaluator, agentExpr: a, group: group)
+        }
+        let result = group.wait(timeout: .now() + .milliseconds(ms))
+        return .boolean(result == .success)
+    }
     evaluator.register(name: "agent-error", arity: .fixed(1),
         doc: "Returns the exception thrown during an asynchronous action of the agent if the agent is failed, else nil.",
         arglists: [["a"]]) { args in
@@ -112,15 +128,67 @@ func registerConcurrency(into evaluator: Evaluator) {
         }
         return agent.error ?? .nil
     }
-    evaluator.register(name: "restart-agent", arity: .fixed(2),
-        doc: "When an agent is failed, changes the agent state to new-state and then un-fails the agent so that sends are allowed again.",
-        arglists: [["a", "new-state"]]) { args in
+    evaluator.register(name: "restart-agent", arity: .atLeastOne,
+        doc: "When an agent is failed, changes the agent state to new-state (which must pass the validator, if any) and then un-fails the agent so that sends are allowed again. Accepts an optional :clear-actions option for API compatibility; since Swish dispatches actions eagerly rather than holding a real backlog while failed, this implementation has no observable effect (see CLAUDE.md Known Limitations).",
+        arglists: [["a", "new-state"], ["a", "new-state", "&", "options"]]) { [evaluator] args in
+        guard args.count >= 2 else {
+            throw EvaluatorError.invalidArgument(function: "restart-agent", message: "requires at least 2 arguments")
+        }
         guard case .agent(let agent) = args[0] else {
             throw EvaluatorError.invalidArgument(function: "restart-agent", message: "first argument must be an agent")
         }
-        agent.restart(newValue: args[1])
+        var i = 2
+        while i + 1 < args.count {
+            if args[i] == .keyword("clear-actions") {
+                guard case .boolean = args[i + 1] else {
+                    throw EvaluatorError.invalidArgument(function: "restart-agent", message: ":clear-actions must be a boolean")
+                }
+            }
+            i += 2
+        }
+        try agent.restart(evaluator: evaluator, newValue: args[1])
         return args[1]
     }
+    evaluator.register(name: "set-error-handler!", arity: .fixed(2),
+        doc: "Sets the error-handler of agent a to handler-fn (nil to clear). If an action run by the agent throws, handler-fn will be called with two arguments: the agent and the exception. Returns nil.",
+        arglists: [["a", "handler-fn"]]) { args in
+        guard case .agent(let agent) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "set-error-handler!", message: "first argument must be an agent")
+        }
+        agent.errorHandler = (args[1] == .nil) ? nil : args[1]
+        return .nil
+    }
+    evaluator.register(name: "error-handler", arity: .fixed(1),
+        doc: "Returns the error-handler of agent a, or nil if there is none.",
+        arglists: [["a"]]) { args in
+        guard case .agent(let agent) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "error-handler", message: "argument must be an agent")
+        }
+        return agent.errorHandler ?? .nil
+    }
+    evaluator.register(name: "set-error-mode!", arity: .fixed(2),
+        doc: "Sets the error-mode of agent a to mode, which must be :continue or :fail (the default). In :fail mode, an action that throws fails the agent (further sends no-op until restart-agent). In :continue mode, the agent's value is left unchanged and processing continues with the next queued action. Returns nil.",
+        arglists: [["a", "mode"]]) { args in
+        guard case .agent(let agent) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "set-error-mode!", message: "first argument must be an agent")
+        }
+        guard case .keyword(let k) = args[1], k == "continue" || k == "fail" else {
+            throw EvaluatorError.invalidArgument(function: "set-error-mode!", message: "mode must be :continue or :fail")
+        }
+        agent.errorMode = args[1]
+        return .nil
+    }
+    evaluator.register(name: "error-mode", arity: .fixed(1),
+        doc: "Returns the error-mode of agent a (:continue or :fail).",
+        arglists: [["a"]]) { args in
+        guard case .agent(let agent) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "error-mode", message: "argument must be an agent")
+        }
+        return agent.errorMode
+    }
+    evaluator.register(name: "shutdown-agents", arity: .fixed(0),
+        doc: "No-op in this implementation. Real Clojure shuts down the shared thread pools backing send/send-off; Swish instead dispatches each agent's actions on its own dedicated queue, so there is no shared executor to shut down. Provided for source compatibility with programs that call it defensively.",
+        arglists: [[]]) { _ in .nil }
 
     // MARK: bound-fn*
 

@@ -12,6 +12,13 @@ public final class SwishAgent: @unchecked Sendable {
         var watches: [Expr: Expr] = [:]
         /// Non-nil means the agent is failed: actions no-op until `restart`.
         var error: Expr? = nil
+        /// Called with [agent, exception] whenever an action throws, regardless
+        /// of error mode.
+        var errorHandler: Expr? = nil
+        /// `:fail` (default) fails the agent on a throwing action (see `error`).
+        /// `:continue` swallows the exception, leaves the value unchanged, and
+        /// keeps draining the queue normally.
+        var errorMode: Expr = .keyword("fail")
     }
 
     private let state: Mutex<State>
@@ -28,6 +35,14 @@ public final class SwishAgent: @unchecked Sendable {
     }
     var watches: [Expr: Expr] { state.withLock { $0.watches } }
     var error: Expr? { state.withLock { $0.error } }
+    var errorHandler: Expr? {
+        get { state.withLock { $0.errorHandler } }
+        set { state.withLock { $0.errorHandler = newValue } }
+    }
+    var errorMode: Expr {
+        get { state.withLock { $0.errorMode } }
+        set { state.withLock { $0.errorMode = newValue } }
+    }
 
     init(_ value: Expr, metadata: [Expr: Expr]? = nil, validator: Expr? = nil) {
         state = Mutex(State(value: value, metadata: metadata, validator: validator))
@@ -41,9 +56,16 @@ public final class SwishAgent: @unchecked Sendable {
         state.withLock { _ = $0.watches.removeValue(forKey: key) }
     }
 
-    /// Clears the failed state and sets a new value.
-    func restart(newValue: Expr) {
-        state.withLock { $0.value = newValue; $0.error = nil }
+    /// Clears the failed state and sets a new value, validating it first. Runs on
+    /// `queue` so it's ordered relative to any actions already in flight — happens-
+    /// after anything queued before this call, happens-before anything queued after.
+    func restart(evaluator: Evaluator, newValue: Expr) throws {
+        try queue.sync {
+            if let vf = validator {
+                try checkValidator(evaluator, fn: vf, value: newValue, context: "restart-agent")
+            }
+            state.withLock { $0.value = newValue; $0.error = nil }
+        }
     }
 
     /// Runs one action: no-ops if the agent is currently failed. Called on `queue`.
@@ -58,7 +80,14 @@ public final class SwishAgent: @unchecked Sendable {
             state.withLock { $0.value = newValue }
             try notifyWatches(evaluator, watches: watches, ref: agentExpr, old: old, new: newValue)
         } catch {
-            state.withLock { $0.error = evaluator.exprForError(error) }
+            let errExpr = evaluator.exprForError(error)
+            let (handler, mode) = state.withLock { ($0.errorHandler, $0.errorMode) }
+            if let handler {
+                _ = try? evaluator.call(handler, args: [agentExpr, errExpr])
+            }
+            if mode != .keyword("continue") {
+                state.withLock { $0.error = errExpr }
+            }
         }
     }
 
@@ -85,6 +114,24 @@ public final class SwishAgent: @unchecked Sendable {
             evaluator.withInstalledBindings(frames, callDepth: 0) {
                 self.runAction(evaluator: evaluator, agentExpr: agentExpr, actionFn: identity, extraArgs: [])
             }
+        }
+    }
+
+    /// Backs `await-for`'s bounded wait: enqueues the same no-op identity action
+    /// as `await`, but asynchronously — signaling `group` on completion instead of
+    /// blocking the calling thread — so a caller can wait across multiple agents
+    /// against one shared deadline via `DispatchGroup.wait(timeout:)`. A timed-out
+    /// wait doesn't cancel anything; the dispatched action keeps running to
+    /// completion, matching real Clojure's `await-for`.
+    func awaitAsync(evaluator: Evaluator, agentExpr: Expr, group: DispatchGroup) {
+        let frames = evaluator.captureCurrentBindings()
+        let identity: Expr = .nativeFunction(name: "identity", arity: .fixed(1)) { $0[0] }
+        group.enter()
+        queue.async {
+            evaluator.withInstalledBindings(frames, callDepth: 0) {
+                self.runAction(evaluator: evaluator, agentExpr: agentExpr, actionFn: identity, extraArgs: [])
+            }
+            group.leave()
         }
     }
 }

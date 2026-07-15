@@ -135,4 +135,122 @@ struct CoreAgentTests {
             @calls
             """) == .integer(1))
     }
+
+    // MARK: - error-handler / error-mode
+
+    @Test("error-handler is nil by default")
+    func errorHandlerNilByDefault() throws {
+        #expect(try swish.eval("(error-handler (agent 1))") == .nil)
+    }
+
+    @Test("set-error-handler!/error-handler roundtrip, including nil clearing")
+    func setErrorHandlerRoundtrip() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-handler! a (fn [ag ex] nil))
+            (nil? (error-handler a))
+            """) == .boolean(false))
+        #expect(try swish.eval("""
+            (set-error-handler! a nil)
+            (error-handler a)
+            """) == .nil)
+    }
+
+    @Test("error handler is called with [agent, exception] when an action throws")
+    func errorHandlerInvokedOnThrow() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (def log (atom nil))
+            (set-error-handler! a (fn [ag ex] (reset! log [(= ag a) ex])))
+            (send a (fn [x] (throw "boom")))
+            (await a)
+            @log
+            """) == .vector([.boolean(true), .string("boom")], metadata: nil))
+    }
+
+    @Test("error-mode defaults to :fail")
+    func errorModeDefaultsToFail() throws {
+        #expect(try swish.eval("(error-mode (agent 1))") == .keyword("fail"))
+    }
+
+    @Test("set-error-mode!/error-mode roundtrip")
+    func setErrorModeRoundtrip() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-mode! a :continue)
+            (error-mode a)
+            """) == .keyword("continue"))
+    }
+
+    @Test("set-error-mode! rejects an invalid mode keyword")
+    func setErrorModeRejectsInvalid() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(set-error-mode! (agent 1) :bogus)") }
+    }
+
+    @Test(":continue mode swallows a throwing action, leaves value unchanged, and keeps processing")
+    func continueModeSwallowsException() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-mode! a :continue)
+            (send a (fn [x] (throw "boom")))
+            (send a inc)
+            (await a)
+            [(agent-error a) @a]
+            """) == .vector([.nil, .integer(2)], metadata: nil))
+    }
+
+    @Test(":fail mode (explicit) still fails the agent on a throwing action")
+    func failModeExplicitStillFails() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-mode! a :fail)
+            (send a (fn [x] (throw "boom")))
+            (await a)
+            (nil? (agent-error a))
+            """) == .boolean(false))
+    }
+
+    // MARK: - restart-agent validator + :clear-actions
+
+    @Test("restart-agent throws when new-state fails the validator, and the agent remains failed")
+    func restartAgentValidatorRejects() throws {
+        _ = try swish.eval("""
+            (def a (agent 1 :validator odd?))
+            (send a (fn [x] (throw "boom")))
+            (await a)
+            """)
+        #expect(throws: (any Error).self) { try swish.eval("(restart-agent a 2)") }
+        #expect(try swish.eval("(nil? (agent-error a))") == .boolean(false))
+    }
+
+    @Test("restart-agent accepts :clear-actions true/false without erroring")
+    func restartAgentAcceptsClearActionsOption() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (send a (fn [x] (throw "boom")))
+            (await a)
+            (restart-agent a 5 :clear-actions true)
+            @a
+            """) == .integer(5))
+        #expect(try swish.eval("""
+            (def b (agent 1))
+            (send b (fn [x] (throw "boom")))
+            (await b)
+            (restart-agent b 9 :clear-actions false)
+            @b
+            """) == .integer(9))
+    }
+
+    // MARK: - shutdown-agents
+
+    @Test("shutdown-agents returns nil and doesn't prevent subsequent send/await")
+    func shutdownAgentsIsNoOp() throws {
+        #expect(try swish.eval("(shutdown-agents)") == .nil)
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (send a inc)
+            (await a)
+            @a
+            """) == .integer(2))
+    }
 }
