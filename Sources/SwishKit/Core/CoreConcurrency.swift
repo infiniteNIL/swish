@@ -61,11 +61,11 @@ func registerConcurrency(into evaluator: Evaluator) {
 
     // MARK: sleep (backs the jank suite's `sleep` portability shim)
 
-    evaluator.register(name: "swish-sleep!", arity: .fixed(1),
+    evaluator.register(name: "sleep!", arity: .fixed(1),
         doc: "Blocks the current thread for approximately ms milliseconds. Polls a cancellation check installed by future-call, so a cancelled future's sleep exits early.",
         arglists: [["ms"]]) { [evaluator] args in
         guard case .integer(let ms) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "swish-sleep!", message: "argument must be an integer")
+            throw EvaluatorError.invalidArgument(function: "sleep!", message: "argument must be an integer")
         }
         let deadline = Date().addingTimeInterval(Double(ms) / 1000)
         let tick = 0.02
@@ -167,7 +167,7 @@ func registerConcurrency(into evaluator: Evaluator) {
         return agent.errorHandler ?? .nil
     }
     evaluator.register(name: "set-error-mode!", arity: .fixed(2),
-        doc: "Sets the error-mode of agent a to mode, which must be :continue or :fail (the default). In :fail mode, an action that throws fails the agent (further sends no-op until restart-agent). In :continue mode, the agent's value is left unchanged and processing continues with the next queued action. Returns nil.",
+        doc: "Sets the error-mode of agent a to mode, which must be :continue or :fail. Overrides the dynamic default (see error-mode) regardless of whether an error-handler is set. In :fail mode, an action that throws fails the agent (further sends no-op until restart-agent). In :continue mode, the agent's value is left unchanged and processing continues with the next queued action. Returns nil.",
         arglists: [["a", "mode"]]) { args in
         guard case .agent(let agent) = args[0] else {
             throw EvaluatorError.invalidArgument(function: "set-error-mode!", message: "first argument must be an agent")
@@ -179,7 +179,7 @@ func registerConcurrency(into evaluator: Evaluator) {
         return .nil
     }
     evaluator.register(name: "error-mode", arity: .fixed(1),
-        doc: "Returns the error-mode of agent a (:continue or :fail).",
+        doc: "Returns the error-mode of agent a (:continue or :fail). If never explicitly set via set-error-mode!, defaults to :continue once an error-handler has been set (see set-error-handler!), else :fail.",
         arglists: [["a"]]) { args in
         guard case .agent(let agent) = args[0] else {
             throw EvaluatorError.invalidArgument(function: "error-mode", message: "argument must be an agent")

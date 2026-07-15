@@ -16,8 +16,6 @@
 
 ;; Remaining Swish adaptations (marked with [Swish]):
 ;;   - report uses (cond ...) instead of (defmulti/defmethod) — no multimethods yet
-;;   - *report-counters* uses (atom ...) instead of (ref ...) — no STM in Swish
-;;   - inc-report-counter uses (swap! ...) instead of (dosync (commute ...))
 ;;   - do-report does not add :file/:line — no Java stack trace access
 ;;   - testing-vars-str does not include file/line
 ;;   - is macro inlines try/catch (no try-expr/assert-expr multimethod yet)
@@ -89,7 +87,7 @@
 
 ;;; GLOBALS USED BY THE REPORTING FUNCTIONS
 
-(def ^:dynamic *report-counters* nil)       ; [Swish] atom of a map in test-ns
+(def ^:dynamic *report-counters* nil)       ; [Swish] ref of a map in test-ns
 
 (def ^:dynamic *initial-report-counters*    ; used to initialize *report-counters*
   {:test 0, :pass 0, :fail 0, :error 0})
@@ -126,13 +124,12 @@
   (str/join " " (reverse *testing-contexts*)))
 
 (defn inc-report-counter
-  "Increments the named counter in *report-counters*, an atom holding a map.
+  "Increments the named counter in *report-counters*, a ref holding a map.
   Does nothing if *report-counters* is nil."
   {:added "1.1"}
   [name]
-  ;; [Swish] uses atom + swap! instead of ref + dosync/commute
   (when *report-counters*
-    (swap! *report-counters* (fn [m] (assoc m name (inc (get m name 0)))))))
+    (dosync (commute *report-counters* (fn [m] (assoc m name (inc (get m name 0))))))))
 
 
 ;;; TEST RESULT REPORTING
@@ -426,13 +423,12 @@
   Otherwise, calls test-all-vars on the namespace.  'ns' is a
   namespace object or a symbol.
 
-  Internally binds *report-counters* to an atom initialized to
+  Internally binds *report-counters* to a ref initialized to
   *initial-report-counters*.  Returns the final, dereferenced state of
   *report-counters*."
   {:added "1.1"}
   [ns]
-  ;; [Swish] uses atom instead of ref for *report-counters*
-  (binding [*report-counters* (atom *initial-report-counters*)]
+  (binding [*report-counters* (ref *initial-report-counters*)]
     (let [ns-obj (the-ns ns)
           hook-var (get (ns-interns ns-obj) (symbol "test-ns-hook"))]
       (do-report {:type :begin-test-ns, :ns ns-obj})

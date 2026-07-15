@@ -44,7 +44,7 @@ struct CoreFutureTests {
     @Test("future-cancel synchronously marks a still-running future realized and cancelled")
     func futureCancelIsSynchronous() throws {
         #expect(try swish.eval("""
-            (def f (future (swish-sleep! 10000)))
+            (def f (future (sleep! 10000)))
             (realized? f)
             """) == .boolean(false))
         #expect(try swish.eval("(future-cancel f)") == .boolean(true))
@@ -60,7 +60,7 @@ struct CoreFutureTests {
     @Test("deref on a cancelled future throws")
     func derefOnCancelledThrows() throws {
         #expect(throws: (any Error).self) {
-            try swish.eval("(def f (future (swish-sleep! 10000))) (future-cancel f) (deref f)")
+            try swish.eval("(def f (future (sleep! 10000))) (future-cancel f) (deref f)")
         }
     }
 }

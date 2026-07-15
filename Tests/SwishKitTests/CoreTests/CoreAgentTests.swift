@@ -187,6 +187,54 @@ struct CoreAgentTests {
         #expect(throws: (any Error).self) { try swish.eval("(set-error-mode! (agent 1) :bogus)") }
     }
 
+    @Test("error-mode defaults to :continue once an error-handler is set, with no explicit set-error-mode!")
+    func errorModeDefaultsToContinueOnceHandlerSet() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-handler! a (fn [ag ex] nil))
+            (error-mode a)
+            """) == .keyword("continue"))
+    }
+
+    @Test("clearing the handler reverts error-mode back to :fail, if never explicitly set")
+    func errorModeRevertsToFailWhenHandlerCleared() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-handler! a (fn [ag ex] nil))
+            (set-error-handler! a nil)
+            (error-mode a)
+            """) == .keyword("fail"))
+    }
+
+    @Test("an explicit set-error-mode! wins over the handler-presence default, both directions")
+    func explicitErrorModeWinsOverHandlerDefault() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-mode! a :fail)
+            (set-error-handler! a (fn [ag ex] nil))
+            (error-mode a)
+            """) == .keyword("fail"))
+        #expect(try swish.eval("""
+            (def b (agent 1))
+            (set-error-handler! b (fn [ag ex] nil))
+            (set-error-mode! b :fail)
+            (set-error-handler! b nil)
+            (error-mode b)
+            """) == .keyword("fail"))
+    }
+
+    @Test("the dynamic :continue default actually swallows a throwing action's exception, not just the getter")
+    func dynamicContinueDefaultActuallyContinuesProcessing() throws {
+        #expect(try swish.eval("""
+            (def a (agent 1))
+            (set-error-handler! a (fn [ag ex] nil))
+            (send a (fn [x] (throw "boom")))
+            (send a inc)
+            (await a)
+            [(agent-error a) @a]
+            """) == .vector([.nil, .integer(2)], metadata: nil))
+    }
+
     @Test(":continue mode swallows a throwing action, leaves value unchanged, and keeps processing")
     func continueModeSwallowsException() throws {
         #expect(try swish.eval("""

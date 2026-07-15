@@ -66,7 +66,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters]
                   (t/is (= 1 1)))
                 (:pass @counters)))
@@ -79,7 +79,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters
                           t/*test-out* *out*]
                   (t/is (= 1 2)))
@@ -93,7 +93,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters]
                   (t/is (= 2 2) "two equals two"))
                 (:pass @counters)))
@@ -106,7 +106,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters
                           t/*test-out* *out*]
                   (t/is (throw "boom")))
@@ -122,7 +122,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters]
                   (t/are [x y] (= x y)
                     1 1
@@ -138,7 +138,7 @@ struct CoreClojureTestTests {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
-              (let [counters (atom {:test 0 :pass 0 :fail 0 :error 0})]
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
                 (binding [t/*report-counters* counters
                           t/*test-out* *out*]
                   (t/are [x y] (= x y)

@@ -37,7 +37,7 @@ extension Evaluator {
     private static let cancellationCheckKey = "swish.evaluator.currentCancellationCheck"
 
     /// Thread-local, installed only around a `future`'s body execution — read by
-    /// `swish-sleep!` so a cancelled future's sleep can exit early. `nil` outside
+    /// `sleep!` so a cancelled future's sleep can exit early. `nil` outside
     /// a future body (e.g. plain top-level `(sleep ...)`), in which case sleep
     /// just runs to completion normally.
     var currentCancellationCheck: (() -> Bool)? {

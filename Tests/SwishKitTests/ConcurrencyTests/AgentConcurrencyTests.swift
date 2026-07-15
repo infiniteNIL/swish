@@ -39,7 +39,7 @@ struct AgentConcurrencyTests {
     func awaitForReturnsTrueWhenActionFinishesInTime() throws {
         let swish = Swish()
         _ = try swish.eval("(def a (agent 1))")
-        _ = try swish.eval("(send a (fn [x] (swish-sleep! 50) (inc x)))")
+        _ = try swish.eval("(send a (fn [x] (sleep! 50) (inc x)))")
         let result = try swish.eval("(await-for 5000 a)")
         #expect(result == .boolean(true))
         #expect(try swish.eval("@a") == .integer(2))
@@ -49,7 +49,7 @@ struct AgentConcurrencyTests {
     func awaitForReturnsFalseOnTimeout() throws {
         let swish = Swish()
         _ = try swish.eval("(def a (agent 1))")
-        _ = try swish.eval("(send a (fn [x] (swish-sleep! 300) (inc x)))")
+        _ = try swish.eval("(send a (fn [x] (sleep! 300) (inc x)))")
         let result = try swish.eval("(await-for 20 a)")
         #expect(result == .boolean(false))
         // The action wasn't cancelled — it keeps running to completion.

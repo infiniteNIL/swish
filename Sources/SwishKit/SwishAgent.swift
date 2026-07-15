@@ -15,10 +15,19 @@ public final class SwishAgent: @unchecked Sendable {
         /// Called with [agent, exception] whenever an action throws, regardless
         /// of error mode.
         var errorHandler: Expr? = nil
-        /// `:fail` (default) fails the agent on a throwing action (see `error`).
-        /// `:continue` swallows the exception, leaves the value unchanged, and
-        /// keeps draining the queue normally.
-        var errorMode: Expr = .keyword("fail")
+        /// `nil` means "never explicitly set" — see `effectiveErrorMode`.
+        var explicitErrorMode: Expr? = nil
+
+        /// `:fail` fails the agent on a throwing action (see `error`). `:continue`
+        /// swallows the exception, leaves the value unchanged, and keeps draining
+        /// the queue normally. Matches real Clojure's dynamic default: `:continue`
+        /// once an error-handler has been set and error-mode has never been
+        /// explicitly set via `set-error-mode!`; `:fail` otherwise. Recomputed live,
+        /// so clearing the handler (`set-error-handler! nil`) without ever having
+        /// called `set-error-mode!` reverts the effective mode back to `:fail`.
+        var effectiveErrorMode: Expr {
+            explicitErrorMode ?? (errorHandler != nil ? .keyword("continue") : .keyword("fail"))
+        }
     }
 
     private let state: Mutex<State>
@@ -40,8 +49,8 @@ public final class SwishAgent: @unchecked Sendable {
         set { state.withLock { $0.errorHandler = newValue } }
     }
     var errorMode: Expr {
-        get { state.withLock { $0.errorMode } }
-        set { state.withLock { $0.errorMode = newValue } }
+        get { state.withLock { $0.effectiveErrorMode } }
+        set { state.withLock { $0.explicitErrorMode = newValue } }
     }
 
     init(_ value: Expr, metadata: [Expr: Expr]? = nil, validator: Expr? = nil) {
@@ -81,7 +90,7 @@ public final class SwishAgent: @unchecked Sendable {
             try notifyWatches(evaluator, watches: watches, ref: agentExpr, old: old, new: newValue)
         } catch {
             let errExpr = evaluator.exprForError(error)
-            let (handler, mode) = state.withLock { ($0.errorHandler, $0.errorMode) }
+            let (handler, mode) = state.withLock { ($0.errorHandler, $0.effectiveErrorMode) }
             if let handler {
                 _ = try? evaluator.call(handler, args: [agentExpr, errExpr])
             }
