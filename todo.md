@@ -16,6 +16,9 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] keyword
+- [x] deftype
+- [x] protocols (not on built-in types, such Int, Double, etc.)
 - [x] ref, dosync, commute, alter, STM
 - [x] futures and promises
 - [x] agents and validators
