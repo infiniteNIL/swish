@@ -142,6 +142,13 @@ private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
     guard case .symbol(let name, _) = args[0] else { return .nil }
     if let v = try? evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
     if let v = evaluator.resolveVar(name: name, in: evaluator.currentNs()) { return .varRef(v) }
+    // Special forms (let, if, deftype, ...) are hardcoded symbol matches in
+    // evalList's switch, never interned as vars — without this, (resolve 'let)
+    // etc. would incorrectly report "doesn't exist" even though they work.
+    // Returns a sentinel, not a var: nothing is interned, so bare-symbol
+    // evaluation of these names (which never goes through resolve) is
+    // unaffected and still throws exactly as it does today.
+    if Evaluator.specialFormNames.contains(name) { return .keyword("special-form") }
     return .nil
 }
 

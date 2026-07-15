@@ -333,7 +333,9 @@ private func coreFirst(_ args: [Expr]) throws -> Expr {
 
 private func coreRest(_ args: [Expr]) throws -> Expr {
     if case .lazySeq(let box) = args[0] {
-        return try box.forceTail()
+        let tail = try box.forceTail()
+        if case .nil = tail { return .list([], metadata: nil) }
+        return tail
     }
     let elements = try seqOf(args[0], function: "rest")
     return .list(Array(elements.dropFirst()), metadata: nil)

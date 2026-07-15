@@ -19,6 +19,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerWatch(into: evaluator)
     registerConcurrency(into: evaluator)
     registerRef(into: evaluator)
+    registerProtocol(into: evaluator)
     registerTransient(into: evaluator)
     registerSort(into: evaluator)
     registerSwiftIONamespace(into: evaluator)

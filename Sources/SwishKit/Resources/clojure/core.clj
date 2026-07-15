@@ -1450,3 +1450,53 @@
   running on this thread, else runs in the existing transaction."
   [& body]
   `(dosync-call (fn [] ~@body)))
+
+(defn- protocol-method-spec [spec]
+  (let [mname (first spec)
+        more (rest spec)
+        arglists (take-while vector? more)
+        rst (drop (count arglists) more)
+        doc (when (and (seq rst) (string? (first rst))) (first rst))]
+    {:name mname :arglists arglists :doc doc}))
+
+(defn- protocol-dispatch [proto-var mkw args]
+  (let [proto (deref proto-var)
+        type-kw (if (nil? (first args)) :nil (type (first args)))
+        impl (get (get (:impls proto) type-kw) mkw)]
+    (if impl
+      (apply impl args)
+      (throw (str "No implementation of method: :" (name mkw)
+                  " of protocol: #'" (:name proto)
+                  " found for type: " (if (namespace type-kw)
+                                         (str (namespace type-kw) "/" (name type-kw))
+                                         (name type-kw)))))))
+
+(defmacro defprotocol
+  "A protocol is a named set of named methods and their signatures.
+  Once defined, the protocol can be extended to any type via deftype,
+  defrecord, extend-type, extend-protocol, or extend. Docstrings on
+  the protocol and on individual methods are optional."
+  [pname & opts+specs]
+  (let [doc (when (string? (first opts+specs)) (first opts+specs))
+        specs (if doc (rest opts+specs) opts+specs)
+        parsed (map protocol-method-spec specs)
+        qualified (symbol (str (ns-name *ns*)) (str pname))
+        sigs (into {} (map (fn [s] [(keyword (str (:name s)))
+                                     {:name (:name s) :arglists (vec (:arglists s)) :doc (:doc s)}])
+                            parsed))]
+    `(do
+       (let [existing# (resolve '~pname)
+             prior# (when existing# (deref existing#))
+             prior-impls# (if (map? prior#) (:impls prior#) {})
+             prior-inline# (if (map? prior#) (:inline-impls prior#) #{})]
+         (def ~pname {:name '~qualified :doc ~doc :var (var ~pname)
+                       :sigs '~sigs :impls prior-impls# :inline-impls prior-inline#}))
+       ~@(map (fn [s]
+                (let [mname (:name s)
+                      mkw (keyword (str mname))
+                      arities (map (fn [av] `(~av (protocol-dispatch (var ~pname) ~mkw ~av))) (:arglists s))]
+                  (if (:doc s)
+                    `(defn ~mname ~(:doc s) ~@arities)
+                    `(defn ~mname ~@arities))))
+              parsed)
+       '~qualified)))

@@ -64,6 +64,17 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 - `clojure.test/use-fixtures` — same workaround
 - `clojure.test/assert-expr` — not implemented; `is` inlines try/catch rather than dispatching through it
 
+### Protocols
+
+`defprotocol`, `deftype`, `extend`, `extend-type`, `extend-protocol`, `satisfies?`, `extends?`, `extenders`, `instance?` are implemented (`Evaluator+Defprotocol.swift`, `Evaluator+Deftype.swift`, `CoreProtocol.swift`), and `defrecord` (`Evaluator+Defrecord.swift`) now parses and registers trailing protocol-implementation clauses it previously discarded. Two deliberate simplifications vs. real Clojure, both direct consequences of Swish having no JVM class hierarchy:
+
+- **Dispatch is exact type-name match only, no ancestor-chain fallback.** Real Clojure's `find-protocol-impl` walks the JVM superclass/interface chain when there's no exact-class implementation; Swish has no subclassing for its types to walk, so dispatch just checks `Expr.description` (the same type-identity string `type` already exposes) against the protocol's `:impls` map. One consequence, not a bug: Swish's `:impls` is a single unified registry for both inline (`deftype`/`defrecord`-declared) and `extend`-added implementations, unlike Clojure's separate generated-interface fast path plus `:impls` map — this makes `satisfies?`/`extends?`/`extenders` simpler to implement than their real-Clojure counterparts, not just different.
+- **Extending protocols onto built-in Swish types (`Integer`, `String`, `Vector`, etc.) isn't supported.** Real Clojure's `extend`/`extend-type` take a literal Java `Class` as the type to extend; Swish's built-in types have no class-like value to hang an extension off. `extend`/`extend-type`/`extend-protocol`/`extends?`/`instance?` work fully for `deftype`/`defrecord`-created types (which get a real referenceable identity — a bare var bound to a type-identity keyword) and for `nil` (dispatches as `"nil"`, so `(extend nil Proto {...})` — a common real-Clojure default-impl idiom — works today).
+
+Also deferred: **mutable `deftype` fields** (`^:unsynchronized-mutable`/`^:volatile-mutable`). These need a `set!` special form, which Swish doesn't have at all today (confirmed — not even for local bindings). The annotations parse without erroring, so well-formed Clojure code doesn't break, but fields are immutable this pass.
+
+`deftype`/`defrecord` method bodies get real Clojure's unqualified field access (a field like `radius` is directly in scope inside a type's own methods, without needing `(.radius this)`) via a synthetic `let` injected ahead of each method body, binding each declared field from the method's first parameter — this only applies to *inline* (the type's own trailing clauses) methods, matching real Clojure, where retroactive `extend-type`/`extend-protocol` methods do *not* get direct field access either.
+
 ### STM (Software Transactional Memory)
 
 `ref`, `dosync`, `ref-set`, `alter`, `commute`, `ensure` are implemented (`SwishRef.swift`, `Evaluator+STM.swift`, `CoreRef.swift`), using optimistic concurrency control with three deliberate simplifications vs. real Clojure:

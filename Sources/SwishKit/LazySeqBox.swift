@@ -109,7 +109,11 @@ public final class LazySeqBox: @unchecked Sendable {
             return (head, tail)
 
         default:
-            if let elems = asSequence(expr), !elems.isEmpty {
+            guard let elems = asSequence(expr) else {
+                throw EvaluatorError.invalidArgument(function: "lazy-seq",
+                    message: "don't know how to create seq from \(corePrinter.printString(expr))")
+            }
+            if !elems.isEmpty {
                 let tail: Expr = elems.count == 1
                     ? .nil
                     : .list(Array(elems.dropFirst()), metadata: nil)

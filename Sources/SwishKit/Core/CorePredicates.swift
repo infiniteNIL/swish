@@ -5,6 +5,9 @@ func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "true?",    arity: .fixed(1), doc: "Returns true if x is the value true, false otherwise.",  arglists: [["x"]]) { args in if case .boolean(true)  = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "false?",   arity: .fixed(1), doc: "Returns true if x is the value false, false otherwise.", arglists: [["x"]]) { args in if case .boolean(false) = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword?", arity: .fixed(1), doc: "Returns true if x is a keyword, false otherwise.",  arglists: [["x"]]) { args in if case .keyword = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "keyword", arity: .variadic,
+        doc: "Returns a Keyword with the given namespace and name. Do not use : in the keyword strings, it will be added automatically. If the name is already a keyword, returns it. Returns nil if the name is nil.",
+        arglists: [["name"], ["ns", "name"]]) { args in try coreKeyword(args) }
     evaluator.register(name: "symbol?",  arity: .fixed(1), doc: "Return true if x is a Symbol",                      arglists: [["x"]]) { args in if case .symbol  = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "string?",  arity: .fixed(1), doc: "Return true if x is a String",                      arglists: [["x"]]) { args in if case .string    = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "char?",    arity: .fixed(1), doc: "Returns true if x is a Character.",                  arglists: [["x"]]) { args in if case .character = args[0] { return .boolean(true) }; return .boolean(false) }
@@ -74,5 +77,42 @@ func registerPredicates(into evaluator: Evaluator) {
         arglists: [["x"]]) { args in
         if case .nil = args[0] { return .nil }
         return .keyword(args[0].description)
+    }
+}
+
+// MARK: - Helpers
+
+private func coreKeyword(_ args: [Expr]) throws -> Expr {
+    switch args.count {
+    case 1:
+        switch args[0] {
+        case .nil:
+            return .nil
+        case .keyword:
+            return args[0]
+        case .string(let s):
+            return .keyword(s)
+        case .symbol(let s, _):
+            return .keyword(s)
+        default:
+            throw EvaluatorError.invalidArgument(function: "keyword",
+                message: "don't know how to make a keyword from \(corePrinter.printString(args[0]))")
+        }
+
+    case 2:
+        guard case .string(let name) = args[1] else {
+            throw EvaluatorError.invalidArgument(function: "keyword", message: "name must be a string")
+        }
+        switch args[0] {
+        case .nil:
+            return .keyword(name)
+        case .string(let ns):
+            return .keyword("\(ns)/\(name)")
+        default:
+            throw EvaluatorError.invalidArgument(function: "keyword", message: "ns must be a string or nil")
+        }
+
+    default:
+        throw EvaluatorError.arityMismatch(name: "keyword", expected: .variadic, got: args.count)
     }
 }

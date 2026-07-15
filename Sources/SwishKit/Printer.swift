@@ -161,6 +161,9 @@ public struct Printer {
 
         case .record(let typeName, _, let data, _):
             "#\(typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName)\(printMapString(data, transform: printString))"
+
+        case .deftype(let typeName, let fields, let data, _):
+            printDeftype(typeName: typeName, fields: fields, data: data)
         }
     }
 
@@ -318,6 +321,12 @@ public struct Printer {
     private func metaPrefix(_ meta: [Expr: Expr]?) -> String {
         guard printMeta, let meta, !meta.isEmpty else { return "" }
         return "^\(printMapString(meta, transform: printString)) "
+    }
+
+    private func printDeftype(typeName: String, fields: [String], data: [Expr: Expr]) -> String {
+        let shortName = typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName
+        let values = fields.map { printString(data[.keyword($0)] ?? .nil) }.joined(separator: " ")
+        return "#\(shortName)[\(values)]"
     }
 
     private func printMapString(_ dict: [Expr: Expr], transform: (Expr) -> String) -> String {

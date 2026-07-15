@@ -112,7 +112,7 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
-             .reader, .writer, .record, .inst, .uuid, .mapEntry, .array, .sharedVector,
+             .reader, .writer, .record, .deftype, .inst, .uuid, .mapEntry, .array, .sharedVector,
              .agent, .future, .promise, .ref:
             return expr
 
@@ -172,6 +172,21 @@ public class Evaluator {
     }
 
     // MARK: - List dispatch
+
+    /// Every symbol handled directly by `evalList`'s switch below, kept in sync
+    /// with it by hand. These are never interned as vars (they're intercepted
+    /// before any normal symbol lookup when they're the head of a list), so
+    /// `resolve`/`when-var-exists` would otherwise incorrectly report them as
+    /// absent even though they work correctly — `coreResolve` (`CoreNamespace.swift`)
+    /// falls back to this set rather than Swish interning a placeholder var for
+    /// each, which would incorrectly make bare-symbol references to these names
+    /// (e.g. `(println let)`) silently succeed instead of throwing, and would
+    /// pollute namespace introspection with fake "vars" for pure syntax keywords.
+    static let specialFormNames: Set<String> = [
+        "quote", "syntax-quote", "def", "if", "do", "let", "letfn", "loop", "recur",
+        "fn", "defmacro", "var", "ns", "lazy-seq", "delay", "binding", "throw", "try",
+        "defrecord", "deftype", "extend-type", "extend-protocol",
+    ]
 
     private func evalList(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard let head = elements.first
@@ -238,6 +253,15 @@ public class Evaluator {
 
         case .symbol("defrecord", _):
             return try evalDefrecord(elements, in: env)
+
+        case .symbol("deftype", _):
+            return try evalDeftype(elements, in: env)
+
+        case .symbol("extend-type", _):
+            return try evalExtendType(elements, in: env)
+
+        case .symbol("extend-protocol", _):
+            return try evalExtendProtocol(elements, in: env)
 
         default:
             let callee = try eval(head, in: env)

@@ -17,6 +17,13 @@ extension Evaluator {
         }
         let qualifiedName = "\(currentNs().name)/\(typeName)"
 
+        let groups = try parseProtocolImplGroups(Array(elements.dropFirst(3)), formName: "defrecord")
+        for group in groups {
+            let protoValue = try eval(group.leadingSymbol, in: env)
+            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: "defrecord", fields: fields)
+            try registerProtocolImpl(protoValue: protoValue, typeName: qualifiedName, methodImpls: methodImpls, inline: true, formName: "defrecord")
+        }
+
         let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
             guard args.count == fields.count else {
                 throw EvaluatorError.noMatchingArity(name: typeName, got: args.count)
@@ -46,6 +53,7 @@ extension Evaluator {
         let mapArrowName = "map->\(typeName)"
         ns.intern(name: mapArrowName,
                   value: .nativeFunction(name: mapArrowName, arity: .fixed(1), body: mapCtor))
+        ns.intern(name: typeName, value: .keyword(qualifiedName))
 
         return .symbol(qualifiedName, metadata: nil)
     }

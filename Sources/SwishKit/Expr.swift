@@ -132,6 +132,13 @@ public indirect enum Expr: Sendable {
     /// `fields` lists the declared field names in order.
     /// `data` holds the current key→value pairs (always includes all declared fields).
     case record(typeName: String, fields: [String], data: [Expr: Expr], metadata: [Expr: Expr]?)
+
+    /// A minimal instance created by `deftype`. Structurally parallel to `.record`,
+    /// but deliberately given none of `.record`'s map-like integration (no `get`/
+    /// `assoc`/`seq`/callable-as-fn) — matching real Clojure's "deftype provides no
+    /// functionality not specified by the user, other than a constructor."
+    /// `typeName` is namespace-qualified (e.g. `"user/Point"`).
+    case deftype(typeName: String, fields: [String], data: [Expr: Expr], metadata: [Expr: Expr]?)
 }
 
 extension Expr: Equatable {
@@ -336,6 +343,9 @@ extension Expr: Equatable {
         case (.record(let t1, _, let d1, _), .record(let t2, _, let d2, _)):
             return t1 == t2 && d1 == d2
 
+        case (.deftype(let t1, _, let d1, _), .deftype(let t2, _, let d2, _)):
+            return t1 == t2 && d1 == d2
+
         default:
             return false
         }
@@ -465,6 +475,7 @@ private enum ExprHash {
     static let future              = 35
     static let promise             = 36
     static let ref                 = 37
+    static let deftype             = 38
 }
 
 extension Expr: Hashable {
@@ -607,6 +618,9 @@ extension Expr: Hashable {
 
         case .record(let t, _, let d, _):
             hasher.combine(ExprHash.record);    hasher.combine(t); hasher.combine(d)
+
+        case .deftype(let t, _, let d, _):
+            hasher.combine(ExprHash.deftype);   hasher.combine(t); hasher.combine(d)
         }
     }
 }
@@ -714,6 +728,9 @@ extension Expr: CustomStringConvertible {
             return "namespace"
 
         case .record(let typeName, _, _, _):
+            return typeName
+
+        case .deftype(let typeName, _, _, _):
             return typeName
 
         case .regex:
