@@ -1,0 +1,115 @@
+(ns proto)
+
+;; A tour of Swish's protocol support: defprotocol, deftype, defrecord's
+;; protocol dispatch, extend/extend-type/extend-protocol, and the
+;; satisfies?/extends?/extenders/instance? predicates.
+;; Run with: swift run swish proto.swish
+
+(println)
+(println "defprotocol — a named set of polymorphic methods")
+(println "----------------------------------------------------")
+(defprotocol Shape
+  "Anything with an area and a perimeter."
+  (area [this] "Returns the area.")
+  (perimeter [this] "Returns the perimeter.")
+  (describe [this] [this prefix] "Describes the shape, with an optional prefix."))
+(println "(defprotocol Shape ...) ->" 'Shape)
+
+(println)
+(println "deftype — a minimal instance, with unqualified field access in its own methods")
+(println "-------------------------------------------------------------------------------")
+(deftype Circle [radius]
+  Shape
+  (area [this] (* 3.14159 radius radius))
+  (perimeter [this] (* 2 3.14159 radius))
+  (describe [this] (str "circle(r=" radius ")"))
+  (describe [this prefix] (str prefix ": " (describe this))))
+
+(deftype Rectangle [w h]
+  Shape
+  (area [this] (* w h))
+  (perimeter [this] (* 2 (+ w h)))
+  (describe [this] (str "rectangle(" w "x" h ")"))
+  (describe [this prefix] (str prefix ": " (describe this))))
+
+(def c (->Circle 3))
+(println "(->Circle 3) ->" (pr-str c))
+(println "(area c) ->" (area c))
+(println "(perimeter c) ->" (perimeter c))
+(println "(describe c) ->" (describe c))
+(println "(describe c \"shape\") ->" (describe c "shape"))
+
+(println)
+(println "Real polymorphism — one function, many implementations")
+(println "-----------------------------------------------------------")
+(def shapes [(->Circle 2) (->Rectangle 3 4) (->Circle 5)])
+(println "(map area shapes) ->" (map area shapes))
+(println "(map describe shapes) ->" (map describe shapes))
+
+(println)
+(println "defrecord also dispatches protocol methods — and keeps its map-like behavior")
+(println "---------------------------------------------------------------------------------")
+(defrecord Square [side]
+  Shape
+  (area [this] (* side side))
+  (perimeter [this] (* 4 side))
+  (describe [this] (str "square(s=" side ")"))
+  (describe [this prefix] (str prefix ": " (describe this))))
+
+(def sq (->Square 5))
+(println "(area sq) ->" (area sq))
+(println "(:side sq) ->" (:side sq))
+(println "(assoc sq :side 10) ->" (pr-str (assoc sq :side 10)))
+(println "(map? sq) ->" (map? sq))
+(println "(map area (conj shapes sq)) ->" (map area (conj shapes sq)))
+
+(println)
+(println "deftype is NOT map-like — no functionality beyond what you declare")
+(println "------------------------------------------------------------------------")
+(println "(map? c) ->" (map? c))
+(println "(get c :radius) ->" (pr-str (get c :radius)))
+(println "(assoc c :radius 9) throws:" (try (assoc c :radius 9) (catch Exception e :caught)))
+
+(println)
+(println "extend-type / extend-protocol — extending a protocol after the fact")
+(println "-------------------------------------------------------------------------")
+(defprotocol Nameable (label [this]))
+(extend-type Circle
+  Nameable
+  (label [this] "a circle"))
+(println "(extend-type Circle Nameable ...) -> (label c) ->" (label c))
+
+(defprotocol Greet (hello [this]))
+(extend-protocol Greet
+  Circle    (hello [this] "hello from a circle")
+  Rectangle (hello [this] "hello from a rectangle"))
+(println "(extend-protocol Greet ...) ->")
+(println "  (hello c) ->" (hello c))
+(println "  (hello (->Rectangle 1 1)) ->" (hello (->Rectangle 1 1)))
+
+(println)
+(println "extend — a raw method map, including a default implementation on nil")
+(println "----------------------------------------------------------------------------")
+(defprotocol Describable (blurb [this]))
+(extend nil Describable {:blurb (fn [this] "(nothing here)")})
+(println "(extend nil Describable {...}) -> (blurb nil) ->" (blurb nil))
+
+(println)
+(println "satisfies? / extends? / extenders / instance?")
+(println "---------------------------------------------------")
+(println "(satisfies? Shape c) ->" (satisfies? Shape c))
+(println "(satisfies? Shape 42) ->" (satisfies? Shape 42))
+(println "(extends? Nameable Circle) ->" (extends? Nameable Circle))
+(println "(extenders Shape) ->" (extenders Shape))
+(println "(instance? Circle c) ->" (instance? Circle c))
+(println "(instance? Rectangle c) ->" (instance? Circle (->Rectangle 1 1)))
+
+(println)
+(println "Calling a protocol method with no implementation throws")
+(println "-------------------------------------------------------------")
+(deftype Triangle [base height])
+(println "(area (->Triangle 3 4)) throws:"
+  (try (area (->Triangle 3 4)) (catch Exception e (str e))))
+
+(println)
+(println "Done.")
