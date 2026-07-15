@@ -97,6 +97,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a fixed-precision integer.",
         arglists: [["x"]],
         body: coreInt)
+    evaluator.register(name: "byte", arity: .fixed(1),
+        doc: "Coerces x to a byte.",
+        arglists: [["x"]],
+        body: coreByte)
     evaluator.register(name: "char", arity: .fixed(1),
         doc: "Coerce to char. Accepts an integer Unicode code point or a character.",
         arglists: [["x"]],
@@ -795,6 +799,59 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
     default:
         throw EvaluatorError.invalidArgument(
             function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
+    }
+}
+
+private func coreByte(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer(let n):
+        guard n >= -128 && n <= 127 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return args[0]
+
+    case .bigInteger(let n):
+        guard let i = Int(exactly: n), i >= -128 && i <= 127 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return .integer(i)
+
+    case .double(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "cannot convert \(f) to byte")
+        }
+        guard f >= -128.0 && f <= 127.0 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return .integer(Int(Int8(f)))
+
+    case .float(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "cannot convert \(f) to byte")
+        }
+        let d = Double(f)
+        guard d >= -128.0 && d <= 127.0 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return .integer(Int(Int8(f)))
+
+    case .bigDecimal(let d):
+        let truncated = d.withScale(0)
+        guard let i = Int(exactly: truncated.integerValue), i >= -128 && i <= 127 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return .integer(i)
+
+    case .ratio(let r):
+        let truncated = r.numerator / r.denominator
+        guard let i = Int(exactly: truncated), i >= -128 && i <= 127 else {
+            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
+        }
+        return .integer(i)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "byte", message: "cannot convert \(corePrinter.printString(args[0])) to byte")
     }
 }
 
