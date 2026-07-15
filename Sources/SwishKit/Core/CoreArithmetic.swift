@@ -109,6 +109,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a 64-bit floating-point number.",
         arglists: [["x"]],
         body: coreToFloat)
+    evaluator.register(name: "bigint", arity: .fixed(1),
+        doc: "Coerce to arbitrary-precision integer.",
+        arglists: [["x"]],
+        body: coreBigInt)
+    evaluator.register(name: "bigdec", arity: .fixed(1),
+        doc: "Coerce to BigDecimal.",
+        arglists: [["x"]],
+        body: coreBigDec)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
@@ -117,6 +125,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Returns the absolute value of a. If a is Long/MIN_VALUE => Long/MIN_VALUE.",
         arglists: [["a"]],
         body: coreAbs)
+    evaluator.register(name: "inc'", arity: .fixed(1),
+        doc: "Returns a number one greater than x. Supports arbitrary precision. See also: inc",
+        arglists: [["x"]],
+        body: coreIncP)
+    evaluator.register(name: "dec'", arity: .fixed(1),
+        doc: "Returns a number one less than x. Supports arbitrary precision. See also: dec",
+        arglists: [["x"]],
+        body: coreDecP)
 }
 
 // MARK: - Implementations
@@ -803,5 +819,91 @@ private func coreAbs(_ args: [Expr]) throws -> Expr {
             function: "abs",
             message: "expected a number, got \(corePrinter.printString(args[0]))")
     }
+}
+
+private func coreBigInt(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .bigInteger:
+        return args[0]
+
+    case .integer(let n):
+        return .bigInteger(BigInt(n))
+
+    case .double(let d):
+        guard !d.isNaN, !d.isInfinite, let bd = BigDecimal(d) else {
+            throw EvaluatorError.invalidArgument(function: "bigint", message: "cannot convert \(d) to bigint")
+        }
+        return .bigInteger(bd.withScale(0).integerValue)
+
+    case .float(let f):
+        return try coreBigInt([.double(Double(f))])
+
+    case .bigDecimal(let d):
+        return .bigInteger(d.withScale(0).integerValue)
+
+    case .ratio(let r):
+        return .bigInteger(r.numerator / r.denominator)
+
+    case .string(let s):
+        guard let v = BigInt(s) else {
+            throw EvaluatorError.invalidArgument(function: "bigint", message: "invalid number: \(s)")
+        }
+        return .bigInteger(v)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "bigint", message: "cannot convert \(corePrinter.printString(args[0])) to bigint")
+    }
+}
+
+private func coreBigDec(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .bigDecimal:
+        return args[0]
+
+    case .integer(let n):
+        return .bigDecimal(BigDecimal(integerValue: BigInt(n), scale: 0))
+
+    case .bigInteger(let n):
+        return .bigDecimal(BigDecimal(integerValue: n, scale: 0))
+
+    case .double(let d):
+        guard let v = BigDecimal(d) else {
+            throw EvaluatorError.invalidArgument(function: "bigdec", message: "cannot convert \(d) to bigdec")
+        }
+        return .bigDecimal(v)
+
+    case .float(let f):
+        return try coreBigDec([.double(Double(f))])
+
+    case .ratio(let r):
+        return .bigDecimal(BigDecimal(integerValue: r.numerator, scale: 0) / BigDecimal(integerValue: r.denominator, scale: 0))
+
+    case .string(let s):
+        guard let v = BigDecimal(s) else {
+            throw EvaluatorError.invalidArgument(function: "bigdec", message: "invalid number: \(s)")
+        }
+        return .bigDecimal(v)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "bigdec", message: "cannot convert \(corePrinter.printString(args[0])) to bigdec")
+    }
+}
+
+private func coreIncP(_ args: [Expr]) throws -> Expr {
+    if case .integer(let x) = args[0] {
+        let (result, overflow) = x.addingReportingOverflow(1)
+        return overflow ? .bigInteger(BigInt(x) + 1) : .integer(result)
+    }
+    return try coreAdd([args[0], .integer(1)])
+}
+
+private func coreDecP(_ args: [Expr]) throws -> Expr {
+    if case .integer(let x) = args[0] {
+        let (result, overflow) = x.subtractingReportingOverflow(1)
+        return overflow ? .bigInteger(BigInt(x) - 1) : .integer(result)
+    }
+    return try coreSubtract([args[0], .integer(1)])
 }
 

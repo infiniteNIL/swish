@@ -519,12 +519,14 @@
       x)))
 
 (defn inc
-  "Returns a number one greater than num."
+  "Returns a number one greater than num. Does not auto-promote
+  ints, will throw on overflow. See also: inc'"
   {:added "1.0"}
   [x] (+ x 1))
 
 (defn dec
-  "Returns a number one less than num."
+  "Returns a number one less than num. Does not auto-promote
+  ints, will throw on overflow. See also: dec'"
   {:added "1.0"}
   [x] (- x 1))
 
