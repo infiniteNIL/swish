@@ -11,12 +11,15 @@
       - Error type — a public SwishError that Swift catch blocks can use
       - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
         a public API with better ergonomics
-- [ ] atom synchronization (sendable)
 - [ ] Swift interop
 - [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] ref, dosync, commute, alter, STM
+- [x] futures and promises
+- [x] agents and validators
+- [x] atom synchronization
 - [x] add-watch, remove-watch, alter-var-root
 - [x] aclone, aget, alength, int-array, object-array
 - [x] abs
