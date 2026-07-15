@@ -92,9 +92,11 @@ func registerSequence(into evaluator: Evaluator) {
         switch args[0] {
         case .lazySeq(let box): return .boolean(box.isRealized)
         case .delay(let box):   return .boolean(box.isRealized)
+        case .promise(let box): return .boolean(box.isRealized)
+        case .future(let box):  return .boolean(box.isRealized)
         default:
             throw EvaluatorError.invalidArgument(function: "realized?",
-                message: "realized? requires a lazy seq or delay, got \(corePrinter.printString(args[0]))")
+                message: "realized? requires a lazy seq, delay, promise, or future, got \(corePrinter.printString(args[0]))")
         }
     }
     evaluator.register(name: "seq", arity: .fixed(1),

@@ -27,8 +27,11 @@ func registerAtom(into evaluator: Evaluator) {
     evaluator.register(name: "get-validator", arity: .fixed(1),
         doc: "Gets the validator-fn for a var/ref/agent/atom. Returns nil if none.",
         arglists: [["ref"]]) { args in
-            guard case .atom(let a) = args[0] else { return .nil }
-            return a.validator ?? .nil
+            switch args[0] {
+            case .atom(let a):  return a.validator ?? .nil
+            case .agent(let a): return a.validator ?? .nil
+            default:            return .nil
+            }
         }
 }
 
@@ -72,7 +75,7 @@ private func coreAtom(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     return .atom(a)
 }
 
-private func checkValidator(_ evaluator: Evaluator, fn: Expr, value: Expr, context: String) throws {
+func checkValidator(_ evaluator: Evaluator, fn: Expr, value: Expr, context: String) throws {
     let result = try evaluator.call(fn, args: [value])
     let valid: Bool
     switch result {
@@ -103,10 +106,19 @@ private func coreDeref(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     case .delay(let box):
         return try box.force()
 
+    case .agent(let a):
+        return a.value
+
+    case .promise(let box):
+        return box.deref()
+
+    case .future(let box):
+        return try box.deref()
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "deref",
-            message: "argument must be an atom or var, got \(corePrinter.printString(args[0]))")
+            message: "argument must be an atom, var, delay, agent, promise, or future, got \(corePrinter.printString(args[0]))")
     }
 }
 

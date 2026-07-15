@@ -13,14 +13,14 @@ public class Evaluator {
     /// (copy-on-write), so this is a safe, cheap point-in-time copy.
     var namespaces: [String: Namespace] { namespacesState.withLock { $0 } }
 
-    private final class ThreadLocalBox<T> {
+    final class ThreadLocalBox<T> {
         var value: T
         init(_ value: T) { self.value = value }
     }
     private static let bindingFramesKey = "swish.evaluator.bindingFrames"
     private static let callDepthKey = "swish.evaluator.callDepth"
 
-    private func threadLocalBox<T>(for key: String, default def: @autoclosure () -> T) -> ThreadLocalBox<T> {
+    func threadLocalBox<T>(for key: String, default def: @autoclosure () -> T) -> ThreadLocalBox<T> {
         if let existing = Thread.current.threadDictionary[key] as? ThreadLocalBox<T> {
             return existing
         }
@@ -112,7 +112,8 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
-             .reader, .writer, .record, .inst, .uuid, .mapEntry, .array, .sharedVector:
+             .reader, .writer, .record, .inst, .uuid, .mapEntry, .array, .sharedVector,
+             .agent, .future, .promise:
             return expr
 
         case .seq(let elements):

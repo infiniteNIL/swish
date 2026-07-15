@@ -1429,3 +1429,17 @@
   {:added "1.0"}
   [n]
   (int (rand n)))
+
+(defmacro future
+  "Takes a body of expressions and yields a future object that will
+  invoke the body in another thread, and will cache the result and
+  return it on all subsequent calls to deref/@. If the computation has
+  not yet finished, calls to deref/@ will block."
+  [& body]
+  `(future-call (fn [] ~@body)))
+
+(defmacro bound-fn
+  "Returns a function defined by the given fntail, which will install the
+  same bindings in effect as in the thread at the time bound-fn was called."
+  [& fntail]
+  `(bound-fn* (fn ~@fntail)))

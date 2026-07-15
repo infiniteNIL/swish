@@ -42,7 +42,7 @@ extension Evaluator {
                                         args: evaluated, in: maf.capturedEnv ?? env,
                                         selfExpr: callee)
 
-        case .map, .sortedMap, .keyword, .vector, .sharedVector, .mapEntry, .set, .record, .transient, .symbol, .varRef:
+        case .map, .sortedMap, .keyword, .vector, .sharedVector, .mapEntry, .set, .record, .transient, .symbol, .varRef, .promise:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:
@@ -216,6 +216,12 @@ extension Evaluator {
                 throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
             }
             return try call(val, args: args)
+
+        case .promise(let box):
+            guard args.count == 1 else {
+                throw EvaluatorError.invalidArgument(function: "promise", message: "requires exactly 1 argument, got \(args.count)")
+            }
+            return box.deliver(args[0]) ? callee : .nil
 
         default:
             throw EvaluatorError.notAFunction(callee)

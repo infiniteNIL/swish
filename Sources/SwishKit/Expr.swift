@@ -95,6 +95,19 @@ public indirect enum Expr: Sendable {
     /// A memoized thunk created by `delay`. Forces on first `deref`/`force`.
     case delay(DelayBox)
 
+    /// A thread-safe mutable reference to a value, updated asynchronously by
+    /// serially-dispatched actions submitted via `send`/`await`.
+    case agent(SwishAgent)
+
+    /// A background computation created by `future`/`future-call`. `deref` blocks
+    /// until realized.
+    case future(FutureBox)
+
+    /// A single-slot, deliver-once synchronization primitive created by `promise`.
+    /// `deref` blocks until `deliver`ed. Calling it as a function is equivalent to
+    /// `deliver`.
+    case promise(PromiseBox)
+
     /// A compiled regular expression literal (`#"pattern"`).
     case regex(SwishRegex)
 
@@ -289,6 +302,15 @@ extension Expr: Equatable {
         case (.delay(let a), .delay(let b)):
             return a === b
 
+        case (.agent(let a), .agent(let b)):
+            return a === b
+
+        case (.future(let a), .future(let b)):
+            return a === b
+
+        case (.promise(let a), .promise(let b)):
+            return a === b
+
         case (.regex(let a), .regex(let b)):
             return a == b
 
@@ -432,6 +454,9 @@ private enum ExprHash {
     static let uuid               = 31
     static let delay              = 32
     static let array              = 33
+    static let agent              = 34
+    static let future              = 35
+    static let promise             = 36
 }
 
 extension Expr: Hashable {
@@ -534,6 +559,15 @@ extension Expr: Hashable {
 
         case .delay(let v):
             hasher.combine(ExprHash.delay);     hasher.combine(ObjectIdentifier(v))
+
+        case .agent(let v):
+            hasher.combine(ExprHash.agent);     hasher.combine(ObjectIdentifier(v))
+
+        case .future(let v):
+            hasher.combine(ExprHash.future);    hasher.combine(ObjectIdentifier(v))
+
+        case .promise(let v):
+            hasher.combine(ExprHash.promise);   hasher.combine(ObjectIdentifier(v))
 
         case .regex(let v):
             hasher.combine(ExprHash.regex);     hasher.combine(v)
@@ -643,6 +677,15 @@ extension Expr: CustomStringConvertible {
 
         case .delay:
             return "delay"
+
+        case .agent:
+            return "agent"
+
+        case .future:
+            return "future"
+
+        case .promise:
+            return "promise"
 
         case .reduced:
             return "reduced"

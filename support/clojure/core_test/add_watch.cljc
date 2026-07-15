@@ -5,19 +5,20 @@
 ;; Swish-specific overlay for add_watch.cljc from the Jank Clojure Test Suite.
 ;;
 ;; Two divergences from upstream:
-;; 1. The upstream "watch atom"/"watch var" blocks catch errors with
-;;    `(catch #?(:cljr ... :lpy ... :phel ... :cljs :default :clj
-;;    clojure.lang.ExceptionInfo) e ...)`. Swish's reader only recognizes
-;;    "swish"/"default" as feature keys, so this reader-conditional has no
-;;    matching branch and is dropped entirely, leaving a malformed `catch`
-;;    clause. Swish also has no ex-info/ex-data. Since Swish's `catch`
-;;    already binds `e` to exactly the thrown value (rather than requiring
-;;    ex-data to unwrap it), these two blocks throw/catch the raw data map
-;;    directly instead of going through ex-info.
-;; 2. "watch ref"/"watch agent" exercise ref/dosync and agent/send/await,
-;;    which Swish doesn't implement (see CLAUDE.md Known Limitations).
-;;    They're guarded with when-var-exists so they skip cleanly instead of
-;;    erroring.
+;; 1. The upstream "watch atom"/"watch var"/"watch agent" blocks catch errors
+;;    with `(catch #?(:cljr ... :lpy ... :phel ... :cljs :default :clj
+;;    clojure.lang.ExceptionInfo) e ...)` and/or use ex-info/ex-data directly.
+;;    Swish's reader only recognizes "swish"/"default" as feature keys, so the
+;;    reader-conditional catch form has no matching branch and is dropped
+;;    entirely, leaving a malformed `catch` clause; Swish also has no
+;;    ex-info/ex-data. Since Swish's `catch` already binds `e` to exactly the
+;;    thrown value (rather than requiring ex-data to unwrap it), these blocks
+;;    throw/catch the raw data map directly instead of going through ex-info.
+;; 2. "watch ref" exercises ref/dosync, which Swish doesn't implement yet (see
+;;    CLAUDE.md Known Limitations — STM is a later step). Its when-var-exists
+;;    guard still skips it cleanly. "watch agent" is guarded the same way, but
+;;    that guard now passes — agent/send/await/agent-error/restart-agent are
+;;    implemented (see Step 2: real concurrency) — so it runs for real.
 
 (when-var-exists add-watch
   (deftest test-add-watch
@@ -232,11 +233,11 @@
               agent-end (promise)
               err (fn [key _ref old new]
                     (deliver agent-end :done)
-                    (throw (ex-info "test" {:key key :old old :new new :tester :err})))
+                    (throw {:key key :old old :new new :tester :err}))
               g (agent 20)
               update! (fn []
                         (when-let [e (agent-error g)]
-                          (vswap! state conj (ex-data e))
+                          (vswap! state conj e)
                           (restart-agent g :ready))
                         (send g inc))
               _keyed (fn [k s] (set (filter #(= k (:key %)) s)))]
@@ -312,7 +313,7 @@
           (sleep 1)
           (if-let [e (agent-error g)]
             (do
-              (is (= {:key :e :old 26 :new 27 :tester :err} (ex-data e)))
+              (is (= {:key :e :old 26 :new 27 :tester :err} e))
               ;; The final call may not have gone to tester 1
               (is (= #{{:key :g :old 20 :new 21 :tester 1}
                        {:key :g :old 21 :new 22 :tester 1}

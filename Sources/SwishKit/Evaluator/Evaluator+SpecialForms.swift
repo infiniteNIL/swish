@@ -308,19 +308,30 @@ extension Evaluator {
     func evalLet(_ elements: [Expr], in env: Environment) throws -> Expr {
         let bindingVec = try requireBindingVector(elements, function: "let",
             message: "first argument must be a vector of bindings")
-        let letEnv = Environment(parent: env)
+        // Each binding gets its own child environment, evaluated in the chain
+        // built from all PRIOR bindings only — not itself. A shared, mutable
+        // frame here would let a closure created by one binding's initializer
+        // (e.g. `(fn [] (f))`) capture that frame by reference, then "see" its
+        // own name once the frame is mutated to add it a moment later —
+        // causing self-reference (and, for a closure that calls itself,
+        // infinite recursion) instead of correctly falling through to any
+        // outer binding of the same name.
+        var currentEnv = env
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
             let bindings = try destructureBindings(bindingVec[i], bindingVec[i + 1])
             if bindings.isEmpty {
-                _ = try eval(bindingVec[i + 1], in: letEnv)
+                _ = try eval(bindingVec[i + 1], in: currentEnv)
             }
             else {
                 for (name, expr) in bindings {
-                    letEnv.set(name, try eval(expr, in: letEnv))
+                    let value = try eval(expr, in: currentEnv)
+                    let nextEnv = Environment(parent: currentEnv)
+                    nextEnv.set(name, value)
+                    currentEnv = nextEnv
                 }
             }
         }
-        return try evalBody(Array(elements.dropFirst(2)), in: letEnv)
+        return try evalBody(Array(elements.dropFirst(2)), in: currentEnv)
     }
 
     func evalLetfn(_ elements: [Expr], in env: Environment) throws -> Expr {

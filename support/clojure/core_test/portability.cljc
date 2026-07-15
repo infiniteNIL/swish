@@ -15,7 +15,7 @@
 (defn lazy-seq? [x]
   (clojure.core/lazy-seq? x))
 
-(defn sleep [_ms] nil)
+(defn sleep [ms] (swish-sleep! ms))
 
 ;; p/thrown? must be a macro so (is (p/thrown? expr)) works:
 ;; Swish's `is` evaluates the inner form, which expands this macro

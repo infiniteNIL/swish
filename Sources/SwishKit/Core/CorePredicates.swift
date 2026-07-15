@@ -24,7 +24,7 @@ func registerPredicates(into evaluator: Evaluator) {
         case .function, .multiArityFunction, .nativeFunction,
              .macro, .multiArityMacro,
              .keyword, .map, .sortedMap, .set, .sortedSet, .vector, .mapEntry,
-             .symbol, .varRef:
+             .symbol, .varRef, .promise:
             return .boolean(true)
 
         default:

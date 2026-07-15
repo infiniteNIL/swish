@@ -126,6 +126,21 @@ public struct Printer {
                 ? "#<Delay@\((try? box.force()).map { printString($0) } ?? "error")>"
                 : "#<Delay@pending>"
 
+        case .agent(let a):
+            "#<Agent: \(printString(a.value))>"
+
+        case .future(let box):
+            box.isCancelled
+                ? "#<Future@cancelled>"
+                : box.isRealized
+                    ? "#<Future@\((try? box.deref()).map { printString($0) } ?? "error")>"
+                    : "#<Future@pending>"
+
+        case .promise(let box):
+            box.isRealized
+                ? "#<Promise@\(printString(box.deref()))>"
+                : "#<Promise@pending>"
+
         case .regex(let r):
             "#\"\(r.pattern)\""
 
