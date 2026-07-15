@@ -34,6 +34,15 @@ func registerPredicates(into evaluator: Evaluator) {
             return .boolean(false)
         }
     }
+    evaluator.register(name: "associative?", arity: .fixed(1), doc: "Returns true if coll implements Associative.", arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .map, .sortedMap, .record, .vector, .sharedVector, .mapEntry:
+            return .boolean(true)
+
+        default:
+            return .boolean(false)
+        }
+    }
     evaluator.register(name: "name", arity: .fixed(1),
         doc: "Returns the name String of a string, symbol or keyword.",
         arglists: [["x"]]) { args in
