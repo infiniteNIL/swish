@@ -1675,6 +1675,13 @@
      ([a b c] (f (if (nil? a) x a) (if (nil? b) y b) (if (nil? c) z c)))
      ([a b c & ds] (apply f (if (nil? a) x a) (if (nil? b) y b) (if (nil? c) z c) ds)))))
 
+(defn rational?
+  "Returns true if n is a rational number"
+  {:added "1.0"
+   :static true}
+  [n]
+  (or (integer? n) (ratio? n) (decimal? n)))
+
 (defmacro case
   "Takes an expression, and a set of clauses.
 
