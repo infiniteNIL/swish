@@ -167,6 +167,21 @@
   {:added "1.0"}
   [x] (first (next x)))
 
+(defn ffirst
+  "Same as (first (first x))"
+  {:added "1.0"}
+  [x] (first (first x)))
+
+(defn nfirst
+  "Same as (next (first x))"
+  {:added "1.0"}
+  [x] (next (first x)))
+
+(defn fnext
+  "Same as (first (next x))"
+  {:added "1.0"}
+  [x] (first (next x)))
+
 (defn nnext
   "Same as (next (next x))"
   {:added "1.1"}
