@@ -1074,6 +1074,30 @@
   ([n coll]
    (dorun n coll) coll))
 
+(defn nthnext
+  "Returns the nth next of coll, (seq coll) when n is 0."
+  {:added "1.0"
+   :static true}
+  [coll n]
+  (loop [n n xs (seq coll)]
+    (if (and xs (pos? n))
+      (recur (dec n) (next xs))
+      xs)))
+
+(defn nthrest
+  "Returns the nth rest of coll, coll when n is 0."
+  {:added "1.3"
+   :static true}
+  [coll n]
+  (if (pos? n)
+    (or
+      (loop [n n xs coll]
+        (if-let [xs (and (pos? n) (seq xs))]
+          (recur (dec n) (rest xs))
+          (seq xs)))
+      ())
+    coll))
+
 (defn partition
   "Returns a lazy sequence of lists of n items each, at offsets step
   apart. If step is not supplied, defaults to n, i.e. the partitions
