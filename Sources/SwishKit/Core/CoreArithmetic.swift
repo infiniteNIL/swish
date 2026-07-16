@@ -1,5 +1,6 @@
 import BigInt
 import BigDecimal
+import Foundation
 
 private let divisionByZero = "division by zero"
 
@@ -149,6 +150,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Parse string with floating point components and return a Double value, or nil if parse fails.",
         arglists: [["s"]],
         body: coreParseDouble)
+    evaluator.register(name: "parse-uuid", arity: .fixed(1),
+        doc: "Parse a string representing a UUID and return a UUID instance, or nil if parse fails.",
+        arglists: [["s"]],
+        body: coreParseUUID)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
@@ -1166,6 +1171,15 @@ private func coreParseDouble(_ args: [Expr]) throws -> Expr {
     }
     guard let d = Double(s) else { return .nil }
     return .double(d)
+}
+
+private func coreParseUUID(_ args: [Expr]) throws -> Expr {
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "parse-uuid",
+            message: "expected a string, got \(corePrinter.printString(args[0]))")
+    }
+    guard let uuid = UUID(uuidString: s) else { return .nil }
+    return .uuid(uuid)
 }
 
 private func coreIncP(_ args: [Expr]) throws -> Expr {
