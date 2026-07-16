@@ -19,6 +19,10 @@ func registerTransient(into evaluator: Evaluator) {
         doc: "Returns a transient map that doesn't contain a mapping for key(s).",
         arglists: [["map", "key"], ["map", "key", "&", "ks"]],
         body: coreDisjocBang)
+    evaluator.register(name: "pop!", arity: .fixed(1),
+        doc: "Removes the last item from a transient vector. If the collection is empty, throws an exception. Returns coll.",
+        arglists: [["coll"]],
+        body: corePopBang)
     evaluator.register(name: "disj!", arity: .atLeastOne,
         doc: "disj[oin]. Returns a transient set that doesn't contain key(s). Returns the transient itself.",
         arglists: [["set"], ["set", "key"], ["set", "key", "&", "ks"]],
@@ -97,6 +101,27 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
             message: transientExpired)
     }
     tc.value = try coreDissoc([tc.value] + Array(args.dropFirst()))
+    return args[0]
+}
+
+private func corePopBang(_ args: [Expr]) throws -> Expr {
+    guard case .transient(let tc) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "pop!",
+            message: "expected transient, got \(corePrinter.printString(args[0]))")
+    }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "pop!",
+            message: transientExpired)
+    }
+    guard case .vector(let elems, let meta) = tc.value else {
+        throw EvaluatorError.invalidArgument(function: "pop!",
+            message: "first argument must be a vector, got \(corePrinter.printString(tc.value))")
+    }
+    guard !elems.isEmpty else {
+        throw EvaluatorError.invalidArgument(function: "pop!",
+            message: "can't pop empty vector")
+    }
+    tc.value = .vector(Array(elems.dropLast()), metadata: meta)
     return args[0]
 }
 

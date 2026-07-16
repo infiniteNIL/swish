@@ -102,6 +102,58 @@ struct CoreTransientTests {
         }
     }
 
+    // MARK: - pop! on transient vectors
+
+    @Test("pop! removes the last element of a single-element vector")
+    func popBangSingleElement() throws {
+        #expect(try swish.eval("(persistent! (pop! (transient [1])))") == .vector([], metadata: nil))
+    }
+
+    @Test("pop! removes a trailing nil element")
+    func popBangNilElement() throws {
+        #expect(try swish.eval("(persistent! (pop! (transient [nil])))") == .vector([], metadata: nil))
+    }
+
+    @Test("pop! removes the last element of a multi-element vector")
+    func popBangMultipleElements() throws {
+        #expect(try swish.eval("(persistent! (pop! (transient [1 2 3])))") == .vector([.integer(1), .integer(2)], metadata: nil))
+        #expect(try swish.eval("(persistent! (pop! (transient [:c :b :a])))") == .vector([.keyword("c"), .keyword("b")], metadata: nil))
+    }
+
+    @Test("pop! throws for an empty vector")
+    func popBangEmptyVectorThrows() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(pop! (transient []))")
+        }
+    }
+
+    @Test("pop! throws for non-transient inputs")
+    func popBangNonTransientThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(pop! [1])") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! '(1))") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! #{1})") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! (range 3))") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! true)") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! false)") }
+        #expect(throws: (any Error).self) { try swish.eval(#"(pop! "s")"#) }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! 3.14)") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! 42)") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! nil)") }
+    }
+
+    @Test("pop! throws for a transient wrapping a non-vector")
+    func popBangTransientNonVectorThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(pop! (transient {:a 0}))") }
+        #expect(throws: (any Error).self) { try swish.eval("(pop! (transient #{0}))") }
+    }
+
+    @Test("pop! throws after persistent! call on vector")
+    func popBangAfterPersistentVector() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient [0 1]), _ (persistent! t)] (pop! t))")
+        }
+    }
+
     // MARK: - disj! on transient sets
 
     @Test("disj! removes a nil key from an empty set (no-op)")
