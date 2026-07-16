@@ -24,6 +24,14 @@ extension Evaluator {
             else { return expr }
             if case .symbol("quote", _) = head { return expr }
             if case .symbol("syntax-quote", _) = head { return expr }
+            // case's clauses mix literal, unevaluated test-constants (like quote's content)
+            // with genuine code (the dispatch expr and result exprs) — unlike every other
+            // macro's arguments, which are ordinary code throughout (e.g. cond, when, ->),
+            // so case can't be blindly recursed into like they can. Treat it like quote:
+            // leave it untouched here and let its own, separate macro-expansion path
+            // (which understands its own clause structure) resolve everything correctly
+            // when it actually runs.
+            if case .symbol("case", _) = head { return expr }
             if case .symbol("fn", _) = head { return expandFnForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("let", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("loop", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
