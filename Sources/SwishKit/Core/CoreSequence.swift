@@ -25,6 +25,10 @@ func registerSequence(into evaluator: Evaluator) {
         doc: "Returns the number of items in the collection. (count nil) returns 0. Also works on strings, arrays, and Java Collections and Maps.",
         arglists: [["coll"]],
         body: coreCount)
+    evaluator.register(name: "empty", arity: .fixed(1),
+        doc: "Returns an empty collection of the same category as coll, or nil.",
+        arglists: [["coll"]],
+        body: coreEmpty)
     evaluator.register(name: "vector?", arity: .fixed(1), doc: "Return true if x implements IPersistentVector",    arglists: [["x"]]) { args in
         switch args[0] {
         case .vector, .sharedVector, .mapEntry: return .boolean(true)
@@ -423,6 +427,47 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(
             function: "count",
             message: "not a countable collection, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreEmpty(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .vector(_, let meta):
+        return .vector([], metadata: meta)
+
+    case .sharedVector(_, let meta):
+        return .vector([], metadata: meta)
+
+    case .list(_, let meta):
+        return .list([], metadata: meta)
+
+    case .seq, .lazySeq:
+        return .list([], metadata: nil)
+
+    case .mapEntry:
+        return .vector([], metadata: nil)
+
+    case .map(let sm):
+        return .map(SwishMap(dict: [:], metadata: sm.metadata))
+
+    case .set(let ss):
+        return .set(SwishSet(elements: [], metadata: ss.metadata))
+
+    case .sortedMap(_, let meta):
+        return .sortedMap([:], metadata: meta)
+
+    case .sortedSet(_, let meta):
+        return .sortedSet([], metadata: meta)
+
+    case .record:
+        // Real JVM Clojure: defrecord instances are IPersistentCollection
+        // (via IPersistentMap) so the instance? check passes, but defrecord
+        // never generates an .empty() override, so (.empty a-record) throws.
+        throw EvaluatorError.invalidArgument(function: "empty",
+            message: "records do not support empty")
+
+    default:
+        return .nil
     }
 }
 
