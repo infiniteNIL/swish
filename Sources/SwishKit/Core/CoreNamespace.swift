@@ -34,6 +34,9 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "the-ns", arity: .fixed(1),
         doc: "If passed a namespace, returns it. Else, when passed a symbol, returns the namespace named by it, throwing an exception if not found.",
         arglists: [["x"]]) { [evaluator] args in try coreTheNs(evaluator, args) }
+    evaluator.register(name: "intern", arity: .variadic,
+        doc: "Finds or creates a var named by the symbol name in the namespace ns (which can be a symbol or a namespace), setting its root binding to val if supplied. The namespace must exist. The var will adopt any metadata from the name symbol. Returns the var.",
+        arglists: [["ns", "name"], ["ns", "name", "val"]]) { [evaluator] args in try coreIntern(evaluator, args) }
     evaluator.register(name: "symbol", arity: .variadic,
         doc: "Returns a Symbol with the given namespace and name. Arity-1 coerces string to symbol.",
         arglists: [["name"], ["ns", "name"]]) { args in try coreSymbol(args) }
@@ -199,6 +202,26 @@ private func coreTheNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             function: "the-ns",
             message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
     }
+}
+
+private func coreIntern(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard args.count == 2 || args.count == 3 else {
+        throw EvaluatorError.invalidArgument(function: "intern",
+            message: "requires 2 or 3 arguments, got \(args.count)")
+    }
+    guard case .namespace(let ns) = try coreTheNs(evaluator, [args[0]]) else {
+        throw EvaluatorError.invalidArgument(function: "intern",
+            message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
+    }
+    guard case .symbol(let name, let symMeta) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "intern",
+            message: "name must be a symbol, got \(corePrinter.printString(args[1]))")
+    }
+    let v = ns.intern(name: name, value: args.count == 3 ? args[2] : nil)
+    if let symMeta {
+        v.metadata = symMeta
+    }
+    return .varRef(v)
 }
 
 private func coreSymbol(_ args: [Expr]) throws -> Expr {

@@ -4,6 +4,12 @@ func registerVar(into evaluator: Evaluator) {
     evaluator.register(name: "alter-var-root", arity: .atLeastOne,
         doc: "Atomically alters the root binding of var v by applying f to its current value plus any args. Returns the new value.",
         arglists: [["v", "f"], ["v", "f", "&", "args"]]) { [evaluator] args in try coreAlterVarRoot(evaluator, args) }
+    evaluator.register(name: "var-get", arity: .fixed(1),
+        doc: "Gets the value in the var object.",
+        arglists: [["x"]]) { [evaluator] args in try coreVarGet(evaluator, args) }
+    evaluator.register(name: "var-set", arity: .fixed(2),
+        doc: "Sets the value in the var object to val. The var must be thread-locally bound.",
+        arglists: [["x", "val"]]) { [evaluator] args in try coreVarSet(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -32,4 +38,39 @@ private func coreAlterVarRoot(_ evaluator: Evaluator, _ args: [Expr]) throws -> 
             return newValue
         }
     }
+}
+
+private func coreVarGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .varRef(let v) = args[0]
+    else {
+        throw EvaluatorError.invalidArgument(
+            function: "var-get",
+            message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
+    }
+    guard let val = evaluator.dynamicValue(of: v)
+    else {
+        throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+    }
+    return val
+}
+
+private func coreVarSet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .varRef(let v) = args[0]
+    else {
+        throw EvaluatorError.invalidArgument(
+            function: "var-set",
+            message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
+    }
+    let id = ObjectIdentifier(v)
+    var frames = evaluator.bindingFrames
+    for i in stride(from: frames.count - 1, through: 0, by: -1) {
+        if frames[i][id] != nil {
+            frames[i][id] = args[1]
+            evaluator.bindingFrames = frames
+            return args[1]
+        }
+    }
+    throw EvaluatorError.invalidArgument(
+        function: "var-set",
+        message: "Var \(v.namespace.name)/\(v.name) is not dynamically bound")
 }
