@@ -102,6 +102,73 @@ struct CoreTransientTests {
         }
     }
 
+    // MARK: - disj! on transient sets
+
+    @Test("disj! removes a nil key from an empty set (no-op)")
+    func disjBangEmptySetNilKey() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{}) nil))") == .set(SwishSet(elements: [], metadata: nil)))
+    }
+
+    @Test("disj! removes a single element")
+    func disjBangSingleElement() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{1}) 1))") == .set(SwishSet(elements: [], metadata: nil)))
+    }
+
+    @Test("disj! removing the same key multiple times is a no-op after the first")
+    func disjBangDuplicateKeys() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{1}) 1 1 1))") == .set(SwishSet(elements: [], metadata: nil)))
+    }
+
+    @Test("disj! removes multiple keys")
+    func disjBangMultipleKeys() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{1 2 3}) 1 2))") == .set(SwishSet(elements: [.integer(3)], metadata: nil)))
+    }
+
+    @Test("disj! is a no-op for absent keys")
+    func disjBangAbsentKeys() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{1 2 3}) 4 5 6))") == .set(SwishSet(elements: [.integer(1), .integer(2), .integer(3)], metadata: nil)))
+    }
+
+    @Test("disj! removes vector-valued elements")
+    func disjBangVectorElements() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{[1 1] 2 [3 3]}) [1 1] 2))") == .set(SwishSet(elements: [.vector([.integer(3), .integer(3)], metadata: nil)], metadata: nil)))
+    }
+
+    @Test("disj! removes keyword-valued elements")
+    func disjBangKeywordElements() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{:a :b :c}) :c))") == .set(SwishSet(elements: [.keyword("a"), .keyword("b")], metadata: nil)))
+    }
+
+    @Test("disj! removes a boolean element, leaving nil")
+    func disjBangBooleanElement() throws {
+        #expect(try swish.eval("(persistent! (disj! (transient #{true false nil}) false))") == .set(SwishSet(elements: [.boolean(true), .nil], metadata: nil)))
+    }
+
+    @Test("disj! throws for non-transient inputs")
+    func disjBangNonTransientThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(disj! nil nil)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! #{} nil)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! '(1) 1)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! [1] 1)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! {:a 1} :a)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! 42 42)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! 3.14 3.14)") }
+        #expect(throws: (any Error).self) { try swish.eval(#"(disj! "string" \s)"#) }
+    }
+
+    @Test("disj! throws for a transient wrapping a non-set")
+    func disjBangTransientNonSetThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(disj! (transient [1]) 1)") }
+        #expect(throws: (any Error).self) { try swish.eval("(disj! (transient {:a 1}) :a)") }
+    }
+
+    @Test("disj! throws after persistent! call on set")
+    func disjBangAfterPersistentSet() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(let [t (transient #{1 2 3}), _ (persistent! t)] (disj! t 1))")
+        }
+    }
+
     // MARK: - transient rejects non-persistent-collection inputs
 
     @Test("(transient 'sym) throws for symbol")

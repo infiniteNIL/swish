@@ -19,6 +19,10 @@ func registerTransient(into evaluator: Evaluator) {
         doc: "Returns a transient map that doesn't contain a mapping for key(s).",
         arglists: [["map", "key"], ["map", "key", "&", "ks"]],
         body: coreDisjocBang)
+    evaluator.register(name: "disj!", arity: .atLeastOne,
+        doc: "disj[oin]. Returns a transient set that doesn't contain key(s). Returns the transient itself.",
+        arglists: [["set"], ["set", "key"], ["set", "key", "&", "ks"]],
+        body: coreDisjBang)
     evaluator.register(name: "conj!", arity: .variadic,
         doc: "Adds x to the transient collection, and return coll. The addition may happen at different places depending on the concrete type.",
         arglists: [[], ["coll"], ["coll", "x"], ["coll", "x", "&", "xs"]],
@@ -93,6 +97,25 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
             message: transientExpired)
     }
     tc.value = try coreDissoc([tc.value] + Array(args.dropFirst()))
+    return args[0]
+}
+
+private func coreDisjBang(_ args: [Expr]) throws -> Expr {
+    guard case .transient(let tc) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "disj!",
+            message: "expected transient, got \(corePrinter.printString(args[0]))")
+    }
+    if tc.isInvalidated {
+        throw EvaluatorError.invalidArgument(function: "disj!",
+            message: transientExpired)
+    }
+    guard case .set(let ss) = tc.value else {
+        throw EvaluatorError.invalidArgument(function: "disj!",
+            message: "first argument must be a set, got \(corePrinter.printString(tc.value))")
+    }
+    var elements = ss.elements
+    for key in args.dropFirst() { elements.remove(key) }
+    tc.value = .set(SwishSet(elements: elements, metadata: ss.metadata))
     return args[0]
 }
 
