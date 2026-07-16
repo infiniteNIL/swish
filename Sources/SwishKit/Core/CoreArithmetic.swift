@@ -141,6 +141,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Parse a string as a Boolean, returning true/false, or nil if not a valid Boolean.",
         arglists: [["s"]],
         body: coreParseBoolean)
+    evaluator.register(name: "parse-long", arity: .fixed(1),
+        doc: "Parse string of decimal digits with optional leading -/+ and return a Long value, or nil if parse fails.",
+        arglists: [["s"]],
+        body: coreParseLong)
+    evaluator.register(name: "parse-double", arity: .fixed(1),
+        doc: "Parse string with floating point components and return a Double value, or nil if parse fails.",
+        arglists: [["s"]],
+        body: coreParseDouble)
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
@@ -1140,6 +1148,24 @@ private func coreParseBoolean(_ args: [Expr]) throws -> Expr {
     default:
         return .nil
     }
+}
+
+private func coreParseLong(_ args: [Expr]) throws -> Expr {
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "parse-long",
+            message: "expected a string, got \(corePrinter.printString(args[0]))")
+    }
+    guard let i = Int(s) else { return .nil }
+    return .integer(i)
+}
+
+private func coreParseDouble(_ args: [Expr]) throws -> Expr {
+    guard case .string(let s) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "parse-double",
+            message: "expected a string, got \(corePrinter.printString(args[0]))")
+    }
+    guard let d = Double(s) else { return .nil }
+    return .double(d)
 }
 
 private func coreIncP(_ args: [Expr]) throws -> Expr {
