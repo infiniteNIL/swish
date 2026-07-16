@@ -612,6 +612,24 @@
   {:added "1.0"}
   [n] (not (even? n)))
 
+(defn pos-int?
+  "Return true if x is a positive fixed precision integer"
+  {:added "1.9"}
+  [x] (and (int? x)
+           (pos? x)))
+
+(defn neg-int?
+  "Return true if x is a negative fixed precision integer"
+  {:added "1.9"}
+  [x] (and (int? x)
+           (neg? x)))
+
+(defn nat-int?
+  "Return true if x is a non-negative fixed precision integer"
+  {:added "1.9"}
+  [x] (and (int? x)
+           (not (neg? x))))
+
 (defn identity
   "Returns its argument."
   {:added "1.0"}
