@@ -304,6 +304,13 @@
                     s)))]
      (lazy-seq (step n coll)))))
 
+(defn drop-last
+  "Return a lazy sequence of all but the last n (default 1) items in coll"
+  {:added "1.0"
+   :static true}
+  ([coll] (drop-last 1 coll))
+  ([n coll] (map (fn [x _] x) coll (drop n coll))))
+
 (defn drop-while
   "Returns a lazy sequence of the items in coll starting from the
   first item for which (pred item) returns logical false. Returns a
