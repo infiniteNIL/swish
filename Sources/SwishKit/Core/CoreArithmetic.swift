@@ -137,6 +137,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Returns the absolute value of a. If a is Long/MIN_VALUE => Long/MIN_VALUE.",
         arglists: [["a"]],
         body: coreAbs)
+    evaluator.register(name: "numerator", arity: .fixed(1),
+        doc: "Returns the numerator part of a Ratio.",
+        arglists: [["r"]],
+        body: coreNumerator)
+    evaluator.register(name: "denominator", arity: .fixed(1),
+        doc: "Returns the denominator part of a Ratio.",
+        arglists: [["r"]],
+        body: coreDenominator)
     evaluator.register(name: "inc'", arity: .fixed(1),
         doc: "Returns a number one greater than x. Supports arbitrary precision. See also: inc",
         arglists: [["x"]],
@@ -883,6 +891,32 @@ private func coreAbs(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(
             function: "abs",
             message: "expected a number, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreNumerator(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .ratio(let r):
+        if let i = Int(exactly: r.numerator) { return .integer(i) }
+        return .bigInteger(r.numerator)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "numerator",
+            message: "not a ratio, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreDenominator(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .ratio(let r):
+        if let i = Int(exactly: r.denominator) { return .integer(i) }
+        return .bigInteger(r.denominator)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "denominator",
+            message: "not a ratio, got \(corePrinter.printString(args[0]))")
     }
 }
 
