@@ -749,16 +749,24 @@
   [coll]
   (reduce conj #{} (seq coll)))
 
+(def ^:dynamic *assert*
+  "When set to logical false, 'assert' will omit assertion checks in
+  compiled code. Defaults to true."
+  true)
+
 (defmacro assert
   "Evaluates expr and throws an exception if it does not evaluate to
-  logical true."
+  logical true. Assertion checks are omitted from compiled code if
+  '*assert*' is false."
   {:added "1.0"}
   ([x]
-   `(when-not ~x
-      (throw (str "Assert failed"))))
+   (when *assert*
+     `(when-not ~x
+        (throw (str "Assert failed: " (pr-str '~x))))))
   ([x message]
-   `(when-not ~x
-      (throw ~message))))
+   (when *assert*
+     `(when-not ~x
+        (throw (str "Assert failed: " ~message "\n" (pr-str '~x)))))))
 
 (defn close
   "Closes a resource. Handles SwishReader, SwishWriter, and map resources

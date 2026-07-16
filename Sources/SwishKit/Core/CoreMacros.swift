@@ -10,6 +10,9 @@ func registerMacros(into evaluator: Evaluator) {
     evaluator.register(name: "macroexpand", arity: .fixed(1),
         doc: "Repeatedly calls macroexpand-1 on form until it no longer represents a macro form, then returns it. Note neither macroexpand-1 nor macroexpand expand macros in subforms.",
         arglists: [["form"]]) { [evaluator] args in try coreMacroexpand(evaluator, args) }
+    evaluator.register(name: "eval", arity: .fixed(1),
+        doc: "Evaluates the form data structure (not text!) and returns the result.",
+        arglists: [["form"]]) { [evaluator] args in try evaluator.eval(args[0]) }
 }
 
 // MARK: - Implementations
