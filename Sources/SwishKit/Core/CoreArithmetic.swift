@@ -101,10 +101,18 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a byte.",
         arglists: [["x"]],
         body: coreByte)
+    evaluator.register(name: "num", arity: .fixed(1),
+        doc: "Coerce to Number.",
+        arglists: [["x"]],
+        body: coreNum)
     evaluator.register(name: "long", arity: .fixed(1),
         doc: "Coerces x to a long.",
         arglists: [["x"]],
         body: coreLong)
+    evaluator.register(name: "short", arity: .fixed(1),
+        doc: "Coerces x to a short.",
+        arglists: [["x"]],
+        body: coreShort)
     evaluator.register(name: "char", arity: .fixed(1),
         doc: "Coerce to char. Accepts an integer Unicode code point or a character.",
         arglists: [["x"]],
@@ -867,6 +875,17 @@ private func coreByte(_ args: [Expr]) throws -> Expr {
     }
 }
 
+private func coreNum(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer, .bigInteger, .double, .float, .bigDecimal, .ratio, .nil:
+        return args[0]
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "num", message: "cannot convert \(corePrinter.printString(args[0])) to Number")
+    }
+}
+
 private func coreLong(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .integer:
@@ -913,6 +932,59 @@ private func coreLong(_ args: [Expr]) throws -> Expr {
     default:
         throw EvaluatorError.invalidArgument(
             function: "long", message: "cannot convert \(corePrinter.printString(args[0])) to long")
+    }
+}
+
+private func coreShort(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer(let n):
+        guard n >= Int(Int16.min) && n <= Int(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return args[0]
+
+    case .bigInteger(let n):
+        guard let i = Int(exactly: n), i >= Int(Int16.min) && i <= Int(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return .integer(i)
+
+    case .double(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "cannot convert \(f) to short")
+        }
+        guard f >= Double(Int16.min) && f <= Double(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return .integer(Int(Int16(f)))
+
+    case .float(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "cannot convert \(f) to short")
+        }
+        let d = Double(f)
+        guard d >= Double(Int16.min) && d <= Double(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return .integer(Int(Int16(f)))
+
+    case .bigDecimal(let d):
+        let truncated = d.withScale(0)
+        guard let i = Int(exactly: truncated.integerValue), i >= Int(Int16.min) && i <= Int(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return .integer(i)
+
+    case .ratio(let r):
+        let truncated = r.numerator / r.denominator
+        guard let i = Int(exactly: truncated), i >= Int(Int16.min) && i <= Int(Int16.max) else {
+            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
+        }
+        return .integer(i)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "short", message: "cannot convert \(corePrinter.printString(args[0])) to short")
     }
 }
 
