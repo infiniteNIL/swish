@@ -178,6 +178,14 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Returns a number one less than x. Supports arbitrary precision. See also: dec",
         arglists: [["x"]],
         body: coreDecP)
+    evaluator.register(name: "+'", arity: .variadic,
+        doc: "Returns the sum of nums. (+') returns 0. Supports arbitrary precision. See also: +",
+        arglists: [[], ["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreAddP)
+    evaluator.register(name: "*'", arity: .variadic,
+        doc: "Returns the product of nums. (*') returns 1. Supports arbitrary precision. See also: *",
+        arglists: [[], ["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreMultiplyP)
 }
 
 // MARK: - Implementations
@@ -292,7 +300,7 @@ private func coreAdd(_ args: [Expr]) throws -> Expr {
     }
 
     if args.count == 1 {
-        return try assertSingleNumeric(args[0], function: "+")
+        return try coreNum([args[0]])
     }
 
     return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
@@ -339,7 +347,7 @@ private func coreMultiply(_ args: [Expr]) throws -> Expr {
         return .integer(1)
     }
     if args.count == 1 {
-        return try assertSingleNumeric(args[0], function: "*")
+        return try coreNum([args[0]])
     }
     return try args.dropFirst().reduce(args[0]) { try numericMultiply($0, $1) }
 }
@@ -476,17 +484,6 @@ private func ratioExpr(_ r: Ratio) -> Expr {
 private func ratioExprBig(_ r: Ratio) -> Expr {
     guard r.denominator == 1 else { return .ratio(r) }
     return .bigInteger(r.numerator)
-}
-
-private func assertSingleNumeric(_ arg: Expr, function: String) throws -> Expr {
-    switch arg {
-    case .integer, .float, .double, .ratio, .bigInteger, .bigDecimal:
-        return arg
-
-    default:
-        throw EvaluatorError.invalidArgument(
-            function: function, message: "expected a number, got \(corePrinter.printString(arg))")
-    }
 }
 
 private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
@@ -1196,5 +1193,58 @@ private func coreDecP(_ args: [Expr]) throws -> Expr {
         return overflow ? .bigInteger(BigInt(x) - 1) : .integer(result)
     }
     return try coreSubtract([args[0], .integer(1)])
+}
+
+private func numericAddP(_ a: Expr, _ b: Expr) throws -> Expr {
+    switch try coerceNumericPair(a, b, function: "+'") {
+    case .ints(let x, let y):
+        let (result, overflow) = x.addingReportingOverflow(y)
+        return overflow ? .bigInteger(BigInt(x) + BigInt(y)) : .integer(result)
+
+    case .floats(let x, let y):
+        return .double(x + y)
+
+    case .ratios(let x, let y):
+        return ratioExprBig(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
+                                  x.denominator * y.denominator))
+
+    case .bigInts(let x, let y):
+        return .bigInteger(x + y)
+
+    case .bigDecimals(let x, let y):
+        return .bigDecimal(x + y)
+    }
+}
+
+private func numericMultiplyP(_ a: Expr, _ b: Expr) throws -> Expr {
+    switch try coerceNumericPair(a, b, function: "*'") {
+    case .ints(let x, let y):
+        let (result, overflow) = x.multipliedReportingOverflow(by: y)
+        return overflow ? .bigInteger(BigInt(x) * BigInt(y)) : .integer(result)
+
+    case .floats(let x, let y):
+        return .double(x * y)
+
+    case .ratios(let x, let y):
+        return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
+
+    case .bigInts(let x, let y):
+        return .bigInteger(x * y)
+
+    case .bigDecimals(let x, let y):
+        return .bigDecimal(x * y)
+    }
+}
+
+private func coreAddP(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty { return .integer(0) }
+    if args.count == 1 { return try coreNum([args[0]]) }
+    return try args.dropFirst().reduce(args[0]) { try numericAddP($0, $1) }
+}
+
+private func coreMultiplyP(_ args: [Expr]) throws -> Expr {
+    if args.isEmpty { return .integer(1) }
+    if args.count == 1 { return try coreNum([args[0]]) }
+    return try args.dropFirst().reduce(args[0]) { try numericMultiplyP($0, $1) }
 }
 

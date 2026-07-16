@@ -158,4 +158,71 @@ struct CoreBigIntegerArithmeticTests {
         #expect(try swish.eval("(dec' 1.5)") == .double(0.5))
         #expect(try swish.eval("(inc' 5N)") == .bigInteger(6))
     }
+
+    // MARK: - +'
+
+    @Test("+' behaves like + for in-range integers")
+    func plusPInRange() throws {
+        #expect(try swish.eval("(+' 2 3)") == .integer(5))
+        #expect(try swish.eval("(+' 1 2 3 4)") == .integer(10))
+    }
+
+    @Test("+' promotes to BigInteger on overflow, both operand orders")
+    func plusPPromotesOnOverflow() throws {
+        #expect(try swish.eval("(bigint? (+' 1N 9223372036854775807))") == .boolean(true))
+        #expect(try swish.eval("(= 9223372036854775808N (+' 1 9223372036854775807))") == .boolean(true))
+        #expect(try swish.eval("(bigint? (+' -1 -9223372036854775808))") == .boolean(true))
+        #expect(try swish.eval("(bigint? (+' -9223372036854775808 -1))") == .boolean(true))
+        #expect(try swish.eval("(= -9223372036854775809N (+' -1 -9223372036854775808))") == .boolean(true))
+    }
+
+    @Test("+' on double/ratio/bigint/bigdecimal matches plain +")
+    func plusPNonIntegerTypes() throws {
+        #expect(try swish.eval("(+' 1.5 2.5)") == .double(4.0))
+        #expect(try swish.eval("(+' 1/2 1/2)") == .integer(1))
+        #expect(try swish.eval("(+' 1N 1N)") == .bigInteger(2))
+        #expect(try swish.eval("(+' 1.0M 1.0M)") == .bigDecimal(2.0))
+    }
+
+    @Test("+' arities: 0-arg, 1-arg (including nil), 2-arg nil throws, variadic")
+    func plusPArities() throws {
+        #expect(try swish.eval("(+')") == .integer(0))
+        #expect(try swish.eval("(+' 5)") == .integer(5))
+        #expect(try swish.eval("(+' nil)") == .nil)
+        #expect(throws: (any Error).self) { try swish.eval("(+' 1 nil)") }
+        #expect(throws: (any Error).self) { try swish.eval("(+' nil 1)") }
+        #expect(try swish.eval("(+' 1 2 3 4 5)") == .integer(15))
+    }
+
+    // MARK: - *'
+
+    @Test("*' behaves like * for in-range integers")
+    func starPInRange() throws {
+        #expect(try swish.eval("(*' 2 3)") == .integer(6))
+        #expect(try swish.eval("(*' 1 2 3 4)") == .integer(24))
+    }
+
+    @Test("*' promotes to BigInteger on overflow, both operand orders")
+    func starPPromotesOnOverflow() throws {
+        #expect(try swish.eval("(bigint? (*' (long (/ -9223372036854775808 2)) 3))") == .boolean(true))
+        #expect(try swish.eval("(bigint? (*' 3 (long (/ -9223372036854775808 2))))") == .boolean(true))
+    }
+
+    @Test("*' on double/ratio/bigint/bigdecimal matches plain *")
+    func starPNonIntegerTypes() throws {
+        #expect(try swish.eval("(*' 1.5 2.0)") == .double(3.0))
+        #expect(try swish.eval("(*' 1/2 2)") == .integer(1))
+        #expect(try swish.eval("(*' 2N 3N)") == .bigInteger(6))
+        #expect(try swish.eval("(*' 2.0M 3.0M)") == .bigDecimal(6.0))
+    }
+
+    @Test("*' arities: 0-arg, 1-arg (including nil), 2-arg nil throws, variadic")
+    func starPArities() throws {
+        #expect(try swish.eval("(*')") == .integer(1))
+        #expect(try swish.eval("(*' 5)") == .integer(5))
+        #expect(try swish.eval("(*' nil)") == .nil)
+        #expect(throws: (any Error).self) { try swish.eval("(*' 1 nil)") }
+        #expect(throws: (any Error).self) { try swish.eval("(*' nil 1)") }
+        #expect(try swish.eval("(*' 1 2 3 4)") == .integer(24))
+    }
 }

@@ -19,6 +19,11 @@ struct CoreMathTests {
         #expect(try swish.eval("(+ 5)") == .integer(5))
     }
 
+    @Test("(+ nil) returns nil, matching real Clojure's (cast Number x) 1-arg semantics")
+    func addOneNil() throws {
+        #expect(try swish.eval("(+ nil)") == .nil)
+    }
+
     @Test("(+ 1 2 3) returns 6")
     func addIntegers() throws {
         #expect(try swish.eval("(+ 1 2 3)") == .integer(6))
@@ -66,7 +71,10 @@ struct CoreMathTests {
 
     @Test("(+ \"a\") throws invalidArgument")
     func addNonNumericThrows() throws {
-        #expect(throws: EvaluatorError.invalidArgument(function: "+", message: "expected a number, got \"a\"")) {
+        // The 1-arg case delegates to `num` (matching real Clojure's `(cast Number x)`
+        // semantics, including nil-passthrough — see addOneNil), so the thrown error's
+        // function name/message come from `num`, not `+`.
+        #expect(throws: EvaluatorError.invalidArgument(function: "num", message: "cannot convert \"a\" to Number")) {
             try swish.eval("(+ \"a\")")
         }
     }
@@ -120,6 +128,11 @@ struct CoreMathTests {
     @Test("(* 7) returns 7")
     func multiplyOneArg() throws {
         #expect(try swish.eval("(* 7)") == .integer(7))
+    }
+
+    @Test("(* nil) returns nil, matching real Clojure's (cast Number x) 1-arg semantics")
+    func multiplyOneNil() throws {
+        #expect(try swish.eval("(* nil)") == .nil)
     }
 
     @Test("(* 2 3 4) returns 24")
