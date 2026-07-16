@@ -53,6 +53,15 @@ func registerPredicates(into evaluator: Evaluator) {
             return .boolean(false)
         }
     }
+    evaluator.register(name: "counted?", arity: .fixed(1), doc: "Returns true if coll implements count in constant time", arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .list, .seq, .vector, .sharedVector, .mapEntry, .map, .sortedMap, .set, .sortedSet, .record:
+            return .boolean(true)
+
+        default:
+            return .boolean(false)
+        }
+    }
     evaluator.register(name: "name", arity: .fixed(1),
         doc: "Returns the name String of a string, symbol or keyword.",
         arglists: [["x"]]) { args in

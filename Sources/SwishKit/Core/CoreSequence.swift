@@ -394,6 +394,9 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .mapEntry:
         return .integer(2)
 
+    case .record(_, _, let data, _):
+        return .integer(data.count)
+
     case .map(let sm):
         return .integer(sm.dict.count)
 

@@ -67,4 +67,9 @@ struct CoreCountTests {
             try swish.eval("(count 42)")
         }
     }
+
+    @Test("(count record) returns field count")
+    func countRecord() throws {
+        #expect(try swish.eval("(defrecord CountRec [a b]) (count (->CountRec 1 2))") == .integer(2))
+    }
 }
