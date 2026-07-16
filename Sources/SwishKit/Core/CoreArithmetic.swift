@@ -101,6 +101,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerces x to a byte.",
         arglists: [["x"]],
         body: coreByte)
+    evaluator.register(name: "long", arity: .fixed(1),
+        doc: "Coerces x to a long.",
+        arglists: [["x"]],
+        body: coreLong)
     evaluator.register(name: "char", arity: .fixed(1),
         doc: "Coerce to char. Accepts an integer Unicode code point or a character.",
         arglists: [["x"]],
@@ -860,6 +864,55 @@ private func coreByte(_ args: [Expr]) throws -> Expr {
     default:
         throw EvaluatorError.invalidArgument(
             function: "byte", message: "cannot convert \(corePrinter.printString(args[0])) to byte")
+    }
+}
+
+private func coreLong(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer:
+        return args[0]
+
+    case .bigInteger(let n):
+        guard let i = Int(exactly: n) else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
+        }
+        return .integer(i)
+
+    case .double(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "cannot convert \(f) to long")
+        }
+        guard let i = Int(exactly: f.rounded(.towardZero)) else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
+        }
+        return .integer(i)
+
+    case .float(let f):
+        guard !f.isInfinite && !f.isNaN else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "cannot convert \(f) to long")
+        }
+        guard let i = Int(exactly: Double(f).rounded(.towardZero)) else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
+        }
+        return .integer(i)
+
+    case .bigDecimal(let d):
+        let truncated = d.withScale(0)
+        guard let i = Int(exactly: truncated.integerValue) else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
+        }
+        return .integer(i)
+
+    case .ratio(let r):
+        let truncated = r.numerator / r.denominator
+        guard let i = Int(exactly: truncated) else {
+            throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
+        }
+        return .integer(i)
+
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: "long", message: "cannot convert \(corePrinter.printString(args[0])) to long")
     }
 }
 
