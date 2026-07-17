@@ -131,6 +131,21 @@ struct CoreStreamingIOTests {
         #expect(try String(contentsOfFile: path, encoding: .utf8) == "new")
     }
 
+    @Test("print and println render nil as the literal text \"nil\", not empty string")
+    func printPrintlnRenderNilLiterally() throws {
+        let path = tempPath()
+        defer { try? FileManager.default.removeItem(atPath: path) }
+        _ = try swish.eval("(require '[clojure.swift.io :as io])")
+        _ = try swish.eval("""
+            (with-open [wtr (io/writer \"\(path)\")]
+              (binding [*out* wtr]
+                (print nil "a" "string")
+                (println "")
+                (println nil)))
+            """)
+        #expect(try String(contentsOfFile: path, encoding: .utf8) == "nil a string\nnil\n")
+    }
+
     // MARK: - close on exception
 
     @Test("with-open closes reader even when body throws")

@@ -22,6 +22,21 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["&", "more"]]) { args in
         .string(args.map { corePrinter.printString($0) }.joined(separator: " "))
     }
+    evaluator.register(name: "print-str", arity: .variadic,
+        doc: "print to a string, returning it",
+        arglists: [["&", "more"]]) { args in
+        .string(args.map { strStringForPrint($0) }.joined(separator: " "))
+    }
+    evaluator.register(name: "println-str", arity: .variadic,
+        doc: "println to a string, returning it",
+        arglists: [["&", "more"]]) { args in
+        .string(args.map { strStringForPrint($0) }.joined(separator: " ") + "\n")
+    }
+    evaluator.register(name: "prn-str", arity: .variadic,
+        doc: "prn to a string, returning it",
+        arglists: [["&", "more"]]) { args in
+        .string(args.map { corePrinter.printString($0) }.joined(separator: " ") + "\n")
+    }
     evaluator.register(name: "pr", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. " +
              "Prints the object(s) in a form that the reader can read back.",
@@ -302,9 +317,20 @@ private func sourceContainsAutoQualifiedKeyword(_ source: String) -> Bool {
 // MARK: - Print implementations
 
 private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
-    let s = args.map { corePrinter.strString($0) }.joined(separator: " ")
+    let s = args.map { strStringForPrint($0) }.joined(separator: " ")
     try writeToOut(evaluator, s + terminator)
     return .nil
+}
+
+/// str-style rendering for print/println/print-str/println-str: like `strString`,
+/// but nil renders as the literal text "nil" rather than "". strString's empty-string
+/// nil is specific to `str`'s own concatenation semantics ((str nil) => ""); print's
+/// per-argument rendering always shows "nil", matching real Clojure.
+private func strStringForPrint(_ expr: Expr) -> String {
+    if case .nil = expr {
+        return "nil"
+    }
+    return corePrinter.strString(expr)
 }
 
 private func corePrint(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
