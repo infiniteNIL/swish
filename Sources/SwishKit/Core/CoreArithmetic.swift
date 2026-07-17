@@ -134,6 +134,10 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Coerce to BigDecimal.",
         arglists: [["x"]],
         body: coreBigDec)
+    evaluator.register(name: "rationalize", arity: .fixed(1),
+        doc: "returns the rational value of num",
+        arglists: [["num"]],
+        body: coreRationalize)
     evaluator.register(name: "boolean", arity: .fixed(1),
         doc: "Coerce to boolean",
         arglists: [["x"]],
@@ -1131,6 +1135,44 @@ private func coreBigDec(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(
             function: "bigdec", message: "cannot convert \(corePrinter.printString(args[0])) to bigdec")
     }
+}
+
+private func coreRationalize(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .integer, .bigInteger, .ratio:
+        return args[0]
+
+    case .double(let d):
+        guard let bd = BigDecimal(d) else {
+            throw EvaluatorError.invalidArgument(function: "rationalize",
+                message: "cannot convert \(d) to a rational")
+        }
+        return rationalizeBigDecimal(bd)
+
+    case .float(let f):
+        return try coreRationalize([.double(Double(f))])
+
+    case .bigDecimal(let bd):
+        return rationalizeBigDecimal(bd)
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "rationalize",
+            message: "expected a number, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+// Mirrors clojure.lang.Numbers.rationalize's BigDecimal branch: unscaledValue
+// over 10^scale, GCD-reduced. When the reduced denominator is 1, the JVM
+// always returns a BigInt (never demotes to a plain Long), so this always
+// produces .bigInteger rather than .integer in that case too.
+private func rationalizeBigDecimal(_ bd: BigDecimal) -> Expr {
+    let bv = bd.integerValue
+    let scale = bd.scale
+    if scale < 0 {
+        return .bigInteger(bv * BigInt(10).power(-scale))
+    }
+    let ratio = Ratio(bv, BigInt(10).power(scale))
+    return ratio.denominator == 1 ? .bigInteger(ratio.numerator) : .ratio(ratio)
 }
 
 private func coreBoolean(_ args: [Expr]) throws -> Expr {
