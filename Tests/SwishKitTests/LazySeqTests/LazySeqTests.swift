@@ -369,20 +369,36 @@ struct LazySeqTests {
 
     // MARK: - stack safety of chained lazy-seq realization
 
-    // `filter`'s non-matching branch recurses into `(filter pred r)` again,
-    // so realizing past a long run of rejected elements chains that many
-    // nested unrealized lazy seqs together. LazySeqBox.normalize must unwrap
-    // this chain iteratively, not recursively, or a long-enough run blows
-    // the Swift call stack (previously crashed at ~5000 consecutive
-    // rejections; 4000 was the last size confirmed crash-free before the
-    // fix). These sizes stay well past that boundary while keeping runtime
-    // reasonable — Swish's tree-walking interpreter costs low-hundreds of
-    // microseconds per filtered element, so much larger sizes make a single
-    // test take tens of seconds without adding meaningful proof.
+    // `filter`'s non-matching branch recurses into `(filter pred r)` again, so
+    // realizing past a long run of rejected elements chains that many nested
+    // unrealized lazy seqs together. LazySeqBox.normalize must unwrap this
+    // chain iteratively, not recursively, or a long-enough run blows the
+    // Swift call stack (previously crashed at ~5000 consecutive rejections
+    // under the CLI's large main-thread stack).
+    //
+    // The white-box test below constructs a LazySeqBox chain directly — no
+    // Clojure evaluation at all — so it proves the fix at effectively
+    // unlimited scale for near-zero cost, isolating the exact mechanism from
+    // the interpreter's own per-element overhead (Swish costs low-hundreds
+    // of microseconds per filtered element, so proving this via core.clj's
+    // `filter` at real crash-threshold scale would make the test take
+    // several seconds for no extra confidence). A small integration test
+    // alongside it just proves `filter`'s actual recursive definition really
+    // produces this chain shape end to end.
 
-    @Test("filter with an always-false predicate over a large collection does not overflow the stack")
-    func filterAllRejectingLargeCollection() throws {
-        #expect(try swish.eval("(count (filter (fn [_] false) (range 10000)))") == .integer(0))
+    @Test("LazySeqBox unwraps a very long chain of nested unrealized lazy seqs without overflowing the stack")
+    func lazySeqBoxLongRejectChainNoOverflow() throws {
+        var tail = LazySeqBox(thunk: { .nil })
+        for _ in 0..<1_000_000 {
+            let capturedTail = tail
+            tail = LazySeqBox(thunk: { .lazySeq(capturedTail) })
+        }
+        #expect(try tail.forceHead() == nil)
+    }
+
+    @Test("filter with an always-false predicate is wired correctly end to end")
+    func filterAllRejectingIntegration() throws {
+        #expect(try swish.eval("(count (filter (fn [_] false) (range 2000)))") == .integer(0))
     }
 
     @Test("remove (filter's inverse) over a large collection does not overflow the stack")
@@ -399,10 +415,46 @@ struct LazySeqTests {
     func chainedLazySeqMemoizes() throws {
         #expect(try swish.eval("""
             (let [calls (atom 0)
-                  xs (filter (fn [_] (swap! calls inc) false) (range 3000))]
+                  xs (filter (fn [_] (swap! calls inc) false) (range 500))]
               (dorun xs)
               (dorun xs)
               @calls)
-            """) == .integer(3000))
+            """) == .integer(500))
+    }
+
+    // MARK: - stack safety of deinit-ing a long realized lazy-seq chain
+
+    // next/seq (backing dorun's loop) memoize each realized step as
+    // .cons(head, tail: .lazySeq(next)), forming a genuine singly linked list
+    // of LazySeqBox once fully walked. Since Expr is an indirect enum
+    // (heap-boxed), Swift's compiler-generated deinit for a long reference
+    // chain like this is not tail-call-optimized — releasing the head used to
+    // trigger one recursive deinit per link, overflowing the stack for large
+    // n. This crashed `(dorun (range n))` at n=20000 (confirmed independent
+    // of the reject-chain fix above — a bare, already-realized chain crashed
+    // purely on release, with no forcing involved). LazySeqBox now has a
+    // custom deinit that unlinks the chain iteratively.
+    //
+    // The white-box test constructs an already-realized chain directly (no
+    // Clojure evaluation, no forcing) and drops it, isolating the exact
+    // deinit mechanism for near-zero cost at huge N. A small integration test
+    // alongside it proves `dorun`'s real `next`-driven walk is wired up the
+    // same way.
+
+    @Test("dropping a very long realized LazySeqBox chain does not overflow the stack in deinit")
+    func lazySeqBoxLongRealizedChainDeinitNoOverflow() throws {
+        var tail: Expr = .nil
+        for i in stride(from: 999_999, through: 0, by: -1) {
+            tail = .lazySeq(LazySeqBox(head: .integer(i), tail: tail))
+        }
+        #expect(tail != .nil)
+        // tail is released when the function returns, triggering the deinit
+        // chain — if that overflows the stack, this test (and likely others)
+        // crash the whole process rather than reporting a normal failure.
+    }
+
+    @Test("dorun over a range is wired correctly end to end and does not overflow the stack on release")
+    func doRunIntegration() throws {
+        #expect(try swish.eval("(do (dorun (range 3000)) :done)") == .keyword("done"))
     }
 }

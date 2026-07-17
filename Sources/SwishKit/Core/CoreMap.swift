@@ -106,6 +106,57 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
     }
 }
 
+/// Shared lookup dispatch backing both `get` and `get-in`. Returns Swift `nil`
+/// for "not found" and `.some(.nil)` for "found, and the value is Clojure nil"
+/// — this distinction is what lets `get-in`'s per-step loop correctly tell
+/// a missing key apart from a legitimately nil value without needing a
+/// fake unique sentinel object.
+private func lookupOptional(_ coll: Expr, _ key: Expr) throws -> Expr? {
+    switch coll {
+    case .nil:
+        return nil
+
+    case .map(let sm):
+        return sm.dict[key]
+
+    case .sortedMap(let dict, _):
+        return dict[key]
+
+    case .record(_, _, let data, _):
+        return data[key]
+
+    case .vector(let elements, _):
+        guard case .integer(let idx) = key, idx >= 0, idx < elements.count else { return nil }
+        return elements[idx]
+
+    case .sharedVector(let sa, _):
+        guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return nil }
+        return sa.elements[idx]
+
+    case .string(let s):
+        guard case .integer(let idx) = key, idx >= 0,
+              let i = s.index(s.startIndex, offsetBy: idx, limitedBy: s.endIndex), i < s.endIndex
+        else { return nil }
+        return .character(s[i])
+
+    case .set(let ss):
+        return ss.elements.contains(key) ? key : nil
+
+    case .sortedSet(let elements, _):
+        return ((try? sortedSetContains(elements, key)) == true) ? key : nil
+
+    case .array(let sa):
+        guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return nil }
+        return sa.elements[idx]
+
+    case .transient(let tc):
+        return try lookupOptional(tc.value, key)
+
+    default:
+        return nil
+    }
+}
+
 private func coreGetIn(_ args: [Expr]) throws -> Expr {
     guard args.count == 2 || args.count == 3 else {
         throw EvaluatorError.invalidArgument(
@@ -134,35 +185,8 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     }
     var current = args[0]
     for key in keys {
-        switch current {
-        case .map(let sm):
-            guard let value = sm.dict[key] else { return notFound }
-            current = value
-
-        case .sortedMap(let dict, _):
-            guard let value = dict[key] else { return notFound }
-            current = value
-
-        case .vector(let elems, _):
-            guard case .integer(let idx) = key, idx >= 0, idx < elems.count else { return notFound }
-            current = elems[idx]
-
-        case .sharedVector(let sa, _):
-            guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return notFound }
-            current = sa.elements[idx]
-
-        case .string(let s):
-            guard case .integer(let idx) = key, idx >= 0,
-                  let i = s.index(s.startIndex, offsetBy: idx, limitedBy: s.endIndex), i < s.endIndex
-            else { return notFound }
-            current = .character(s[i])
-
-        case .nil:
-            return notFound
-
-        default:
-            return notFound
-        }
+        guard let value = try lookupOptional(current, key) else { return notFound }
+        current = value
     }
     return current
 }
@@ -343,57 +367,6 @@ private func coreGet(_ args: [Expr]) throws -> Expr {
             function: "get",
             message: "requires 2 or 3 arguments, got \(args.count)")
     }
-
     let notFound: Expr = args.count == 3 ? args[2] : .nil
-
-    switch args[0] {
-    case .nil:
-        return notFound
-
-    case .map(let sm):
-        return sm.dict[args[1]] ?? notFound
-
-    case .sortedMap(let dict, _):
-        return dict[args[1]] ?? notFound
-
-    case .record(_, _, let data, _):
-        return data[args[1]] ?? notFound
-
-    case .vector(let elements, _):
-        guard case .integer(let idx) = args[1], idx >= 0, idx < elements.count else {
-            return notFound
-        }
-        return elements[idx]
-
-    case .string(let s):
-        guard case .integer(let idx) = args[1], idx >= 0 else { return notFound }
-        guard let i = s.index(s.startIndex, offsetBy: idx, limitedBy: s.endIndex),
-              i < s.endIndex
-        else { return notFound }
-        return .character(s[i])
-
-    case .set(let ss):
-        return ss.elements.contains(args[1]) ? args[1] : notFound
-
-    case .sortedSet(let elements, _):
-        return ((try? sortedSetContains(elements, args[1])) == true) ? args[1] : notFound
-
-    case .array(let sa):
-        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
-            return notFound
-        }
-        return sa.elements[idx]
-
-    case .sharedVector(let sa, _):
-        guard case .integer(let idx) = args[1], idx >= 0, idx < sa.elements.count else {
-            return notFound
-        }
-        return sa.elements[idx]
-
-    case .transient(let tc):
-        return try coreGet([tc.value] + Array(args.dropFirst()))
-
-    default:
-        return notFound
-    }
+    return try lookupOptional(args[0], args[1]) ?? notFound
 }

@@ -14,10 +14,14 @@ struct CoreRandomTests {
 
     @Test("rand-nth returns members of the collection and is not constant across draws")
     func randNthBasic() throws {
+        // 20 draws over 100 unique values is still an astronomically reliable
+        // "not constant" check (a coincidentally-constant result has
+        // probability (1/100)^19), while running far faster than the
+        // original 1000-item/100-draw sizing.
         #expect(try swish.eval("""
-            (let [n-items 1000
+            (let [n-items 100
                   coll (doall (range n-items))
-                  samples (repeatedly 100 #(rand-nth coll))]
+                  samples (repeatedly 20 #(rand-nth coll))]
               (and (> (count (set samples)) 1)
                    (every? #(< -1 % n-items) samples)))
             """) == .boolean(true))
@@ -35,30 +39,38 @@ struct CoreRandomTests {
 
     // MARK: - random-sample, 2-arity (coll form)
 
+    // prob 0/1/>1/negative are deterministic outcomes — they don't depend on
+    // rand's actual output at all, so repeating them 10 times (as the jank
+    // fixture does) proves nothing an unrepeated check doesn't; a single draw
+    // over a small collection is just as conclusive and far faster.
+
     @Test("random-sample with prob 0 always returns an empty seq")
     func randomSampleProbZero() throws {
-        #expect(try swish.eval("(every? (comp nil? seq) (repeatedly 10 #(random-sample 0 (range 100))))") == .boolean(true))
+        #expect(try swish.eval("(nil? (seq (random-sample 0 (range 20))))") == .boolean(true))
     }
 
     @Test("random-sample with prob 1 always returns the whole collection")
     func randomSampleProbOne() throws {
-        #expect(try swish.eval("(every? #(= % (range 100)) (repeatedly 10 #(random-sample 1 (range 100))))") == .boolean(true))
+        #expect(try swish.eval("(= (random-sample 1 (range 20)) (range 20))") == .boolean(true))
     }
 
     @Test("random-sample with prob 10 (>1) always returns the whole collection")
     func randomSampleProbAboveOne() throws {
-        #expect(try swish.eval("(every? #(= % (range 100)) (repeatedly 10 #(random-sample 10 (range 100))))") == .boolean(true))
+        #expect(try swish.eval("(= (random-sample 10 (range 20)) (range 20))") == .boolean(true))
     }
 
     @Test("random-sample with negative prob always returns an empty seq")
     func randomSampleNegativeProb() throws {
-        #expect(try swish.eval("(every? (comp nil? seq) (repeatedly 10 #(random-sample -1 (range 100))))") == .boolean(true))
+        #expect(try swish.eval("(nil? (seq (random-sample -1 (range 20))))") == .boolean(true))
     }
 
     @Test("random-sample with mid-range prob returns a non-constant subset of the collection")
     func randomSampleMidProb() throws {
+        // prob=0.5 is genuinely random, so this one still benefits from
+        // repeated draws to check "not constant" — nitems just needs to be
+        // large enough to make every subset-size/membership check meaningful.
         #expect(try swish.eval("""
-            (let [nitems 1000
+            (let [nitems 100
                   coll (doall (range nitems))
                   xs (repeatedly 10 #(random-sample 0.5 coll))]
               (and (> (count (set xs)) 1)
@@ -92,8 +104,8 @@ struct CoreRandomTests {
 
     @Test("random-sample transducer form matches the 2-arity form's behavior via transduce")
     func randomSampleTransducer() throws {
-        #expect(try swish.eval("(every? (comp nil? seq) (repeatedly 10 #(transduce (random-sample 0) conj [] (range 100))))") == .boolean(true))
-        #expect(try swish.eval("(every? #(= % (range 100)) (repeatedly 10 #(transduce (random-sample 1) conj [] (range 100))))") == .boolean(true))
+        #expect(try swish.eval("(nil? (seq (transduce (random-sample 0) conj [] (range 20))))") == .boolean(true))
+        #expect(try swish.eval("(= (transduce (random-sample 1) conj [] (range 20)) (range 20))") == .boolean(true))
     }
 
     // MARK: - random-uuid

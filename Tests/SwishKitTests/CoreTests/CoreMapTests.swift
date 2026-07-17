@@ -438,6 +438,44 @@ struct CoreMapTests {
         #expect(try swish.eval("(get-in [[1 2] [3 4]] [1 0])") == .integer(3))
     }
 
+    // get-in delegates to the same lookupOptional dispatch as get, so every
+    // type get supports should now work through get-in too.
+
+    @Test("(get-in {:a \"hello\"} [:a 1]) indexes into a string")
+    func getInStringPath() throws {
+        #expect(try swish.eval(#"(get-in {:a "hello"} [:a 1])"#) == .character("e"))
+    }
+
+    @Test("(get-in [#{:x :y}] [0 :x]) tests set membership, nil if absent")
+    func getInSetPath() throws {
+        #expect(try swish.eval("(get-in [#{:x :y}] [0 :x])") == .keyword("x"))
+        #expect(try swish.eval("(get-in [#{:x :y}] [0 :z])") == .nil)
+    }
+
+    @Test("(get-in [(sorted-set 1 2 3)] [0 2]) tests sorted-set membership, nil if absent")
+    func getInSortedSetPath() throws {
+        #expect(try swish.eval("(get-in [(sorted-set 1 2 3)] [0 2])") == .integer(2))
+        #expect(try swish.eval("(get-in [(sorted-set 1 2 3)] [0 99])") == .nil)
+    }
+
+    @Test("(get-in [(to-array [10 20 30])] [0 1]) indexes into an array")
+    func getInArrayPath() throws {
+        #expect(try swish.eval("(get-in [(to-array [10 20 30])] [0 1])") == .integer(20))
+    }
+
+    @Test("(get-in [(transient {:a 1})] [0 :a]) looks up in a transient map")
+    func getInTransientPath() throws {
+        #expect(try swish.eval("(get-in [(transient {:a 1})] [0 :a])") == .integer(1))
+    }
+
+    @Test("(get-in [record] [0 :field]) looks up a defrecord field")
+    func getInRecordPath() throws {
+        #expect(try swish.eval("""
+            (defrecord GetInPoint [x y])
+            (get-in [(->GetInPoint 1 2)] [0 :x])
+            """) == .integer(1))
+    }
+
     // MARK: - assoc metadata preservation
 
     @Test("assoc preserves metadata on map")

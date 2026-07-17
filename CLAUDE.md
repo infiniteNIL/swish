@@ -134,6 +134,14 @@ Not implemented. `clojure.test/are` uses a `partition`+`interleave` expansion in
 
 Due to a lazy-seq realization issue where `asSequence` silently swallows errors from lazy seq thunks, the standard `(apply merge-with + (map test-ns namespaces))` pattern fails. Current workaround forces evaluation with `doall`.
 
+### Interpreter has a high per-element constant cost for lazy-seq-driven code (not an O(n²) bug)
+
+Swish's tree-walking interpreter costs roughly 300–475µs per element for chains like `filter`/`range`/`vec`+`seq`+`next`-walks — confirmed **linear** (not quadratic) by direct measurement with the built binary (excludes `swift run`'s own overhead): `(count (filter (fn [_] false) (range n)))` at n = 2000/4000/8000/16000/32000 scales almost exactly proportionally to n (8000→3.88s, 16000→7.73s, 32000→15.16s). A separate check — `(dorun (seq (vec (range n))))`, the pattern most likely to hit an `Array(dropFirst())`-copy-per-`next`-call cost — going from 16000→64000 (4x) took only ~3.2x longer, again linear. There is no O(n²) bug in these paths (an earlier, unverified claim to this effect was wrong and has been corrected here). This is an architectural characteristic — likely some combination of environment lookup, `NSLock` overhead in `LazySeqBox`, and per-call evaluator dispatch overhead, not yet profiled to find which factor dominates — not a specific bug, and not something fixed in this pass. A real fix would be a separate, profiling-driven performance effort.
+
+### `LazySeqBox` needed a custom `deinit` to avoid stack overflow on releasing long realized chains
+
+`next`/`seq` (`CoreSequence.swift`) memoize each realized step as `.cons(head, tail: .lazySeq(nextBox))`, forming a genuine singly-linked chain of `LazySeqBox` objects once fully walked (e.g. by `dorun`). Since `Expr` is an `indirect enum` (heap-boxed), Swift's compiler-generated `deinit` for a long reference chain like this is not tail-call-optimized — releasing the head recursively released the next link, which recursively released the next, etc., one native stack frame per link, crashing at ~20000 elements (confirmed via `(dorun (range n))`, independent of any lazy-seq *forcing* logic — a bare, already-realized chain crashed purely on release). Fixed with a custom `deinit` on `LazySeqBox` (`LazySeqBox.swift`) that iteratively unlinks the tail chain (using `isKnownUniquelyReferenced` to only detach links nothing else is aliasing) before default ARC teardown runs — the standard fix for this well-known Swift pattern.
+
 ## REPL Commands
 
 REPL commands are preceded by `/` (e.g., `/quit`, `/q`). This distinguishes them from Swish expressions.

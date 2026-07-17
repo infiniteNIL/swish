@@ -27,6 +27,35 @@ public final class LazySeqBox: @unchecked Sendable {
         state = .unrealized(thunk)
     }
 
+    deinit {
+        // Unlink the tail chain iteratively instead of letting ARC recurse into
+        // it: next/seq memoize each realized step as .cons(head, tail: .lazySeq(next)),
+        // so a long-realized chain (e.g. from (dorun (range n)), whose recur
+        // trampoline in callUserFunction keeps the chain's head reachable for
+        // the whole call) is a genuine singly linked list of LazySeqBox. Since
+        // Expr is an indirect enum (heap-boxed), Swift's compiler-generated
+        // deinit for a long reference chain like this is not tail-call-optimized
+        // — releasing the head would otherwise trigger one recursive deinit per
+        // link, overflowing the stack for large n. isKnownUniquelyReferenced
+        // guards correctness: only detach a link's tail if this walk is the
+        // only thing keeping it alive — if something else aliases into the
+        // middle of the chain, the walk stops there and normal (safe, since
+        // that box's own eventual deinit runs this same logic) ARC teardown
+        // proceeds from that point.
+        guard case .cons(_, var tailExpr) = state else { return }
+        state = .empty
+        while case .lazySeq(var box) = tailExpr {
+            // tailExpr must release its own hold on the box before the
+            // uniqueness check below, or it counts as a second reference and
+            // isKnownUniquelyReferenced always (incorrectly) reports false.
+            tailExpr = .nil
+            guard isKnownUniquelyReferenced(&box) else { break }
+            guard case .cons(_, let nextTail) = box.state else { break }
+            box.state = .empty
+            tailExpr = nextTail
+        }
+    }
+
     /// Creates a pre-realized cons cell. Used by `cons` when the tail is lazy.
     init(head: Expr, tail: Expr) {
         state = .cons(head: head, tail: tail)
