@@ -16,6 +16,34 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] rand-nth, random-sample, random-uuid, uuid?
+- [x] print-str, println-str, prn-str
+- [x] rational?
+- [x] pop!
+- [x] +', *'
+- [x] parse-long, parse-double, parse-uuid
+- [x] num
+- [x] long, short
+- [x] neg-int?, pos-int?, nat-int?
+- [x] min-key, max-key
+- [x] long
+- [x] intern, var-get, var-set
+- [x] ident?, simple-ident?, qualified-ident?, simple-symbol?, qualified-symbol?, simple-keyword?, qualified-keyword?
+- [x] format
+- [x] fnil
+- [x] ffirst, nfirst, fnext
+- [x] *assert*
+- [x] var?
+- [x] eval
+- [x] drop-last
+- [x] disj!
+- [x] denominator, numerator
+- [x] counted?
+- [x] coll?
+- [x] case
+- [x] byte
+- [x] boolean, boolean?, parse-boolean
+- [x] bit-and-not, bit-and, bit-clear, bit-flip, bit-not, bit-or, bit-set, bit-shift-left, bit-shift-right, bit-test, bit-xor, unsigned-bit-shift-right
 - [x] bigdec, bigint, inc', dec'
 - [x] keyword
 - [x] deftype
