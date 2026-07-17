@@ -60,4 +60,18 @@ struct CoreParseUUIDTests {
         #expect(throws: (any Error).self) { try swish.eval("(parse-uuid 0.0)") }
         #expect(throws: (any Error).self) { try swish.eval("(parse-uuid 1000)") }
     }
+
+    // MARK: - str renders the bare UUID string, not reader syntax
+
+    @Test("(str uuid) returns the bare UUID string, not the #uuid reader form")
+    func strOnUUIDReturnsBareString() throws {
+        #expect(try swish.eval(#"(str (parse-uuid "b6883c0a-0342-4007-9966-bc2dfa6b109e"))"#) ==
+            .string("b6883c0a-0342-4007-9966-bc2dfa6b109e"))
+    }
+
+    @Test("(pr-str uuid) still returns the #uuid reader form")
+    func prStrOnUUIDReturnsReaderForm() throws {
+        #expect(try swish.eval(#"(pr-str (parse-uuid "b6883c0a-0342-4007-9966-bc2dfa6b109e"))"#) ==
+            .string(#"#uuid "b6883c0a-0342-4007-9966-bc2dfa6b109e""#))
+    }
 }

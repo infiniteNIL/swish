@@ -151,6 +151,12 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
             guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return notFound }
             current = sa.elements[idx]
 
+        case .string(let s):
+            guard case .integer(let idx) = key, idx >= 0,
+                  let i = s.index(s.startIndex, offsetBy: idx, limitedBy: s.endIndex), i < s.endIndex
+            else { return notFound }
+            current = .character(s[i])
+
         case .nil:
             return notFound
 

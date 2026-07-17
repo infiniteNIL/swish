@@ -196,6 +196,9 @@ public struct Printer {
         case .bigDecimal(let v):
             "\(v)"
 
+        case .uuid(let uuid):
+            uuid.uuidString.lowercased()
+
         case .reduced:
             printString(expr)
 

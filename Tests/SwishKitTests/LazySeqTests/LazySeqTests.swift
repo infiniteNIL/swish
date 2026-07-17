@@ -366,4 +366,43 @@ struct LazySeqTests {
     func mapcatLazy() throws {
         #expect(try swish.eval("(take 6 (mapcat #(list % (* % 10)) (range 1 4)))") == .list([1, 10, 2, 20, 3, 30].map { .integer($0) }, metadata: nil))
     }
+
+    // MARK: - stack safety of chained lazy-seq realization
+
+    // `filter`'s non-matching branch recurses into `(filter pred r)` again,
+    // so realizing past a long run of rejected elements chains that many
+    // nested unrealized lazy seqs together. LazySeqBox.normalize must unwrap
+    // this chain iteratively, not recursively, or a long-enough run blows
+    // the Swift call stack (previously crashed at ~5000 consecutive
+    // rejections; 4000 was the last size confirmed crash-free before the
+    // fix). These sizes stay well past that boundary while keeping runtime
+    // reasonable — Swish's tree-walking interpreter costs low-hundreds of
+    // microseconds per filtered element, so much larger sizes make a single
+    // test take tens of seconds without adding meaningful proof.
+
+    @Test("filter with an always-false predicate over a large collection does not overflow the stack")
+    func filterAllRejectingLargeCollection() throws {
+        #expect(try swish.eval("(count (filter (fn [_] false) (range 10000)))") == .integer(0))
+    }
+
+    @Test("remove (filter's inverse) over a large collection does not overflow the stack")
+    func removeLargeCollection() throws {
+        // remove's predicate goes through complement's (fn [& args] (not (apply f args)))
+        // wrapper, which costs meaningfully more stack per call than a bare lambda — so
+        // this uses a smaller N than the bare-predicate test above to stay safely within
+        // swift-testing's smaller worker-thread stack (vs. the CLI's larger main-thread
+        // stack), while still exercising the same chained-lazy-seq-realization path.
+        #expect(try swish.eval("(count (remove even? (range 1500)))") == .integer(750))
+    }
+
+    @Test("a chain of nested lazy seqs still memoizes every element (no re-running thunks)")
+    func chainedLazySeqMemoizes() throws {
+        #expect(try swish.eval("""
+            (let [calls (atom 0)
+                  xs (filter (fn [_] (swap! calls inc) false) (range 3000))]
+              (dorun xs)
+              (dorun xs)
+              @calls)
+            """) == .integer(3000))
+    }
 }

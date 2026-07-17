@@ -154,6 +154,11 @@ func registerArithmetic(into evaluator: Evaluator) {
         doc: "Parse a string representing a UUID and return a UUID instance, or nil if parse fails.",
         arglists: [["s"]],
         body: coreParseUUID)
+    evaluator.register(name: "random-uuid", arity: .fixed(0),
+        doc: "Returns a pseudo-randomly generated java.util.UUID instance (i.e. type 4).",
+        arglists: [[]]) { _ in
+        .uuid(UUID())
+    }
     evaluator.register(name: "rand", arity: .variadic,
         doc: "Returns a random floating point number between 0 (inclusive) and n (default 1) (exclusive).",
         arglists: [[], ["n"]],
@@ -277,17 +282,20 @@ private func coreToChar(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreRand(_ args: [Expr]) throws -> Expr {
-    if args.isEmpty { return .double(Double.random(in: 0.0..<1.0)) }
+    // Matches real Clojure's (* n (rand)) — n * Math.random(), not Double.random(in: 0..<n),
+    // since the latter traps on an empty/inverted range when n is 0 or negative.
+    let unit = Double.random(in: 0.0..<1.0)
+    if args.isEmpty { return .double(unit) }
 
     switch args[0] {
     case .integer(let n):
-        return .double(Double.random(in: 0.0..<Double(n)))
+        return .double(Double(n) * unit)
 
     case .double(let n):
-        return .double(Double.random(in: 0.0..<n))
+        return .double(n * unit)
 
     case .float(let n):
-        return .double(Double.random(in: 0.0..<Double(n)))
+        return .double(Double(n) * unit)
 
     default:
         throw EvaluatorError.invalidArgument(function: "rand", message: "n must be a number")

@@ -6,6 +6,7 @@ func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "false?",   arity: .fixed(1), doc: "Returns true if x is the value false, false otherwise.", arglists: [["x"]]) { args in if case .boolean(false) = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "boolean?", arity: .fixed(1), doc: "Return true if x is a Boolean",                       arglists: [["x"]]) { args in if case .boolean = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "var?",     arity: .fixed(1), doc: "Returns true if v is of type clojure.lang.Var.",     arglists: [["v"]]) { args in if case .varRef = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "uuid?",    arity: .fixed(1), doc: "Return true if x is a java.util.UUID",              arglists: [["x"]]) { args in if case .uuid   = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword?", arity: .fixed(1), doc: "Returns true if x is a keyword, false otherwise.",  arglists: [["x"]]) { args in if case .keyword = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword", arity: .variadic,
         doc: "Returns a Keyword with the given namespace and name. Do not use : in the keyword strings, it will be added automatically. If the name is already a keyword, returns it. Returns nil if the name is nil.",

@@ -14,6 +14,11 @@ public final class LazySeqBox: @unchecked Sendable {
         case error(Error)
     }
 
+    private enum Outcome {
+        case value(Expr?, Expr)
+        case failure(Error)
+    }
+
     private var state: State
     private let lock = NSLock()
 
@@ -63,32 +68,107 @@ public final class LazySeqBox: @unchecked Sendable {
             lock.unlock()
             throw e
 
-        case .unrealized(let thunk):
+        case .unrealized:
             // Release before evaluating so the thunk can force other boxes without deadlock.
             lock.unlock()
-            do {
-                let result = try thunk()
-                let (h, t) = try LazySeqBox.normalize(result)
+            switch LazySeqBox.resolveChain(startingAt: self) {
+            case .value(let h, let t):
                 lock.lock()
                 if case .unrealized = state {
                     state = h != nil ? .cons(head: h!, tail: t) : .empty
                 }
                 lock.unlock()
-            }
-            catch {
-                lock.lock()
-                if case .unrealized = state { state = .error(error) }
-                lock.unlock()
+
+            case .failure(let error):
                 throw error
             }
+        }
+    }
+
+    /// Resolves `start`'s thunk, following a chain of "thunk returned another
+    /// unrealized lazy seq" links (e.g. filter's non-matching branch calling
+    /// itself, which happens once per rejected element) iteratively rather
+    /// than recursively — so a run of any length costs O(1) Swift stack
+    /// depth instead of one frame per link. Mirrors real Clojure's
+    /// `LazySeq.seq()` trampolining loop, including memoizing every box
+    /// along the chain (not just `start`) once the final result — or
+    /// failure — is known, in case anything else independently holds a
+    /// reference to one of the intermediate boxes.
+    private static func resolveChain(startingAt start: LazySeqBox) -> Outcome {
+        var chain: [LazySeqBox] = []
+        var box = start
+        while true {
+            box.lock.lock()
+            let currentState = box.state
+            box.lock.unlock()
+
+            switch currentState {
+            case .cons(let h, let t):
+                backfill(chain, head: h, tail: t)
+                return .value(h, t)
+
+            case .empty:
+                backfill(chain, head: nil, tail: .nil)
+                return .value(nil, .nil)
+
+            case .error(let e):
+                backfillError(chain, e)
+                return .failure(e)
+
+            case .unrealized(let thunk):
+                do {
+                    let result = try thunk()
+                    if case .lazySeq(let next) = result {
+                        chain.append(box)
+                        box = next
+                        continue
+                    }
+                    let (h, t) = try normalizeConcrete(result)
+                    box.lock.lock()
+                    if case .unrealized = box.state {
+                        box.state = h != nil ? .cons(head: h!, tail: t) : .empty
+                    }
+                    box.lock.unlock()
+                    backfill(chain, head: h, tail: t)
+                    return .value(h, t)
+                }
+                catch {
+                    box.lock.lock()
+                    if case .unrealized = box.state { box.state = .error(error) }
+                    box.lock.unlock()
+                    backfillError(chain, error)
+                    return .failure(error)
+                }
+            }
+        }
+    }
+
+    private static func backfill(_ chain: [LazySeqBox], head: Expr?, tail: Expr) {
+        for box in chain {
+            box.lock.lock()
+            if case .unrealized = box.state {
+                box.state = head != nil ? .cons(head: head!, tail: tail) : .empty
+            }
+            box.lock.unlock()
+        }
+    }
+
+    private static func backfillError(_ chain: [LazySeqBox], _ error: Error) {
+        for box in chain {
+            box.lock.lock()
+            if case .unrealized = box.state { box.state = .error(error) }
+            box.lock.unlock()
         }
     }
 
     /// Normalizes the value returned by a thunk into (head?, tail) form.
     ///
     /// The thunk contract: return `nil` / empty seq for empty, or a seq whose
-    /// first element is the head and whose rest is the tail.
-    static func normalize(_ expr: Expr) throws -> (Expr?, Expr) {
+    /// first element is the head and whose rest is the tail. Callers that may
+    /// receive a `.lazySeq` result should use `normalize` instead, which
+    /// unwraps chains of nested lazy seqs iteratively; this handles only the
+    /// concrete (non-lazySeq) cases.
+    static func normalizeConcrete(_ expr: Expr) throws -> (Expr?, Expr) {
         switch expr {
         case .nil:
             return (nil, .nil)
@@ -103,10 +183,7 @@ public final class LazySeqBox: @unchecked Sendable {
             return (elems[0], tail)
 
         case .lazySeq(let inner):
-            // Thunk returned another lazy seq — peel one step without recursing.
-            let head = try inner.forceHead()
-            let tail = try inner.forceTail()
-            return (head, tail)
+            return try normalize(.lazySeq(inner))
 
         default:
             guard let elems = asSequence(expr) else {
@@ -120,6 +197,22 @@ public final class LazySeqBox: @unchecked Sendable {
                 return (elems[0], tail)
             }
             return (nil, .nil)
+        }
+    }
+
+    /// Normalizes the value returned by a thunk into (head?, tail) form.
+    /// Dispatches `.lazySeq` results to the iterative chain resolver so long
+    /// runs of nested lazy seqs (e.g. `filter` skipping thousands of
+    /// non-matching elements in a row) stay stack-safe.
+    static func normalize(_ expr: Expr) throws -> (Expr?, Expr) {
+        guard case .lazySeq(let inner) = expr else {
+            return try normalizeConcrete(expr)
+        }
+        switch resolveChain(startingAt: inner) {
+        case .value(let h, let t):
+            return (h, t)
+        case .failure(let error):
+            throw error
         }
     }
 }
