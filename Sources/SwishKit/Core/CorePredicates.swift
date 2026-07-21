@@ -46,6 +46,15 @@ func registerPredicates(into evaluator: Evaluator) {
             return .boolean(false)
         }
     }
+    evaluator.register(name: "reversible?", arity: .fixed(1), doc: "Returns true if coll implements Reversible", arglists: [["coll"]]) { args in
+        switch args[0] {
+        case .vector, .sharedVector, .sortedMap, .sortedSet:
+            return .boolean(true)
+
+        default:
+            return .boolean(false)
+        }
+    }
     evaluator.register(name: "coll?", arity: .fixed(1), doc: "Returns true if x implements IPersistentCollection", arglists: [["x"]]) { args in
         switch args[0] {
         case .list, .seq, .lazySeq, .vector, .sharedVector, .mapEntry, .map, .sortedMap, .set, .sortedSet, .record:

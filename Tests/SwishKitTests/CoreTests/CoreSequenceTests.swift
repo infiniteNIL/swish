@@ -536,4 +536,14 @@ struct CoreSequenceTests {
     func rseqEmptySortedMap() throws {
         #expect(try swish.eval("(rseq (sorted-map))") == .nil)
     }
+
+    @Test("(rseq (sorted-set 1 2 3)) returns reversed elements")
+    func rseqSortedSet() throws {
+        #expect(try swish.eval("(rseq (sorted-set 1 2 3))") == .list([.integer(3), .integer(2), .integer(1)], metadata: nil))
+    }
+
+    @Test("(rseq (sorted-set)) returns nil")
+    func rseqEmptySortedSet() throws {
+        #expect(try swish.eval("(rseq (sorted-set))") == .nil)
+    }
 }

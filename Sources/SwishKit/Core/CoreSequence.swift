@@ -108,7 +108,7 @@ func registerSequence(into evaluator: Evaluator) {
         arglists: [["coll"]],
         body: coreSeq)
     evaluator.register(name: "rseq", arity: .fixed(1),
-        doc: "Returns, in constant time, a seq of the items in rev (supports vector and sorted-map), in reverse order. If coll is empty returns nil.",
+        doc: "Returns, in constant time, a seq of the items in rev (supports vector, sorted-map, and sorted-set), in reverse order. If coll is empty returns nil.",
         arglists: [["coll"]]) { args in
         switch args[0] {
         case .vector(let elems, _):
@@ -126,6 +126,10 @@ func registerSequence(into evaluator: Evaluator) {
                 .vector([k, m[k]!], metadata: nil)
             }
             return .list(entries, metadata: nil)
+
+        case .sortedSet(let elements, _):
+            if elements.isEmpty { return .nil }
+            return .list(elements.reversed(), metadata: nil)
 
         default:
             throw EvaluatorError.invalidArgument(
