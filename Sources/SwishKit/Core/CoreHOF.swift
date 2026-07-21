@@ -190,7 +190,8 @@ private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             current = .list(elems, metadata: nil)
         }
         else {
-            current = .nil
+            throw EvaluatorError.invalidArgument(function: "reduce",
+                message: "don't know how to create seq from \(corePrinter.printString(current))")
         }
     }
 

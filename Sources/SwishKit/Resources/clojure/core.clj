@@ -1074,6 +1074,14 @@
   ([n coll]
    (dorun n coll) coll))
 
+(defn run!
+  "Runs the supplied procedure (via reduce), for purposes of side
+  effects, on successive items in the collection. Returns nil"
+  {:added "1.7"}
+  [proc coll]
+  (reduce #(proc %2) nil coll)
+  nil)
+
 (defn nthnext
   "Returns the nth next of coll, (seq coll) when n is 0."
   {:added "1.0"

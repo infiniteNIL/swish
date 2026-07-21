@@ -279,6 +279,19 @@ struct EvaluatorSequenceTests {
         #expect(try evaluator.eval("(reduce (fn [acc x] (conj acc x)) [] '(1 2 3))") == .vector([.integer(1), .integer(2), .integer(3)], metadata: nil))
     }
 
+    @Test("reduce throws for a non-seqable collection instead of silently treating it as empty")
+    func reduceNonSeqableThrows() throws {
+        #expect(throws: (any Error).self) { try evaluator.eval("(reduce + 0 true)") }
+        #expect(throws: (any Error).self) { try evaluator.eval("(reduce (fn [_ x] x) nil 42)") }
+    }
+
+    @Test("reduce still works on every legitimately seqable type after the non-seqable fix")
+    func reduceSeqableStillWorks() throws {
+        #expect(try evaluator.eval("(reduce + 0 [1 2 3])") == .integer(6))
+        #expect(try evaluator.eval("(reduce + 0 #{1 2 3})") == .integer(6))
+        #expect(try evaluator.eval(#"(reduce str "" "abc")"#) == .string("abc"))
+    }
+
     // MARK: - into
 
     @Test("into pours list into vector")
