@@ -157,52 +157,81 @@ private func coreAlterMeta(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
             function: "alter-meta!",
             message: "requires at least 2 arguments, got \(args.count)")
     }
-    guard case .varRef(let v) = args[0] else {
+
+    // Vars support atomic compare-and-swap, so they get a proper CAS retry loop.
+    if case .varRef(let v) = args[0] {
+        while true {
+            let old = v.metadata
+            let currentMeta: Expr = old.map { Expr.map($0, metadata: nil) } ?? .nil
+            let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
+            let newMetaDict = try metadataDict(newMeta, function: "alter-meta!")
+            if v.compareAndSetMetadata(expected: old, newValue: newMetaDict) {
+                return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
+            }
+        }
+    }
+
+    guard let target = metadataTarget(args[0]) else {
         throw EvaluatorError.invalidArgument(
             function: "alter-meta!",
-            message: "first argument must be a var reference")
+            message: "first argument must be a namespace, var, ref, agent, or atom")
     }
-    while true {
-        let old = v.metadata
-        let currentMeta: Expr = old.map { Expr.map($0, metadata: nil) } ?? .nil
-        let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
-        let newMetaDict: [Expr: Expr]?
-        switch newMeta {
-        case .map(let sm):
-            newMetaDict = sm.dict
-
-        case .nil:
-            newMetaDict = nil
-
-        default:
-            throw EvaluatorError.invalidArgument(
-                function: "alter-meta!",
-                message: "function must return a map or nil, got \(corePrinter.printString(newMeta))")
-        }
-        if v.compareAndSetMetadata(expected: old, newValue: newMetaDict) {
-            return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
-        }
-    }
+    let currentMeta: Expr = target.metadata.map { Expr.map($0, metadata: nil) } ?? .nil
+    let newMeta = try evaluator.call(args[1], args: [currentMeta] + Array(args.dropFirst(2)))
+    let newMetaDict = try metadataDict(newMeta, function: "alter-meta!")
+    target.metadata = newMetaDict
+    return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
 }
 
 private func coreResetMeta(_ args: [Expr]) throws -> Expr {
-    guard case .varRef(let v) = args[0] else {
+    if case .varRef(let v) = args[0] {
+        let newMetaDict = try metadataDict(args[1], function: "reset-meta!")
+        v.metadata = newMetaDict
+        return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
+    }
+
+    guard let target = metadataTarget(args[0]) else {
         throw EvaluatorError.invalidArgument(
             function: "reset-meta!",
-            message: "first argument must be a var reference")
+            message: "first argument must be a namespace, var, ref, agent, or atom")
     }
-    switch args[1] {
+    let newMetaDict = try metadataDict(args[1], function: "reset-meta!")
+    target.metadata = newMetaDict
+    return newMetaDict.map { Expr.map($0, metadata: nil) } ?? .nil
+}
+
+/// Common `metadata: [Expr: Expr]?` read/write surface shared by namespaces, refs, agents, and atoms
+/// (vars are handled separately above since they additionally support compare-and-swap).
+private protocol MetadataHolder: AnyObject {
+    var metadata: [Expr: Expr]? { get set }
+}
+
+extension Namespace: MetadataHolder {}
+extension SwishRef: MetadataHolder {}
+extension SwishAgent: MetadataHolder {}
+extension SwishAtom: MetadataHolder {}
+
+private func metadataTarget(_ expr: Expr) -> MetadataHolder? {
+    switch expr {
+    case .namespace(let ns): ns
+    case .ref(let r): r
+    case .agent(let a): a
+    case .atom(let a): a
+    default: nil
+    }
+}
+
+private func metadataDict(_ meta: Expr, function: String) throws -> [Expr: Expr]? {
+    switch meta {
     case .map(let sm):
-        v.metadata = sm.dict
-        return .map(sm.dict, metadata: nil)
+        return sm.dict
 
     case .nil:
-        v.metadata = nil
-        return .nil
+        return nil
 
     default:
         throw EvaluatorError.invalidArgument(
-            function: "reset-meta!",
-            message: "metadata must be a map or nil, got \(corePrinter.printString(args[1]))")
+            function: function,
+            message: "metadata must be a map or nil, got \(corePrinter.printString(meta))")
     }
 }

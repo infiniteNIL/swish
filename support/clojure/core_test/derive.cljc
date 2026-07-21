@@ -1,0 +1,94 @@
+(ns clojure.core-test.derive
+  (:require [clojure.test :refer [are deftest is testing]]
+            [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
+
+;; Swish-specific overlay for derive.cljc from the Jank Clojure Test Suite.
+;; Upstream mixes pure keyword/symbol-based derive relationships (which Swish
+;; supports fully) with a couple of cases using `String` as a tag/parent to
+;; exercise derive's `class? tag` fallback (real Clojure allows a JVM class as
+;; a derive tag without a namespace). Swish has no Java class objects at all —
+;; same root limitation already documented for protocols in CLAUDE.md — so
+;; `String` fails to resolve as a symbol before derive is even called. Dropped
+;; just those two String-based `are` pairs; everything else, including the
+;; cyclic-derivation and bad-shape validation tests, is unchanged.
+
+(when-var-exists derive
+  (deftest test-derive
+
+    (testing "derive tag parent"
+      (are [tag parent] (let [success (and (nil? (derive tag parent))
+                                           (isa? tag parent))]
+                          ; cleanup global hierarchy not to interfere with other tests
+                          (underive tag parent)
+                          success)
+                        ::rect ::shape
+                        'n/a 'n/b))
+
+    (testing "derive h tag parent"
+      (are [expected h tag parent] (= expected (derive h tag parent))
+
+                                   ; `derive h tag parent` seems to accept non-namespaced tag/parent on all platforms
+                                   ; https://ask.clojure.org/index.php/14759/derive-tag-parent-accepts-namespaced-keyword-symbol-parent
+                                   {:ancestors   {:rect #{:shape}}
+                                    :descendants {:shape #{:rect}}
+                                    :parents     {:rect #{:shape}}} (make-hierarchy) :rect :shape
+
+                                   {:ancestors   {::rect #{::shape}}
+                                    :descendants {::shape #{::rect}}
+                                    :parents     {::rect #{::shape}}} (make-hierarchy) ::rect ::shape
+
+                                   {:ancestors   {'n/a #{'n/b}}
+                                    :descendants {'n/b #{'n/a}}
+                                    :parents     {'n/a #{'n/b}}} (make-hierarchy) 'n/a 'n/b
+
+                                   {:ancestors   {::rect #{::shape}, ::square #{::rect ::shape}}
+                                    :descendants {::rect #{::square}, ::shape #{::rect ::square}}
+                                    :parents     {::rect #{::shape}, ::square #{::rect}}} (derive (make-hierarchy) ::rect ::shape) ::square ::rect
+
+                                   {:ancestors   {::rect #{::shape}}
+                                    :descendants {::shape #{::rect}}
+                                    :parents     {::rect #{::shape}}} (derive (make-hierarchy) ::rect ::shape) ::rect ::shape
+
+                                   {:ancestors   {::rect #{::shape}}
+                                    :descendants {::shape #{::rect}}
+                                    :parents     {::rect #{::shape}}} {:parents {} :descendants {} :ancestors {}} ::rect ::shape))
+
+    (testing "cyclic derivation"
+      (is (p/thrown? (derive ::a ::a)))
+      (let [h (-> (make-hierarchy) (derive ::a ::b) (derive ::b ::c))]
+        (is (p/thrown? (derive h ::c ::a)))))
+
+    (testing "bad shapes"
+
+      (testing "nils"
+        (are [tag parent] (p/thrown? (derive tag parent))
+                          nil nil
+                          ::tag nil))
+
+      (testing "non-namespaced tag"
+        (are [tag parent] (p/thrown? (derive tag parent))
+                          :a ::b
+                          'a 'n/b))
+
+      (testing "non-namespaced parent"
+        (are [tag parent] (p/thrown? (derive tag parent))
+                          :a :b
+                          ::a :b
+                          'a 'b
+                          'n/a 'b))
+
+      (testing "more invalid parents"
+        (are [tag parent] (p/thrown? (derive tag parent))
+                          ::tag 42
+                          ::tag "parent"))
+
+      (testing "invalid hierarchy"
+        (are [h tag parent] (p/thrown? (derive h tag parent))
+                            nil ::a ::b
+                            {} ::a ::b
+                            {:parents {} :descendants {}} ::a ::b
+                            {:parents nil :descendants {} :ancestors {}} ::a ::b
+                            ::z ::a ::b
+                            true ::a ::b
+                            42 ::a ::b
+                            3.14 ::a ::b)))))

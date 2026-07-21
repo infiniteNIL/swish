@@ -15,12 +15,10 @@
 ;; contributions and suggestions.
 
 ;; Remaining Swish adaptations (marked with [Swish]):
-;;   - report uses (cond ...) instead of (defmulti/defmethod) — no multimethods yet
 ;;   - do-report does not add :file/:line — no Java stack trace access
 ;;   - testing-vars-str does not include file/line
 ;;   - is macro inlines try/catch (no try-expr/assert-expr multimethod yet)
 ;;   - are macro uses partition+interleave instead of clojure.template/do-template
-;;   - use-fixtures uses cond instead of defmulti
 ;;   - run-tests uses doall+reduce instead of apply merge-with + (lazy-seq robustness)
 
 (ns
@@ -134,53 +132,53 @@
 
 ;;; TEST RESULT REPORTING
 
-;; [Swish] real clojure.test uses (defmulti report :type) here.
-;; Replace with multimethod dispatch when Swish has defmulti/defmethod.
-(defn report
-  "Generic reporting function, may be overridden to plug in
+(defmulti ^{:dynamic true
+            :added "1.1"
+            :doc "Generic reporting function, may be overridden to plug in
    different report formats (e.g., TAP, JUnit).  Assertions such as
    'is' call 'report' to indicate results.  The argument given to
    'report' will be a map with a :type key.  See the documentation at
    the top of test.clj for more information on the types of
-   arguments for 'report'."
-  {:added "1.1"}
-  [m]
-  (let [t (:type m)]
-    (cond
-      (= t :pass)
-      (with-test-out (inc-report-counter :pass))
+   arguments for 'report'."}
+  report :type)
 
-      (= t :fail)
-      (with-test-out
-        (inc-report-counter :fail)
-        (println "\nFAIL in" (testing-vars-str m))
-        (when (seq *testing-contexts*) (println (testing-contexts-str)))
-        (when-let [message (:message m)] (println message))
-        (println "expected:" (pr-str (:expected m)))
-        (println "  actual:" (pr-str (:actual m))))
+(defmethod report :default [m]
+  (with-test-out (prn m)))
 
-      (= t :error)
-      (with-test-out
-        (inc-report-counter :error)
-        (println "\nERROR in" (testing-vars-str m))
-        (when (seq *testing-contexts*) (println (testing-contexts-str)))
-        (when-let [message (:message m)] (println message))
-        (println "expected:" (pr-str (:expected m)))
-        (println "  actual:" (pr-str (:actual m))))
+(defmethod report :pass [m]
+  (with-test-out (inc-report-counter :pass)))
 
-      (= t :summary)
-      (with-test-out
-        (println "\nRan" (:test m) "tests containing"
-                 (+ (:pass m) (:fail m) (:error m)) "assertions.")
-        (println (:fail m) "failures," (:error m) "errors."))
+(defmethod report :fail [m]
+  (with-test-out
+    (inc-report-counter :fail)
+    (println "\nFAIL in" (testing-vars-str m))
+    (when (seq *testing-contexts*) (println (testing-contexts-str)))
+    (when-let [message (:message m)] (println message))
+    (println "expected:" (pr-str (:expected m)))
+    (println "  actual:" (pr-str (:actual m)))))
 
-      (= t :begin-test-ns)
-      (with-test-out
-        (println "\nTesting" (ns-name (:ns m))))
+(defmethod report :error [m]
+  (with-test-out
+    (inc-report-counter :error)
+    (println "\nERROR in" (testing-vars-str m))
+    (when (seq *testing-contexts*) (println (testing-contexts-str)))
+    (when-let [message (:message m)] (println message))
+    (println "expected:" (pr-str (:expected m)))
+    (println "  actual:" (pr-str (:actual m)))))
 
-      ;; Ignore these:
-      ;; :end-test-ns :begin-test-var :end-test-var :default
-      )))
+(defmethod report :summary [m]
+  (with-test-out
+    (println "\nRan" (:test m) "tests containing"
+             (+ (:pass m) (:fail m) (:error m)) "assertions.")
+    (println (:fail m) "failures," (:error m) "errors.")))
+
+(defmethod report :begin-test-ns [m]
+  (with-test-out
+    (println "\nTesting" (ns-name (:ns m)))))
+
+(defmethod report :end-test-ns [m])
+(defmethod report :begin-test-var [m])
+(defmethod report :end-test-var [m])
 
 (defn do-report
   "Add file and line information to a test result and call report.
@@ -354,17 +352,18 @@
   [key coll]
   (alter-meta! *ns* assoc key coll))
 
-(defn use-fixtures
+(defmulti use-fixtures
   "Wrap test runs in a fixture function to perform setup and
   teardown. Using a fixture-type of :each wraps every test
   individually, while :once wraps the whole run in a single function."
   {:added "1.1"}
-  [fixture-type & args]
-  ;; [Swish] real clojure.test uses (defmulti use-fixtures ...) here
-  (cond
-    (= fixture-type :each) (add-ns-meta ::each-fixtures args)
-    (= fixture-type :once) (add-ns-meta ::once-fixtures args)
-    :else (throw (str "Invalid fixture type: " fixture-type))))
+  (fn [fixture-type & args] fixture-type))
+
+(defmethod use-fixtures :each [fixture-type & args]
+  (add-ns-meta ::each-fixtures args))
+
+(defmethod use-fixtures :once [fixture-type & args]
+  (add-ns-meta ::once-fixtures args))
 
 (defn- default-fixture
   "The default, empty, fixture function.  Just calls its argument."

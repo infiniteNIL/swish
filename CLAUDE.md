@@ -59,10 +59,15 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 
 ### Multimethods
 
-`defmulti` / `defmethod` are not implemented. This affects:
-- `clojure.test/report` — currently a `cond`-based function instead of a multimethod (cannot be extended by users)
-- `clojure.test/use-fixtures` — same workaround
-- `clojure.test/assert-expr` — not implemented; `is` inlines try/catch rather than dispatching through it
+`defmulti`/`defmethod` are implemented (`core.clj`, "Hierarchies" and "Multimethods" sections near the end of the file), including full hierarchy-based dispatch (`derive`/`underive`/`isa?`/`parents`/`ancestors`/`descendants`/`make-hierarchy`) and ambiguity resolution (`prefer-method`/`prefers`). `clojure.test/report` and `clojure.test/use-fixtures` (`test.clj`) have been converted from their earlier `cond`-based workarounds to real multimethods.
+
+The whole feature is pure Swish/Clojure code — no new `Expr` case or native Swift function. A multimethod's method table and prefer table are plain atoms; the callable multimethod itself is an ordinary variadic closure with those atoms attached via function metadata (`with-meta`/`meta` on a function mutate/read the same underlying reference, confirmed in `CoreMeta.swift`); `isa?`/`parents` are called directly since dispatch resolution is just Swish code calling other Swish code, with no Swift/Clojure boundary to cross the way real Clojure's Java `MultiFn` calls back into Clojure vars.
+
+Two deliberate divergences from real Clojure, both direct consequences of Swish having no JVM class hierarchy (same root cause as the Protocols section below):
+- **No method-resolution cache.** Real `clojure.lang.MultiFn` caches resolved dispatch-value → method lookups and invalidates on hierarchy change; Swish's `mm-find-method` just re-runs the linear best-match scan across the whole method table on every dispatch. Semantically identical, just O(n) in method count instead of O(1) after the first call — consistent with `case`'s existing O(n) dispatch (this file has no O(1) dispatch machinery anywhere else either).
+- **`ancestors`/`parents`/`descendants` only reflect relationships established explicitly via `derive`, not automatic Java-class/protocol inheritance.** Real Clojure's hierarchy functions also walk a class's actual superclass/interface chain (and pick up a `deftype`/`defrecord`'s implemented protocols for free via the JVM reflection over its generated interface) when `tag` is a class. Swish has no class objects or reflection to walk (same "no ancestor-chain fallback" limitation already documented for protocol dispatch below) — `derive`-based relationships work fully, including using a `deftype`/`defrecord`'s type identity as a plain derive tag (they're already keywords), but nothing is populated automatically.
+
+Still not implemented: `clojure.test/assert-expr` — a separate, unrelated gap in `is`'s architecture (it inlines try/catch rather than dispatching through a multimethod), not something this pass touched.
 
 ### Protocols
 

@@ -1819,3 +1819,306 @@
            (cond
              ~@(mapcat (fn [test then] [`(= ~ge '~test) then]) tests thens)
              :else ~default))))))
+
+;;; Hierarchies
+;;
+;; Ported from real Clojure's core.clj, dropping only the class?/
+;; isAssignableFrom/bases/supers branches — Swish has no JVM class
+;; hierarchy for tag/parent to walk (same root limitation documented
+;; for protocols above), so derive/isa? work purely over keyword and
+;; symbol relationships, which is the idiomatic, portable core of the
+;; feature anyway.
+
+(defn make-hierarchy
+  "Creates a hierarchy object for use with derive, isa? etc."
+  {:added "1.0"}
+  [] {:parents {} :descendants {} :ancestors {}})
+
+(def ^{:private true} global-hierarchy (make-hierarchy))
+
+(defn- valid-hierarchy?
+  "[Swish] real derive/underive have no explicit shape-check on h; this
+  exists purely to make garbage h values throw a clear error instead of
+  silently behaving as an empty hierarchy."
+  [h]
+  (and (map? h) (map? (:parents h)) (map? (:descendants h)) (map? (:ancestors h))))
+
+(defn isa?
+  "Returns true if (= child parent), or child is directly or indirectly derived from
+  parent via a relationship established via derive. h must be a hierarchy obtained
+  from make-hierarchy, if not supplied defaults to the global hierarchy"
+  {:added "1.0"}
+  ([child parent] (isa? global-hierarchy child parent))
+  ([h child parent]
+   (or (= child parent)
+       (contains? ((:ancestors h) child) parent)
+       (and (vector? parent) (vector? child)
+            (= (count parent) (count child))
+            (loop [ret true i 0]
+              (if (or (not ret) (= i (count parent)))
+                ret
+                (recur (isa? h (child i) (parent i)) (inc i))))))))
+
+(defn parents
+  "Returns the immediate parents of tag via a relationship established via derive.
+  h must be a hierarchy obtained from make-hierarchy, if not supplied defaults to
+  the global hierarchy"
+  {:added "1.0"}
+  ([tag] (parents global-hierarchy tag))
+  ([h tag] (not-empty (get (:parents h) tag))))
+
+(defn ancestors
+  "Returns the immediate and indirect parents of tag via a relationship established
+  via derive. h must be a hierarchy obtained from make-hierarchy, if not supplied
+  defaults to the global hierarchy"
+  {:added "1.0"}
+  ([tag] (ancestors global-hierarchy tag))
+  ([h tag] (not-empty (get (:ancestors h) tag))))
+
+(defn descendants
+  "Returns the immediate and indirect children of tag, through a relationship
+  established via derive. h must be a hierarchy obtained from make-hierarchy, if
+  not supplied defaults to the global hierarchy."
+  {:added "1.0"}
+  ([tag] (descendants global-hierarchy tag))
+  ([h tag] (not-empty (get (:descendants h) tag))))
+
+(defn derive
+  "Establishes a parent/child relationship between parent and tag, both of which
+  must be namespace-qualified keywords or symbols. h must be a hierarchy obtained
+  from make-hierarchy, if not supplied defaults to, and modifies, the global
+  hierarchy."
+  {:added "1.0"}
+  ([tag parent]
+   (assert (namespace parent))
+   (assert (and (or (keyword? tag) (symbol? tag)) (namespace tag)))
+   (alter-var-root #'global-hierarchy derive tag parent)
+   nil)
+  ([h tag parent]
+   (assert (valid-hierarchy? h))
+   (assert (not= tag parent))
+   (assert (or (keyword? tag) (symbol? tag)))
+   (assert (or (keyword? parent) (symbol? parent)))
+   (let [tp (:parents h)
+         td (:descendants h)
+         ta (:ancestors h)
+         tf (fn [m source sources target targets]
+              (reduce1 (fn [ret k]
+                         (assoc ret k
+                                (reduce1 conj (get targets k #{}) (cons target (targets target)))))
+                       m (cons source (sources source))))]
+     (or
+      (when-not (contains? (tp tag) parent)
+        (when (contains? (ta tag) parent)
+          (throw (str tag " already has " parent " as ancestor")))
+        (when (contains? (ta parent) tag)
+          (throw (str "Cyclic derivation: " parent " has " tag " as ancestor")))
+        {:parents (assoc (:parents h) tag (conj (get tp tag #{}) parent))
+         :ancestors (tf (:ancestors h) tag td parent ta)
+         :descendants (tf (:descendants h) parent ta tag td)})
+      h))))
+
+(defn underive
+  "Removes a parent/child relationship between parent and tag. h must be a
+  hierarchy obtained from make-hierarchy, if not supplied defaults to, and
+  modifies, the global hierarchy."
+  {:added "1.0"}
+  ([tag parent] (alter-var-root #'global-hierarchy underive tag parent) nil)
+  ([h tag parent]
+   (assert (valid-hierarchy? h))
+   (let [parent-map (:parents h)
+         childs-parents (if (parent-map tag) (disj (parent-map tag) parent) #{})
+         new-parents (if (not-empty childs-parents)
+                       (assoc parent-map tag childs-parents)
+                       (dissoc parent-map tag))
+         deriv-seq (flatten (map #(cons (key %) (interpose (key %) (val %)))
+                                  (seq new-parents)))]
+     (if (contains? (parent-map tag) parent)
+       (reduce1 #(apply derive %1 %2) (make-hierarchy) (partition 2 deriv-seq))
+       h))))
+
+;;; Multimethods
+;;
+;; [Swish] Real Clojure backs multimethods with clojure.lang.MultiFn, a Java
+;; class holding a mutable method table + prefer table + hierarchy ref, with
+;; dispatch resolution calling back into the isa?/parents vars. Swish needs no
+;; native equivalent at all: the method/prefer tables are plain atoms, the
+;; multimethod value itself is an ordinary variadic closure, and the atoms are
+;; attached to that closure via metadata (with-meta/meta on a function mutate
+;; and read the same underlying reference) so defmethod/get-method/etc. can
+;; find them again given just the def'd multimethod value. isa?/parents are
+;; already Swish functions, so the dispatch resolution below calls them
+;; directly with no callback machinery needed.
+;;
+;; One deliberate simplification vs. real MultiFn: no method-cache. Real
+;; Clojure caches resolved dispatch-value -> method lookups and invalidates on
+;; hierarchy change; mm-find-method below just re-runs the linear best-match
+;; scan on every call. Semantically identical, just O(n) in method count
+;; instead of O(1) after the first call — consistent with case's existing O(n)
+;; dispatch (this file has no O(1) dispatch machinery anywhere else either).
+
+(defn- check-valid-options
+  "Throws an exception if the given option map contains keys not listed
+  as valid, else returns nil."
+  [options & valid-keys]
+  (when (seq (apply disj (apply hash-set (keys options)) valid-keys))
+    (throw
+     (apply str "Only these options are valid: "
+            (first valid-keys)
+            (map #(str ", " %) (rest valid-keys))))))
+
+(defn- mm-prefers? [prefer-table h x y]
+  (or (contains? (get prefer-table x) y)
+      (some #(mm-prefers? prefer-table h x %) (parents h y))
+      (some #(mm-prefers? prefer-table h % y) (parents h x))))
+
+(defn- mm-dominates? [prefer-table h x y]
+  (or (mm-prefers? prefer-table h x y) (isa? h x y)))
+
+(defn- mm-find-method [mm-name method-table prefer-table h default-val dispatch-val]
+  (let [best-entry
+        (reduce
+         (fn [best-entry e]
+           (if (isa? h dispatch-val (key e))
+             (let [best-entry (if (or (nil? best-entry)
+                                       (mm-dominates? prefer-table h (key e) (key best-entry)))
+                                 e
+                                 best-entry)]
+               (when-not (mm-dominates? prefer-table h (key best-entry) (key e))
+                 (throw (str "Multiple methods in multimethod '" mm-name "' match dispatch value: "
+                             dispatch-val " -> " (key e) " and " (key best-entry)
+                             ", and neither is preferred")))
+               best-entry)
+             best-entry))
+         nil method-table)]
+    (if best-entry (val best-entry) (get method-table default-val))))
+
+(defn- mm-check [multifn fn-name]
+  (when-not (:multimethod (meta multifn))
+    (throw (str fn-name " requires a multimethod"))))
+
+(defn- multi-fn* [mm-name dispatch-fn default-val hierarchy-var]
+  (let [method-table (atom {})
+        prefer-table (atom {})]
+    (with-meta
+      (fn [& args]
+        (let [dispatch-val (apply dispatch-fn args)
+              f (mm-find-method mm-name @method-table @prefer-table @hierarchy-var default-val dispatch-val)]
+          (if f
+            (apply f args)
+            (throw (str "No method in multimethod '" mm-name "' for dispatch value: " dispatch-val)))))
+      {:multimethod true
+       :multimethod-name mm-name
+       :method-table method-table
+       :prefer-table prefer-table
+       :default-val default-val
+       :hierarchy-var hierarchy-var})))
+
+(defmacro defmulti
+  "Creates a new multimethod with the associated dispatch function.
+  The docstring and attr-map are optional.
+
+  Options are key-value pairs and may be one of:
+
+  :default
+
+  The default dispatch value, defaults to :default
+
+  :hierarchy
+
+  The value used for hierarchical dispatch (e.g. ::square is-a ::shape)
+
+  Hierarchies are type-like relationships established via derive, augmenting
+  the root ancestor created with make-hierarchy. By default multimethods
+  dispatch off of a global hierarchy map.
+
+  Multimethods expect the value of the hierarchy option to be supplied as
+  a reference type e.g. a var (i.e. via the Var-quote dispatch macro #'
+  or the var special form)."
+  {:arglists '([name docstring? attr-map? dispatch-fn & options])
+   :added "1.0"}
+  [mm-name & options]
+  (let [docstring (if (string? (first options)) (first options) nil)
+        options (if (string? (first options)) (next options) options)
+        m (if (map? (first options)) (first options) {})
+        options (if (map? (first options)) (next options) options)
+        dispatch-fn (first options)
+        options (next options)
+        m (if docstring (assoc m :doc docstring) m)
+        m (if (meta mm-name) (conj (meta mm-name) m) m)
+        mm-name (with-meta mm-name m)]
+    (when (= (count options) 1)
+      (throw "The syntax for defmulti has changed. Example: (defmulti name dispatch-fn :default dispatch-value)"))
+    (let [options (apply hash-map options)
+          default (get options :default :default)
+          hierarchy (get options :hierarchy `(var global-hierarchy))]
+      (check-valid-options options :default :hierarchy)
+      `(let [v# (def ~mm-name)]
+         (when-not (and (var-has-root? v#) (:multimethod (meta (deref v#))))
+           (def ~mm-name (multi-fn* ~(name mm-name) ~dispatch-fn ~default ~hierarchy)))))))
+
+(defmacro defmethod
+  "Creates and installs a new method of multimethod associated with dispatch-value."
+  {:added "1.0"}
+  [multifn dispatch-val & fn-tail]
+  `(mm-add-method! ~multifn ~dispatch-val (fn ~@fn-tail)))
+
+(defn mm-add-method!
+  "[Swish] Internal. Installs f as the method for dispatch-val on multifn. Backs defmethod."
+  [multifn dispatch-val f]
+  (mm-check multifn "defmethod")
+  (swap! (:method-table (meta multifn)) assoc dispatch-val f)
+  multifn)
+
+(defn remove-method
+  "Removes the method of multimethod associated with dispatch-value."
+  {:added "1.0"}
+  [multifn dispatch-val]
+  (mm-check multifn "remove-method")
+  (swap! (:method-table (meta multifn)) dissoc dispatch-val)
+  multifn)
+
+(defn remove-all-methods
+  "Removes all of the methods of multimethod."
+  {:added "1.2"}
+  [multifn]
+  (mm-check multifn "remove-all-methods")
+  (reset! (:method-table (meta multifn)) {})
+  (reset! (:prefer-table (meta multifn)) {})
+  multifn)
+
+(defn methods
+  "Given a multimethod, returns a map of dispatch values -> dispatch fns"
+  {:added "1.0"}
+  [multifn]
+  (mm-check multifn "methods")
+  @(:method-table (meta multifn)))
+
+(defn get-method
+  "Given a multimethod and a dispatch value, returns the dispatch fn
+  that would apply to that value, or nil if none apply and no default"
+  {:added "1.0"}
+  [multifn dispatch-val]
+  (mm-check multifn "get-method")
+  (let [{:keys [method-table prefer-table hierarchy-var default-val multimethod-name]} (meta multifn)]
+    (mm-find-method multimethod-name @method-table @prefer-table @hierarchy-var default-val dispatch-val)))
+
+(defn prefer-method
+  "Causes the multimethod to prefer matches of dispatch-val-x over dispatch-val-y
+   when there is a conflict"
+  {:added "1.0"}
+  [multifn dispatch-val-x dispatch-val-y]
+  (mm-check multifn "prefer-method")
+  (let [{:keys [prefer-table hierarchy-var multimethod-name]} (meta multifn)]
+    (when (mm-prefers? @prefer-table @hierarchy-var dispatch-val-y dispatch-val-x)
+      (throw (str "Preference conflict in multimethod '" multimethod-name "': "
+                  dispatch-val-y " is already preferred to " dispatch-val-x)))
+    (swap! prefer-table update dispatch-val-x (fnil conj #{}) dispatch-val-y))
+  multifn)
+
+(defn prefers
+  "Given a multimethod, returns a map of preferred value -> set of other values"
+  {:added "1.0"}
+  [multifn]
+  (mm-check multifn "prefers")
+  @(:prefer-table (meta multifn)))
