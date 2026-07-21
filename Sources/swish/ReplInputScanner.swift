@@ -11,9 +11,10 @@ extension Repl {
 
     // MARK: - String scanning helpers
 
-    // Advances past the closing ", tracking column position. Opening quote already consumed.
-    // Returns (newIndex, newCol).
-    func skipRegularStringTrackingCol(from i: String.Index, in s: String, col: Int) -> (String.Index, Int) {
+    // Escape-aware scan past a string body, optionally tracking column position.
+    // Opening quote already consumed. `col` is `nil` when the caller only cares
+    // about the resulting index and whether a closing quote was found.
+    private func skipStringBody(from i: String.Index, in s: String, col: Int?) -> (index: String.Index, col: Int?, found: Bool) {
         var j = i
         var col = col
         while j < s.endIndex {
@@ -21,20 +22,27 @@ extension Repl {
                 j = s.index(after: j)
                 if j < s.endIndex {
                     j = s.index(after: j)
-                    col += 2
+                    col = col.map { $0 + 2 }
                 }
             }
             else if s[j] == "\"" {
                 j = s.index(after: j)
-                col += 1
-                break
+                col = col.map { $0 + 1 }
+                return (j, col, true)
             }
             else {
                 j = s.index(after: j)
-                col += 1
+                col = col.map { $0 + 1 }
             }
         }
-        return (j, col)
+        return (j, col, false)
+    }
+
+    // Advances past the closing ", tracking column position. Opening quote already consumed.
+    // Returns (newIndex, newCol).
+    func skipRegularStringTrackingCol(from i: String.Index, in s: String, col: Int) -> (String.Index, Int) {
+        let (j, newCol, _) = skipStringBody(from: i, in: s, col: col)
+        return (j, newCol ?? col)
     }
 
     func isTripleQuote(at i: String.Index, in s: String) -> Bool {
@@ -56,22 +64,8 @@ extension Repl {
     }
 
     func skipPastClosingQuote(from i: String.Index, in s: String) -> (String.Index, Bool) {
-        var j = i
-        while j < s.endIndex {
-            if s[j] == "\\" {
-                j = s.index(after: j)
-                if j < s.endIndex {
-                    j = s.index(after: j)
-                }
-            }
-            else if s[j] == "\"" {
-                return (s.index(after: j), true)
-            }
-            else {
-                j = s.index(after: j)
-            }
-        }
-        return (j, false)
+        let (j, _, found) = skipStringBody(from: i, in: s, col: nil)
+        return (j, found)
     }
 
     // MARK: - Continuation detection
