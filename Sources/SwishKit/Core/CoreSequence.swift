@@ -1,3 +1,5 @@
+import BigInt
+
 // MARK: - Registration
 
 func registerSequence(into evaluator: Evaluator) {
@@ -185,6 +187,48 @@ func registerSequence(into evaluator: Evaluator) {
         }
         return .vector(elems.shuffled(), metadata: nil)
     }
+    evaluator.register(name: "subvec", arity: .variadic,
+        doc: "Returns a persistent vector of the items in vector from start (inclusive) to end (exclusive). If end is not supplied, defaults to (count vector).",
+        arglists: [["v", "start"], ["v", "start", "end"]]) { args in
+        guard args.count == 2 || args.count == 3 else {
+            throw EvaluatorError.invalidArgument(function: "subvec",
+                message: "requires 2 or 3 arguments, got \(args.count)")
+        }
+        let elements: [Expr]
+        switch args[0] {
+        case .vector(let e, _):
+            elements = e
+
+        case .sharedVector(let sa, _):
+            elements = sa.elements
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "subvec",
+                message: "\(corePrinter.printString(args[0])) is not a vector")
+        }
+        guard let start = javaIntValue(args[1]) else {
+            throw EvaluatorError.invalidArgument(function: "subvec", message: "start cannot be cast to a number")
+        }
+        let end: Int
+        if args.count == 3 {
+            guard let e = javaIntValue(args[2]) else {
+                throw EvaluatorError.invalidArgument(function: "subvec", message: "end cannot be cast to a number")
+            }
+            end = e
+        }
+        else {
+            end = elements.count
+        }
+        guard end >= start, start >= 0, end <= elements.count else {
+            throw EvaluatorError.invalidArgument(function: "subvec", message: "index out of bounds")
+        }
+        // Swish copies the slice rather than sharing structure — real Clojure's
+        // O(1)/structure-sharing SubVector is a JVM-specific optimization, not
+        // something reimplemented here (consistent with other places this
+        // codebase doesn't chase JVM performance characteristics, e.g. case's
+        // O(n) dispatch — see CLAUDE.md).
+        return .vector(Array(elements[start..<end]), metadata: nil)
+    }
     evaluator.register(name: "aset", arity: .fixed(3),
         doc: "Sets the value at index i in array a. Returns val.",
         arglists: [["array", "i", "val"]]) { args in
@@ -359,6 +403,44 @@ func asSequence(_ expr: Expr) -> [Expr]? {
                 return result
             }
         }
+
+    default:
+        return nil
+    }
+}
+
+// Mirrors Java's Number.intValue() narrowing-conversion semantics, used by
+// Clojure's interop layer when calling RT.subvec(IPersistentVector, int, int):
+// never throws by itself (returns nil only for genuinely non-numeric input);
+// out-of-range results (e.g. from ±Infinity) are caught by subvec's own
+// subsequent bounds check instead, matching how the JVM path actually fails.
+private func javaIntValue(_ expr: Expr) -> Int? {
+    switch expr {
+    case .integer(let n):
+        return n
+
+    case .bigInteger(let n):
+        return Int(exactly: n) ?? (n < 0 ? Int.min : Int.max)
+
+    case .double(let d):
+        if d.isNaN { return 0 }
+        if d.isInfinite { return d > 0 ? Int.max : Int.min }
+        if d >= Double(Int.max) { return Int.max }
+        if d <= Double(Int.min) { return Int.min }
+        return Int(d.rounded(.towardZero))
+
+    case .float(let f):
+        return javaIntValue(.double(Double(f)))
+
+    case .ratio(let r):
+        let truncated = r.numerator / r.denominator
+        return Int(exactly: truncated) ?? (truncated < 0 ? Int.min : Int.max)
+
+    case .bigDecimal(let bd):
+        let truncated = bd.scale <= 0
+            ? bd.integerValue * BigInt(10).power(-bd.scale)
+            : bd.integerValue / BigInt(10).power(bd.scale)
+        return Int(exactly: truncated) ?? (truncated < 0 ? Int.min : Int.max)
 
     default:
         return nil
