@@ -36,7 +36,13 @@ public struct Printer {
     /// Strings are quoted and escaped; characters use named forms (e.g. \newline).
     /// Output round-trips through the reader. Backs the planned `pr-str` native function.
     public func printString(_ expr: Expr) -> String {
-        switch expr {
+        if let collection = formatCollection(expr, transform: printString, includeMeta: true) {
+            return collection
+        }
+        if case .lazySeq(let box) = expr {
+            return formatLazySeq(box, transform: printString)
+        }
+        return switch expr {
         case .integer(let value):
             String(value)
 
@@ -75,9 +81,6 @@ public struct Printer {
         case .keyword(let name):
             ":\(name)"
 
-        case .list, .seq, .array, .sharedVector, .vector, .mapEntry, .map, .sortedMap, .set, .sortedSet:
-            formatCollection(expr, transform: printString, includeMeta: true) ?? ""
-
         case .function(let f):
             if let name = f.name {
                 metaPrefix(f.metadata) + "#<fn \(name)>"
@@ -114,9 +117,6 @@ public struct Printer {
 
         case .transient(let tc):
             "#<transient \(printString(tc.value))>"
-
-        case .lazySeq(let box):
-            formatLazySeq(box, transform: printString)
 
         case .reduced(let v):
             "#<reduced \(printString(v))>"
@@ -164,6 +164,9 @@ public struct Printer {
 
         case .deftype(let typeName, let fields, let data, _):
             printDeftype(typeName: typeName, fields: fields, data: data)
+
+        default:
+            fatalError("unreachable: collection and lazySeq cases are handled by formatCollection/formatLazySeq above")
         }
     }
 
@@ -171,7 +174,13 @@ public struct Printer {
     /// Strings print without quotes; characters print as the raw character.
     /// Backs the `str` native function. Named `strString` to mirror `printString` → `pr-str`.
     public func strString(_ expr: Expr) -> String {
-        switch expr {
+        if let collection = formatCollection(expr, transform: strString, includeMeta: true) {
+            return collection
+        }
+        if case .lazySeq(let box) = expr {
+            return formatLazySeq(box, transform: strString)
+        }
+        return switch expr {
         case .nil:
             ""
 
@@ -180,12 +189,6 @@ public struct Printer {
 
         case .character(let char):
             String(char)
-
-        case .list, .seq, .array, .sharedVector, .vector, .mapEntry, .map, .sortedMap, .set, .sortedSet:
-            formatCollection(expr, transform: strString, includeMeta: true) ?? ""
-
-        case .lazySeq(let box):
-            formatLazySeq(box, transform: strString)
 
         case .double(let value):
             value.isInfinite ? (value > 0 ? "Infinity" : "-Infinity") : printString(.double(value))
@@ -213,18 +216,18 @@ public struct Printer {
     /// Returns the source-code form of a Swish expression for use in result substitution.
     /// Like `printString` but floats use `String(value)` for exact round-trip fidelity.
     public func sourceForm(_ expr: Expr) -> String {
-        switch expr {
+        if let collection = formatCollection(expr, transform: sourceForm, includeMeta: false) {
+            return collection
+        }
+        if case .lazySeq(let box) = expr {
+            return formatLazySeq(box, transform: sourceForm)
+        }
+        return switch expr {
         case .double(let value):
             String(value)
 
         case .float(let value):
             String(value)
-
-        case .list, .seq, .array, .sharedVector, .vector, .mapEntry, .map, .sortedMap, .set, .sortedSet:
-            formatCollection(expr, transform: sourceForm, includeMeta: false) ?? ""
-
-        case .lazySeq(let box):
-            formatLazySeq(box, transform: sourceForm)
 
         case .reduced:
             printString(expr)
