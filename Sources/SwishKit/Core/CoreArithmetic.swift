@@ -498,11 +498,13 @@ private func ratioExprBig(_ r: Ratio) -> Expr {
     return .bigInteger(r.numerator)
 }
 
-private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch try coerceNumericPair(a, b, function: "+") {
+/// Shared dispatch backing `+`/`+'` — identical except how an `Int` overflow on the
+/// `.ints` branch is handled (plain `+` throws; `+'` auto-promotes to `BigInt`).
+private func numericAddImpl(_ a: Expr, _ b: Expr, function: String, onIntOverflow: (Int, Int) throws -> Expr) throws -> Expr {
+    switch try coerceNumericPair(a, b, function: function) {
     case .ints(let x, let y):
         let (result, overflow) = x.addingReportingOverflow(y)
-        if overflow { throw EvaluatorError.integerOverflow(operation: "+", lhs: x, rhs: y) }
+        if overflow { return try onIntOverflow(x, y) }
         return .integer(result)
 
     case .floats(let x, let y):
@@ -514,6 +516,12 @@ private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
 
     case .bigInts(let x, let y):     return .bigInteger(x + y)
     case .bigDecimals(let x, let y): return .bigDecimal(x + y)
+    }
+}
+
+private func numericAdd(_ a: Expr, _ b: Expr) throws -> Expr {
+    try numericAddImpl(a, b, function: "+") { x, y in
+        throw EvaluatorError.integerOverflow(operation: "+", lhs: x, rhs: y)
     }
 }
 
@@ -536,11 +544,13 @@ private func numericSubtract(_ a: Expr, _ b: Expr) throws -> Expr {
     }
 }
 
-private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch try coerceNumericPair(a, b, function: "*") {
+/// Shared dispatch backing `*`/`*'` — identical except how an `Int` overflow on the
+/// `.ints` branch is handled (plain `*` throws; `*'` auto-promotes to `BigInt`).
+private func numericMultiplyImpl(_ a: Expr, _ b: Expr, function: String, onIntOverflow: (Int, Int) throws -> Expr) throws -> Expr {
+    switch try coerceNumericPair(a, b, function: function) {
     case .ints(let x, let y):
         let (result, overflow) = x.multipliedReportingOverflow(by: y)
-        if overflow { throw EvaluatorError.integerOverflow(operation: "*", lhs: x, rhs: y) }
+        if overflow { return try onIntOverflow(x, y) }
         return .integer(result)
 
     case .floats(let x, let y):
@@ -551,6 +561,12 @@ private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
 
     case .bigInts(let x, let y):     return .bigInteger(x * y)
     case .bigDecimals(let x, let y): return .bigDecimal(x * y)
+    }
+}
+
+private func numericMultiply(_ a: Expr, _ b: Expr) throws -> Expr {
+    try numericMultiplyImpl(a, b, function: "*") { x, y in
+        throw EvaluatorError.integerOverflow(operation: "*", lhs: x, rhs: y)
     }
 }
 
@@ -590,20 +606,25 @@ private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigI
     }
 }
 
+/// Guards shared by `rem`/`quot`: `args[0]` must not be a non-finite double, and if
+/// `args[1]` is a double it must not be NaN. (`args[1]` being infinite is handled
+/// separately by each caller, since `rem`/`quot` disagree on what that should return.)
+private func requireRemQuotOperandsFinite(_ args: [Expr], function: String) throws {
+    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
+        throw EvaluatorError.invalidArgument(function: function,
+            message: "No exact numeric value for Infinity or NaN")
+    }
+    if case .double(let b) = args[1], b.isNaN {
+        throw EvaluatorError.invalidArgument(function: function,
+            message: "No exact numeric value for NaN")
+    }
+}
+
 private func coreRem(_ args: [Expr]) throws -> Expr {
     if case .float(let x) = args[0] { return try coreRem([.double(Double(x)), args[1]]) }
     if case .float(let y) = args[1] { return try coreRem([args[0], .double(Double(y))]) }
-    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
-        throw EvaluatorError.invalidArgument(function: "rem",
-            message: "No exact numeric value for Infinity or NaN")
-    }
-    if case .double(let b) = args[1] {
-        if b.isNaN {
-            throw EvaluatorError.invalidArgument(function: "rem",
-                message: "No exact numeric value for NaN")
-        }
-        if b.isInfinite { return .double(.nan) }
-    }
+    try requireRemQuotOperandsFinite(args, function: "rem")
+    if case .double(let b) = args[1], b.isInfinite { return .double(.nan) }
     switch (args[0], args[1]) {
     case (.double(let a), .double(let b)):
         guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
@@ -666,14 +687,7 @@ private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
 private func coreQuot(_ args: [Expr]) throws -> Expr {
     if case .float(let x) = args[0] { return try coreQuot([.double(Double(x)), args[1]]) }
     if case .float(let y) = args[1] { return try coreQuot([args[0], .double(Double(y))]) }
-    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
-        throw EvaluatorError.invalidArgument(function: "quot",
-            message: "No exact numeric value for Infinity or NaN")
-    }
-    if case .double(let b) = args[1], b.isNaN {
-        throw EvaluatorError.invalidArgument(function: "quot",
-            message: "No exact numeric value for NaN")
-    }
+    try requireRemQuotOperandsFinite(args, function: "quot")
     switch (args[0], args[1]) {
     // Double wins over all — (a/b) truncated toward zero
     case (.double(let a), .double(let b)):
@@ -791,117 +805,83 @@ private func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreInt(_ args: [Expr]) throws -> Expr {
+/// Guards a floating-point argument is finite before a native numeric-coercion
+/// function truncates it. Generic over `BinaryFloatingPoint` so the error message
+/// interpolates the original `Float`/`Double` value with its own type's formatting
+/// (promoting to `Double` first would print extra artifact digits for some `Float`s).
+private func requireFinite<T: BinaryFloatingPoint>(_ f: T, function: String, typeLabel: String) throws -> T {
+    guard !f.isInfinite && !f.isNaN else {
+        throw EvaluatorError.invalidArgument(function: function, message: "cannot convert \(f) to \(typeLabel)")
+    }
+    return f
+}
+
+/// Shared implementation backing `int`/`byte`/`short` — coerces to an `Int`-backed
+/// integer within `[min, max]`, mirroring real Clojure's fixed-width truncation
+/// (`long` is deliberately not routed through this: it has no range to check,
+/// only overflow, and uses `Int(exactly:)` rounding rather than a bounds guard).
+private func coerceToRangedInteger(_ args: [Expr], function: String, typeLabel: String, min: Int, max: Int) throws -> Expr {
     switch args[0] {
     case .integer(let n):
-        guard n >= Int(Int32.min) && n <= Int(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        guard n >= min && n <= max else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
         return args[0]
 
     case .bigInteger(let n):
-        guard let i = Int(exactly: n), i >= Int(Int32.min) && i <= Int(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        guard let i = Int(exactly: n), i >= min && i <= max else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
         return .integer(i)
 
     case .double(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "cannot convert \(f) to integer")
+        let f = try requireFinite(f, function: function, typeLabel: typeLabel)
+        guard f >= Double(min) && f <= Double(max) else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
-        guard f >= Double(Int32.min) && f <= Double(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
-        }
-        return .integer(Int(Int32(f)))
+        return .integer(Int(f))
 
     case .float(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "cannot convert \(f) to integer")
+        let f = try requireFinite(f, function: function, typeLabel: typeLabel)
+        guard Double(f) >= Double(min) && Double(f) <= Double(max) else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
-        let d = Double(f)
-        guard d >= Double(Int32.min) && d <= Double(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
-        }
-        return .integer(Int(Int32(f)))
+        return .integer(Int(f))
 
     case .bigDecimal(let d):
         let truncated = d.withScale(0)
-        guard let i = Int(exactly: truncated.integerValue), i >= Int(Int32.min) && i <= Int(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        guard let i = Int(exactly: truncated.integerValue), i >= min && i <= max else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
         return .integer(i)
 
     case .ratio(let r):
         let truncated = r.numerator / r.denominator
-        guard let i = Int(exactly: truncated), i >= Int(Int32.min) && i <= Int(Int32.max) else {
-            throw EvaluatorError.invalidArgument(function: "int", message: "value out of int range")
+        guard let i = Int(exactly: truncated), i >= min && i <= max else {
+            throw EvaluatorError.invalidArgument(function: function, message: "value out of \(typeLabel) range")
         }
         return .integer(i)
 
-    case .character(let c):
+    default:
+        throw EvaluatorError.invalidArgument(
+            function: function, message: "cannot convert \(corePrinter.printString(args[0])) to \(typeLabel)")
+    }
+}
+
+private func coreInt(_ args: [Expr]) throws -> Expr {
+    // `int` uniquely also accepts characters (their Unicode scalar value) — byte/short don't.
+    if case .character(let c) = args[0] {
         guard c.unicodeScalars.count == 1, let scalar = c.unicodeScalars.first else {
             throw EvaluatorError.invalidArgument(
                 function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
         }
         return .integer(Int(scalar.value))
-
-    default:
-        throw EvaluatorError.invalidArgument(
-            function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
     }
+    return try coerceToRangedInteger(args, function: "int", typeLabel: "integer", min: Int(Int32.min), max: Int(Int32.max))
 }
 
 private func coreByte(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .integer(let n):
-        guard n >= -128 && n <= 127 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return args[0]
-
-    case .bigInteger(let n):
-        guard let i = Int(exactly: n), i >= -128 && i <= 127 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return .integer(i)
-
-    case .double(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "cannot convert \(f) to byte")
-        }
-        guard f >= -128.0 && f <= 127.0 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return .integer(Int(Int8(f)))
-
-    case .float(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "cannot convert \(f) to byte")
-        }
-        let d = Double(f)
-        guard d >= -128.0 && d <= 127.0 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return .integer(Int(Int8(f)))
-
-    case .bigDecimal(let d):
-        let truncated = d.withScale(0)
-        guard let i = Int(exactly: truncated.integerValue), i >= -128 && i <= 127 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return .integer(i)
-
-    case .ratio(let r):
-        let truncated = r.numerator / r.denominator
-        guard let i = Int(exactly: truncated), i >= -128 && i <= 127 else {
-            throw EvaluatorError.invalidArgument(function: "byte", message: "value out of byte range")
-        }
-        return .integer(i)
-
-    default:
-        throw EvaluatorError.invalidArgument(
-            function: "byte", message: "cannot convert \(corePrinter.printString(args[0])) to byte")
-    }
+    try coerceToRangedInteger(args, function: "byte", typeLabel: "byte", min: -128, max: 127)
 }
 
 private func coreNum(_ args: [Expr]) throws -> Expr {
@@ -927,18 +907,14 @@ private func coreLong(_ args: [Expr]) throws -> Expr {
         return .integer(i)
 
     case .double(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "long", message: "cannot convert \(f) to long")
-        }
+        let f = try requireFinite(f, function: "long", typeLabel: "long")
         guard let i = Int(exactly: f.rounded(.towardZero)) else {
             throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
         }
         return .integer(i)
 
     case .float(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "long", message: "cannot convert \(f) to long")
-        }
+        let f = try requireFinite(f, function: "long", typeLabel: "long")
         guard let i = Int(exactly: Double(f).rounded(.towardZero)) else {
             throw EvaluatorError.invalidArgument(function: "long", message: "value out of long range")
         }
@@ -965,56 +941,7 @@ private func coreLong(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreShort(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
-    case .integer(let n):
-        guard n >= Int(Int16.min) && n <= Int(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return args[0]
-
-    case .bigInteger(let n):
-        guard let i = Int(exactly: n), i >= Int(Int16.min) && i <= Int(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return .integer(i)
-
-    case .double(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "cannot convert \(f) to short")
-        }
-        guard f >= Double(Int16.min) && f <= Double(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return .integer(Int(Int16(f)))
-
-    case .float(let f):
-        guard !f.isInfinite && !f.isNaN else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "cannot convert \(f) to short")
-        }
-        let d = Double(f)
-        guard d >= Double(Int16.min) && d <= Double(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return .integer(Int(Int16(f)))
-
-    case .bigDecimal(let d):
-        let truncated = d.withScale(0)
-        guard let i = Int(exactly: truncated.integerValue), i >= Int(Int16.min) && i <= Int(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return .integer(i)
-
-    case .ratio(let r):
-        let truncated = r.numerator / r.denominator
-        guard let i = Int(exactly: truncated), i >= Int(Int16.min) && i <= Int(Int16.max) else {
-            throw EvaluatorError.invalidArgument(function: "short", message: "value out of short range")
-        }
-        return .integer(i)
-
-    default:
-        throw EvaluatorError.invalidArgument(
-            function: "short", message: "cannot convert \(corePrinter.printString(args[0])) to short")
-    }
+    try coerceToRangedInteger(args, function: "short", typeLabel: "short", min: Int(Int16.min), max: Int(Int16.max))
 }
 
 private func coreAbs(_ args: [Expr]) throws -> Expr {
@@ -1253,44 +1180,11 @@ private func coreDecP(_ args: [Expr]) throws -> Expr {
 }
 
 private func numericAddP(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch try coerceNumericPair(a, b, function: "+'") {
-    case .ints(let x, let y):
-        let (result, overflow) = x.addingReportingOverflow(y)
-        return overflow ? .bigInteger(BigInt(x) + BigInt(y)) : .integer(result)
-
-    case .floats(let x, let y):
-        return .double(x + y)
-
-    case .ratios(let x, let y):
-        return ratioExprBig(Ratio(x.numerator * y.denominator + y.numerator * x.denominator,
-                                  x.denominator * y.denominator))
-
-    case .bigInts(let x, let y):
-        return .bigInteger(x + y)
-
-    case .bigDecimals(let x, let y):
-        return .bigDecimal(x + y)
-    }
+    try numericAddImpl(a, b, function: "+'") { x, y in .bigInteger(BigInt(x) + BigInt(y)) }
 }
 
 private func numericMultiplyP(_ a: Expr, _ b: Expr) throws -> Expr {
-    switch try coerceNumericPair(a, b, function: "*'") {
-    case .ints(let x, let y):
-        let (result, overflow) = x.multipliedReportingOverflow(by: y)
-        return overflow ? .bigInteger(BigInt(x) * BigInt(y)) : .integer(result)
-
-    case .floats(let x, let y):
-        return .double(x * y)
-
-    case .ratios(let x, let y):
-        return ratioExpr(Ratio(x.numerator * y.numerator, x.denominator * y.denominator))
-
-    case .bigInts(let x, let y):
-        return .bigInteger(x * y)
-
-    case .bigDecimals(let x, let y):
-        return .bigDecimal(x * y)
-    }
+    try numericMultiplyImpl(a, b, function: "*'") { x, y in .bigInteger(BigInt(x) * BigInt(y)) }
 }
 
 private func coreAddP(_ args: [Expr]) throws -> Expr {
