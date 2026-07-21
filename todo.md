@@ -16,6 +16,22 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] ==
+- [x] into-array
+- [x] clojure.string/escape
+- [x] clojure.string/capitalize
+- [x] with-out-str
+- [x] defonce
+- [x] add-tap
+- [x] take-last
+- [x] subvec
+- [x] special-symbol?
+- [x] shuffle
+- [x] seqable?
+- [x] run!
+- [x] reversible?
+
+- [x] rationalize
 - [x] rand-nth, random-sample, random-uuid, uuid?
 - [x] print-str, println-str, prn-str
 - [x] rational?
