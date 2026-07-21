@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] multi methods
 - [ ] Jank Clojure test suite
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
@@ -16,6 +15,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Now passing Jank Clojure Test suite (1 Skip - with-precision - not doing)
+- [x] multi methods
 - [x] ==
 - [x] into-array
 - [x] clojure.string/escape
