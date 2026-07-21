@@ -584,15 +584,20 @@
   {:added "1.0"}
   [x] (< x 0))
 
+(defn- nan-aware-extreme
+  "Returns whichever of x/y is NaN, or whichever cmp prefers if neither is."
+  [cmp x y]
+  (if (NaN? x) x (if (NaN? y) y (if (cmp x y) x y))))
+
 (defn max
   "Returns the greatest of its arguments."
   {:added "1.0"
    :static true}
   ([x] x)
-  ([x y] (if (NaN? x) x (if (NaN? y) y (if (> x y) x y))))
+  ([x y] (nan-aware-extreme > x y))
   ([x y & more]
-   (reduce (fn [m n] (if (NaN? m) m (if (NaN? n) n (if (> m n) m n))))
-           (if (NaN? x) x (if (NaN? y) y (if (> x y) x y)))
+   (reduce (fn [m n] (nan-aware-extreme > m n))
+           (nan-aware-extreme > x y)
            more)))
 
 (defn min
@@ -600,10 +605,10 @@
   {:added "1.0"
    :static true}
   ([x] x)
-  ([x y] (if (NaN? x) x (if (NaN? y) y (if (< x y) x y))))
+  ([x y] (nan-aware-extreme < x y))
   ([x y & more]
-   (reduce (fn [m n] (if (NaN? m) m (if (NaN? n) n (if (< m n) m n))))
-           (if (NaN? x) x (if (NaN? y) y (if (< x y) x y)))
+   (reduce (fn [m n] (nan-aware-extreme < m n))
+           (nan-aware-extreme < x y)
            more)))
 
 (defn mod
