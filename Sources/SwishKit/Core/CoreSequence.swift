@@ -165,6 +165,26 @@ func registerSequence(into evaluator: Evaluator) {
         }
         return .vector(try seqOf(args[0], function: "vec"), metadata: nil)
     }
+    evaluator.register(name: "shuffle", arity: .fixed(1),
+        doc: "Return a random permutation of coll",
+        arglists: [["coll"]]) { args in
+        // Matches real Clojure's ^java.util.Collection type hint: vectors,
+        // lists, sets, and seqs implement it; String and java.util.Map
+        // (unlike Collection) don't, so they're rejected here too even
+        // though Swish's own seq works on both.
+        let elems: [Expr]?
+        switch args[0] {
+        case .vector, .sharedVector, .list, .set, .sortedSet, .lazySeq, .seq:
+            elems = asSequence(args[0])
+        default:
+            elems = nil
+        }
+        guard let elems else {
+            throw EvaluatorError.invalidArgument(function: "shuffle",
+                message: "cannot shuffle \(corePrinter.printString(args[0]))")
+        }
+        return .vector(elems.shuffled(), metadata: nil)
+    }
     evaluator.register(name: "aset", arity: .fixed(3),
         doc: "Sets the value at index i in array a. Returns val.",
         arglists: [["array", "i", "val"]]) { args in
