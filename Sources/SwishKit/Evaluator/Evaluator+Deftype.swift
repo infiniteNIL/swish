@@ -111,12 +111,8 @@ extension Evaluator {
     func registerProtocolImpl(protoValue: Expr, typeName: String, methodImpls: [Expr: Expr], inline: Bool, formName: String) throws {
         guard case .map(let protoMap) = protoValue,
               case .varRef(let protoVar)? = protoMap.dict[.keyword("var")],
-              case .map? = protoVar.value
+              case .map(let currentProtoMap)? = protoVar.value
         else {
-            throw EvaluatorError.invalidArgument(
-                function: formName, message: "\(corePrinter.printString(protoValue)) is not a protocol")
-        }
-        guard case .map(let currentProtoMap) = protoVar.value! else {
             throw EvaluatorError.invalidArgument(
                 function: formName, message: "\(corePrinter.printString(protoValue)) is not a protocol")
         }

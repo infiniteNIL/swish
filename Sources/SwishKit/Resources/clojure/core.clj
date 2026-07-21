@@ -230,32 +230,26 @@
   [coll]
   (reduce conj () (seq coll)))
 
-(defn object-array
-  "Returns an array of n nils."
-  [n]
-  (to-array (repeat n nil)))
-
-
 (defn long-array
-  "Returns a vector from a collection, or a vector of n zeros."
+  "Returns an array of longs, from a collection or of n zeros."
   ([size-or-seq]
-   (if (number? size-or-seq) (vec (repeat size-or-seq 0)) (vec size-or-seq)))
+   (if (number? size-or-seq) (object-array size-or-seq 0) (object-array size-or-seq)))
   ([size _init-val-or-seq]
-   (vec (repeat size 0))))
+   (object-array size 0)))
 
 (defn double-array
-  "Returns a vector from a collection, or a vector of n 0.0s."
+  "Returns an array of doubles, from a collection or of n 0.0s."
   ([size-or-seq]
-   (if (number? size-or-seq) (vec (repeat size-or-seq 0.0)) (vec size-or-seq)))
+   (if (number? size-or-seq) (object-array size-or-seq 0.0) (object-array size-or-seq)))
   ([size _init-val-or-seq]
-   (vec (repeat size 0.0))))
+   (object-array size 0.0)))
 
 (defn float-array
-  "Returns a vector from a collection, or a vector of n 0.0s."
+  "Returns an array of floats, from a collection or of n 0.0s."
   ([size-or-seq]
-   (if (number? size-or-seq) (vec (repeat size-or-seq 0.0)) (vec size-or-seq)))
+   (if (number? size-or-seq) (object-array size-or-seq 0.0) (object-array size-or-seq)))
   ([size _init-val-or-seq]
-   (vec (repeat size 0.0))))
+   (object-array size 0.0)))
 
 (def array-map
   "Returns a map created from kvs (delegates to hash-map)."

@@ -122,17 +122,7 @@ extension Evaluator {
 
     func processRequireDirective(_ specs: [Expr], caller: String = "require") throws {
         for spec in specs {
-            if caller == "ns" {
-                do {
-                    try processOneRequireSpec(spec, caller: caller)
-                }
-                catch {
-                    print("Warning: require spec failed: \(error)")
-                }
-            }
-            else {
-                try processOneRequireSpec(spec, caller: caller)
-            }
+            try processOneRequireSpec(spec, caller: caller)
         }
     }
 

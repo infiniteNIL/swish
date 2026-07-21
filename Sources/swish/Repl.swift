@@ -222,8 +222,9 @@ final class Repl {
     // MARK: - Result substitution
 
     private func substituteResultReferences(_ input: String) -> String {
-        var processed = input
         let pattern = /\/(\d+)/
+        var result = ""
+        var cursor = input.startIndex
         for match in input.matches(of: pattern) {
             let matchStart = match.range.lowerBound
             if matchStart > input.startIndex {
@@ -233,11 +234,13 @@ final class Repl {
                     continue
                 }
             }
-            if let n = Int(match.1), let previousResult = results[n] {
-                processed = processed.replacingOccurrences(of: String(match.0), with: printer.sourceForm(previousResult))
-            }
+            guard let n = Int(match.1), let previousResult = results[n] else { continue }
+            result += input[cursor..<match.range.lowerBound]
+            result += printer.sourceForm(previousResult)
+            cursor = match.range.upperBound
         }
-        return processed
+        result += input[cursor...]
+        return result
     }
 
 }
