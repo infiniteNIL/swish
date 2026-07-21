@@ -244,6 +244,36 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/lower-case :ASDF/ASDF)"#) == .string(":asdf/asdf"))
     }
 
+    @Test("capitalize on empty string returns empty string")
+    func capitalizeEmpty() throws {
+        #expect(try swish.eval(#"(str/capitalize "")"#) == .string(""))
+    }
+
+    @Test("capitalize on a single character upper-cases it")
+    func capitalizeSingleChar() throws {
+        #expect(try swish.eval(#"(str/capitalize "a")"#) == .string("A"))
+    }
+
+    @Test("capitalize upper-cases the first character and lower-cases the rest")
+    func capitalizeMultiChar() throws {
+        #expect(try swish.eval(#"(str/capitalize "a Thing")"#) == .string("A thing"))
+        #expect(try swish.eval(#"(str/capitalize "A THING")"#) == .string("A thing"))
+        #expect(try swish.eval(#"(str/capitalize "A thing")"#) == .string("A thing"))
+    }
+
+    @Test("capitalize coerces non-string arguments via str semantics")
+    func capitalizeCoercion() throws {
+        #expect(try swish.eval(#"(str/capitalize 1)"#) == .string("1"))
+        #expect(try swish.eval(#"(str/capitalize 'Asdf)"#) == .string("Asdf"))
+        #expect(try swish.eval(#"(str/capitalize 'asDf/aSdf)"#) == .string("Asdf/asdf"))
+        #expect(try swish.eval(#"(str/capitalize :asDf/aSdf)"#) == .string(":asdf/asdf"))
+    }
+
+    @Test("capitalize throws for nil")
+    func capitalizeNilThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(str/capitalize nil)") }
+    }
+
     @Test("starts-with? returns true when string starts with substr")
     func startsWithMatch() throws {
         #expect(try swish.eval(#"(str/starts-with? "hello" "hel")"#) == .boolean(true))

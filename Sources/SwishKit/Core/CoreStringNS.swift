@@ -33,6 +33,10 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "Converts string to all lower-case.",
             arglists: [["s"]])
 
+        ns.register(name: "capitalize", value: coreCapitalize,
+            doc: "Converts first character of the string to upper-case, all other characters to lower-case.",
+            arglists: [["s"]])
+
         ns.register(name: "starts-with?", value: coreStartsWith,
             doc: "True if s starts with substr.",
             arglists: [["s", "substr"]])
@@ -210,6 +214,14 @@ private let coreUpperCase = Expr.nativeFunction(name: "upper-case", arity: .fixe
 
 private let coreLowerCase = Expr.nativeFunction(name: "lower-case", arity: .fixed(1)) { args in
     return try .string(requireNonNilStr(args[0], function: "lower-case").lowercased())
+}
+
+private let coreCapitalize = Expr.nativeFunction(name: "capitalize", arity: .fixed(1)) { args in
+    let s = try requireNonNilStr(args[0], function: "capitalize")
+    if s.count < 2 {
+        return .string(s.uppercased())
+    }
+    return .string(s.prefix(1).uppercased() + s.dropFirst().lowercased())
 }
 
 private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .fixed(2)) { args in
