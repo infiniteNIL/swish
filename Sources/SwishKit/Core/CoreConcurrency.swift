@@ -1,5 +1,11 @@
 import Foundation
 
+// Single dedicated serial queue for all tap dispatch — matches real Clojure's
+// single background tap-loop thread, so taps for a given tap> call always run
+// after taps for an earlier one (real Clojure's tap-loop processes its queue
+// strictly one value at a time).
+private let tapQueue = DispatchQueue(label: "swish.tap")
+
 // MARK: - Registration
 
 func registerConcurrency(into evaluator: Evaluator) {
@@ -57,6 +63,27 @@ func registerConcurrency(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "deliver", message: "first argument must be a promise")
         }
         return box.deliver(args[1]) ? args[0] : .nil
+    }
+
+    // MARK: Tap (backs tap>)
+
+    evaluator.register(name: "tap-dispatch!", arity: .fixed(2),
+        doc: "Internal. Asynchronously sends x to every function currently in the tapset atom, on a dedicated serial queue, catching and discarding any error each tap raises. Backs tap>.",
+        arglists: [["tapset-atom", "x"]]) { [evaluator] args in
+        guard case .atom(let tapsetAtom) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "tap-dispatch!", message: "first argument must be an atom")
+        }
+        let x = args[1]
+        let frames = evaluator.captureCurrentBindings()
+        tapQueue.async {
+            evaluator.withInstalledBindings(frames, callDepth: 0) {
+                guard case .set(let ss) = tapsetAtom.value else { return }
+                for tapFn in ss.elements {
+                    _ = try? evaluator.call(tapFn, args: [x])
+                }
+            }
+        }
+        return .boolean(true)
     }
 
     // MARK: sleep (backs the jank suite's `sleep` portability shim)

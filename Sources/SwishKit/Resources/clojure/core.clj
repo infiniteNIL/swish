@@ -50,6 +50,18 @@
   [name & decls]
   (list* `defn (with-meta name (assoc (meta name) :private true)) decls))
 
+(defmacro defonce
+  "defs name to have the root value of the expr iff the named var has no root value,
+  else expr is unevaluated"
+  {:added "1.0"}
+  [name expr]
+  ;; [Swish] real clojure.core uses (.hasRoot v#), a raw JVM Var method call;
+  ;; var-has-root? is a small native bridge exposing the same Var.isBound
+  ;; check Swish already has internally (Var.swift) — see CoreVar.swift.
+  `(let [v# (def ~name)]
+     (when-not (var-has-root? v#)
+       (def ~name ~expr))))
+
 (defn not
   "Returns true if x is logical false, false otherwise."
   {:tag Boolean
@@ -753,6 +765,32 @@
   {:added "1.7"}
   [vol newval]
   (reset! vol newval))
+
+(defonce ^:private tapset (atom #{}))
+
+(defn add-tap
+  "adds f, a fn of one argument, to the tap set. This function will be called with anything sent via tap>.
+  This function may (briefly) block (e.g. for streams), and will never impede calls to tap>,
+  but blocking indefinitely may cause tap values to be dropped.
+  Remember f in order to remove-tap"
+  {:added "1.10"}
+  [f]
+  (swap! tapset conj f)
+  nil)
+
+(defn remove-tap
+  "Remove f from the tap set."
+  {:added "1.10"}
+  [f]
+  (swap! tapset disj f)
+  nil)
+
+(defn tap>
+  "sends x to any taps. Will not block. Returns true if there was room in the queue,
+  false if not (dropped)."
+  {:added "1.10"}
+  [x]
+  (tap-dispatch! tapset x))
 
 (defn completing
   "Takes a reducing function f of 2 args and returns a fn suitable for

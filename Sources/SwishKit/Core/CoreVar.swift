@@ -10,6 +10,14 @@ func registerVar(into evaluator: Evaluator) {
     evaluator.register(name: "var-set", arity: .fixed(2),
         doc: "Sets the value in the var object to val. The var must be thread-locally bound.",
         arglists: [["x", "val"]]) { [evaluator] args in try coreVarSet(evaluator, args) }
+    evaluator.register(name: "var-has-root?", arity: .fixed(1),
+        doc: "Internal. Returns true if v has a root value (mirrors real Clojure's Var.hasRoot()). Backs defonce.",
+        arglists: [["v"]]) { args in
+        guard case .varRef(let v) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "var-has-root?", message: "first argument must be a var")
+        }
+        return .boolean(v.isBound)
+    }
 }
 
 // MARK: - Implementations
