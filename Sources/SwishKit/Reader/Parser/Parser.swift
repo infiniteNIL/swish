@@ -231,6 +231,19 @@ public class Parser {
         return .regex(try SwishRegex(pattern: pattern))
     }
 
+    /// Reads and consumes the string-literal argument of a `#tag "..."` form
+    /// (e.g. `#inst`/`#uuid`) — shared prefix before each tag's own parse/validate logic.
+    private func readTaggedLiteralStringArg(tag: String, line: Int, col: Int) throws -> String {
+        guard currentToken.type == .string else {
+            throw ParserError.invalidTaggedLiteral(
+                "#\(tag) expects a string literal",
+                line: line, column: col)
+        }
+        let s = currentToken.text
+        try advance()
+        return s
+    }
+
     private func parseTaggedLiteral() throws -> Expr {
         let tag  = currentToken.text
         let line = currentToken.line
@@ -244,13 +257,7 @@ public class Parser {
 
         switch tag {
         case "inst":
-            guard currentToken.type == .string else {
-                throw ParserError.invalidTaggedLiteral(
-                    "#inst expects a string literal",
-                    line: line, column: col)
-            }
-            let s = currentToken.text
-            try advance()
+            let s = try readTaggedLiteralStringArg(tag: tag, line: line, col: col)
             if let resolver = tagResolver {
                 return try resolver(tag, .string(s))
             }
@@ -262,13 +269,7 @@ public class Parser {
             return .inst(date)
 
         case "uuid":
-            guard currentToken.type == .string else {
-                throw ParserError.invalidTaggedLiteral(
-                    "#uuid expects a string literal",
-                    line: line, column: col)
-            }
-            let s = currentToken.text
-            try advance()
+            let s = try readTaggedLiteralStringArg(tag: tag, line: line, col: col)
             if let resolver = tagResolver {
                 return try resolver(tag, .string(s))
             }
@@ -419,22 +420,32 @@ public class Parser {
 
     // MARK: - Collections
 
-    private func parseList() throws -> Expr {
+    /// Parses a `(...)`/`[...]`/`{...}`-shaped element list up to (and consuming)
+    /// `close` — shared by every collection-literal parser, which otherwise only
+    /// differ in the close token and which `ParserError` case to throw on EOF.
+    private func parseDelimited(close: TokenType, unterminated: (Token) -> ParserError) throws -> [Expr] {
         let startToken = currentToken
-        try advance() // consume '('
+        try advance() // consume the opening delimiter
 
         var elements: [Expr] = []
 
-        while currentToken.type != .rightParen {
+        while currentToken.type != close {
             if currentToken.type == .eof {
-                throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
+                throw unterminated(startToken)
             }
-            if !(try appendNextElement(to: &elements)) && currentToken.type != .rightParen {
+            if !(try appendNextElement(to: &elements)) && currentToken.type != close {
                 throw ParserError.unexpectedToken(currentToken)
             }
         }
 
-        try advance() // consume ')'
+        try advance() // consume the closing delimiter
+        return elements
+    }
+
+    private func parseList() throws -> Expr {
+        let elements = try parseDelimited(close: .rightParen) {
+            ParserError.unterminatedList(line: $0.line, column: $0.column)
+        }
 
         // Skip special-form validation inside syntax-quote templates — those lists
         // are data, not code to be immediately evaluated.
@@ -458,40 +469,17 @@ public class Parser {
     }
 
     private func parseVector() throws -> Expr {
-        let startToken = currentToken
-        try advance() // consume '['
-
-        var elements: [Expr] = []
-
-        while currentToken.type != .rightBracket {
-            if currentToken.type == .eof {
-                throw ParserError.unterminatedVector(line: startToken.line, column: startToken.column)
-            }
-            if !(try appendNextElement(to: &elements)) && currentToken.type != .rightBracket {
-                throw ParserError.unexpectedToken(currentToken)
-            }
+        let elements = try parseDelimited(close: .rightBracket) {
+            ParserError.unterminatedVector(line: $0.line, column: $0.column)
         }
-
-        try advance() // consume ']'
         return .vector(elements, metadata: nil)
     }
 
     private func parseMap() throws -> Expr {
         let startToken = currentToken
-        try advance() // consume '{'
-
-        var forms: [Expr] = []
-
-        while currentToken.type != .rightBrace {
-            if currentToken.type == .eof {
-                throw ParserError.unterminatedMap(line: startToken.line, column: startToken.column)
-            }
-            if !(try appendNextElement(to: &forms)) && currentToken.type != .rightBrace {
-                throw ParserError.unexpectedToken(currentToken)
-            }
+        let forms = try parseDelimited(close: .rightBrace) {
+            ParserError.unterminatedMap(line: $0.line, column: $0.column)
         }
-
-        try advance() // consume '}'
 
         guard forms.count % 2 == 0 else {
             throw ParserError.oddNumberOfMapForms(line: startToken.line, column: startToken.column)
@@ -551,20 +539,9 @@ public class Parser {
 
     private func parseSet() throws -> Expr {
         let startToken = currentToken
-        try advance() // consume '#{'
-
-        var forms: [Expr] = []
-
-        while currentToken.type != .rightBrace {
-            if currentToken.type == .eof {
-                throw ParserError.unterminatedSet(line: startToken.line, column: startToken.column)
-            }
-            if !(try appendNextElement(to: &forms)) && currentToken.type != .rightBrace {
-                throw ParserError.unexpectedToken(currentToken)
-            }
+        let forms = try parseDelimited(close: .rightBrace) {
+            ParserError.unterminatedSet(line: $0.line, column: $0.column)
         }
-
-        try advance() // consume '}'
 
         var set: Set<Expr> = []
         for elem in forms {
@@ -587,18 +564,9 @@ public class Parser {
         anonymousFnDepth += 1
         defer { anonymousFnDepth -= 1 }
 
-        try advance()  // consume '#('
-
-        var bodyForms: [Expr] = []
-        while currentToken.type != .rightParen {
-            if currentToken.type == .eof {
-                throw ParserError.unterminatedList(line: startToken.line, column: startToken.column)
-            }
-            if !(try appendNextElement(to: &bodyForms)) && currentToken.type != .rightParen {
-                throw ParserError.unexpectedToken(currentToken)
-            }
+        let bodyForms = try parseDelimited(close: .rightParen) {
+            ParserError.unterminatedList(line: $0.line, column: $0.column)
         }
-        try advance()  // consume ')'
 
         let paramVector = buildAnonFnParamVector(from: bodyForms)
         let normalizedBody = normalizeAnonFnArgRefs(bodyForms)
