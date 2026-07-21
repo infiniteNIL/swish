@@ -409,4 +409,37 @@ struct CoreComparisonTests {
     func identicalSameSet() throws {
         #expect(try swish.eval("(let [s #{:a :b :c}] (identical? s s))") == .boolean(true))
     }
+
+    // MARK: - ==
+
+    @Test("== is true across numeric types that = rejects")
+    func numericEqualCrossType() throws {
+        #expect(try swish.eval("(== 1 1.0)") == .boolean(true))
+        #expect(try swish.eval("(= 1 1.0)") == .boolean(false))
+        #expect(try swish.eval("(== 1 1N)") == .boolean(true))
+        #expect(try swish.eval("(== 1.0 1M)") == .boolean(true))
+        #expect(try swish.eval("(== 1/2 0.5)") == .boolean(true))
+    }
+
+    @Test("== is false for numerically distinct values")
+    func numericEqualDistinct() throws {
+        #expect(try swish.eval("(== 1 2)") == .boolean(false))
+        #expect(try swish.eval("(== 1 1.1)") == .boolean(false))
+    }
+
+    @Test("== with a single argument is always true")
+    func numericEqualSingleArg() throws {
+        #expect(try swish.eval("(== 5)") == .boolean(true))
+    }
+
+    @Test("== chains across more than two arguments")
+    func numericEqualVariadic() throws {
+        #expect(try swish.eval("(== 1 1.0 1N 1M)") == .boolean(true))
+        #expect(try swish.eval("(== 1 1.0 2)") == .boolean(false))
+    }
+
+    @Test("== throws for a non-numeric argument")
+    func numericEqualNonNumericThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval(#"(== 1 "a")"#) }
+    }
 }

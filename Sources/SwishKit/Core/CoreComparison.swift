@@ -24,6 +24,10 @@ func registerComparison(into evaluator: Evaluator) {
         doc: "Equality. Returns true if x equals y, false if not. Same as Java x.equals(y) except it also works for nil, and compares numbers and collections in a type-independent manner. Clojure's immutable data structures define equals() (and thus =) as a value, not an identity, comparison.",
         arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
         body: coreEqual)
+    evaluator.register(name: "==", arity: .atLeastOne,
+        doc: "Returns non-nil if nums all have the equivalent value (type-independent), otherwise false.",
+        arglists: [["x"], ["x", "y"], ["x", "y", "&", "more"]],
+        body: coreNumericEqual)
     evaluator.register(name: "compare", arity: .fixed(2),
         doc: "Comparator. Returns a negative number, zero, or a positive number when x is logically 'less than', 'equal to', or 'greater than' y.",
         arglists: [["x", "y"]],
@@ -114,6 +118,20 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
     case .bigDecimals(let x, let y):
         return x < y
     }
+}
+
+private func numericEqual(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
+    switch try coerceNumericPair(a, b, function: function) {
+    case .ints(let x, let y):        return x == y
+    case .floats(let x, let y):      return x == y
+    case .ratios(let x, let y):      return x == y
+    case .bigInts(let x, let y):     return x == y
+    case .bigDecimals(let x, let y): return x == y
+    }
+}
+
+private func coreNumericEqual(_ args: [Expr]) throws -> Expr {
+    try compareConsecutivePairs(args, singleArgResult: true) { try numericEqual($0, $1, function: "==") }
 }
 
 private func splitNamed(_ s: String) -> (ns: String?, name: String) {

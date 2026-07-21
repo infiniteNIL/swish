@@ -131,4 +131,34 @@ struct CoreAcloneTests {
     func acloneNonArray() throws {
         #expect(throws: (any Error).self) { try swish.eval("(aclone [1 2 3])") }
     }
+
+    // MARK: - into-array
+
+    @Test("into-array collects elements of a vector")
+    func intoArrayFromVector() throws {
+        #expect(try swish.eval("(alength (into-array [1 2 3]))") == .integer(3))
+        #expect(try swish.eval("(aget (into-array [1 2 3]) 1)") == .integer(2))
+    }
+
+    @Test("into-array collects elements of a list")
+    func intoArrayFromList() throws {
+        #expect(try swish.eval("(alength (into-array '(:a :b)))") == .integer(2))
+        #expect(try swish.eval("(aget (into-array '(:a :b)) 0)") == .keyword("a"))
+    }
+
+    @Test("into-array on nil produces an empty array")
+    func intoArrayNil() throws {
+        #expect(try swish.eval("(alength (into-array nil))") == .integer(0))
+    }
+
+    @Test("into-array 2-arity accepts and ignores a type argument")
+    func intoArrayWithTypeArg() throws {
+        #expect(try swish.eval("(alength (into-array :int [1 2 3]))") == .integer(3))
+        #expect(try swish.eval("(aget (into-array :int [1 2 3]) 2)") == .integer(3))
+    }
+
+    @Test("into-array on a non-seqable argument throws")
+    func intoArrayNonSeqableThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(into-array 5)") }
+    }
 }

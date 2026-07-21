@@ -156,6 +156,12 @@ Swish's tree-walking interpreter costs roughly 300–475µs per element for chai
 
 `next`/`seq` (`CoreSequence.swift`) memoize each realized step as `.cons(head, tail: .lazySeq(nextBox))`, forming a genuine singly-linked chain of `LazySeqBox` objects once fully walked (e.g. by `dorun`). Since `Expr` is an `indirect enum` (heap-boxed), Swift's compiler-generated `deinit` for a long reference chain like this is not tail-call-optimized — releasing the head recursively released the next link, which recursively released the next, etc., one native stack frame per link, crashing at ~20000 elements (confirmed via `(dorun (range n))`, independent of any lazy-seq *forcing* logic — a bare, already-realized chain crashed purely on release). Fixed with a custom `deinit` on `LazySeqBox` (`LazySeqBox.swift`) that iteratively unlinks the tail chain (using `isKnownUniquelyReferenced` to only detach links nothing else is aliasing) before default ARC teardown runs — the standard fix for this well-known Swift pattern.
 
+### `into-array`'s `type` argument is accepted but not enforced
+
+Real Clojure's `into-array` (`([type aseq])` 2-arity form) uses `type` to pick the JVM array's component type, and validates every element in `aseq` is compatible with it (class objects for primitives obtained via e.g. `Integer/TYPE`). Swish's `SwishArray` (`Expr.swift`) is untyped — a plain `[Expr]` wrapper with no component-type field at all — so `into-array` (`CoreSequence.swift`) accepts the optional `type` argument purely for call-site source compatibility with ported Clojure code, but never inspects or validates it. Same category of simplification `int-array`/`object-array` already made silently (neither validates its elements are actually ints/objects either); `into-array` doesn't introduce a new kind of divergence, just extends the existing one to the 2-arity form.
+
+One consequence worth naming: real class-reference symbols like `Integer/TYPE` or `String` won't resolve if actually passed as `type`, since Swish has no vars for JVM classes at all — this fails at ordinary symbol-resolution time before `into-array` ever runs, same as any other Java-interop reference in Swish today (see the Protocols section above for the same underlying "no JVM class hierarchy" limitation). Passing a keyword or `nil` as a stand-in `type` marker works fine, since it's never inspected.
+
 ## REPL Commands
 
 REPL commands are preceded by `/` (e.g., `/quit`, `/q`). This distinguishes them from Swish expressions.

@@ -159,6 +159,16 @@ func registerSequence(into evaluator: Evaluator) {
         let elements = asSequence(args[0]) ?? []
         return .array(SwishArray(elements))
     }
+    evaluator.register(name: "into-array", arity: .variadic,
+        doc: "Returns an array with components set to the values in aseq. An optional leading type argument is accepted for source compatibility but not enforced — Swish arrays are untyped.",
+        arglists: [["aseq"], ["type", "aseq"]]) { args in
+        guard args.count == 1 || args.count == 2 else {
+            throw EvaluatorError.invalidArgument(function: "into-array",
+                message: "requires 1 or 2 arguments, got \(args.count)")
+        }
+        let aseq = args.count == 2 ? args[1] : args[0]
+        return .array(SwishArray(try seqOf(aseq, function: "into-array")))
+    }
     evaluator.register(name: "vec", arity: .fixed(1),
         doc: "Creates a new vector containing the contents of coll.",
         arglists: [["coll"]]) { args in
