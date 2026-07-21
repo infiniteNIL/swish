@@ -213,18 +213,8 @@
                             (or (= h 'p/thrown?)
                                 (= h 'clojure.core-test.portability/thrown?)))))]
      (cond
-       (and (seq? form) (= (first form) 'thrown?))
-       (let [body (drop 2 form)]
-         `(try ~@body
-               (do-report {:type :fail, :message ~msg,
-                           :expected '~form, :actual nil})
-               (catch Exception e#
-                 (do-report {:type :pass, :message ~msg,
-                             :expected '~form, :actual e#})
-                 e#)))
-
-       (p-thrown? form)
-       (let [body (rest form)]
+       (or (and (seq? form) (= (first form) 'thrown?)) (p-thrown? form))
+       (let [body (if (and (seq? form) (= (first form) 'thrown?)) (drop 2 form) (rest form))]
          `(try ~@body
                (do-report {:type :fail, :message ~msg,
                            :expected '~form, :actual nil})
