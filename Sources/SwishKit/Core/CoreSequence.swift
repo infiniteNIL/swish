@@ -89,6 +89,20 @@ func registerSequence(into evaluator: Evaluator) {
     }
     evaluator.register(name: "list?", arity: .fixed(1), doc: "Returns true if x implements IPersistentList",        arglists: [["x"]]) { args in if case .list = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "seq?",      arity: .fixed(1), doc: "Returns true if x implements ISeq",               arglists: [["x"]]) { args in switch args[0] { case .list, .seq, .lazySeq: return .boolean(true); default: return .boolean(false) } }
+    evaluator.register(name: "seqable?", arity: .fixed(1),
+        doc: "Return true if the seq function is supported for x",
+        arglists: [["x"]]) { args in
+        switch args[0] {
+        case .lazySeq:
+            // A lazy seq is seqable by construction — must not force it to
+            // find out, or (seqable? (range)) would hang realizing an
+            // infinite seq. Fall through to asSequence for everything else.
+            return .boolean(true)
+
+        default:
+            return .boolean(asSequence(args[0]) != nil)
+        }
+    }
     evaluator.register(name: "lazy-seq?", arity: .fixed(1), doc: "Return true if x is a LazySeq.",                   arglists: [["x"]]) { args in if case .lazySeq = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "realized?", arity: .fixed(1),
         doc: "Returns true if a lazy sequence or delay has been forced.",
