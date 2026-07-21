@@ -92,6 +92,18 @@ func registerIO(into evaluator: Evaluator) {
         wtr.close()
         return .nil
     }
+    evaluator.register(name: "swish-string-writer", arity: .fixed(0),
+        doc: "Internal. Returns a fresh in-memory writer whose accumulated content can be read back with swish-writer-string. Backs with-out-str.",
+        arglists: [[]]) { _ in .writer(SwishWriter()) }
+    evaluator.register(name: "swish-writer-string", arity: .fixed(1),
+        doc: "Internal. Returns the content accumulated so far in an in-memory writer created by swish-string-writer. Backs with-out-str.",
+        arglists: [["wtr"]]) { args in
+        guard case .writer(let wtr) = args[0], wtr.path == nil else {
+            throw EvaluatorError.invalidArgument(function: "swish-writer-string",
+                message: "argument must be an in-memory writer created by swish-string-writer")
+        }
+        return .string(wtr.bufferedString)
+    }
 
     evaluator.register(name: "slurp", arity: .variadic,
         doc: "Reads the file named by f and returns the contents as a string. " +

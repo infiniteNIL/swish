@@ -887,6 +887,17 @@
   (when-let [line (swish-read-line! rdr)]
     (lazy-seq (cons line (line-seq rdr)))))
 
+(defmacro with-out-str
+  "Evaluates exprs in a context in which *out* is bound to a fresh
+  StringWriter.  Returns the string created by any nested printing
+  calls."
+  {:added "1.0"}
+  [& body]
+  `(let [s# (swish-string-writer)]
+     (binding [*out* s#]
+       ~@body
+       (swish-writer-string s#))))
+
 (defn sequence
   "Coerces coll to a (possibly empty) sequence, if it is not already
   one. Will not force a lazy seq. When a transducer xform is supplied,

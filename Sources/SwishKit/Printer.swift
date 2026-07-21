@@ -151,7 +151,7 @@ public struct Printer {
             "#<Reader \(r.path)>"
 
         case .writer(let w):
-            "#<Writer \(w.path)>"
+            w.path.map { "#<Writer \($0)>" } ?? "#<Writer>"
 
         case .inst(let date):
             "#inst \"\(formatterLock.withLock { _ in instFormatter.string(from: date) })\""

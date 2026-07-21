@@ -2,9 +2,10 @@ import Foundation
 import Synchronization
 
 public final class SwishWriter: @unchecked Sendable {
-    public let path: String
-    private let handle: FileHandle
+    public let path: String?
+    private let handle: FileHandle?
     private let closedState = Mutex(false)
+    private let buffer = Mutex("")
 
     var closed: Bool { closedState.withLock { $0 } }
 
@@ -25,9 +26,21 @@ public final class SwishWriter: @unchecked Sendable {
         self.handle = handle
     }
 
+    /// Creates an in-memory writer whose content can be read back with `bufferedString`.
+    init() {
+        self.path = nil
+        self.handle = nil
+    }
+
+    var bufferedString: String { buffer.withLock { $0 } }
+
     func write(_ s: String) throws {
         try closedState.withLock { closed in
             guard !closed else { throw SwishIOError.writerClosed }
+            guard let handle else {
+                buffer.withLock { $0 += s }
+                return
+            }
             guard let data = s.data(using: .utf8) else { return }
             handle.write(data)
         }
@@ -36,13 +49,13 @@ public final class SwishWriter: @unchecked Sendable {
     func close() {
         closedState.withLock { closed in
             guard !closed else { return }
-            handle.closeFile()
+            handle?.closeFile()
             closed = true
         }
     }
 
     deinit {
-        if !closed { handle.closeFile() }
+        if !closed { handle?.closeFile() }
     }
 }
 
