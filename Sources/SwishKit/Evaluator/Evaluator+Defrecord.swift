@@ -1,28 +1,8 @@
 extension Evaluator {
     func evalDefrecord(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 3,
-              case .symbol(let typeName, _) = elements[1],
-              case .vector(let fieldExprs, _) = elements[2]
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "defrecord",
-                message: "expected (defrecord TypeName [field ...])")
-        }
-        let fields: [String] = try fieldExprs.map {
-            guard case .symbol(let name, _) = $0 else {
-                throw EvaluatorError.invalidArgument(
-                    function: "defrecord", message: "fields must be symbols")
-            }
-            return name
-        }
-        let qualifiedName = "\(currentNs().name)/\(typeName)"
-
-        let groups = try parseProtocolImplGroups(Array(elements.dropFirst(3)), formName: "defrecord")
-        for group in groups {
-            let protoValue = try eval(group.leadingSymbol, in: env)
-            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: "defrecord", fields: fields)
-            try registerProtocolImpl(protoValue: protoValue, typeName: qualifiedName, methodImpls: methodImpls, inline: true, formName: "defrecord")
-        }
+        let (typeName, fields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
+            elements, formName: "defrecord",
+            usage: "expected (defrecord TypeName [field ...])", in: env)
 
         let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
             guard args.count == fields.count else {

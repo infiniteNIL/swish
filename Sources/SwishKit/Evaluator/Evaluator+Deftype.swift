@@ -147,33 +147,46 @@ extension Evaluator {
         protoVar.value = .map(newProtoMap, metadata: nil)
     }
 
+    /// Parses `(formName TypeName [field ...] & opts+specs)`'s header and registers any
+    /// trailing inline protocol implementations — shared by `deftype`/`defrecord`, which
+    /// diverge only in what they build once the type is registered (deftype: one `.deftype`-
+    /// wrapping ctor; defrecord: a `.record`-wrapping ctor plus a `map->` ctor).
+    func parseTypeHeaderAndRegisterInlineProtocols(
+        _ elements: [Expr], formName: String, usage: String, in env: Environment
+    ) throws -> (typeName: String, fields: [String], qualifiedName: String) {
+        guard elements.count >= 3,
+              case .symbol(let typeName, _) = elements[1],
+              case .vector(let fieldExprs, _) = elements[2]
+        else {
+            throw EvaluatorError.invalidArgument(function: formName, message: usage)
+        }
+        let fields: [String] = try fieldExprs.map {
+            guard case .symbol(let name, _) = $0 else {
+                throw EvaluatorError.invalidArgument(function: formName, message: "fields must be symbols")
+            }
+            return name
+        }
+        let qualifiedName = "\(currentNs().name)/\(typeName)"
+
+        let groups = try parseProtocolImplGroups(Array(elements.dropFirst(3)), formName: formName)
+        for group in groups {
+            let protoValue = try eval(group.leadingSymbol, in: env)
+            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: formName, fields: fields)
+            try registerProtocolImpl(protoValue: protoValue, typeName: qualifiedName, methodImpls: methodImpls, inline: true, formName: formName)
+        }
+
+        return (typeName, fields, qualifiedName)
+    }
+
     /// `(deftype Name [fields...] Protocol1 (method [this a] body)... ...)`.
     /// Field mutability annotations (`^:unsynchronized-mutable`/`^:volatile-mutable`)
     /// are accepted (already ignored, same as any other symbol metadata) but have
     /// no effect — mutable fields need a `set!` special form Swish doesn't have
     /// yet, see CLAUDE.md.
     func evalDeftype(_ elements: [Expr], in env: Environment) throws -> Expr {
-        guard elements.count >= 3,
-              case .symbol(let typeName, _) = elements[1],
-              case .vector(let fieldExprs, _) = elements[2]
-        else {
-            throw EvaluatorError.invalidArgument(
-                function: "deftype", message: "expected (deftype TypeName [field ...] & opts+specs)")
-        }
-        let fields: [String] = try fieldExprs.map {
-            guard case .symbol(let name, _) = $0 else {
-                throw EvaluatorError.invalidArgument(function: "deftype", message: "fields must be symbols")
-            }
-            return name
-        }
-        let qualifiedName = "\(currentNs().name)/\(typeName)"
-
-        let groups = try parseProtocolImplGroups(Array(elements.dropFirst(3)), formName: "deftype")
-        for group in groups {
-            let protoValue = try eval(group.leadingSymbol, in: env)
-            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: "deftype", fields: fields)
-            try registerProtocolImpl(protoValue: protoValue, typeName: qualifiedName, methodImpls: methodImpls, inline: true, formName: "deftype")
-        }
+        let (typeName, fields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
+            elements, formName: "deftype",
+            usage: "expected (deftype TypeName [field ...] & opts+specs)", in: env)
 
         let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
             guard args.count == fields.count else {

@@ -543,15 +543,9 @@ extension Evaluator {
             let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true, outerLocals: outerLocals) }
             return .multiArityFunction(SwishMultiArityFunction(name: name, arities: arities, capturedEnv: env, metadata: nil))
         }
-        guard !remaining.isEmpty, case .vector(let paramExprs, _) = remaining[0] else {
-            throw EvaluatorError.invalidArgument(function: "fn", message: "requires a parameter vector")
-        }
-        let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(remaining.dropFirst()))
-        try validateRecurTailPosition(in: rawBody)
-        let ownLocals = collectAllParamLocals(paramExprs)
-        let allLocals = ownLocals.union(env.allNames())
-        let body = expandAliases(in: rawBody, locals: allLocals)
-        return .function(SwishFunction(name: name, params: params, body: body, capturedEnv: env, metadata: nil))
+        let arity = try buildFnArity(from: .list(remaining, metadata: nil), functionName: "fn",
+            validateRecur: true, outerLocals: env.allNames())
+        return .function(SwishFunction(name: name, params: arity.params, body: arity.body, capturedEnv: env, metadata: nil))
     }
 
     func evalDefmacro(_ elements: [Expr]) throws -> Expr {

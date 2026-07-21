@@ -295,22 +295,21 @@ extension Evaluator {
             }
         }
 
-        if let keysExpr = dict[.keyword("keys")], case .vector(let keys, _) = keysExpr {
-            for k in keys { if case .symbol(let n, _) = k {
-                addBinding(n, .list([.symbol("get", metadata: nil), tmpSym, .keyword(n)], metadata: nil))
-            }}
-        }
-        if let strsExpr = dict[.keyword("strs")], case .vector(let strs, _) = strsExpr {
-            for s in strs { if case .symbol(let n, _) = s {
-                addBinding(n, .list([.symbol("get", metadata: nil), tmpSym, .string(n)], metadata: nil))
-            }}
-        }
-        if let symsExpr = dict[.keyword("syms")], case .vector(let syms, _) = symsExpr {
-            for s in syms { if case .symbol(let n, _) = s {
-                addBinding(n, .list([.symbol("get", metadata: nil), tmpSym,
-                                    .list([.symbol("quote", metadata: nil),
-                                           .symbol(n, metadata: nil)], metadata: nil)], metadata: nil))
-            }}
+        // :keys/:strs/:syms differ only in which keyword to look up and how the
+        // lookup-key Expr is built from the bound symbol's name.
+        let keyBuilders: [(Expr, (String) -> Expr)] = [
+            (.keyword("keys"), { .keyword($0) }),
+            (.keyword("strs"), { .string($0) }),
+            (.keyword("syms"), { .list([.symbol("quote", metadata: nil), .symbol($0, metadata: nil)], metadata: nil) }),
+        ]
+        for (specKey, keyBuilder) in keyBuilders {
+            if let specExpr = dict[specKey], case .vector(let syms, _) = specExpr {
+                for s in syms {
+                    if case .symbol(let n, _) = s {
+                        addBinding(n, .list([.symbol("get", metadata: nil), tmpSym, keyBuilder(n)], metadata: nil))
+                    }
+                }
+            }
         }
 
         for (bindingPattern, lookupKey) in dict where !destructuringSpecialKeys.contains(bindingPattern) {
