@@ -445,4 +445,34 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/replace "hello world" #"\w+" str/upper-case)"#)
             == .string("HELLO WORLD"))
     }
+
+    @Test("escape on empty string is a no-op regardless of cmap")
+    func escapeEmptyString() throws {
+        #expect(try swish.eval(#"(str/escape "" {})"#) == .string(""))
+        #expect(try swish.eval(#"(str/escape "" {\c "C_C"})"#) == .string(""))
+    }
+
+    @Test("escape replaces only characters present as keys in cmap")
+    func escapeSingleCharKey() throws {
+        #expect(try swish.eval(#"(str/escape "abc" {\a "A_A"})"#) == .string("A_Abc"))
+    }
+
+    @Test("escape replaces multiple characters via cmap")
+    func escapeMultiCharKey() throws {
+        #expect(try swish.eval(#"(str/escape "abc" {\a "A_A" \c "C_C"})"#) == .string("A_AbC_C"))
+    }
+
+    @Test("escape ignores extraneous or mismatched-type cmap keys")
+    func escapeIgnoresExtraneousKeys() throws {
+        #expect(try swish.eval(#"(str/escape "abc" {\a "A_A" \c "C_C" (int \a) 1 nil 'junk :garbage 42.42})"#)
+            == .string("A_AbC_C"))
+    }
+
+    @Test("escape throws when s is not a string")
+    func escapeThrowsForNonString() throws {
+        #expect(throws: (any Error).self) { try swish.eval(#"(str/escape nil {\a "A_A" \c "C_C"})"#) }
+        #expect(throws: (any Error).self) { try swish.eval(#"(str/escape 1 {\a "A_A" \c "C_C"})"#) }
+        #expect(throws: (any Error).self) { try swish.eval(#"(str/escape 'a {\a "A_A" \c "C_C"})"#) }
+        #expect(throws: (any Error).self) { try swish.eval(#"(str/escape :a {\a "A_A" \c "C_C"})"#) }
+    }
 }

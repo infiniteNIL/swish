@@ -62,6 +62,29 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
                  "match/replacement can be: string/string, char/char, " +
                  "pattern/string, or pattern/function.",
             arglists: [["s", "match", "replacement"]])
+
+        ns.register(name: "escape", value: makeEscapeFunction(evaluator: evaluator),
+            doc: "Return a new string, using cmap to escape each character ch from s: " +
+                 "if (cmap ch) is nil, append ch unchanged, else append (str (cmap ch)).",
+            arglists: [["s", "cmap"]])
+}
+
+private func makeEscapeFunction(evaluator: Evaluator) -> Expr {
+    return Expr.nativeFunction(name: "escape", arity: .fixed(2)) { [evaluator] args in
+        let s = try requireString(args[0], function: "escape")
+        let cmap = args[1]
+        var result = ""
+        for ch in s {
+            let replacement = try evaluator.call(cmap, args: [.character(ch)])
+            if case .nil = replacement {
+                result.append(ch)
+            }
+            else {
+                result += corePrinter.strString(replacement)
+            }
+        }
+        return .string(result)
+    }
 }
 
 // MARK: - Shared argument helpers

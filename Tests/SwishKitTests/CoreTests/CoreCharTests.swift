@@ -42,4 +42,15 @@ struct CoreCharTests {
     func leadingZeroOctal2() throws {
         #expect(try swish.eval("(= 0101 65)") == .boolean(true))
     }
+
+    @Test("(int \\a) returns the character's code point")
+    func intFromCharacter() throws {
+        #expect(try swish.eval(#"(int \a)"#) == .integer(97))
+        #expect(try swish.eval(#"(int \A)"#) == .integer(65))
+    }
+
+    @Test("(int (char n)) round-trips back to n")
+    func intCharRoundTrip() throws {
+        #expect(try swish.eval("(int (char 65))") == .integer(65))
+    }
 }

@@ -838,6 +838,13 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
         }
         return .integer(i)
 
+    case .character(let c):
+        guard c.unicodeScalars.count == 1, let scalar = c.unicodeScalars.first else {
+            throw EvaluatorError.invalidArgument(
+                function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
+        }
+        return .integer(Int(scalar.value))
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "int", message: "cannot convert \(corePrinter.printString(args[0])) to integer")
