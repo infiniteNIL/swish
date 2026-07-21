@@ -1,11 +1,27 @@
 // MARK: - Registration
 
+// The JVM Clojure compiler's fixed table of special-form names (Compiler.java's
+// `specials` map), reproduced verbatim for special-symbol?. import* is the one
+// namespace-qualified entry (Symbol.intern("clojure.core", "import*")) — a bare
+// 'import* does not match it, matching real Clojure exactly.
+private let specialSymbolNames: Set<String> = [
+    "def", "loop*", "recur", "if", "case*", "let*", "letfn*", "do", "fn*",
+    "quote", "var", "clojure.core/import*", ".", "set!", "deftype*", "reify*",
+    "try", "throw", "monitor-enter", "monitor-exit", "catch", "finally", "new", "&",
+]
+
 func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "nil?",     arity: .fixed(1), doc: "Returns true if x is nil, false otherwise.",       arglists: [["x"]]) { args in if case .nil     = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "true?",    arity: .fixed(1), doc: "Returns true if x is the value true, false otherwise.",  arglists: [["x"]]) { args in if case .boolean(true)  = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "false?",   arity: .fixed(1), doc: "Returns true if x is the value false, false otherwise.", arglists: [["x"]]) { args in if case .boolean(false) = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "boolean?", arity: .fixed(1), doc: "Return true if x is a Boolean",                       arglists: [["x"]]) { args in if case .boolean = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "var?",     arity: .fixed(1), doc: "Returns true if v is of type clojure.lang.Var.",     arglists: [["v"]]) { args in if case .varRef = args[0] { return .boolean(true) }; return .boolean(false) }
+    evaluator.register(name: "special-symbol?", arity: .fixed(1),
+        doc: "Returns true if s names a special form",
+        arglists: [["s"]]) { args in
+        guard case .symbol(let name, _) = args[0] else { return .boolean(false) }
+        return .boolean(specialSymbolNames.contains(name))
+    }
     evaluator.register(name: "uuid?",    arity: .fixed(1), doc: "Return true if x is a java.util.UUID",              arglists: [["x"]]) { args in if case .uuid   = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword?", arity: .fixed(1), doc: "Returns true if x is a keyword, false otherwise.",  arglists: [["x"]]) { args in if case .keyword = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "keyword", arity: .variadic,
