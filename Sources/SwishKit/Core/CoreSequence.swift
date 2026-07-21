@@ -40,13 +40,10 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
-        switch args[0] {
-        case .vector(let elems, _):
+        if let elems = vectorElements(args[0]) {
             return elems.last ?? .nil
-
-        case .sharedVector(let sa, _):
-            return sa.elements.last ?? .nil
-
+        }
+        switch args[0] {
         case .list(let elems, _):
             return elems.first ?? .nil
 
@@ -60,21 +57,14 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "pop", arity: .fixed(1),
         doc: "For a vector, returns a new vector without the last element. For a list, returns a new list without the first element.",
         arglists: [["coll"]]) { args in
-        switch args[0] {
-        case .vector(let elems, _):
+        if let elems = vectorElements(args[0]) {
             guard !elems.isEmpty
             else {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
             }
             return .vector(Array(elems.dropLast()), metadata: nil)
-
-        case .sharedVector(let sa, _):
-            guard !sa.elements.isEmpty
-            else {
-                throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
-            }
-            return .vector(Array(sa.elements.dropLast()), metadata: nil)
-
+        }
+        switch args[0] {
         case .list(let elems, _):
             guard !elems.isEmpty
             else {
@@ -204,15 +194,7 @@ func registerSequence(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "subvec",
                 message: "requires 2 or 3 arguments, got \(args.count)")
         }
-        let elements: [Expr]
-        switch args[0] {
-        case .vector(let e, _):
-            elements = e
-
-        case .sharedVector(let sa, _):
-            elements = sa.elements
-
-        default:
+        guard let elements = vectorElements(args[0]) else {
             throw EvaluatorError.invalidArgument(function: "subvec",
                 message: "\(corePrinter.printString(args[0])) is not a vector")
         }
@@ -287,32 +269,12 @@ func registerSequence(into evaluator: Evaluator) {
     evaluator.register(name: "int-array", arity: .variadic,
         doc: "Creates an array of ints. Single arg: size (fills 0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        switch args[0] {
-        case .integer(let n):
-            guard n >= 0 else {
-                throw EvaluatorError.invalidArgument(function: "int-array",
-                    message: "size must be non-negative")
-            }
-            let fill: Expr = args.count > 1 ? args[1] : .integer(0)
-            return .array(SwishArray(Array(repeating: fill, count: n)))
-        default:
-            return .array(SwishArray(asSequence(args[0]) ?? []))
-        }
+        try makeArray(args, function: "int-array", defaultFill: .integer(0))
     }
     evaluator.register(name: "object-array", arity: .variadic,
         doc: "Creates an array of objects. Single arg: size (fills nil) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        switch args[0] {
-        case .integer(let n):
-            guard n >= 0 else {
-                throw EvaluatorError.invalidArgument(function: "object-array",
-                    message: "size must be non-negative")
-            }
-            let fill: Expr = args.count > 1 ? args[1] : .nil
-            return .array(SwishArray(Array(repeating: fill, count: n)))
-        default:
-            return .array(SwishArray(asSequence(args[0]) ?? []))
-        }
+        try makeArray(args, function: "object-array", defaultFill: .nil)
     }
     evaluator.register(name: "next", arity: .fixed(1),
         doc: "Returns a seq of the items after the first. Calls seq on its argument. If there are no more items, returns nil.",
@@ -345,6 +307,33 @@ func registerSequence(into evaluator: Evaluator) {
 }
 
 // MARK: - Implementations
+
+/// Extracts the backing `[Expr]` from either vector representation, discarding
+/// metadata — shared by every native function that needs "give me the elements,
+/// whichever vector case this is" without caring which one it got.
+func vectorElements(_ expr: Expr) -> [Expr]? {
+    switch expr {
+    case .vector(let elems, _): return elems
+    case .sharedVector(let sa, _): return sa.elements
+    default: return nil
+    }
+}
+
+/// Shared implementation backing `int-array`/`object-array` — a single arg is either
+/// a size (fills with `defaultFill`) or a seq to coerce; two args are size + init val.
+private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) throws -> Expr {
+    switch args[0] {
+    case .integer(let n):
+        guard n >= 0 else {
+            throw EvaluatorError.invalidArgument(function: function,
+                message: "size must be non-negative")
+        }
+        let fill: Expr = args.count > 1 ? args[1] : defaultFill
+        return .array(SwishArray(Array(repeating: fill, count: n)))
+    default:
+        return .array(SwishArray(asSequence(args[0]) ?? []))
+    }
+}
 
 private func coreList(_ args: [Expr]) throws -> Expr {
     .list(args, metadata: nil)
@@ -649,6 +638,30 @@ private func coreConj(_ args: [Expr]) throws -> Expr {
     return result
 }
 
+/// Merges a `conj`-style item (another map/sortedMap, a map entry, or a `[k v]`
+/// vector) into `dict` in place — shared by `conjOne`'s `.map` and `.sortedMap`
+/// cases, which differ only in which `Expr` case they wrap the result back into.
+private func mergeIntoDict(_ dict: inout [Expr: Expr], item: Expr) throws {
+    if case .map(let other) = item {
+        for (k, v) in other.dict { dict[k] = v }
+        return
+    }
+    if case .sortedMap(let other, _) = item {
+        for (k, v) in other { dict[k] = v }
+        return
+    }
+    if case .mapEntry(let k, let v) = item {
+        dict[k] = v
+        return
+    }
+    guard case .vector(let entry, _) = item, entry.count == 2
+    else {
+        throw EvaluatorError.invalidArgument(function: "conj",
+            message: "map conj requires a [key val] vector")
+    }
+    dict[entry[0]] = entry[1]
+}
+
 func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     switch coll {
     case .nil:
@@ -672,46 +685,12 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     case .map(let sm):
         if case .nil = item { return coll }
         var dict = sm.dict
-        if case .map(let other) = item {
-            for (k, v) in other.dict { dict[k] = v }
-            return .map(dict, metadata: sm.metadata)
-        }
-        if case .sortedMap(let other, _) = item {
-            for (k, v) in other { dict[k] = v }
-            return .map(dict, metadata: sm.metadata)
-        }
-        if case .mapEntry(let k, let v) = item {
-            dict[k] = v
-            return .map(dict, metadata: sm.metadata)
-        }
-        guard case .vector(let entry, _) = item, entry.count == 2
-        else {
-            throw EvaluatorError.invalidArgument(function: "conj",
-                message: "map conj requires a [key val] vector")
-        }
-        dict[entry[0]] = entry[1]
+        try mergeIntoDict(&dict, item: item)
         return .map(dict, metadata: sm.metadata)
 
     case .sortedMap(var dict, let meta):
         if case .nil = item { return coll }
-        if case .sortedMap(let other, _) = item {
-            for (k, v) in other { dict[k] = v }
-            return .sortedMap(dict, metadata: meta)
-        }
-        if case .map(let other) = item {
-            for (k, v) in other.dict { dict[k] = v }
-            return .sortedMap(dict, metadata: meta)
-        }
-        if case .mapEntry(let k, let v) = item {
-            dict[k] = v
-            return .sortedMap(dict, metadata: meta)
-        }
-        guard case .vector(let entry, _) = item, entry.count == 2
-        else {
-            throw EvaluatorError.invalidArgument(function: "conj",
-                message: "map conj requires a [key val] vector")
-        }
-        dict[entry[0]] = entry[1]
+        try mergeIntoDict(&dict, item: item)
         return .sortedMap(dict, metadata: meta)
 
     case .set(let ss):
@@ -767,13 +746,10 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .sortedSet(let elements, _):
         return .boolean((try? sortedSetContains(elements, key)) ?? elements.contains(key))
 
-    case .vector(let elements, _):
+    case .vector, .sharedVector:
+        let elements = vectorElements(args[0]) ?? []
         guard case .integer(let idx) = key else { return .boolean(false) }
         return .boolean(idx >= 0 && idx < elements.count)
-
-    case .sharedVector(let sa, _):
-        guard case .integer(let idx) = key else { return .boolean(false) }
-        return .boolean(idx >= 0 && idx < sa.elements.count)
 
     case .string(let s):
         guard case .integer(let idx) = key else {
@@ -811,13 +787,10 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
     case .nil:
         return notFound ?? .nil
 
-    case .vector(let elements, _):
+    case .vector, .sharedVector:
+        let elements = vectorElements(args[0]) ?? []
         guard idx >= 0 && idx < elements.count else { return try outOfBounds() }
         return elements[idx]
-
-    case .sharedVector(let sa, _):
-        guard idx >= 0 && idx < sa.elements.count else { return try outOfBounds() }
-        return sa.elements[idx]
 
     case .lazySeq:
         var current: Expr = args[0]

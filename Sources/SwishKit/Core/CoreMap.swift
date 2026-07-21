@@ -87,17 +87,12 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
         guard let value = data[args[1]] else { return .nil }
         return .mapEntry(args[1], value)
 
-    case .vector(let elements, _):
+    case .vector, .sharedVector:
+        let elements = vectorElements(args[0]) ?? []
         guard case .integer(let idx) = args[1],
               idx >= 0, idx < elements.count
         else { return .nil }
         return .vector([args[1], elements[idx]], metadata: nil)
-
-    case .sharedVector(let sa, _):
-        guard case .integer(let idx) = args[1],
-              idx >= 0, idx < sa.elements.count
-        else { return .nil }
-        return .vector([args[1], sa.elements[idx]], metadata: nil)
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -125,13 +120,10 @@ private func lookupOptional(_ coll: Expr, _ key: Expr) throws -> Expr? {
     case .record(_, _, let data, _):
         return data[key]
 
-    case .vector(let elements, _):
+    case .vector, .sharedVector:
+        let elements = vectorElements(coll) ?? []
         guard case .integer(let idx) = key, idx >= 0, idx < elements.count else { return nil }
         return elements[idx]
-
-    case .sharedVector(let sa, _):
-        guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return nil }
-        return sa.elements[idx]
 
     case .string(let s):
         guard case .integer(let idx) = key, idx >= 0,
