@@ -67,11 +67,10 @@ public final class SwishRef: @unchecked Sendable {
         }
     }
 
-    func addWatch(key: Expr, fn: Expr) {
-        state.withLock { $0.watches[key] = fn }
-    }
+}
 
-    func removeWatch(key: Expr) {
-        state.withLock { _ = $0.watches.removeValue(forKey: key) }
+extension SwishRef: Watchable {
+    func mutateWatches(_ body: (inout [Expr: Expr]) -> Void) {
+        state.withLock { body(&$0.watches) }
     }
 }

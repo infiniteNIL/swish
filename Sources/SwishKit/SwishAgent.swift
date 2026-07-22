@@ -57,14 +57,6 @@ public final class SwishAgent: @unchecked Sendable {
         state = Mutex(State(value: value, metadata: metadata, validator: validator))
     }
 
-    func addWatch(key: Expr, fn: Expr) {
-        state.withLock { $0.watches[key] = fn }
-    }
-
-    func removeWatch(key: Expr) {
-        state.withLock { _ = $0.watches.removeValue(forKey: key) }
-    }
-
     /// Clears the failed state and sets a new value, validating it first. Runs on
     /// `queue` so it's ordered relative to any actions already in flight — happens-
     /// after anything queued before this call, happens-before anything queued after.
@@ -142,5 +134,11 @@ public final class SwishAgent: @unchecked Sendable {
             }
             group.leave()
         }
+    }
+}
+
+extension SwishAgent: Watchable {
+    func mutateWatches(_ body: (inout [Expr: Expr]) -> Void) {
+        state.withLock { body(&$0.watches) }
     }
 }
