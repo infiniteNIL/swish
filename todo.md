@@ -1,6 +1,10 @@
 # Todo
 
-- [ ] Jank Clojure test suite
+- [ ] Update roadmap
+- [ ] Check for update to Jank Clojure test suite
+- [ ] Can we remove any supports for Jank test suite
+- [ ] Can we address anything in CLAUDE.md
+- [ ] Can we make any of the builtins just a Clojure function
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
