@@ -25,6 +25,7 @@ extension Parser {
     }
 
     func parseList() throws -> Expr {
+        let startToken = currentToken
         let elements = try parseDelimited(close: .rightParen) {
             ParserError.unterminatedList(line: $0.line, column: $0.column)
         }
@@ -37,12 +38,12 @@ extension Parser {
 
         if case .symbol(let name, _) = elements.first {
             switch name {
-            case "def":      try validateDef(elements)
-            case "let":      try validateBindingVector(elements, makeError: { ParserError.invalidLet($0) })
-            case "fn":       try validateFn(elements)
-            case "defmacro": try validateDefmacro(elements)
-            case "loop":     try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0) })
-            case "throw":    try validateThrow(elements)
+            case "def":      try validateDef(elements, line: startToken.line, column: startToken.column)
+            case "let":      try validateBindingVector(elements, makeError: { ParserError.invalidLet($0, line: startToken.line, column: startToken.column) })
+            case "fn":       try validateFn(elements, line: startToken.line, column: startToken.column)
+            case "defmacro": try validateDefmacro(elements, line: startToken.line, column: startToken.column)
+            case "loop":     try validateBindingVector(elements, makeError: { ParserError.invalidLoop($0, line: startToken.line, column: startToken.column) })
+            case "throw":    try validateThrow(elements, line: startToken.line, column: startToken.column)
             default: break
             }
         }

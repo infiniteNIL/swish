@@ -19,28 +19,28 @@ struct ParserSpecialFormsTests {
 
     @Test("Throws invalidLet when binding vector is missing")
     func letMissingVectorThrows() throws {
-        #expect(throws: ParserError.invalidLet("requires a binding vector")) {
+        #expect(throws: ParserError.invalidLet("requires a binding vector", line: 1, column: 1)) {
             try Reader.readString("(let)")
         }
     }
 
     @Test("Throws invalidLet when first argument is not a vector")
     func letFirstArgNotVectorThrows() throws {
-        #expect(throws: ParserError.invalidLet("first argument must be a vector")) {
+        #expect(throws: ParserError.invalidLet("first argument must be a vector", line: 1, column: 1)) {
             try Reader.readString("(let x 1)")
         }
     }
 
     @Test("Throws invalidLet when binding vector has odd number of forms")
     func letOddBindingsThrows() throws {
-        #expect(throws: ParserError.invalidLet("binding vector requires an even number of forms")) {
+        #expect(throws: ParserError.invalidLet("binding vector requires an even number of forms", line: 1, column: 1)) {
             try Reader.readString("(let [x])")
         }
     }
 
     @Test("Throws invalidLet when binding target is not a symbol")
     func letNonSymbolBindingTargetThrows() throws {
-        #expect(throws: ParserError.invalidLet("binding targets must be symbols, vectors, or maps")) {
+        #expect(throws: ParserError.invalidLet("binding targets must be symbols, vectors, or maps", line: 1, column: 1)) {
             try Reader.readString("(let [1 2])")
         }
     }
@@ -71,21 +71,21 @@ struct ParserSpecialFormsTests {
 
     @Test("Throws invalidFn when parameter vector is missing")
     func fnMissingParamVectorThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn requires a parameter vector")) {
+        #expect(throws: ParserError.invalidFn("fn requires a parameter vector", line: 1, column: 1)) {
             try Reader.readString("(fn)")
         }
     }
 
     @Test("Throws invalidFn when first argument is not a vector")
     func fnFirstArgNotVectorThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn requires a parameter vector")) {
+        #expect(throws: ParserError.invalidFn("fn requires a parameter vector", line: 1, column: 1)) {
             try Reader.readString("(fn 42)")
         }
     }
 
     @Test("Throws invalidFn when a parameter is not a symbol")
     func fnNonSymbolParamThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn parameters must be symbols, vectors, or maps")) {
+        #expect(throws: ParserError.invalidFn("fn parameters must be symbols, vectors, or maps", line: 1, column: 1)) {
             try Reader.readString("(fn [42] x)")
         }
     }
@@ -187,14 +187,14 @@ struct ParserSpecialFormsTests {
 
     @Test("defmacro requires a symbol name")
     func defmacroRequiresSymbolName() throws {
-        #expect(throws: ParserError.invalidDefmacro("first argument to defmacro must be a symbol")) {
+        #expect(throws: ParserError.invalidDefmacro("first argument to defmacro must be a symbol", line: 1, column: 1)) {
             try Reader.readString("(defmacro 42 [x] x)")
         }
     }
 
     @Test("defmacro requires a parameter vector")
     func defmacroRequiresParamVector() throws {
-        #expect(throws: ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")) {
+        #expect(throws: ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector", line: 1, column: 1)) {
             try Reader.readString("(defmacro m x x)")
         }
     }
@@ -228,7 +228,7 @@ struct ParserSpecialFormsTests {
 
     @Test("defmacro parameters must be symbols")
     func defmacroParamsMustBeSymbols() throws {
-        #expect(throws: ParserError.invalidDefmacro("defmacro parameters must be symbols, vectors, or maps")) {
+        #expect(throws: ParserError.invalidDefmacro("defmacro parameters must be symbols, vectors, or maps", line: 1, column: 1)) {
             try Reader.readString("(defmacro m [42] 42)")
         }
     }
@@ -256,14 +256,14 @@ struct ParserSpecialFormsTests {
 
     @Test("fn & with nothing after it throws invalidFn")
     func fnAmpersandAloneThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form")) {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form", line: 1, column: 1)) {
             try Reader.readString("(fn [x &] x)")
         }
     }
 
     @Test("fn & with more than one symbol after it throws invalidFn")
     func fnAmpersandTooManyThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form")) {
+        #expect(throws: ParserError.invalidFn("fn & must be followed by exactly one binding form", line: 1, column: 1)) {
             try Reader.readString("(fn [x & a b] x)")
         }
     }
@@ -329,28 +329,28 @@ struct ParserSpecialFormsTests {
 
     @Test("fn throws when two arities have the same fixed count")
     func fnDuplicateFixedArityThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn can't have 2 overloads with same arity")) {
+        #expect(throws: ParserError.invalidFn("fn can't have 2 overloads with same arity", line: 1, column: 1)) {
             try Reader.readString("(fn ([x] x) ([x] y))")
         }
     }
 
     @Test("fn throws when two variadic arities are specified")
     func fnDuplicateVariadicArityThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn can only have 1 variadic overload")) {
+        #expect(throws: ParserError.invalidFn("fn can only have 1 variadic overload", line: 1, column: 1)) {
             try Reader.readString("(fn ([x & a] x) ([y & b] y))")
         }
     }
 
     @Test("fn throws when a non-list appears in multi-arity position")
     func fnArityClauseNotListThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn arity clause must be a list")) {
+        #expect(throws: ParserError.invalidFn("fn arity clause must be a list", line: 1, column: 1)) {
             try Reader.readString("(fn ([x] x) 42)")
         }
     }
 
     @Test("fn throws when arity clause doesn't start with a vector")
     func fnArityClauseNoVectorThrows() throws {
-        #expect(throws: ParserError.invalidFn("fn arity clause must begin with a parameter vector")) {
+        #expect(throws: ParserError.invalidFn("fn arity clause must begin with a parameter vector", line: 1, column: 1)) {
             try Reader.readString("(fn (x x))")
         }
     }
@@ -365,7 +365,7 @@ struct ParserSpecialFormsTests {
 
     @Test("defmacro throws when two arities have same fixed count")
     func defmacroDuplicateFixedArityThrows() throws {
-        #expect(throws: ParserError.invalidDefmacro("defmacro can't have 2 overloads with same arity")) {
+        #expect(throws: ParserError.invalidDefmacro("defmacro can't have 2 overloads with same arity", line: 1, column: 1)) {
             try Reader.readString("(defmacro m ([] true) ([] false))")
         }
     }

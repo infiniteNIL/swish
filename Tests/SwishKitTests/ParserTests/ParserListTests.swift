@@ -116,7 +116,7 @@ struct ParserListTests {
     func defWithNonSymbolThrows() throws {
         let lexer = Lexer("(def 42 10)")
         let parser = try Parser(lexer)
-        #expect(throws: ParserError.invalidDef("first argument to def must be a symbol")) {
+        #expect(throws: ParserError.invalidDef("first argument to def must be a symbol", line: 1, column: 1)) {
             try parser.parse()
         }
     }
@@ -133,7 +133,7 @@ struct ParserListTests {
     func defWithTooManyArgumentsThrows() throws {
         let lexer = Lexer("(def x \"doc\" 1 2)")
         let parser = try Parser(lexer)
-        #expect(throws: ParserError.invalidDef("def requires 1 to 3 arguments")) {
+        #expect(throws: ParserError.invalidDef("def requires 1 to 3 arguments", line: 1, column: 1)) {
             try parser.parse()
         }
     }

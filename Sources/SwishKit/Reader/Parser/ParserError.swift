@@ -12,12 +12,12 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
     case duplicateMapKey(String, line: Int, column: Int)
     case invalidMetadataSpec(line: Int, column: Int)
     case metadataOnUnsupportedForm(line: Int, column: Int)
-    case invalidDef(String)
-    case invalidLet(String)
-    case invalidFn(String)
-    case invalidDefmacro(String)
-    case invalidLoop(String)
-    case invalidThrow(String)
+    case invalidDef(String, line: Int, column: Int)
+    case invalidLet(String, line: Int, column: Int)
+    case invalidFn(String, line: Int, column: Int)
+    case invalidDefmacro(String, line: Int, column: Int)
+    case invalidLoop(String, line: Int, column: Int)
+    case invalidThrow(String, line: Int, column: Int)
     case nestedAnonymousFunction(line: Int, column: Int)
     case invalidReaderConditional(String, line: Int, column: Int)
     case splicingOutsideCollection(line: Int, column: Int)
@@ -65,23 +65,23 @@ public enum ParserError: Error, Equatable, CustomStringConvertible {
         case .metadataOnUnsupportedForm(let line, let column):
             "Metadata (line \(line), column \(column)) cannot be attached to this form."
 
-        case .invalidDef(let message):
-            message
+        case .invalidDef(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
-        case .invalidLet(let message):
-            message
+        case .invalidLet(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
-        case .invalidFn(let message):
-            message
+        case .invalidFn(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
-        case .invalidDefmacro(let message):
-            message
+        case .invalidDefmacro(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
-        case .invalidLoop(let message):
-            message
+        case .invalidLoop(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
-        case .invalidThrow(let message):
-            message
+        case .invalidThrow(let message, let line, let column):
+            "\(message) (line \(line), column \(column))."
 
         case .nestedAnonymousFunction(let line, let column):
             "Anonymous function literals cannot be nested (line \(line), column \(column))."

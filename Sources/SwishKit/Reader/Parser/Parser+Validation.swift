@@ -2,20 +2,20 @@ extension Parser {
 
     // MARK: - Special-form validation
 
-    func validateDef(_ elements: [Expr]) throws {
+    func validateDef(_ elements: [Expr], line: Int, column: Int) throws {
         guard elements.count >= 2 && elements.count <= 4 else {
-            throw ParserError.invalidDef("def requires 1 to 3 arguments")
+            throw ParserError.invalidDef("def requires 1 to 3 arguments", line: line, column: column)
         }
 
         guard case .symbol = elements[1] else {
-            throw ParserError.invalidDef("first argument to def must be a symbol")
+            throw ParserError.invalidDef("first argument to def must be a symbol", line: line, column: column)
         }
     }
 
-    func validateThrow(_ elements: [Expr]) throws {
+    func validateThrow(_ elements: [Expr], line: Int, column: Int) throws {
         guard elements.count == 2
         else {
-            throw ParserError.invalidThrow("throw requires exactly 1 argument")
+            throw ParserError.invalidThrow("throw requires exactly 1 argument", line: line, column: column)
         }
     }
 
@@ -37,43 +37,43 @@ extension Parser {
         }
     }
 
-    func validateFn(_ elements: [Expr]) throws {
+    func validateFn(_ elements: [Expr], line: Int, column: Int) throws {
         var offset = 1
         if elements.count > 2, case .symbol = elements[1] {
             offset = 2
         }
         guard offset < elements.count else {
-            throw ParserError.invalidFn("fn requires a parameter vector")
+            throw ParserError.invalidFn("fn requires a parameter vector", line: line, column: column)
         }
         switch elements[offset] {
         case .list:
             try validateArityForms(Array(elements.dropFirst(offset)),
-                                   makeError: { ParserError.invalidFn("fn \($0)") })
+                                   makeError: { ParserError.invalidFn("fn \($0)", line: line, column: column) })
         case .vector(let params, _):
-            try validateParamVector(params) { ParserError.invalidFn("fn \($0)") }
+            try validateParamVector(params) { ParserError.invalidFn("fn \($0)", line: line, column: column) }
         default:
-            throw ParserError.invalidFn("fn requires a parameter vector")
+            throw ParserError.invalidFn("fn requires a parameter vector", line: line, column: column)
         }
     }
 
-    func validateDefmacro(_ elements: [Expr]) throws {
+    func validateDefmacro(_ elements: [Expr], line: Int, column: Int) throws {
         guard elements.count >= 3, case .symbol = elements[1] else {
-            throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol")
+            throw ParserError.invalidDefmacro("first argument to defmacro must be a symbol", line: line, column: column)
         }
         var idx = 2
         if idx < elements.count, case .string = elements[idx] { idx += 1 }
         if idx < elements.count, case .map = elements[idx] { idx += 1 }
         guard idx < elements.count else {
-            throw ParserError.invalidDefmacro("defmacro requires a parameter vector or arity clauses")
+            throw ParserError.invalidDefmacro("defmacro requires a parameter vector or arity clauses", line: line, column: column)
         }
         switch elements[idx] {
         case .vector(let params, _):
-            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)") }
+            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)", line: line, column: column) }
         case .list:
             try validateArityForms(Array(elements.dropFirst(idx)),
-                                   makeError: { ParserError.invalidDefmacro("defmacro \($0)") })
+                                   makeError: { ParserError.invalidDefmacro("defmacro \($0)", line: line, column: column) })
         default:
-            throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector")
+            throw ParserError.invalidDefmacro("second argument to defmacro must be a parameter vector", line: line, column: column)
         }
     }
 
