@@ -1,6 +1,8 @@
 (ns clojure.core
   "Fundamental library of the Clojure language")
 
+;;; Core Macros
+
 (defmacro and
   "Evaluates exprs one at a time, from left to right. If a form
    returns logical false (nil or false), and returns that value and
@@ -229,6 +231,8 @@
    :static true}
   [coll]
   (reduce conj () (seq coll)))
+
+;;; Sequence Functions
 
 (defn long-array
   "Returns an array of longs, from a collection or of n zeros."
@@ -503,6 +507,8 @@
   ([pred] (filter (complement pred)))
   ([pred coll] (filter (complement pred) coll)))
 
+;;; Threading Macros
+
 (defmacro lazy-cat
   "Expands to code which yields a lazy sequence of the concatenation
   of the supplied colls. Each coll expr is not evaluated until it is
@@ -556,6 +562,8 @@
                        (list form x))]
         (recur threaded (next forms)))
       x)))
+
+;;; Numeric Predicates
 
 (defn inc
   "Returns a number one greater than num. Does not auto-promote
@@ -652,6 +660,8 @@
   [x] (and (int? x)
            (not (neg? x))))
 
+;;; Higher-Order Functions
+
 (defn identity
   "Returns its argument."
   {:added "1.0"}
@@ -747,6 +757,8 @@
          ([x y z] (reduce1 #(conj %1 (%2 x y z)) [] fs))
          ([x y z & args] (reduce1 #(conj %1 (apply %2 x y z args)) [] fs))))))
 
+;;; Volatiles & Transducers
+
 (defn volatile!
   "Creates and returns a Volatile with an initial value of val."
   {:added "1.7"}
@@ -830,6 +842,8 @@
   [coll]
   (reduce conj #{} (seq coll)))
 
+;;; Assertions & I/O
+
 (def ^:dynamic *assert*
   "When set to logical false, 'assert' will omit assertion checks in
   compiled code. Defaults to true."
@@ -896,6 +910,8 @@
      (binding [*out* s#]
        ~@body
        (swish-writer-string s#))))
+
+;;; Sequence Coercion & Associative Functions
 
 (defn sequence
   "Coerces coll to a (possibly empty) sequence, if it is not already
@@ -1049,6 +1065,8 @@
   (when (some identity maps)
     (reduce #(conj (or %1 {}) %2) maps)))
 
+;;; Sequence Utilities
+
 (def cat
   (fn [rf]
     (let [rf1 (fn [result input]
@@ -1164,6 +1182,8 @@
           (seq xs)))
       ())
     coll))
+
+;;; Partitioning, Grouping & Sorting
 
 (defn partition
   "Returns a lazy sequence of lists of n items each, at offsets step
@@ -1298,6 +1318,8 @@
              (recur w kw (next more))
              (recur v kv (next more))))
          v)))))
+
+;;; Distinct, Interleaving & Indexing
 
 (defn distinct
   "Returns a lazy sequence of the elements of coll with duplicates
@@ -1494,6 +1516,8 @@
                 (cons (f idx (first s)) (mapi (inc idx) (rest s))))))]
      (mapi 0 coll))))
 
+;;; Iteration Macros
+
 (defmacro doseq
   "Repeatedly executes body (presumably for side-effects) with
   bindings and filtering as provided by \"for\".  Does not retain
@@ -1605,6 +1629,8 @@
     `(let [iter# ~(emit-bind (to-groups seq-exprs))]
        (or (iter# ~(second seq-exprs)) (list)))))
 
+;;; Randomization & Concurrency Macros
+
 (defn rand-int
   "Returns a random integer between 0 (inclusive) and n (exclusive)."
   {:added "1.0"}
@@ -1649,6 +1675,8 @@
   running on this thread, else runs in the existing transaction."
   [& body]
   `(dosync-call (fn [] ~@body)))
+
+;;; Protocols
 
 (defn- protocol-method-spec [spec]
   (let [mname (first spec)
@@ -1699,6 +1727,8 @@
                     `(defn ~mname ~@arities))))
               parsed)
        '~qualified)))
+
+;;; Identifier Predicates & Misc
 
 (defn ident?
   "Return true if x is a symbol or keyword"
