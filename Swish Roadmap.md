@@ -10,6 +10,8 @@ Swish is a Clojure dialect embedded in Swift apps. Long-term goals:
 
 ## Tier 1 — Missing Clojure fundamentals (blocking practical use)
 
+**Status: ✅ Complete**
+
 These are used in virtually all real Clojure code. Without them, you can't write idiomatic Clojure.
 
 ### Destructuring
@@ -71,64 +73,72 @@ The simplest concurrency primitive and the one real Clojure apps use most.
 ```
 Needs `atom`, `deref` (`@`), `swap!`, `reset!`.
 
-**Note — CAS semantics (future):** The current `swap!` implementation uses simple
-assignment, which is correct for single-threaded use. True Clojure-style `swap!`
-uses Compare-and-Set with retry: read current value, compute new value, atomically
-swap only if the value hasn't changed (retry if it has). This matters for concurrent
-mutation from multiple threads. Implementing it properly requires making the
-Evaluator itself concurrency-safe first — locking atoms in isolation provides false
-safety. Address when multi-threaded Swish evaluation becomes a concrete requirement.
+**Note — CAS semantics: implemented.** `swap!` now uses real Compare-and-Set with
+retry (`SwishAtom.compareAndSet`, looped in `CoreAtom.swift`): read current value,
+compute new value, atomically swap only if the value hasn't changed, retrying from
+the read if it has — correct under concurrent mutation from multiple threads, not
+just single-threaded use.
 
 ---
 
 ## Tier 2 — Standard library (needed for practical code)
 
-### Sequence utilities
+**Status: ✅ Complete except `source`** (see below — deliberately not being pursued)
+
+### Sequence utilities — ✅ done
 We deferred these when adding sequence foundation. Now needed:
 `nth`, `take`, `drop`, `take-while`, `drop-while`, `last`, `butlast`,
 `reverse`, `flatten`, `partition`, `partition-all`, `group-by`,
 `frequencies`, `sort`, `sort-by`, `distinct`, `interleave`, `interpose`,
 `zipmap`, `keep`, `keep-indexed`, `map-indexed`, `doall`, `doseq`, `for`
 
-### Lazy sequences
-Currently `lazy-seq` is an eager no-op macro, sufficient for finite collections.
-True lazy sequences are needed for: infinite sequences (`range`, `iterate`, `repeat`,
-`cycle`), memory-efficient processing of large collections, and full Clojure
-compatibility. Implementing this properly requires a new `LazySeq` reference type
-(similar to `SwishAtom`) that wraps a thunk and caches its realized value.
+### Lazy sequences — ✅ done
+Real thunk-backed, memoized lazy sequences, via a `LazySeqBox` reference type
+(`.lazySeq(LazySeqBox)` case on `Expr`) that wraps a thunk and caches its realized
+head/tail on first force. Backs infinite sequences (`range`, `iterate`, `repeat`,
+`cycle`, `repeatedly`) and memory-efficient processing of large collections. See
+CLAUDE.md's "Lazy Sequences" architecture section for the full design (including
+`*print-length*` capping and the `LazySeqBox` deinit stack-safety fix).
 
-### Transducers
+### Transducers — ✅ done
 Clojure 1.7 added transducers: composable reducing-function transformers. The 1-arity
 forms of `map`, `filter`, `take`, `take-while`, `drop`, `drop-while`, etc. each
 return a transducer rather than a sequence. Useful with `transduce`, `sequence`, and
 `into`. Requires implementing the full protocol as a cohesive unit — adding 1-arity
 forms to individual functions without `transduce`/`sequence` would be useless.
 
-### clojure.string
+### clojure.string — ✅ done
 At minimum: `join`, `split`, `trim`, `trim-left/right`, `upper-case`, `lower-case`,
 `starts-with?`, `ends-with?`, `includes?`, `replace`, `blank?`
 
-### clojure.set
+### clojure.set — ✅ done
 `union`, `intersection`, `difference`, `subset?`, `superset?`
 
-### Better I/O
+### Better I/O — ✅ done
 `slurp`, `spit`, `read-string`, `with-open` — needed for any file-touching code.
 
 ### `source` function
-Prints the source of a Swish-defined function, similar to `clojure.repl/source`.
-Approach: store a reconstructed `(defn ...)` form in `:src` var metadata at
-definition time; expose `sourceForm` (already in the Printer) as a callable Swish
-function; `source` macro looks up `:src` via `resolve`/`meta`. Limitation: comments
-lost (not in AST), and native Swift functions show "Source not available".
+
+**Status: ❌ Won't implement.** Would print the source of a Swish-defined function,
+similar to `clojure.repl/source`. Deliberately not being pursued: comments aren't
+preserved in the AST so reconstructed source would always lose them, and native
+Swift functions have no Swish source to show at all ("Source not available" for a
+large fraction of `clojure.core`) — not a good enough result to justify building.
 
 ---
 
 ## Tier 3 — Embedding API (the "for Swift" part, short-term)
 
+**Status: this is the current frontier.** `SwishKit.swift`'s public `Swish` struct
+today only exposes `run(filename:)`, `eval(_:) -> Expr`, `currentNamespaceName`, and
+`interruptionCheck` — none of the items below exist yet, and `evaluator: Evaluator`
+isn't even `public`, so client Swift code can't reach `.register(...)` directly
+either. Matches `todo.md`'s active "Embedding API" item.
+
 Before deep ObjC/Swift interop, Swish needs a clean embedding API so Swift code can use it.
 
 ### What's needed:
-- `Evaluator.eval(string:)` — evaluate Swish source from Swift (already exists, exposed?)
+- ✅ `Evaluator.eval(string:)` — evaluate Swish source from Swift (confirmed: `Swish.eval(_:) -> Expr` in `SwishKit.swift`)
 - `Evaluator.call(name:args:)` — call a Swish function by name from Swift
 - Swift→Swish value conversion — `Int`, `String`, `Bool`, `[Any]`, `[String: Any]` ↔ `Expr`
 - Error type — a public `SwishError` that Swift catch blocks can use
@@ -214,14 +224,14 @@ Mode 1 is feasible; Mode 2 is a research project. Start with Mode 1.
 
 ## Recommended sequence
 
-1. **Destructuring** — biggest impact on code quality
-2. **try/catch/throw** — essential for embedding
-3. **cond + threading macros + when-let/if-let** — complete the core idioms
-4. **Missing map operations (dissoc, assoc-in, get-in, update, update-in, keys, vals)**
-5. **Atoms** — mutable state
-6. **Sequence utilities** (nth, take, drop, sort, etc.)
-7. **Embedding API cleanup** (public Swift interface to Swish)
-8. **clojure.string + clojure.set**
-9. **Bytecode interpreter** (architectural rework)
-10. **ObjC/Swift interop** (. special form)
-11. **Compile to Swift**
+1. ✅ **Destructuring** — biggest impact on code quality
+2. ✅ **try/catch/throw** — essential for embedding
+3. ✅ **cond + threading macros + when-let/if-let** — complete the core idioms
+4. ✅ **Missing map operations (dissoc, assoc-in, get-in, update, update-in, keys, vals)**
+5. ✅ **Atoms** — mutable state
+6. ✅ **Sequence utilities** (nth, take, drop, sort, etc.)
+7. **Embedding API cleanup** (public Swift interface to Swish) — ← current frontier, not started
+8. ✅ **clojure.string + clojure.set**
+9. **Bytecode interpreter** (architectural rework) — not started
+10. **ObjC/Swift interop** (. special form) — not started
+11. **Compile to Swift** — not started
