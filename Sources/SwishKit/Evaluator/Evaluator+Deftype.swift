@@ -60,7 +60,7 @@ extension Evaluator {
         let outerLocals = env.allNames()
         for (methodName, clauses) in methodsByName {
             let arities = try clauses.map { clause -> FnArity in
-                let arity = try buildFnArity(from: clause.clause, functionName: methodName, validateRecur: true, outerLocals: outerLocals)
+                let arity = try buildFnArity(from: clause.clause, functionName: methodName, validateRecur: true, outerLocals: outerLocals.union(fields))
                 guard !fields.isEmpty, let firstParam = arity.params.first else { return arity }
                 return FnArity(params: arity.params, body: wrapWithFieldBindings(arity.body, firstParam: firstParam, fields: fields))
             }
