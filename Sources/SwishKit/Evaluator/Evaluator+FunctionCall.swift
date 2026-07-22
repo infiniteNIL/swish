@@ -81,11 +81,12 @@ extension Evaluator {
     }
 
     private func callMacro(name: String?, params: [String], body: [Expr], args: ArraySlice<Expr>, in env: Environment) throws -> Expr {
-        guard callDepth < maxCallDepth else {
+        let depthBox = callDepthBox()
+        guard depthBox.value < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
         }
-        callDepth += 1
-        defer { callDepth -= 1 }
+        depthBox.value += 1
+        defer { depthBox.value -= 1 }
         let expanded = try expandMacro(name: name ?? "macro", params: params, body: body, args: Array(args))
         return try eval(expanded, in: env)
     }
@@ -102,11 +103,12 @@ extension Evaluator {
 
     func callUserFunction(name: String?, params: [String], body: [Expr], args: [Expr],
                           in env: Environment, rest: Expr? = nil, selfExpr: Expr? = nil) throws -> Expr {
-        guard callDepth < maxCallDepth else {
+        let depthBox = callDepthBox()
+        guard depthBox.value < maxCallDepth else {
             throw EvaluatorError.stackOverflow(maxDepth: maxCallDepth)
         }
-        callDepth += 1
-        defer { callDepth -= 1 }
+        depthBox.value += 1
+        defer { depthBox.value -= 1 }
         var currentArgs = args
         var currentRest = rest
         while true {

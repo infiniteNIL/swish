@@ -129,8 +129,7 @@ private func coreSubs(_ args: [Expr]) throws -> Expr {
             function: "subs",
             message: "start must be an integer")
     }
-    let chars = Array(s)
-    let len = chars.count
+    let len = s.count
     let end: Int
     if args.count == 3 {
         guard case .integer(let e) = args[2] else {
@@ -143,10 +142,13 @@ private func coreSubs(_ args: [Expr]) throws -> Expr {
     else {
         end = len
     }
-    guard start >= 0, end >= start, end <= len else {
+    guard start >= 0, end >= start, end <= len,
+          let startIdx = s.index(s.startIndex, offsetBy: start, limitedBy: s.endIndex),
+          let endIdx = s.index(s.startIndex, offsetBy: end, limitedBy: s.endIndex)
+    else {
         throw EvaluatorError.invalidArgument(
             function: "subs",
             message: "index out of range (start=\(start), end=\(end), length=\(len))")
     }
-    return .string(String(chars[start..<end]))
+    return .string(String(s[startIdx..<endIdx]))
 }

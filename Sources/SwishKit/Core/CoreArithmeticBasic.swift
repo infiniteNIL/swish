@@ -46,6 +46,27 @@ func registerArithmeticBasic(into evaluator: Evaluator) {
 
 // MARK: - Implementations
 
+/// Fast path for the common case where every argument is already `.integer` —
+/// skips `coerceNumericPair`'s full numeric-tower dispatch per pairwise step.
+/// Returns `nil` the moment any argument isn't `.integer`, so the caller falls
+/// back to the general numeric-tower reduce unchanged (same overflow-error shape
+/// either way). Not used by `/`, which isn't closed over `Int` (`(/ 10 3)` is a
+/// `Ratio`), so a mid-reduce step can leave `Int` territory in a way `+`/`-`/`*` never do.
+private func fastAllIntegerReduce(
+    _ args: [Expr], operation: String,
+    combine: (Int, Int) -> (partialValue: Int, overflow: Bool)
+) throws -> Expr? {
+    guard case .integer(let first) = args[0] else { return nil }
+    var acc = first
+    for arg in args.dropFirst() {
+        guard case .integer(let x) = arg else { return nil }
+        let (result, overflow) = combine(acc, x)
+        if overflow { throw EvaluatorError.integerOverflow(operation: operation, lhs: acc, rhs: x) }
+        acc = result
+    }
+    return .integer(acc)
+}
+
 func coreAdd(_ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         return .integer(0)
@@ -53,6 +74,10 @@ func coreAdd(_ args: [Expr]) throws -> Expr {
 
     if args.count == 1 {
         return try coreNum([args[0]])
+    }
+
+    if let fast = try fastAllIntegerReduce(args, operation: "+", combine: { $0.addingReportingOverflow($1) }) {
+        return fast
     }
 
     return try args.dropFirst().reduce(args[0]) { try numericAdd($0, $1) }
@@ -91,6 +116,10 @@ func coreSubtract(_ args: [Expr]) throws -> Expr {
         }
     }
 
+    if let fast = try fastAllIntegerReduce(args, operation: "-", combine: { $0.subtractingReportingOverflow($1) }) {
+        return fast
+    }
+
     return try args.dropFirst().reduce(args[0]) { try numericSubtract($0, $1) }
 }
 
@@ -100,6 +129,9 @@ private func coreMultiply(_ args: [Expr]) throws -> Expr {
     }
     if args.count == 1 {
         return try coreNum([args[0]])
+    }
+    if let fast = try fastAllIntegerReduce(args, operation: "*", combine: { $0.multipliedReportingOverflow(by: $1) }) {
+        return fast
     }
     return try args.dropFirst().reduce(args[0]) { try numericMultiply($0, $1) }
 }

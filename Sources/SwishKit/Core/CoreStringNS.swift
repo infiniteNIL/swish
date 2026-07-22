@@ -67,6 +67,11 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "Return a new string, using cmap to escape each character ch from s: " +
                  "if (cmap ch) is nil, append ch unchanged, else append (str (cmap ch)).",
             arglists: [["s", "cmap"]])
+
+        ns.register(name: "join", value: coreJoin,
+            doc: "Returns a string of all elements in coll, as returned by (seq coll), " +
+                 "separated by an optional separator.",
+            arglists: [["coll"], ["sep", "coll"]])
 }
 
 private func makeEscapeFunction(evaluator: Evaluator) -> Expr {
@@ -289,6 +294,20 @@ private let coreStringReverse = Expr.nativeFunction(name: "reverse", arity: .fix
         throw EvaluatorError.invalidArgument(function: "reverse", message: "argument must be a string")
     }
     return .string(String(s.reversed()))
+}
+
+private let coreJoin = Expr.nativeFunction(name: "join", arity: .variadic) { args in
+    guard args.count == 1 || args.count == 2 else {
+        throw EvaluatorError.invalidArgument(function: "join",
+            message: "requires 1 or 2 arguments, got \(args.count)")
+    }
+    let sep = args.count == 2 ? corePrinter.strString(args[0]) : ""
+    let collArg = args.count == 2 ? args[1] : args[0]
+    guard let elements = asSequence(collArg) else {
+        throw EvaluatorError.invalidArgument(function: "join",
+            message: "don't know how to create seq from \(corePrinter.printString(collArg))")
+    }
+    return .string(elements.map { corePrinter.strString($0) }.joined(separator: sep))
 }
 
 private func splitImpl(_ s: String, regex: SwishRegex, limit: Int) -> [Substring] {

@@ -53,9 +53,16 @@ public class Evaluator {
     /// Recursion-depth guard, thread-local for the same reason as `bindingFrames`:
     /// a shared counter would let two threads' independent call-stacks corrupt each
     /// other's depth tracking (falsely tripping, or masking real overflow).
+    /// Fetches the thread-local call-depth box itself (one dictionary lookup),
+    /// for hot paths that read-then-write it — e.g. `callDepth += 1` on the
+    /// computed property below costs a lookup for the get *and* the set.
+    func callDepthBox() -> ThreadLocalBox<Int> {
+        threadLocalBox(for: Self.callDepthKey, default: 0)
+    }
+
     var callDepth: Int {
-        get { threadLocalBox(for: Self.callDepthKey, default: 0).value }
-        set { threadLocalBox(for: Self.callDepthKey, default: 0).value = newValue }
+        get { callDepthBox().value }
+        set { callDepthBox().value = newValue }
     }
     let maxCallDepth = 1_000
     var interruptionCheck: (() -> Bool)? = nil

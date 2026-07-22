@@ -23,13 +23,14 @@ extension Evaluator {
         callDepth depth: Int,
         _ body: () throws -> T
     ) rethrows -> T {
+        let depthBox = callDepthBox()
         let savedFrames = bindingFrames
-        let savedDepth = callDepth
+        let savedDepth = depthBox.value
         bindingFrames = frames
-        callDepth = depth
+        depthBox.value = depth
         defer {
             bindingFrames = savedFrames
-            callDepth = savedDepth
+            depthBox.value = savedDepth
         }
         return try body()
     }
