@@ -369,33 +369,33 @@ private func corePrintDoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
             message: "argument must be a symbol")
     }
     if let ns = evaluator.findNs(name) {
-        Swift.print(String(repeating: "-", count: 25))
-        Swift.print(ns.name)
+        var lines = [String(repeating: "-", count: 25), ns.name]
         if let meta = ns.metadata, case .string(let doc) = meta[.keyword("doc")] {
             for line in doc.components(separatedBy: "\n") {
-                Swift.print("  \(line)")
+                lines.append("  \(line)")
             }
         }
+        try writeToOut(evaluator, lines.joined(separator: "\n") + "\n")
         return .nil
     }
     let v = (try? evaluator.resolveQualifiedVar(name: name)) ?? nil
               ?? evaluator.resolveVar(name: name, in: evaluator.currentNs())
     guard let v else {
-        Swift.print("No doc found for \(name)")
+        try writeToOut(evaluator, "No doc found for \(name)\n")
         return .nil
     }
-    Swift.print(String(repeating: "-", count: 25))
-    Swift.print("\(v.namespace.name)/\(v.name)")
+    var lines = [String(repeating: "-", count: 25), "\(v.namespace.name)/\(v.name)"]
     if let meta = v.metadata {
         if let arglists = meta[.keyword("arglists")] {
-            Swift.print(corePrinter.printString(arglists))
+            lines.append(corePrinter.printString(arglists))
         }
         if case .string(let doc) = meta[.keyword("doc")] {
             for line in doc.components(separatedBy: "\n") {
-                Swift.print("  \(line)")
+                lines.append("  \(line)")
             }
         }
     }
+    try writeToOut(evaluator, lines.joined(separator: "\n") + "\n")
     return .nil
 }
 

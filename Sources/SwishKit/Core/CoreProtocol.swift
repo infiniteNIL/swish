@@ -1,3 +1,5 @@
+private let protocolImplsKey = Expr.keyword("impls")
+
 // MARK: - Registration
 
 func registerProtocol(into evaluator: Evaluator) {
@@ -47,7 +49,7 @@ private func coreExtend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreSatisfies(_ args: [Expr]) throws -> Expr {
-    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[.keyword("impls")] else {
+    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[protocolImplsKey] else {
         throw EvaluatorError.invalidArgument(function: "satisfies?", message: "first argument must be a protocol")
     }
     let typeName = args[1].description
@@ -55,7 +57,7 @@ private func coreSatisfies(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreExtends(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[.keyword("impls")] else {
+    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[protocolImplsKey] else {
         throw EvaluatorError.invalidArgument(function: "extends?", message: "first argument must be a protocol")
     }
     let typeName = try evaluator.dispatchTypeName(for: args[1], formName: "extends?")
@@ -63,7 +65,7 @@ private func coreExtends(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 }
 
 private func coreExtenders(_ args: [Expr]) throws -> Expr {
-    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[.keyword("impls")] else {
+    guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[protocolImplsKey] else {
         throw EvaluatorError.invalidArgument(function: "extenders", message: "argument must be a protocol")
     }
     let types = impls.dict.keys.map { key -> Expr in

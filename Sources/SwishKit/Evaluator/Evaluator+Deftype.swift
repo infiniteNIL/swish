@@ -1,3 +1,6 @@
+private let protocolImplsKey = Expr.keyword("impls")
+private let protocolInlineImplsKey = Expr.keyword("inline-impls")
+
 extension Evaluator {
     /// One parsed method implementation clause. `clause` is `([params] body...)` —
     /// the same shape `buildFnArity` (used by `fn`/`defn`) already expects, so
@@ -118,11 +121,11 @@ extension Evaluator {
         }
 
         var impls: [Expr: Expr] = [:]
-        if case .map(let existingImpls)? = currentProtoMap.dict[.keyword("impls")] {
+        if case .map(let existingImpls)? = currentProtoMap.dict[protocolImplsKey] {
             impls = existingImpls.dict
         }
         var inlineImpls: Set<Expr> = []
-        if case .set(let existingInline)? = currentProtoMap.dict[.keyword("inline-impls")] {
+        if case .set(let existingInline)? = currentProtoMap.dict[protocolInlineImplsKey] {
             inlineImpls = existingInline.elements
         }
 
@@ -142,8 +145,8 @@ extension Evaluator {
         if inline { inlineImpls.insert(typeKey) }
 
         var newProtoMap = currentProtoMap.dict
-        newProtoMap[.keyword("impls")] = .map(impls, metadata: nil)
-        newProtoMap[.keyword("inline-impls")] = .set(inlineImpls, metadata: nil)
+        newProtoMap[protocolImplsKey] = .map(impls, metadata: nil)
+        newProtoMap[protocolInlineImplsKey] = .set(inlineImpls, metadata: nil)
         protoVar.value = .map(newProtoMap, metadata: nil)
     }
 

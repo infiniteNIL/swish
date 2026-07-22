@@ -3,6 +3,10 @@ import Synchronization
 /// A Swish var — an interned, named reference to a value
 public final class Var: @unchecked Sendable {
     public let name: String
+    /// Safe as `unowned` only because `Namespace`s live for the process's
+    /// entire lifetime today — there is no namespace-removal API anywhere in
+    /// the codebase. Revisit (e.g. `unowned(unsafe)` → `weak` with explicit
+    /// nil-handling) if namespace unloading is ever added.
     public unowned let namespace: Namespace
 
     private struct State {
