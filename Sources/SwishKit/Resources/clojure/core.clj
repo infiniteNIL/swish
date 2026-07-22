@@ -911,6 +911,35 @@
        ~@body
        (swish-writer-string s#))))
 
+(def ^:dynamic *math-context*
+  "Bound by with-precision to {:precision n :rounding kw-or-nil} for the
+  duration of its body. Swish applies this to the *final result* of the body
+  only, not to every intermediate BigDecimal operation within it (unlike real
+  Clojure) — see CLAUDE.md. nil outside with-precision."
+  nil)
+
+(defn- round-with-math-context [x]
+  (if (and *math-context* (decimal? x))
+    (let [{:keys [precision rounding]} *math-context*]
+      (when (and rounding (not= rounding :HALF_UP))
+        (throw (str "with-precision: unsupported rounding mode " rounding
+                    " (Swish's BigDecimal only supports HALF_UP-style rounding)")))
+      (bigdec-round-to-precision x precision))
+    x))
+
+(defmacro with-precision
+  "Sets the precision (and, optionally, rounding mode) used to round the final
+  result of body when it's a BigDecimal. Swish-specific: only rounds the body's
+  overall result (not every intermediate op) and only supports HALF_UP-style
+  rounding — any other :rounding mode throws. See *math-context* and CLAUDE.md."
+  {:added "1.0"}
+  [precision & exprs]
+  (let [rounding? (= (first exprs) :rounding)
+        rounding-kw (if rounding? (keyword (name (second exprs))) nil)
+        body (if rounding? (drop 2 exprs) exprs)]
+    `(binding [*math-context* {:precision ~precision :rounding ~rounding-kw}]
+       (round-with-math-context (do ~@body)))))
+
 ;;; Sequence Coercion & Associative Functions
 
 (defn sequence
