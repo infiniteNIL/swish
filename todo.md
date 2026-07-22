@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Update roadmap
 - [ ] Check for update to Jank Clojure test suite
 - [ ] Can we remove any supports for Jank test suite
 - [ ] Can we address anything in CLAUDE.md
@@ -19,6 +18,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Update roadmap
 - [x] SwishPersistentList (Swift collections doesn't have a list)
 - [x] Now passing Jank Clojure Test suite with zero SKIPs
 - [x] with-precision / *math-context* (1 rounding mode only, result-only not per-op — see CLAUDE.md)
