@@ -20,8 +20,8 @@
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
 - [x] SwishPersistentList (Swift collections doesn't have a list)
-- [x] with-precision / *math-context* (1 rounding mode only, result-only not per-op — see CLAUDE.md)
 - [x] Now passing Jank Clojure Test suite with zero SKIPs
+- [x] with-precision / *math-context* (1 rounding mode only, result-only not per-op — see CLAUDE.md)
 - [x] multi methods
 - [x] ==
 - [x] into-array
