@@ -114,12 +114,20 @@ private func requireString(_ arg: Expr, function: String) throws -> String {
 
 private func makeReplaceFunction(evaluator: Evaluator) -> Expr {
     return Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [evaluator] args in
-        let s = try requireString(args[0], function: "replace")
+        let s = try requireNonNilStr(args[0], function: "replace")
         switch args[1] {
         case .string(let match):
             guard case .string(let repl) = args[2] else {
                 throw EvaluatorError.invalidArgument(function: "replace",
                     message: "string match requires string replacement")
+            }
+            if match.isEmpty {
+                var result = repl
+                for ch in s {
+                    result.append(ch)
+                    result += repl
+                }
+                return .string(result)
             }
             return .string(s.replacingOccurrences(of: match, with: repl))
 
@@ -132,8 +140,16 @@ private func makeReplaceFunction(evaluator: Evaluator) -> Expr {
 
         case .regex(let re):
             switch args[2] {
-            case .string(let repl):
-                return .string(s.replacing(re.regex, with: repl))
+            case .string(let replTemplate):
+                var result = ""
+                var lastEnd = s.startIndex
+                for match in s.matches(of: re.regex) {
+                    result += s[lastEnd..<match.range.lowerBound]
+                    result += expandReplacementTemplate(replTemplate, output: match.output)
+                    lastEnd = match.range.upperBound
+                }
+                result += s[lastEnd...]
+                return .string(result)
 
             default:
                 let f = args[2]
@@ -158,6 +174,43 @@ private func makeReplaceFunction(evaluator: Evaluator) -> Expr {
                 message: "match must be a string, character, or regex")
         }
     }
+}
+
+/// Expands `$N` capture-group backreferences (`$0` = whole match, `$1`... = groups
+/// in order) in a regex replacement template, matching Java `Matcher.appendReplacement`'s
+/// template dialect (which real Clojure's own `replace` docstring references). `\`
+/// escapes the following character to a literal. A `$` not followed by digits that
+/// resolve to a valid group number, or digits resolving out of range, is left literal.
+private func expandReplacementTemplate(_ template: String, output: AnyRegexOutput) -> String {
+    var result = ""
+    var chars = Substring(template)
+    while let ch = chars.first {
+        if ch == "\\", let next = chars.dropFirst().first {
+            result.append(next)
+            chars = chars.dropFirst(2)
+        }
+        else if ch == "$" {
+            var digits = ""
+            var rest = chars.dropFirst()
+            while let d = rest.first, d.isNumber {
+                digits.append(d)
+                rest = rest.dropFirst()
+            }
+            if let groupNum = Int(digits), groupNum < output.count {
+                result += output[groupNum].substring.map(String.init) ?? ""
+                chars = rest
+            }
+            else {
+                result.append(ch)
+                chars = chars.dropFirst()
+            }
+        }
+        else {
+            result.append(ch)
+            chars = chars.dropFirst()
+        }
+    }
+    return result
 }
 
 // MARK: - Implementations

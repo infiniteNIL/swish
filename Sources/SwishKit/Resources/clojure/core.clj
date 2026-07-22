@@ -1072,6 +1072,12 @@
         (recur (next s))
         false))))
 
+(defn not-every?
+  "Returns false if (pred x) is logical true for every x in coll, else true."
+  {:added "1.0"}
+  [pred coll]
+  (not (every? pred coll)))
+
 (defn some
   "Returns the first logical true value of (pred x) for any x in coll,
    else nil."

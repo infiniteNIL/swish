@@ -384,6 +384,40 @@ struct EvaluatorSequenceTests {
         }
     }
 
+    @Test("contains? true for valid array index")
+    func containsArrayIndex() throws {
+        #expect(try evaluator.eval("(contains? (int-array [1 2 3]) 0)") == .boolean(true))
+        #expect(try evaluator.eval("(contains? (int-array [1 2 3]) 2)") == .boolean(true))
+    }
+
+    @Test("contains? false for out-of-bounds array index")
+    func containsArrayOutOfBounds() throws {
+        #expect(try evaluator.eval("(contains? (int-array [1 2 3]) 3)") == .boolean(false))
+        #expect(try evaluator.eval("(contains? (int-array [1 2 3]) -1)") == .boolean(false))
+    }
+
+    @Test("contains? throws for non-integer key on array (unlike vectors, which return false)")
+    func containsArrayNonIntegerKeyThrows() throws {
+        #expect(throws: (any Error).self) { try evaluator.eval("(contains? (int-array [1 2 3]) :a)") }
+        #expect(throws: (any Error).self) { try evaluator.eval("(contains? (int-array [1 2 3]) nil)") }
+    }
+
+    @Test("contains? true for valid map entry index")
+    func containsMapEntryIndex() throws {
+        #expect(try evaluator.eval("(contains? (first {:a 1}) 0)") == .boolean(true))
+        #expect(try evaluator.eval("(contains? (first {:a 1}) 1)") == .boolean(true))
+    }
+
+    @Test("contains? false for out-of-bounds map entry index")
+    func containsMapEntryOutOfBounds() throws {
+        #expect(try evaluator.eval("(contains? (first {:a 1}) 2)") == .boolean(false))
+    }
+
+    @Test("contains? false for non-integer key on map entry (vector-like, not array-like)")
+    func containsMapEntryNonIntegerKey() throws {
+        #expect(try evaluator.eval("(contains? (first {:a 1}) :a)") == .boolean(false))
+    }
+
     // MARK: - mapcat
 
     @Test("mapcat maps and concatenates")

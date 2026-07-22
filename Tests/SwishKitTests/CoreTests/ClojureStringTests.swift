@@ -435,9 +435,42 @@ struct ClojureStringTests {
         #expect(try swish.eval(#"(str/replace "hello world" #"\s+" "-")"#) == .string("hello-world"))
     }
 
-    @Test("replace regex/string with dollar sign is literal not backreference")
-    func replaceRegexStringLiteral() throws {
-        #expect(try swish.eval(#"(str/replace "hello" #"hello" "$0")"#) == .string("$0"))
+    @Test("replace regex/string substitutes $0 as a whole-match backreference")
+    func replaceRegexStringSubstitutesWholeMatchBackreference() throws {
+        #expect(try swish.eval(#"(str/replace "hello" #"hello" "$0")"#) == .string("hello"))
+    }
+
+    @Test("replace regex/string substitutes $1/$2 capture-group backreferences")
+    func replaceRegexStringSubstitutesCaptureGroups() throws {
+        #expect(try swish.eval(#"(str/replace "Almost Pig Latin" #"\b(\w)(\w+)\b" "$2$1ay")"#)
+            == .string("lmostAay igPay atinLay"))
+    }
+
+    @Test("replace regex/string leaves a $ with no valid group number literal")
+    func replaceRegexStringLiteralDollarNoGroup() throws {
+        #expect(try swish.eval(#"(str/replace "a" #"a" "$x")"#) == .string("$x"))
+    }
+
+    @Test("replace with empty string match inserts replacement between every character")
+    func replaceEmptyStringMatch() throws {
+        #expect(try swish.eval(#"(str/replace "x" "" "y")"#) == .string("yxy"))
+        #expect(try swish.eval(#"(str/replace "x" "" "yy")"#) == .string("yyxyy"))
+    }
+
+    @Test("replace with empty input and empty match does not infinite loop")
+    func replaceEmptyInputEmptyMatch() throws {
+        #expect(try swish.eval(#"(str/replace "" "" "")"#) == .string(""))
+    }
+
+    @Test("replace coerces a non-string, non-nil first argument via str")
+    func replaceCoercesFirstArgument() throws {
+        #expect(try swish.eval(#"(str/replace :foo "foo" "bar")"#) == .string(":bar"))
+        #expect(try swish.eval(#"(str/replace [:foo] "foo" "bar")"#) == .string("[:bar]"))
+    }
+
+    @Test("replace still throws for a nil first argument")
+    func replaceNilFirstArgumentThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval(#"(str/replace nil "x" "y")"#) }
     }
 
     @Test("replace regex/function calls function with each match")

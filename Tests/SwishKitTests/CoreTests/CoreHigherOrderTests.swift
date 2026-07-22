@@ -72,6 +72,23 @@ struct CoreHigherOrderTests {
         #expect(try swish.eval("(every? number? [1 2 3])") == .boolean(true))
     }
 
+    // MARK: - not-every?
+
+    @Test("(not-every? even? [2 4 5]) returns true")
+    func notEverySomeOdd() throws {
+        #expect(try swish.eval("(not-every? even? [2 4 5])") == .boolean(true))
+    }
+
+    @Test("(not-every? even? [2 4 6]) returns false")
+    func notEveryAllEven() throws {
+        #expect(try swish.eval("(not-every? even? [2 4 6])") == .boolean(false))
+    }
+
+    @Test("(not-every? even? []) returns false")
+    func notEveryEmpty() throws {
+        #expect(try swish.eval("(not-every? even? [])") == .boolean(false))
+    }
+
     // MARK: - some
 
     @Test("(some odd? [2 3 4]) returns truthy value")

@@ -186,6 +186,17 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         guard case .integer(let idx) = key else { return .boolean(false) }
         return .boolean(idx >= 0 && idx < elements.count)
 
+    case .array(let sa):
+        guard case .integer(let idx) = key else {
+            throw EvaluatorError.invalidArgument(function: "contains?",
+                message: "contains? on array requires integer key, got \(corePrinter.printString(key))")
+        }
+        return .boolean(idx >= 0 && idx < sa.elements.count)
+
+    case .mapEntry:
+        guard case .integer(let idx) = key else { return .boolean(false) }
+        return .boolean(idx == 0 || idx == 1)
+
     case .string(let s):
         guard case .integer(let idx) = key else {
             throw EvaluatorError.invalidArgument(function: "contains?",
