@@ -46,7 +46,7 @@ extension Evaluator {
             }
             var result: [Expr] = []
             try expandSplicingElements(elements, into: &result, in: env, gensyms: &gensyms)
-            return .list(result, metadata: listMeta)
+            return .list(SwishPersistentList(result), metadata: listMeta)
 
         case .vector(let elements, let vecMeta):
             var result: [Expr] = []
@@ -83,7 +83,7 @@ extension Evaluator {
     }
 
     private func expandSplicingElements(
-        _ elements: [Expr],
+        _ elements: some Sequence<Expr>,
         into result: inout [Expr],
         in env: Environment,
         gensyms: inout [String: String]
@@ -190,7 +190,7 @@ extension Evaluator {
             letVec.append(pat)
             letVec.append(.symbol(tmpName, metadata: nil))
         }
-        let wrappedBody = [Expr.list([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body,
+        let wrappedBody = [Expr.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body),
                                      metadata: nil)]
         return (flatParams, wrappedBody)
     }

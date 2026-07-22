@@ -88,7 +88,7 @@ private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let tail: [Expr]
     switch lastArg {
     case .list(let elems, _):
-        tail = elems
+        tail = elems.elements
 
     case .vector(let elems, _):
         tail = elems
@@ -143,7 +143,7 @@ private func coreMap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let f = args[0]
     if args.count == 2 {
         let elems = try seqOf(args[1], function: "map")
-        return .list(try elems.map { try evaluator.call(f, args: [$0]) }, metadata: nil)
+        return .list(SwishPersistentList(try elems.map { try evaluator.call(f, args: [$0]) }), metadata: nil)
     }
     let seqs = try args.dropFirst().map { try seqOf($0, function: "map") }
     let minLen = seqs.map(\.count).min() ?? 0
@@ -151,7 +151,7 @@ private func coreMap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     for i in 0..<minLen {
         result.append(try evaluator.call(f, args: seqs.map { $0[i] }))
     }
-    return .list(result, metadata: nil)
+    return .list(SwishPersistentList(result), metadata: nil)
 }
 
 private func coreFilter(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
@@ -160,7 +160,7 @@ private func coreFilter(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     for elem in elems {
         if isTruthy(try evaluator.call(args[0], args: [elem])) { result.append(elem) }
     }
-    return .list(result, metadata: nil)
+    return .list(SwishPersistentList(result), metadata: nil)
 }
 
 private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
@@ -187,7 +187,7 @@ private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 
     default:
         if let elems = asSequence(current) {
-            current = .list(elems, metadata: nil)
+            current = .list(SwishPersistentList(elems), metadata: nil)
         }
         else {
             throw EvaluatorError.invalidArgument(function: "reduce",
@@ -210,7 +210,7 @@ private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 
         case .list(let elems, _):
             head = elems[0]
-            tail = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
+            tail = elems.count == 1 ? .nil : .list(elems.dropFirst(1), metadata: nil)
 
         case .lazySeq(let box):
             head = try box.forceHead()

@@ -74,7 +74,7 @@ struct CoreFirstNextCompositionTests {
 
     @Test("nfirst stays lazy on infinite sequences")
     func nfirstLazy() throws {
-        #expect(try swish.eval("(nfirst (repeat (range 0 5)))") == .list([1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(nfirst (repeat (range 0 5)))") == .list(SwishPersistentList([1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("nfirst on strings returns the rest characters as a seq")

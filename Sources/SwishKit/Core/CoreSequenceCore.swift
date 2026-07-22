@@ -38,13 +38,13 @@ func registerSequenceCore(into evaluator: Evaluator) {
 // MARK: - Implementations
 
 private func coreList(_ args: [Expr]) throws -> Expr {
-    .list(args, metadata: nil)
+    .list(SwishPersistentList(args), metadata: nil)
 }
 
 func asSequence(_ expr: Expr) -> [Expr]? {
     switch expr {
     case .list(let elements, _):
-        return elements
+        return elements.elements
 
     case .seq(let elements):
         return elements
@@ -124,8 +124,11 @@ private func coreRest(_ args: [Expr]) throws -> Expr {
         if case .nil = tail { return .list([], metadata: nil) }
         return tail
     }
+    if case .list(let elems, _) = args[0] {
+        return .list(elems.dropFirst(1), metadata: nil)
+    }
     let elements = try seqOf(args[0], function: "rest")
-    return .list(Array(elements.dropFirst()), metadata: nil)
+    return .list(SwishPersistentList(Array(elements.dropFirst())), metadata: nil)
 }
 
 private func coreListStar(_ args: [Expr]) throws -> Expr {
@@ -133,7 +136,7 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
     let tail: [Expr]
     switch args.last! {
     case .list(let elements, _):
-        tail = elements
+        tail = elements.elements
 
     case .seq(let elements):
         tail = elements
@@ -155,7 +158,7 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
             function: "list*",
             message: "last argument must be a sequence or nil, got \(corePrinter.printString(args.last!))")
     }
-    return .list(prefix + tail, metadata: nil)
+    return .list(SwishPersistentList(prefix + tail), metadata: nil)
 }
 
 private func coreCons(_ args: [Expr]) throws -> Expr {
@@ -194,9 +197,13 @@ private func coreNext(_ args: [Expr]) throws -> Expr {
         // next returns nil when the tail is empty
         return try coreSeq([tail])
     }
+    if case .list(let elems, _) = args[0] {
+        let rest = elems.dropFirst(1)
+        return rest.isEmpty ? .nil : .list(rest, metadata: nil)
+    }
     let elements = try seqOf(args[0], function: "next")
     let rest = Array(elements.dropFirst())
-    return rest.isEmpty ? .nil : .list(rest, metadata: nil)
+    return rest.isEmpty ? .nil : .list(SwishPersistentList(rest), metadata: nil)
 }
 
 private func coreConj(_ args: [Expr]) throws -> Expr {
@@ -236,7 +243,7 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         return .list([item], metadata: nil)
 
     case .list(let elems, let meta):
-        return .list([item] + elems, metadata: meta)
+        return .list(elems.cons(item), metadata: meta)
 
     case .seq(let elems):
         return .seq([item] + elems)

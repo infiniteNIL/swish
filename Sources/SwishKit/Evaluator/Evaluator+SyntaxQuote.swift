@@ -28,7 +28,7 @@ extension Evaluator {
                 return .list([elements[0], preExpandSyntaxQuote(elements[1], gensyms: &gensyms)],
                              metadata: meta)
             }
-            return .list(elements.map { preExpandSyntaxQuotesInExpr($0) }, metadata: meta)
+            return .list(SwishPersistentList(elements.map { preExpandSyntaxQuotesInExpr($0) }), metadata: meta)
 
         case .vector(let elements, let meta):
             return .vector(elements.map { preExpandSyntaxQuotesInExpr($0) }, metadata: meta)
@@ -74,7 +74,7 @@ extension Evaluator {
                     return expr  // Nested syntax-quote — Fix B would handle depth; skip for now
                 }
             }
-            return .list(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+            return .list(SwishPersistentList(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
 
         case .vector(let elements, let meta):
             return .vector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)

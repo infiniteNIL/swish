@@ -19,6 +19,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] SwishPersistentList (Swift collections doesn't have a list)
 - [x] Now passing Jank Clojure Test suite (1 Skip - with-precision - not doing)
 - [x] multi methods
 - [x] ==

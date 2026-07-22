@@ -165,7 +165,7 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
         keys = sa.elements
 
     case .list(let elems, _):
-        keys = elems
+        keys = elems.elements
 
     case .nil:
         keys = []
@@ -227,15 +227,15 @@ private func mapCollection(_ coll: Expr, function: String, project: ([Expr: Expr
 
     case .map(let sm):
         let items = project(sm.dict)
-        return items.isEmpty ? .nil : .list(items, metadata: nil)
+        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     case .sortedMap(let dict, _):
         let items = project(dict)
-        return items.isEmpty ? .nil : .list(items, metadata: nil)
+        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     case .record(_, _, let data, _):
         let items = project(data)
-        return items.isEmpty ? .nil : .list(items, metadata: nil)
+        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     default:
         // Empty seqable collections produce nil (Clojure: seq([]) → nil → KeySeq.create(nil) → nil).

@@ -60,7 +60,7 @@ public indirect enum Expr: Sendable {
     case `nil`
     case symbol(String, metadata: [Expr: Expr]?)
     case keyword(String)
-    case list([Expr], metadata: [Expr: Expr]?)
+    case list(SwishPersistentList, metadata: [Expr: Expr]?)
     /// An eager, non-list seq — returned by `seq` on non-list collections (vector, map, set, etc.).
     /// Satisfies `seq?` but not `list?` or `lazy-seq?`, matching Clojure's ISeq-not-IPersistentList.
     case seq([Expr])

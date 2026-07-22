@@ -10,22 +10,22 @@ struct LazySeqTests {
 
     @Test("range with 0 args produces infinite seq")
     func rangeInfinite() throws {
-        #expect(try swish.eval("(take 5 (range))") == .list([0, 1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (range))") == .list(SwishPersistentList([0, 1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("range with 1 arg produces finite seq")
     func rangeOneArg() throws {
-        #expect(try swish.eval("(take 3 (range 10))") == .list([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (range 10))") == .list(SwishPersistentList([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     @Test("range with start and end")
     func rangeTwoArgs() throws {
-        #expect(try swish.eval("(range 3 7)") == .list([3, 4, 5, 6].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(range 3 7)") == .list(SwishPersistentList([3, 4, 5, 6].map { .integer($0) }), metadata: nil))
     }
 
     @Test("range with start end and step")
     func rangeStep() throws {
-        #expect(try swish.eval("(range 0 10 2)") == .list([0, 2, 4, 6, 8].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(range 0 10 2)") == .list(SwishPersistentList([0, 2, 4, 6, 8].map { .integer($0) }), metadata: nil))
     }
 
     @Test("range with empty bounds")
@@ -35,26 +35,26 @@ struct LazySeqTests {
 
     @Test("range with negative step")
     func rangeNegStep() throws {
-        #expect(try swish.eval("(range 5 0 -1)") == .list([5, 4, 3, 2, 1].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(range 5 0 -1)") == .list(SwishPersistentList([5, 4, 3, 2, 1].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - iterate
 
     @Test("iterate produces infinite seq")
     func iterateInfinite() throws {
-        #expect(try swish.eval("(take 5 (iterate inc 0))") == .list([0, 1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (iterate inc 0))") == .list(SwishPersistentList([0, 1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("iterate with doubling function")
     func iterateDouble() throws {
-        #expect(try swish.eval("(take 5 (iterate #(* % 2) 1))") == .list([1, 2, 4, 8, 16].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (iterate #(* % 2) 1))") == .list(SwishPersistentList([1, 2, 4, 8, 16].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - cycle
 
     @Test("cycle repeats elements")
     func cycleBasic() throws {
-        #expect(try swish.eval("(take 6 (cycle [1 2 3]))") == .list([1, 2, 3, 1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 6 (cycle [1 2 3]))") == .list(SwishPersistentList([1, 2, 3, 1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("cycle over single element")
@@ -146,7 +146,7 @@ struct LazySeqTests {
 
     @Test("map over lazy seq")
     func mapOverLazy() throws {
-        #expect(try swish.eval("(take 5 (map inc (range)))") == .list([1, 2, 3, 4, 5].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (map inc (range)))") == .list(SwishPersistentList([1, 2, 3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("map returns lazy seq")
@@ -156,14 +156,14 @@ struct LazySeqTests {
 
     @Test("map two colls")
     func mapTwoColls() throws {
-        #expect(try swish.eval("(take 3 (map + (range) (range 10 100)))") == .list([10, 12, 14].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (map + (range) (range 10 100)))") == .list(SwishPersistentList([10, 12, 14].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - lazy filter
 
     @Test("filter over lazy seq")
     func filterLazy() throws {
-        #expect(try swish.eval("(take 3 (filter even? (range)))") == .list([0, 2, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (filter even? (range)))") == .list(SwishPersistentList([0, 2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("filter returns lazy seq")
@@ -175,12 +175,12 @@ struct LazySeqTests {
 
     @Test("concat with lazy seqs")
     func concatLazy() throws {
-        #expect(try swish.eval("(take 5 (concat (range 3) (range 10 20)))") == .list([0, 1, 2, 10, 11].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (concat (range 3) (range 10 20)))") == .list(SwishPersistentList([0, 1, 2, 10, 11].map { .integer($0) }), metadata: nil))
     }
 
     @Test("concat with infinite second seq")
     func concatWithInfinite() throws {
-        #expect(try swish.eval("(take 5 (concat [1 2 3] (range)))") == .list([1, 2, 3, 0, 1].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (concat [1 2 3] (range)))") == .list(SwishPersistentList([1, 2, 3, 0, 1].map { .integer($0) }), metadata: nil))
     }
 
     @Test("concat with no args returns empty")
@@ -192,7 +192,7 @@ struct LazySeqTests {
 
     @Test("lazy-cat concatenates lazily")
     func lazyCat() throws {
-        #expect(try swish.eval("(take 5 (lazy-cat [1 2 3] (range)))") == .list([1, 2, 3, 0, 1].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 5 (lazy-cat [1 2 3] (range)))") == .list(SwishPersistentList([1, 2, 3, 0, 1].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - laziness — work is deferred
@@ -312,7 +312,7 @@ struct LazySeqTests {
 
     @Test("doall realizes lazy seq")
     func doallRealizes() throws {
-        #expect(try swish.eval("(doall (take 3 (range)))") == .list([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(doall (take 3 (range)))") == .list(SwishPersistentList([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - printing
@@ -336,7 +336,7 @@ struct LazySeqTests {
 
     @Test("cons onto lazy seq stays lazy")
     func consLazy() throws {
-        #expect(try swish.eval("(take 4 (cons 99 (range)))") == .list([99, 0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 4 (cons 99 (range)))") == .list(SwishPersistentList([99, 0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     @Test("conj onto list from lazy seq works")
@@ -352,19 +352,19 @@ struct LazySeqTests {
 
     @Test("filter over finite coll works")
     func filterFinite() throws {
-        #expect(try swish.eval("(filter odd? [1 2 3 4 5])") == .list([1, 3, 5].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(filter odd? [1 2 3 4 5])") == .list(SwishPersistentList([1, 3, 5].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - complex pipelines
 
     @Test("composing take map filter range")
     func pipeline() throws {
-        #expect(try swish.eval("(take 3 (filter even? (map #(* % 3) (range))))") == .list([0, 6, 12].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (filter even? (map #(* % 3) (range))))") == .list(SwishPersistentList([0, 6, 12].map { .integer($0) }), metadata: nil))
     }
 
     @Test("mapcat over lazy seq")
     func mapcatLazy() throws {
-        #expect(try swish.eval("(take 6 (mapcat #(list % (* % 10)) (range 1 4)))") == .list([1, 10, 2, 20, 3, 30].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 6 (mapcat #(list % (* % 10)) (range 1 4)))") == .list(SwishPersistentList([1, 10, 2, 20, 3, 30].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - stack safety of chained lazy-seq realization

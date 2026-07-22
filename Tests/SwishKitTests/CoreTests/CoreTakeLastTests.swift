@@ -27,8 +27,8 @@ struct CoreTakeLastTests {
 
     @Test("take-last on a vector and a list returns the last n items")
     func takeLastVectorAndList() throws {
-        #expect(try swish.eval("(take-last 3 [1 2 3 4 5])") == .list([3, 4, 5].map { .integer($0) }, metadata: nil))
-        #expect(try swish.eval("(take-last 3 '(1 2 3 4 5))") == .list([3, 4, 5].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take-last 3 [1 2 3 4 5])") == .list(SwishPersistentList([3, 4, 5].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(take-last 3 '(1 2 3 4 5))") == .list(SwishPersistentList([3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(take-last 0 coll) returns nil")
@@ -38,7 +38,7 @@ struct CoreTakeLastTests {
 
     @Test("take-last with n greater than the collection's count returns the whole collection")
     func takeLastNGreaterThanCount() throws {
-        #expect(try swish.eval("(take-last 10 [1 2 3])") == .list([1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take-last 10 [1 2 3])") == .list(SwishPersistentList([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("take-last on an empty vector returns nil")
@@ -65,6 +65,6 @@ struct CoreTakeLastTests {
         // (which, at Swish's interpreter cost, would make this one test
         // take upwards of ten seconds for no extra confidence).
         #expect(try swish.eval("(take-last 3 (range 5000))") ==
-            .list([4997, 4998, 4999].map { .integer($0) }, metadata: nil))
+            .list(SwishPersistentList([4997, 4998, 4999].map { .integer($0) }), metadata: nil))
     }
 }

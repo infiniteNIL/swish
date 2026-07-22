@@ -11,7 +11,7 @@ struct TransducerSequenceTests {
     @Test("(sequence [1 2 3]) returns a seq")
     func sequenceCoerceVector() throws {
         #expect(try swish.eval("(sequence [1 2 3])")
-            == .list([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .list(SwishPersistentList([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(sequence nil) returns empty list")
@@ -42,7 +42,7 @@ struct TransducerSequenceTests {
     @Test("sequence over infinite range terminates with take")
     func sequenceInfiniteRange() throws {
         #expect(try swish.eval("(take 3 (sequence (map inc) (range)))")
-            == .list([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .list(SwishPersistentList([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(sequence (take 3) (range))")
@@ -54,7 +54,7 @@ struct TransducerSequenceTests {
     @Test("sequence with filter over infinite seq")
     func sequenceFilterInfinite() throws {
         #expect(try swish.eval("(take 4 (sequence (filter even?) (range)))")
-            == .list([0, 2, 4, 6].map { .integer($0) }, metadata: nil))
+            == .list(SwishPersistentList([0, 2, 4, 6].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(sequence (partition-all 2) (range 5)) flushes trailing partition")

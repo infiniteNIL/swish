@@ -72,7 +72,7 @@ private func coreExtenders(_ args: [Expr]) throws -> Expr {
         if case .keyword("nil") = key { return .nil }
         return key
     }
-    return .list(types, metadata: nil)
+    return .list(SwishPersistentList(types), metadata: nil)
 }
 
 private func coreInstance(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {

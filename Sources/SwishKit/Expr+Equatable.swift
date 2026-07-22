@@ -240,9 +240,9 @@ extension Expr: Equatable {
             return nil
 
         case .list(let elems, _):
-            if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .list(Array(elems.dropFirst()), metadata: nil)
-            return elems[0]
+            guard let head = elems.first else { return nil }
+            expr = elems.count == 1 ? .nil : .list(elems.dropFirst(1), metadata: nil)
+            return head
 
         case .seq(let elems):
             if elems.isEmpty { return nil }

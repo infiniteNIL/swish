@@ -194,7 +194,7 @@ extension Parser {
                 if splicing {
                     switch branchExpr {
                     case .list(let elems, _):
-                        matched = elems
+                        matched = elems.elements
                     case .vector(let elems, _):
                         matched = elems
                     default:

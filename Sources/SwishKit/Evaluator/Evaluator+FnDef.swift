@@ -28,7 +28,7 @@ extension Evaluator {
             let arities = try remaining.map { try buildFnArity(from: $0, functionName: "fn", validateRecur: true, outerLocals: outerLocals) }
             return .multiArityFunction(SwishMultiArityFunction(name: name, arities: arities, capturedEnv: env, metadata: nil))
         }
-        let arity = try buildFnArity(from: .list(remaining, metadata: nil), functionName: "fn",
+        let arity = try buildFnArity(from: .list(SwishPersistentList(remaining), metadata: nil), functionName: "fn",
             validateRecur: true, outerLocals: env.allNames())
         return .function(SwishFunction(name: name, params: arity.params, body: arity.body, capturedEnv: env, metadata: nil))
     }
@@ -53,7 +53,7 @@ extension Evaluator {
                     guard case .list(let parts, _) = form, case .vector(let p, _) = parts.first else { return nil }
                     return .vector(p, metadata: nil)
                 }
-                if !vecs.isEmpty { meta[.keyword("arglists")] = .list(vecs, metadata: nil) }
+                if !vecs.isEmpty { meta[.keyword("arglists")] = .list(SwishPersistentList(vecs), metadata: nil) }
             }
         }
         let macroMeta: [Expr: Expr]? = meta.isEmpty ? nil : meta

@@ -35,7 +35,7 @@ extension Evaluator {
             if case .symbol("fn", _) = head { return expandFnForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("let", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("loop", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
-            return .list(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: listMeta)
+            return .list(SwishPersistentList(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: listMeta)
 
         case .vector(let elements, let vecMeta):
             return .vector(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: vecMeta)
@@ -65,7 +65,7 @@ extension Evaluator {
         }
     }
 
-    private func expandFnForm(_ elements: [Expr], outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
+    private func expandFnForm(_ elements: SwishPersistentList, outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
         var offset = 1
         var fnName: String? = nil
         if elements.count > 2, case .symbol(let n, _) = elements[1] {
@@ -87,9 +87,9 @@ extension Evaluator {
                 var clauseLocals = baseLocals
                 for p in paramExprs { clauseLocals.formUnion(collectLocalNames(p)) }
                 let expandedBody = Array(clauseElems.dropFirst()).map { expandAliasesInExpr($0, locals: clauseLocals) }
-                result.append(.list([clauseElems[0]] + expandedBody, metadata: clauseMeta))
+                result.append(.list(SwishPersistentList([clauseElems[0]] + expandedBody), metadata: clauseMeta))
             }
-            return .list(result, metadata: listMeta)
+            return .list(SwishPersistentList(result), metadata: listMeta)
         }
         var newLocals = baseLocals
         if offset < elements.count, case .vector(let paramExprs, _) = elements[offset] {
@@ -97,13 +97,13 @@ extension Evaluator {
         }
         var result = Array(elements.prefix(offset + 1))
         result += Array(elements.dropFirst(offset + 1)).map { expandAliasesInExpr($0, locals: newLocals) }
-        return .list(result, metadata: listMeta)
+        return .list(SwishPersistentList(result), metadata: listMeta)
     }
 
-    private func expandLetForm(_ elements: [Expr], outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
+    private func expandLetForm(_ elements: SwishPersistentList, outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
         guard elements.count >= 2, case .vector(let bindings, let bindVecMeta) = elements[1]
         else {
-            return .list(elements.map { expandAliasesInExpr($0, locals: outerLocals) }, metadata: listMeta)
+            return .list(SwishPersistentList(elements.map { expandAliasesInExpr($0, locals: outerLocals) }), metadata: listMeta)
         }
         var newLocals = outerLocals
         var newBindings: [Expr] = []
@@ -115,6 +115,6 @@ extension Evaluator {
             i += 2
         }
         let body = Array(elements.dropFirst(2)).map { expandAliasesInExpr($0, locals: newLocals) }
-        return .list([elements[0], .vector(newBindings, metadata: bindVecMeta)] + body, metadata: listMeta)
+        return .list(SwishPersistentList([elements[0], .vector(newBindings, metadata: bindVecMeta)] + body), metadata: listMeta)
     }
 }

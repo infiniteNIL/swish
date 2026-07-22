@@ -209,13 +209,18 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
         return try compareExprValue(.vector(a, metadata: nil), .vector([k, v], metadata: nil))
 
     case (.list(let a, _), .list(let b, _)):
-        let aArr = Array(a)
-        let bArr = Array(b)
-        for i in 0..<min(aArr.count, bArr.count) {
-            let cmp = try compareExprValue(aArr[i], bArr[i])
-            if cmp != 0 { return cmp }
+        var ai = a.makeIterator()
+        var bi = b.makeIterator()
+        while true {
+            switch (ai.next(), bi.next()) {
+            case (.some(let x), .some(let y)):
+                let cmp = try compareExprValue(x, y)
+                if cmp != 0 { return cmp }
+            case (.some, .none): return 1
+            case (.none, .some): return -1
+            case (.none, .none): return 0
+            }
         }
-        return aArr.count < bArr.count ? -1 : aArr.count > bArr.count ? 1 : 0
 
     default:
         throw EvaluatorError.invalidArgument(function: "compare",

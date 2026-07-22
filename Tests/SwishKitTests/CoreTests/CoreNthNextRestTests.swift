@@ -10,8 +10,8 @@ struct CoreNthNextRestTests {
 
     @Test("nthnext with positive n on a range and a vector")
     func nthnextPositive() throws {
-        #expect(try swish.eval("(nthnext (range 0 10) 3)") == .list([3, 4, 5, 6, 7, 8, 9].map { .integer($0) }, metadata: nil))
-        #expect(try swish.eval("(nthnext [0 1 2 3 4 5] 3)") == .list([3, 4, 5].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(nthnext (range 0 10) 3)") == .list(SwishPersistentList([3, 4, 5, 6, 7, 8, 9].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(nthnext [0 1 2 3 4 5] 3)") == .list(SwishPersistentList([3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("nthnext with n = 0 returns (seq coll)")
@@ -53,8 +53,8 @@ struct CoreNthNextRestTests {
 
     @Test("nthrest with positive n on a range and a vector")
     func nthrestPositive() throws {
-        #expect(try swish.eval("(nthrest (range 0 10) 3)") == .list([3, 4, 5, 6, 7, 8, 9].map { .integer($0) }, metadata: nil))
-        #expect(try swish.eval("(nthrest [0 1 2 3 4 5] 3)") == .list([3, 4, 5].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(nthrest (range 0 10) 3)") == .list(SwishPersistentList([3, 4, 5, 6, 7, 8, 9].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(nthrest [0 1 2 3 4 5] 3)") == .list(SwishPersistentList([3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("nthrest with n = 0 returns coll unchanged")

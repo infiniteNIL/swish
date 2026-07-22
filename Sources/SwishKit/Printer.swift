@@ -240,7 +240,7 @@ public struct Printer {
         }
     }
 
-    private func formatSeq(open: String, close: String, elements: [Expr], meta: [Expr: Expr]?, includeMeta: Bool, transform: (Expr) -> String) -> String {
+    private func formatSeq(open: String, close: String, elements: some Sequence<Expr>, meta: [Expr: Expr]?, includeMeta: Bool, transform: (Expr) -> String) -> String {
         (includeMeta ? metaPrefix(meta) : "") + open + elements.map(transform).joined(separator: " ") + close
     }
 

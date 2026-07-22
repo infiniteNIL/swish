@@ -33,7 +33,7 @@ extension Parser {
         // Skip special-form validation inside syntax-quote templates — those lists
         // are data, not code to be immediately evaluated.
         guard syntaxQuoteDepth == 0 else {
-            return .list(elements, metadata: nil)
+            return .list(SwishPersistentList(elements), metadata: nil)
         }
 
         if case .symbol(let name, _) = elements.first {
@@ -48,7 +48,7 @@ extension Parser {
             }
         }
 
-        return .list(elements, metadata: nil)
+        return .list(SwishPersistentList(elements), metadata: nil)
     }
 
     func parseVector() throws -> Expr {
@@ -153,7 +153,7 @@ extension Parser {
 
         let paramVector = buildAnonFnParamVector(from: bodyForms)
         let normalizedBody = normalizeAnonFnArgRefs(bodyForms)
-        let bodyExpr: Expr = normalizedBody.isEmpty ? .nil : .list(normalizedBody, metadata: nil)
+        let bodyExpr: Expr = normalizedBody.isEmpty ? .nil : .list(SwishPersistentList(normalizedBody), metadata: nil)
 
         return .list([.symbol("fn", metadata: nil), paramVector, bodyExpr], metadata: nil)
     }
@@ -180,7 +180,7 @@ extension Parser {
         return .vector(params, metadata: nil)
     }
 
-    private func collectAnonFnRefs(_ exprs: [Expr], into refs: inout Set<String>) {
+    private func collectAnonFnRefs(_ exprs: some Sequence<Expr>, into refs: inout Set<String>) {
         for expr in exprs { collectAnonFnRefsInExpr(expr, into: &refs) }
     }
 
@@ -211,7 +211,7 @@ extension Parser {
         }
     }
 
-    private func normalizeAnonFnArgRefs(_ exprs: [Expr]) -> [Expr] {
+    private func normalizeAnonFnArgRefs(_ exprs: some Sequence<Expr>) -> [Expr] {
         exprs.map { normalizeAnonFnArgRef($0) }
     }
 
@@ -221,7 +221,7 @@ extension Parser {
             return .symbol("%1", metadata: meta)
 
         case .list(let elems, let meta):
-            return .list(normalizeAnonFnArgRefs(elems), metadata: meta)
+            return .list(SwishPersistentList(normalizeAnonFnArgRefs(elems)), metadata: meta)
 
         case .vector(let elems, let meta):
             return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)

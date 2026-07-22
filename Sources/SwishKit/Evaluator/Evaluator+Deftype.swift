@@ -36,7 +36,7 @@ extension Evaluator {
             var methods: [ProtocolMethodImpl] = []
             while i < trailingForms.count, case .list(let elems, _) = trailingForms[i],
                   elems.count >= 2, case .symbol(let methodName, _) = elems[0], case .vector = elems[1] {
-                let clause = Expr.list(Array(elems.dropFirst(1)), metadata: nil)
+                let clause = Expr.list(elems.dropFirst(1), metadata: nil)
                 methods.append(ProtocolMethodImpl(name: methodName, clause: clause))
                 i += 1
             }
@@ -82,7 +82,7 @@ extension Evaluator {
                 [.symbol("deftype-field-value", metadata: nil), .symbol(firstParam, metadata: nil), .keyword(f)],
                 metadata: nil))
         }
-        return [.list([.symbol("let", metadata: nil), .vector(letBindings, metadata: nil)] + body, metadata: nil)]
+        return [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(letBindings, metadata: nil)] + body), metadata: nil)]
     }
 
     /// The dispatch-key string for an already-evaluated "type value" argument, as

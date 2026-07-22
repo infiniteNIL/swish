@@ -93,9 +93,9 @@ extension Evaluator {
         var meta: [Expr: Expr] = [:]
         if let doc { meta[.keyword("doc")] = .string(doc) }
         if let arglists {
-            meta[.keyword("arglists")] = .list(arglists.map { params in
+            meta[.keyword("arglists")] = .list(SwishPersistentList(arglists.map { params in
                 .vector(params.map { .symbol($0, metadata: nil) }, metadata: nil)
-            }, metadata: nil)
+            }), metadata: nil)
         }
         if !meta.isEmpty { v.metadata = meta }
     }

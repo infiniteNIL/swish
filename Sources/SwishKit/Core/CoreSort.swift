@@ -40,5 +40,5 @@ private func coreSort(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             return try compareExprValue(a, b) < 0
         }
     }
-    return .list(sorted, metadata: nil)
+    return .list(SwishPersistentList(sorted), metadata: nil)
 }

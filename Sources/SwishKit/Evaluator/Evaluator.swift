@@ -174,7 +174,7 @@ public class Evaluator {
             throw EvaluatorError.undefinedSymbol(name)
 
         case .list(let elements, _):
-            return try evalList(elements, in: env)
+            return try evalList(elements.elements, in: env)
         }
     }
 

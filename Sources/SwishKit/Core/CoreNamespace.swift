@@ -176,7 +176,7 @@ private func coreNsInterns(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
 }
 
 private func coreAllNs(_ evaluator: Evaluator) -> Expr {
-    .list(evaluator.namespaces.values.map { .namespace($0) }, metadata: nil)
+    .list(SwishPersistentList(evaluator.namespaces.values.map { .namespace($0) }), metadata: nil)
 }
 
 private func coreNsName(_ args: [Expr]) throws -> Expr {

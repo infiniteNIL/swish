@@ -36,7 +36,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
             else {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty list")
             }
-            return .list(Array(elems.dropFirst()), metadata: nil)
+            return .list(elems.dropFirst(1), metadata: nil)
 
         case .nil:
             return .nil
@@ -51,11 +51,11 @@ func registerSequenceVector(into evaluator: Evaluator) {
         switch args[0] {
         case .vector(let elems, _):
             if elems.isEmpty { return .nil }
-            return .list(elems.reversed(), metadata: nil)
+            return .list(SwishPersistentList(elems.reversed()), metadata: nil)
 
         case .sharedVector(let sa, _):
             if sa.elements.isEmpty { return .nil }
-            return .list(sa.elements.reversed(), metadata: nil)
+            return .list(SwishPersistentList(sa.elements.reversed()), metadata: nil)
 
         case .sortedMap(let m, _):
             if m.isEmpty { return .nil }
@@ -63,11 +63,11 @@ func registerSequenceVector(into evaluator: Evaluator) {
             let entries = sortedKeys.reversed().map { k -> Expr in
                 .vector([k, m[k]!], metadata: nil)
             }
-            return .list(entries, metadata: nil)
+            return .list(SwishPersistentList(entries), metadata: nil)
 
         case .sortedSet(let elements, _):
             if elements.isEmpty { return .nil }
-            return .list(elements.reversed(), metadata: nil)
+            return .list(SwishPersistentList(elements.reversed()), metadata: nil)
 
         default:
             throw EvaluatorError.invalidArgument(

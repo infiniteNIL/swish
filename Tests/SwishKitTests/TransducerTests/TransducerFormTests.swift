@@ -171,31 +171,31 @@ struct TransducerFormTests {
 
     @Test("take still works as lazy seq")
     func takeSeq() throws {
-        #expect(try swish.eval("(take 3 (range))") == .list([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (range))") == .list(SwishPersistentList([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     @Test("drop still works as lazy seq")
     func dropSeq() throws {
-        #expect(try swish.eval("(take 3 (drop 2 (range)))") == .list([2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (drop 2 (range)))") == .list(SwishPersistentList([2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("map still works as lazy seq")
     func mapSeq() throws {
-        #expect(try swish.eval("(take 3 (map inc (range)))") == .list([1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (map inc (range)))") == .list(SwishPersistentList([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("remove works as lazy seq")
     func removeSeq() throws {
-        #expect(try swish.eval("(remove odd? [1 2 3 4 5])") == .list([2, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(remove odd? [1 2 3 4 5])") == .list(SwishPersistentList([2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("take-nth lazy seq form")
     func takeNthSeq() throws {
-        #expect(try swish.eval("(take 4 (take-nth 2 (range)))") == .list([0, 2, 4, 6].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 4 (take-nth 2 (range)))") == .list(SwishPersistentList([0, 2, 4, 6].map { .integer($0) }), metadata: nil))
     }
 
     @Test("dedupe lazy seq form")
     func dedupeSeq() throws {
-        #expect(try swish.eval("(dedupe [1 1 2 3 3])") == .list([1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(dedupe [1 1 2 3 3])") == .list(SwishPersistentList([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 }

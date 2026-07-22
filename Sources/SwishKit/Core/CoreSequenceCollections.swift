@@ -248,6 +248,10 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
             }
         }
 
+    case .list(let elems, _):
+        guard idx >= 0 && idx < elems.count else { return try outOfBounds() }
+        return elems[idx]
+
     case .transient(let tc):
         var delegated = [tc.value, args[1]]
         if args.count >= 3 { delegated.append(args[2]) }

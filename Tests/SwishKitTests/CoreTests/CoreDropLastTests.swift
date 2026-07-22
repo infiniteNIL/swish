@@ -10,7 +10,7 @@ struct CoreDropLastTests {
 
     @Test("(drop-last (range 10)) drops the last item")
     func dropLastDefaultN() throws {
-        #expect(try swish.eval("(drop-last (range 10))") == .list([0, 1, 2, 3, 4, 5, 6, 7, 8].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(drop-last (range 10))") == .list(SwishPersistentList([0, 1, 2, 3, 4, 5, 6, 7, 8].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(drop-last nil) returns an empty seq")
@@ -22,7 +22,7 @@ struct CoreDropLastTests {
 
     @Test("(drop-last 5 (range 10)) drops the last 5 items")
     func dropLastExplicitN() throws {
-        #expect(try swish.eval("(drop-last 5 (range 10))") == .list([0, 1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(drop-last 5 (range 10))") == .list(SwishPersistentList([0, 1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(drop-last 5 nil) returns an empty seq")
@@ -32,7 +32,7 @@ struct CoreDropLastTests {
 
     @Test("(drop-last 0 (range 5)) returns all items")
     func dropLastZero() throws {
-        #expect(try swish.eval("(drop-last 0 (range 5))") == .list([0, 1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(drop-last 0 (range 5))") == .list(SwishPersistentList([0, 1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(drop-last 10 (range 5)) returns an empty seq when n exceeds count")
@@ -53,7 +53,7 @@ struct CoreDropLastTests {
 
     @Test("drop-last is lazy on an infinite seq")
     func dropLastLazyOnInfinite() throws {
-        #expect(try swish.eval("(take 3 (drop-last 2 (range)))") == .list([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(take 3 (drop-last 2 (range)))") == .list(SwishPersistentList([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     @Test("drop-last returns a lazy seq")

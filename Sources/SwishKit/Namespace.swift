@@ -95,9 +95,9 @@ extension Namespace {
         let v = intern(name: name, value: value)
         v.metadata = [
             .keyword("doc"): .string(doc),
-            .keyword("arglists"): .list(arglists.map { params in
+            .keyword("arglists"): .list(SwishPersistentList(arglists.map { params in
                 .vector(params.map { .symbol($0, metadata: nil) }, metadata: nil)
-            }, metadata: nil),
+            }), metadata: nil),
         ]
         return v
     }

@@ -210,7 +210,7 @@ extension Evaluator {
                 env.set(restParam, rest)
             } else {
                 let restArgs = Array(args.dropFirst(fixedParams.count))
-                env.set(restParam, restArgs.isEmpty ? .nil : .list(restArgs, metadata: nil))
+                env.set(restParam, restArgs.isEmpty ? .nil : .list(SwishPersistentList(restArgs), metadata: nil))
             }
         }
         else {

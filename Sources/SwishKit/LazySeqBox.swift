@@ -208,7 +208,7 @@ public final class LazySeqBox: @unchecked Sendable {
         case .list(let elems, _):
             let tail: Expr = elems.count == 1
                 ? .nil
-                : .list(Array(elems.dropFirst()), metadata: nil)
+                : .list(elems.dropFirst(1), metadata: nil)
             return (elems[0], tail)
 
         case .lazySeq(let inner):
@@ -222,7 +222,7 @@ public final class LazySeqBox: @unchecked Sendable {
             if !elems.isEmpty {
                 let tail: Expr = elems.count == 1
                     ? .nil
-                    : .list(Array(elems.dropFirst()), metadata: nil)
+                    : .list(SwishPersistentList(Array(elems.dropFirst())), metadata: nil)
                 return (elems[0], tail)
             }
             return (nil, .nil)
