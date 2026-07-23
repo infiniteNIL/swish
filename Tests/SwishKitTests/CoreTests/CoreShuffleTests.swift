@@ -71,4 +71,13 @@ struct CoreShuffleTests {
     func shuffleThrowsForArray() throws {
         #expect(throws: (any Error).self) { try swish.eval("(shuffle (object-array 3))") }
     }
+
+    // MARK: - lazy-seq thunk errors propagate instead of silently truncating
+
+    @Test("shuffle propagates a lazy-seq thunk's error instead of silently shuffling a partial result")
+    func shufflePropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(shuffle (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
 }

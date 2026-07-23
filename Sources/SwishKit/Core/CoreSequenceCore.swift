@@ -41,7 +41,7 @@ private func coreList(_ args: [Expr]) throws -> Expr {
     .list(SwishPersistentList(args), metadata: nil)
 }
 
-func asSequence(_ expr: Expr) -> [Expr]? {
+func asSequence(_ expr: Expr) throws -> [Expr]? {
     switch expr {
     case .list(let elements, _):
         return elements.elements
@@ -89,9 +89,9 @@ func asSequence(_ expr: Expr) -> [Expr]? {
         while true {
             switch current {
             case .lazySeq(let box):
-                guard let head = try? box.forceHead() else { return result }
+                guard let head = try box.forceHead() else { return result }
                 result.append(head)
-                current = (try? box.forceTail()) ?? .nil
+                current = try box.forceTail()
 
             case .list(let rest, _):
                 result += rest
@@ -166,7 +166,7 @@ private func coreCons(_ args: [Expr]) throws -> Expr {
     if case .lazySeq = args[1] {
         return .lazySeq(LazySeqBox(head: args[0], tail: args[1]))
     }
-    guard let elements = asSequence(args[1])
+    guard let elements = try asSequence(args[1])
     else {
         throw EvaluatorError.invalidArgument(
             function: "cons",

@@ -106,6 +106,13 @@ struct EvaluatorHigherOrderSequenceTests {
         #expect(throws: (any Error).self) { try evaluator.eval("(reduce (fn [_ x] x) nil 42)") }
     }
 
+    @Test("reduce propagates a lazy-seq thunk's error instead of silently treating it as done")
+    func reducePropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try evaluator.eval("(reduce + (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
+
     @Test("reduce still works on every legitimately seqable type after the non-seqable fix")
     func reduceSeqableStillWorks() throws {
         #expect(try evaluator.eval("(reduce + 0 [1 2 3])") == .integer(6))

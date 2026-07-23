@@ -109,6 +109,23 @@ struct CoreSequenceAccessTests {
         #expect(try swish.eval("(get (to-array [1 2]) 10)") == .nil)
     }
 
+    @Test("to-array on a non-seqable argument still lenient — returns an empty array, not an error")
+    func toArrayNonSeqableStillLenient() throws {
+        let result = try swish.eval("(to-array 42)")
+        guard case .array(let sa) = result else {
+            Issue.record("Expected .array, got \(result)")
+            return
+        }
+        #expect(sa.elements.isEmpty)
+    }
+
+    @Test("to-array propagates a lazy-seq thunk's error instead of silently truncating")
+    func toArrayPropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(to-array (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
+
     @Test("(object-array 3) is not a list")
     func objectArrayNotList() throws {
         #expect(try swish.eval("(list? (object-array 3))") == .boolean(false))

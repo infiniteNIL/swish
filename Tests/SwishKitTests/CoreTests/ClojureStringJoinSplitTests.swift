@@ -30,6 +30,13 @@ struct ClojureStringJoinSplitTests {
         #expect(try swish.eval("(str/join \",\" [])") == .string(""))
     }
 
+    @Test("join propagates a lazy-seq thunk's error instead of silently truncating")
+    func joinPropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(str/join (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
+
     @Test("join with separator on nil collection returns empty string")
     func joinSepNil() throws {
         #expect(try swish.eval("(str/join \",\" nil)") == .string(""))

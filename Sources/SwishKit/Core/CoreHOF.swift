@@ -56,7 +56,7 @@ private func isTruthy(_ expr: Expr) -> Bool {
 }
 
 func seqOf(_ expr: Expr, function name: String) throws -> [Expr] {
-    guard let elems = asSequence(expr) else {
+    guard let elems = try asSequence(expr) else {
         throw EvaluatorError.invalidArgument(function: name,
             message: "don't know how to create seq from \(corePrinter.printString(expr))")
     }
@@ -186,7 +186,7 @@ private func coreReduce(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         break
 
     default:
-        if let elems = asSequence(current) {
+        if let elems = try asSequence(current) {
             current = .list(SwishPersistentList(elems), metadata: nil)
         }
         else {

@@ -356,7 +356,7 @@ private let coreJoin = Expr.nativeFunction(name: "join", arity: .variadic) { arg
     }
     let sep = args.count == 2 ? corePrinter.strString(args[0]) : ""
     let collArg = args.count == 2 ? args[1] : args[0]
-    guard let elements = asSequence(collArg) else {
+    guard let elements = try asSequence(collArg) else {
         throw EvaluatorError.invalidArgument(function: "join",
             message: "don't know how to create seq from \(corePrinter.printString(collArg))")
     }

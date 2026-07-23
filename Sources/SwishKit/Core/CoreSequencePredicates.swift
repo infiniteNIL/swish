@@ -20,7 +20,7 @@ func registerSequencePredicates(into evaluator: Evaluator) {
             return .boolean(true)
 
         default:
-            return .boolean(asSequence(args[0]) != nil)
+            return .boolean((try? asSequence(args[0])) != nil)
         }
     }
     evaluator.register(name: "lazy-seq?", arity: .fixed(1), doc: "Return true if x is a LazySeq.",                   arglists: [["x"]]) { args in if case .lazySeq = args[0] { return .boolean(true) }; return .boolean(false) }

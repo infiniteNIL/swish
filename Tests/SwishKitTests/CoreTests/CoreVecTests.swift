@@ -6,6 +6,15 @@ struct CoreVecTests {
     static let _shared = Swish()
     var swish: Swish { Self._shared }
 
+    // MARK: - lazy-seq thunk errors propagate instead of silently truncating
+
+    @Test("vec propagates a lazy-seq thunk's error instead of silently truncating the result")
+    func vecPropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(vec (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
+
     // MARK: - bad shape inputs throw
 
     @Test("(vec 42) throws for integer")

@@ -72,6 +72,6 @@ private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) thro
         let fill: Expr = args.count > 1 ? args[1] : defaultFill
         return .array(SwishArray(Array(repeating: fill, count: n)))
     default:
-        return .array(SwishArray(asSequence(args[0]) ?? []))
+        return .array(SwishArray(try asSequence(args[0]) ?? []))
     }
 }

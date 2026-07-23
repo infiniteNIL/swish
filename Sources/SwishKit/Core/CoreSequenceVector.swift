@@ -93,7 +93,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
         let elems: [Expr]?
         switch args[0] {
         case .vector, .sharedVector, .list, .set, .sortedSet, .lazySeq, .seq:
-            elems = asSequence(args[0])
+            elems = try asSequence(args[0])
         default:
             elems = nil
         }

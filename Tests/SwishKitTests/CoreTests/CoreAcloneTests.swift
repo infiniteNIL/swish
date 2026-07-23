@@ -161,4 +161,11 @@ struct CoreAcloneTests {
     func intoArrayNonSeqableThrows() throws {
         #expect(throws: (any Error).self) { try swish.eval("(into-array 5)") }
     }
+
+    @Test("into-array propagates a lazy-seq thunk's error instead of silently truncating")
+    func intoArrayPropagatesThunkError() throws {
+        #expect(throws: (any Error).self) {
+            try swish.eval("(into-array (map (fn [x] (if (= x 3) (throw \"boom\") x)) [1 2 3 4 5]))")
+        }
+    }
 }

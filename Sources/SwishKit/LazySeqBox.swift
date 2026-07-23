@@ -215,7 +215,7 @@ public final class LazySeqBox: @unchecked Sendable {
             return try normalize(.lazySeq(inner))
 
         default:
-            guard let elems = asSequence(expr) else {
+            guard let elems = try asSequence(expr) else {
                 throw EvaluatorError.invalidArgument(function: "lazy-seq",
                     message: "don't know how to create seq from \(corePrinter.printString(expr))")
             }

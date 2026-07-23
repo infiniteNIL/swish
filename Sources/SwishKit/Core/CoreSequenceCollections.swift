@@ -12,7 +12,7 @@ func registerSequenceCollections(into evaluator: Evaluator) {
     evaluator.register(name: "to-array", arity: .fixed(1),
         doc: "Returns an array of the elements of coll.",
         arglists: [["coll"]]) { args in
-        let elements = asSequence(args[0]) ?? []
+        let elements = try asSequence(args[0]) ?? []
         return .array(SwishArray(elements))
     }
     evaluator.register(name: "into-array", arity: .variadic,
