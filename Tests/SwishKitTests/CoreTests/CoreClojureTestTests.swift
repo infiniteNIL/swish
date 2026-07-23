@@ -115,6 +115,83 @@ struct CoreClojureTestTests {
         #expect(result == .integer(1))
     }
 
+    // MARK: - assert-expr / try-expr
+
+    @Test("is default fallback (:default assert-expr) shows the quoted form, not a re-evaluated boolean")
+    func isDefaultFallbackShowsQuotedForm() throws {
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [captured (atom nil)]
+                (binding [t/report (fn [m] (reset! captured m))]
+                  (t/is (odd? 4)))
+                (= (:actual @captured) '(not (odd? 4)))))
+            """)
+        #expect(result == .boolean(true))
+    }
+
+    @Test("is = comparison (assert-expr '=) reports real evaluated values, not source symbols")
+    func isEqualityShowsEvaluatedValues() throws {
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [captured (atom nil)
+                    x 5
+                    y 4]
+                (binding [t/report (fn [m] (reset! captured m))]
+                  (t/is (= x y)))
+                [(= (:expected @captured) '(= x y))
+                 (= (:actual @captured) '(not (= 5 4)))]))
+            """)
+        if case .vector(let elems, _) = result {
+            #expect(elems[0] == .boolean(true))
+            #expect(elems[1] == .boolean(true))
+        } else {
+            Issue.record("Expected vector result, got \(result)")
+        }
+    }
+
+    @Test("is = comparison on pass reports evaluated values via cons, not the raw truthy result")
+    func isEqualityPassReportsConsedValues() throws {
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [captured (atom nil)]
+                (binding [t/report (fn [m] (reset! captured m))]
+                  (t/is (= 5 5)))
+                (= (:actual @captured) '(= 5 5))))
+            """)
+        #expect(result == .boolean(true))
+    }
+
+    @Test("is bare thrown? still passes after assert-expr refactor — untouched branch")
+    func isThrownBareStillPasses() throws {
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters
+                          t/*test-out* *out*]
+                  (t/is (thrown? Exception (throw "boom"))))
+                (:pass @counters)))
+            """)
+        #expect(result == .integer(1))
+    }
+
+    @Test("are + let-wrapped p/thrown?-shaped form still passes after assert-expr refactor — untouched branch")
+    func areWithLetWrappedThrownShapeStillPasses() throws {
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters
+                          t/*test-out* *out*]
+                  (t/are [x] (p/thrown? (/ x 0)) 1 2 3))
+                (:pass @counters)))
+            """)
+        #expect(result == .integer(3))
+    }
+
     // MARK: - are macro
 
     @Test("are expands to multiple is assertions")

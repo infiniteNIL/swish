@@ -17,7 +17,8 @@
 ;; Remaining Swish adaptations (marked with [Swish]):
 ;;   - do-report does not add :file/:line — no Java stack trace access
 ;;   - testing-vars-str does not include file/line
-;;   - is macro inlines try/catch (no try-expr/assert-expr multimethod yet)
+;;   - is macro's thrown?/let+thrown? handling stays outside assert-expr
+;;     dispatch (bare cond branches, unlike upstream) — see is's own comment
 ;;   - are macro uses partition+interleave instead of clojure.template/do-template
 ;;   - run-tests uses doall+reduce instead of apply merge-with + (lazy-seq robustness)
 
@@ -192,6 +193,58 @@
 
 ;;; ASSERTION MACROS
 
+(defmulti assert-expr
+  "Returns generated code to perform an assertion, dispatched on the
+  symbol at the head of 'form' (or :default when 'form' isn't a
+  list). Extend this multimethod to provide specialized failure
+  reporting for a predicate shape, e.g. '= shows both sides of the
+  comparison rather than an opaque boolean.
+  [Swish] is's thrown?/let+thrown? handling stays outside this
+  dispatch — see is's own comment for why."
+  {:added "1.1"}
+  (fn [msg form] (if (seq? form) (first form) :default)))
+
+;; [Swish] do-report is fully qualified in these defmethod bodies (unlike
+;; inside an actual defmacro's own template, e.g. is/try-expr) because a
+;; defmethod body is an ordinary function that builds its syntax-quote
+;; template at call time — it isn't pre-qualified to its defining namespace
+;; the way a defmacro's body is, so a bare `do-report` here would resolve
+;; against whatever namespace the surrounding test happens to run from.
+
+(defmethod assert-expr :default [msg form]
+  `(let [result# ~form]
+     (if result#
+       (clojure.test/do-report {:type :pass, :message ~msg,
+                                 :expected '~form, :actual result#})
+       (clojure.test/do-report {:type :fail, :message ~msg,
+                                 :expected '~form, :actual '~(list 'not form)}))
+     result#))
+
+(defmethod assert-expr '= [msg form]
+  (let [args (rest form)]
+    `(let [values# (list ~@args)
+           result# (apply = values#)]
+       (if result#
+         (clojure.test/do-report {:type :pass, :message ~msg,
+                                   :expected '~form, :actual (cons '~'= values#)})
+         (clojure.test/do-report {:type :fail, :message ~msg,
+                                   :expected '~form, :actual (list '~'not (cons '~'= values#))}))
+       result#)))
+
+(defmacro try-expr
+  "Used by the 'is' macro to catch unexpected exceptions.
+  You don't call this."
+  {:added "1.1"}
+  [msg form]
+  ;; [Swish] assert-expr must be fully qualified here — this call happens
+  ;; inside try-expr's own macro body (unquoted code, not a syntax-quoted
+  ;; template symbol), so it isn't auto-qualified to clojure.test the way
+  ;; symbols embedded in a `(...) template are.
+  `(try ~(clojure.test/assert-expr msg form)
+     (catch Exception e#
+       (do-report {:type :error, :message ~msg,
+                   :expected '~form, :actual e#}))))
+
 (defmacro is
   "Generic assertion macro.  'form' is any predicate test.
   'msg' is an optional message to attach to the assertion.
@@ -203,8 +256,10 @@
   (is (thrown? c body)) checks that an instance of c is thrown from
   body, fails if not; then returns the thing thrown."
   {:added "1.1"}
-  ;; [Swish] real clojure.test delegates to try-expr/assert-expr for richer output;
-  ;; we inline the try/catch and handle thrown? directly.
+  ;; [Swish] thrown?/let+thrown? are handled inline below rather than through
+  ;; assert-expr dispatch — see the header comment on assert-expr above for why
+  ;; (are's let-based expansion means the thrown? call is often buried inside
+  ;; a let, not at the head of the form assert-expr would dispatch on).
   ([form] `(is ~form nil))
   ([form msg]
    (let [p-thrown? (fn [f]
@@ -238,18 +293,7 @@
               outer-e#)))
 
        :else
-       `(try
-          (let [result# ~form]
-            (if result#
-              (do-report {:type :pass, :message ~msg,
-                          :expected '~form, :actual result#})
-              (do-report {:type :fail, :message ~msg,
-                          :expected '~form, :actual (list '~'not '~form)}))
-            result#)
-          (catch Exception e#
-            (do-report {:type :error, :message ~msg,
-                        :expected '~form, :actual e#})
-            nil))))))
+       `(try-expr ~msg ~form)))))
 
 (defmacro are
   "Checks multiple assertions with a template expression.
