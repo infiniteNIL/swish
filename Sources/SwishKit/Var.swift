@@ -40,6 +40,13 @@ public final class Var: @unchecked Sendable {
         state.withLock { $0.watches }
     }
 
+    /// Reads `isDynamic` and `value` in a single lock acquisition instead of two —
+    /// used by `Evaluator.dynamicValue(of:)`, the hot path for every global-symbol
+    /// dereference.
+    func snapshotIsDynamicAndValue() -> (isDynamic: Bool, value: Expr?) {
+        state.withLock { ($0.isDynamic, $0.value) }
+    }
+
     public init(name: String, namespace: Namespace, value: Expr? = nil) {
         self.name = name
         self.namespace = namespace

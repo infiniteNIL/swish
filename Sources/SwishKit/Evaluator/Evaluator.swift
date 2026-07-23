@@ -13,6 +13,14 @@ public class Evaluator {
     /// (copy-on-write), so this is a safe, cheap point-in-time copy.
     var namespaces: [String: Namespace] { namespacesState.withLock { $0 } }
 
+    /// Caches `"ns/name" -> Var` resolutions for `resolveQualifiedVar`. Safe with no
+    /// invalidation logic: only populated for a *home*-var resolution reached via the
+    /// literal-namespace-name branch (never an alias, which is caller-namespace-
+    /// dependent), and there is no API anywhere to remove or replace a namespace's
+    /// home mapping for a given name — see `resolveQualifiedVar`'s comment for the
+    /// full argument.
+    let qualifiedVarCache = Mutex<[String: Var]>([:])
+
     final class ThreadLocalBox<T> {
         var value: T
         init(_ value: T) { self.value = value }
@@ -278,13 +286,14 @@ public class Evaluator {
 
     /// Returns the current value of a var, checking the binding stack for dynamic vars.
     func dynamicValue(of v: Var) -> Expr? {
-        if v.isDynamic {
+        let (isDynamic, value) = v.snapshotIsDynamicAndValue()
+        if isDynamic {
             let id = ObjectIdentifier(v)
             for frame in bindingFrames.reversed() {
                 if let val = frame[id] { return val }
             }
         }
-        return v.value
+        return value
     }
 
     private func deref(_ v: Var) throws -> Expr {

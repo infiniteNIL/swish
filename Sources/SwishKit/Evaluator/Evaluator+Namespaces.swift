@@ -70,12 +70,47 @@ extension Evaluator {
     /// Splits a qualified `ns/name` symbol and resolves it to a Var.
     /// Returns nil if the symbol is not qualified (no slash, or the bare "/" symbol).
     /// Throws undefinedSymbol if the namespace or var is not found.
+    ///
+    /// Cached under `name` (the full "ns/shortname" string) once resolved, but only
+    /// when both of these hold — violating either would be a real correctness bug:
+    ///   1. Resolution went through the literal-namespace-name branch (`findNs`), not
+    ///      the alias branch (`currentNs().findAlias`) — an alias like `str` can mean
+    ///      a different namespace depending on the *caller's* current namespace, so
+    ///      caching an alias-based resolution under its bare alias text would leak
+    ///      one caller's meaning of `str/...` into every other caller's.
+    ///   2. The resolved Var's home namespace is the namespace that was searched
+    ///      (`v.namespace === ns`) — a *referred* (non-home) var can later be shadowed
+    ///      by a local `def` in that namespace (`Namespace.intern` creates a genuinely
+    ///      new Var for that case), so a referred-var resolution must never be cached.
+    /// No cache invalidation is needed for what *is* cached: `Namespace.intern` always
+    /// reuses the existing Var object (never a new one) for an already-home mapping,
+    /// `Namespace.refer` throws rather than silently replacing a differing Var, and
+    /// there is no `ns-unmap`/`remove-ns`/any other API to delete a mapping — a home
+    /// resolution, once cached, can never go stale.
     func resolveQualifiedVar(name: String) throws -> Var? {
+        if let cached = qualifiedVarCache.withLock({ $0[name] }) {
+            return cached
+        }
         guard let (nsAlias, shortName) = splitQualified(name) else { return nil }
-        guard let ns = currentNs().findAlias(nsAlias) ?? findNs(nsAlias) else {
+
+        let ns: Namespace
+        let viaLiteralName: Bool
+        if let aliased = currentNs().findAlias(nsAlias) {
+            ns = aliased
+            viaLiteralName = false
+        } else if let literal = findNs(nsAlias) {
+            ns = literal
+            viaLiteralName = true
+        } else {
             throw EvaluatorError.undefinedSymbol(name)
         }
+
         guard let v = ns.findVar(name: shortName) else { throw EvaluatorError.undefinedSymbol(name) }
+
+        if viaLiteralName && v.namespace === ns {
+            qualifiedVarCache.withLock { $0[name] = v }
+        }
+
         return v
     }
 

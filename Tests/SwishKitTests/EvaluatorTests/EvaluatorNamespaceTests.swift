@@ -112,6 +112,40 @@ struct EvaluatorNamespaceTests {
         #expect(result == .integer(3))
     }
 
+    @Test("qualified-var-cache: same alias name resolving to different namespaces is never poisoned across callers")
+    func aliasedResolutionNotCachedAcrossNamespaces() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns ns-a)")
+        _ = try swish.eval("(def helper 1)")
+        _ = try swish.eval("(ns ns-b)")
+        _ = try swish.eval("(def helper 2)")
+        _ = try swish.eval("(ns caller-a)")
+        _ = try swish.eval("(alias 'u 'ns-a)")
+        #expect(try swish.eval("u/helper") == .integer(1))
+        _ = try swish.eval("(ns caller-b)")
+        _ = try swish.eval("(alias 'u 'ns-b)")
+        // Same qualified-string cache key ("u/helper") as above, resolved from a
+        // different calling namespace whose `u` alias points elsewhere — must not
+        // be served the previous caller's cached (and wrong, for this caller) result.
+        #expect(try swish.eval("u/helper") == .integer(2))
+    }
+
+    @Test("qualified-var-cache: a referred var later shadowed by a local def is never served stale")
+    func referredVarShadowedByLocalDefNotCached() throws {
+        let swish = Swish()
+        _ = try swish.eval("(ns home-ns)")
+        _ = try swish.eval("(def shared 100)")
+        _ = try swish.eval("(ns consumer-ns)")
+        _ = try swish.eval("(refer 'home-ns)")
+        #expect(try swish.eval("consumer-ns/shared") == .integer(100))
+        _ = try swish.eval("(ns consumer-ns)")
+        _ = try swish.eval("(def shared 200)")
+        // intern creates a genuinely new home Var here, since the existing mapping's
+        // home was home-ns, not consumer-ns — the earlier referred-var resolution
+        // must not have been cached, or this would incorrectly still read 100.
+        #expect(try swish.eval("consumer-ns/shared") == .integer(200))
+    }
+
     @Test("alias is per-namespace — alias in user does not affect other ns")
     func aliasIsPerNamespace() throws {
         let swish = Swish()
