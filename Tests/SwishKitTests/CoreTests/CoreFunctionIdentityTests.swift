@@ -3,7 +3,8 @@ import Testing
 
 @Suite("Core Function Identity Tests", .serialized)
 struct CoreFunctionIdentityTests {
-    let swish = Evaluator()
+    static let _shared = Evaluator()
+    var swish: Evaluator { Self._shared }
 
     @Test("two separately-created lambdas are not equal")
     func separateLambdasNotEqual() throws {

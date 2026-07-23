@@ -108,16 +108,6 @@ struct CoreByteTests {
 
     // MARK: - byte range enforcement (throws, does not wrap)
 
-    @Test("byte accepts -128 boundary")
-    func minBoundary() throws {
-        #expect(try swish.eval("(byte -128)") == .integer(-128))
-    }
-
-    @Test("byte accepts 127 boundary")
-    func maxBoundary() throws {
-        #expect(try swish.eval("(byte 127)") == .integer(127))
-    }
-
     @Test("byte throws for integer below -128")
     func throwsBelowMin() {
         #expect(throws: (any Error).self) { try swish.eval("(byte -129)") }

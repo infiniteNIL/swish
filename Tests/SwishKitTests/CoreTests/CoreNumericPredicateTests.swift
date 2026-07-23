@@ -137,4 +137,14 @@ struct CoreNumericPredicateTests {
     func zeroNonZeroFloat() throws {
         #expect(try swish.eval("(zero? 0.5)") == .boolean(false))
     }
+
+    @Test("(zero? ##NaN) is false")
+    func zeroNaN() throws {
+        #expect(try swish.eval("(zero? ##NaN)") == .boolean(false))
+    }
+
+    @Test("(zero? ##Inf) is false")
+    func zeroInfinity() throws {
+        #expect(try swish.eval("(zero? ##Inf)") == .boolean(false))
+    }
 }

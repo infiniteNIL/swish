@@ -2,9 +2,10 @@ import Testing
 @testable import SwishKit
 import Foundation
 
-@Suite("slurp and spit Tests")
+@Suite("slurp and spit Tests", .serialized)
 struct CoreIOTests {
-    let swish = Swish()
+    static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     private func tempPath() -> String {
         FileManager.default.temporaryDirectory

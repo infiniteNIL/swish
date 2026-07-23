@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("subs Tests")
+@Suite("subs Tests", .serialized)
 struct CoreSubsTests {
-    let swish = Swish()
+    static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     @Test("subs 2-arity returns suffix from start")
     func subsFromStart() throws {

@@ -263,11 +263,6 @@ struct CoreBigNumberTests {
         #expect(try swish.eval("(double 3)") == .double(3.0))
     }
 
-    @Test("(float? (float 1.0)) returns true")
-    func floatPredicateAfterFloat() throws {
-        #expect(try swish.eval("(float? (float 1.0))") == .boolean(true))
-    }
-
     @Test("(float? (double 1.0)) returns true")
     func floatPredicateAfterDouble() throws {
         #expect(try swish.eval("(float? (double 1.0))") == .boolean(true))

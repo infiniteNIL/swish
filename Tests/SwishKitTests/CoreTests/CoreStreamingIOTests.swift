@@ -2,9 +2,10 @@ import Testing
 @testable import SwishKit
 import Foundation
 
-@Suite("clojure.swift.io streaming I/O Tests")
+@Suite("clojure.swift.io streaming I/O Tests", .serialized)
 struct CoreStreamingIOTests {
-    let swish = Swish()
+    static let _shared = Swish()
+    var swish: Swish { Self._shared }
 
     private func tempPath() -> String {
         FileManager.default.temporaryDirectory

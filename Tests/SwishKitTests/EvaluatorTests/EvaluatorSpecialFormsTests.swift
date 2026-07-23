@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Special Forms Tests")
+@Suite("Evaluator Special Forms Tests", .serialized)
 struct EvaluatorSpecialFormsTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     // MARK: - def special form
 

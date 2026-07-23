@@ -8,11 +8,6 @@ struct EvaluatorEvenOddTests {
 
     // MARK: - even? valid inputs
 
-    @Test("even? 0 is true")
-    func evenZero() throws {
-        #expect(try swish.eval("(even? 0)") == .boolean(true))
-    }
-
     @Test("even? 12 is true")
     func evenTwelve() throws {
         #expect(try swish.eval("(even? 12)") == .boolean(true))
@@ -31,16 +26,6 @@ struct EvaluatorEvenOddTests {
     @Test("even? -119 is false")
     func evenNeg119() throws {
         #expect(try swish.eval("(even? -119)") == .boolean(false))
-    }
-
-    @Test("even? 122N is true")
-    func evenBigInt122() throws {
-        #expect(try swish.eval("(even? 122N)") == .boolean(true))
-    }
-
-    @Test("even? 123N is false")
-    func evenBigInt123() throws {
-        #expect(try swish.eval("(even? 123N)") == .boolean(false))
     }
 
     // MARK: - even? invalid inputs

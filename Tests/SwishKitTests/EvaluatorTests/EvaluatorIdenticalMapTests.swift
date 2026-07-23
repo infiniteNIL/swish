@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("identical? for maps")
+@Suite("identical? for maps", .serialized)
 struct EvaluatorIdenticalMapTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("two fresh empty maps are not identical")
     func twoEmptyMapsNotIdentical() throws {

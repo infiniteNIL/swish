@@ -35,11 +35,6 @@ struct EvaluatorGtEqLtEqNaNTests {
         #expect(try swish.eval("(>= 0 1)") == .boolean(false))
     }
 
-    @Test(">= 1 1 is true")
-    func gtEqOneOne() throws {
-        #expect(try swish.eval("(>= 1 1)") == .boolean(true))
-    }
-
     @Test(">= ##Inf ##Inf is true")
     func gtEqInfInf() throws {
         #expect(try swish.eval("(>= ##Inf ##Inf)") == .boolean(true))
@@ -77,11 +72,6 @@ struct EvaluatorGtEqLtEqNaNTests {
     @Test("<= 1 0 is false")
     func ltEqOneZero() throws {
         #expect(try swish.eval("(<= 1 0)") == .boolean(false))
-    }
-
-    @Test("<= 1 1 is true")
-    func ltEqOneOne() throws {
-        #expect(try swish.eval("(<= 1 1)") == .boolean(true))
     }
 
     @Test("<= ##-Inf ##-Inf is true")

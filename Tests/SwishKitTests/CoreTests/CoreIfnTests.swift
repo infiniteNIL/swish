@@ -1,9 +1,10 @@
 import Testing
 @testable import SwishKit
 
-@Suite("ifn? and symbol/varRef callability")
+@Suite("ifn? and symbol/varRef callability", .serialized)
 struct CoreIfnTests {
-    let evaluator = Evaluator()
+    static let _shared = Evaluator()
+    var evaluator: Evaluator { Self._shared }
 
     @Test("ifn? returns true for a symbol")
     func ifnSymbol() throws {

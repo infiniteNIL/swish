@@ -1,10 +1,12 @@
 import Testing
 @testable import SwishKit
 
-@Suite("Evaluator Macros Tests")
+@Suite("Evaluator Macros Tests", .serialized)
 struct EvaluatorMacrosTests {
-    let evaluator = Evaluator()
-    let swish = Swish()
+    static let _sharedEvaluator = Evaluator()
+    var evaluator: Evaluator { Self._sharedEvaluator }
+    static let _sharedSwish = Swish()
+    var swish: Swish { Self._sharedSwish }
 
     @Test("defmacro defines a macro and returns its name")
     func defmacroReturnsName() throws {
