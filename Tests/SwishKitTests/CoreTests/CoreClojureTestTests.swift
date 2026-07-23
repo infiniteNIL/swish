@@ -178,8 +178,8 @@ struct CoreClojureTestTests {
         #expect(result == .integer(1))
     }
 
-    @Test("are + let-wrapped p/thrown?-shaped form still passes after assert-expr refactor — untouched branch")
-    func areWithLetWrappedThrownShapeStillPasses() throws {
+    @Test("are + p/thrown?-shaped form still passes through is's untouched bare-thrown? branch")
+    func areWithThrownShapeStillPasses() throws {
         let result = try swish.eval("""
             (do
               (require '[clojure.test :as t])
@@ -190,6 +190,42 @@ struct CoreClojureTestTests {
                 (:pass @counters)))
             """)
         #expect(result == .integer(3))
+    }
+
+    // MARK: - clojure.template / do-template
+
+    @Test("do-template substitutes argv symbols with each row's values")
+    func doTemplateBasicSubstitution() throws {
+        // do-template expands to (do form1 form2 ...); do returns the last
+        // value, so this only directly observes row 2 — the accumulator
+        // catches a row-1-specific substitution bug.
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.template :as temp])
+              (let [acc (atom [])]
+                (temp/do-template [x y] (swap! acc conj (+ x y)) 1 2 3 4)
+                @acc))
+            """)
+        #expect(result == .vector([.integer(3), .integer(7)], metadata: nil))
+    }
+
+    @Test("do-template substitution reaches inside quote — the real bug this fixes")
+    func doTemplateSubstitutesInsideQuote() throws {
+        // Real Clojure's do-template does textual substitution: 'arg becomes
+        // 'def, 'do, etc. A let-based expansion can't reach inside a quote —
+        // 'arg would always evaluate to the literal symbol `arg`. assert
+        // throws on any row that substitutes incorrectly, so all three rows
+        // are actually checked, not just the last (which `do` would return).
+        #expect(throws: Never.self) {
+            try swish.eval("""
+                (do
+                  (require '[clojure.template :as temp])
+                  (temp/do-template [arg expect] (assert (= (str 'arg) expect))
+                    def "def"
+                    do "do"
+                    if "if"))
+                """)
+        }
     }
 
     // MARK: - are macro
@@ -233,6 +269,30 @@ struct CoreClojureTestTests {
                 #expect(elems[0] == .integer(1))
                 #expect(elems[1] == .integer(1))
             }
+        }
+    }
+
+    @Test("are-driven = failure now reports real evaluated values via assert-expr '=, not a quoted let form")
+    func areEqualityFailureReportsEvaluatedValues() throws {
+        // Before the do-template rewrite, are wrapped every row in a let, so
+        // the form assert-expr saw was (let [x 5 y 4] (= x y)) — the head is
+        // `let`, not `=`, so the richer '= method never fired. Now do-template
+        // substitutes x/y with 5/4 at macro-expansion time (before is ever
+        // sees the form), so is/assert-expr sees the bare (= 5 4) directly.
+        let result = try swish.eval("""
+            (do
+              (require '[clojure.test :as t])
+              (let [captured (atom nil)]
+                (binding [t/report (fn [m] (reset! captured m))]
+                  (t/are [x y] (= x y) 5 4))
+                [(= (:expected @captured) '(= 5 4))
+                 (= (:actual @captured) '(not (= 5 4)))]))
+            """)
+        if case .vector(let elems, _) = result {
+            #expect(elems[0] == .boolean(true))
+            #expect(elems[1] == .boolean(true))
+        } else {
+            Issue.record("Expected vector result, got \(result)")
         }
     }
 

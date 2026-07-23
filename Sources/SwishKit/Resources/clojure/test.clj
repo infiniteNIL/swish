@@ -17,9 +17,8 @@
 ;; Remaining Swish adaptations (marked with [Swish]):
 ;;   - do-report does not add :file/:line — no Java stack trace access
 ;;   - testing-vars-str does not include file/line
-;;   - is macro's thrown?/let+thrown? handling stays outside assert-expr
-;;     dispatch (bare cond branches, unlike upstream) — see is's own comment
-;;   - are macro uses partition+interleave instead of clojure.template/do-template
+;;   - is macro's thrown?/p-thrown? handling stays outside assert-expr
+;;     dispatch (a bare cond branch, unlike upstream) — see is's own comment
 ;;   - run-tests uses doall+reduce instead of apply merge-with + (lazy-seq robustness)
 
 (ns
@@ -64,7 +63,8 @@
    (use-fixtures :once fixture1 fixture2 ...)
    "}
   clojure.test
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.template :as temp]))
 
 
 ;;; USER-MODIFIABLE GLOBALS
@@ -256,10 +256,12 @@
   (is (thrown? c body)) checks that an instance of c is thrown from
   body, fails if not; then returns the thing thrown."
   {:added "1.1"}
-  ;; [Swish] thrown?/let+thrown? are handled inline below rather than through
-  ;; assert-expr dispatch — see the header comment on assert-expr above for why
-  ;; (are's let-based expansion means the thrown? call is often buried inside
-  ;; a let, not at the head of the form assert-expr would dispatch on).
+  ;; [Swish] thrown?/p-thrown? are handled inline below rather than through
+  ;; assert-expr dispatch — see the header comment on assert-expr above for
+  ;; why. (are used to also produce a (let [...] (thrown? ...)) shape, which
+  ;; needed a second cond branch here to unwrap; now that are expands via
+  ;; real do-template substitution instead of a let, that shape never occurs
+  ;; and the branch was removed.)
   ([form] `(is ~form nil))
   ([form msg]
    (let [p-thrown? (fn [f]
@@ -278,20 +280,6 @@
                              :expected '~form, :actual e#})
                  e#)))
 
-       (and (seq? form) (= (first form) 'let) (p-thrown? (last form)))
-       (let [bindings (second form)
-             p-body   (rest (last form))]
-         `(try
-            (let [~@bindings]
-              (try ~@p-body
-                (do-report {:type :fail, :message ~msg, :expected '~form, :actual nil})
-                (catch Exception e#
-                  (do-report {:type :pass, :message ~msg, :expected '~form, :actual e#})
-                  e#)))
-            (catch Exception outer-e#
-              (do-report {:type :pass, :message ~msg, :expected '~form, :actual outer-e#})
-              outer-e#)))
-
        :else
        `(try-expr ~msg ~form)))))
 
@@ -306,15 +294,11 @@
                (is (= 4 (* 2 2))))"
   {:added "1.1"}
   [argv expr & args]
-  ;; [Swish] real clojure.test uses clojure.template/do-template; we use partition+interleave.
-  ;; Nested syntax-quote works in Swish after vector splicing was fixed.
   (if (or (and (empty? argv) (empty? args))
           (and (pos? (count argv))
                (pos? (count args))
                (zero? (mod (count args) (count argv)))))
-    `(do ~@(map (fn [group]
-                  `(is (let [~@(interleave argv group)] ~expr)))
-                (partition (count argv) args)))
+    `(temp/do-template ~argv (is ~expr) ~@args)
     (throw "The number of args doesn't match are's argv.")))
 
 (defmacro testing
