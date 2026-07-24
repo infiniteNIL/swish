@@ -945,6 +945,46 @@
     `(binding [*math-context* {:precision ~precision :rounding ~rounding-kw}]
        (round-with-math-context (do ~@body)))))
 
+;;; Exceptions
+
+(defrecord ExceptionInfo [message data cause])
+
+(defn ex-info
+  "Create an instance of ExceptionInfo, a RuntimeException subclass in real
+  Clojure. Swish has no exception-class hierarchy, so this is a plain
+  defrecord instead — see CLAUDE.md. data and cause are not validated."
+  {:added "1.0"}
+  ([msg data] (->ExceptionInfo msg data nil))
+  ([msg data cause] (->ExceptionInfo msg data cause)))
+
+(defn ex-message
+  "Returns the message attached to a thrown value. Real Clojure calls
+  .getMessage on any Throwable; Swish has no such generic mechanism, so this
+  returns (:message e) for an ex-info value, e itself when e is a plain
+  string (the established Swish idiom for throw, and what every native
+  runtime error already looks like by the time catch binds it — see
+  exprForError), or nil otherwise. See CLAUDE.md."
+  {:added "1.0"}
+  [e]
+  (cond
+    (instance? ExceptionInfo e) (:message e)
+    (string? e) e
+    :else nil))
+
+(defn ex-data
+  "Returns the data map attached to an ex-info value, or nil otherwise."
+  {:added "1.0"}
+  [e]
+  (when (instance? ExceptionInfo e) (:data e)))
+
+(defn ex-cause
+  "Returns the cause attached to an ex-info value, or nil otherwise. Unlike
+  real Clojure's generic Throwable cause chain, Swish only has whatever
+  cause ex-info was explicitly given — see CLAUDE.md."
+  {:added "1.0"}
+  [e]
+  (when (instance? ExceptionInfo e) (:cause e)))
+
 ;;; Sequence Coercion & Associative Functions
 
 (defn sequence

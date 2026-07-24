@@ -184,7 +184,7 @@ final class Repl {
         if case EvaluatorError.interrupted = error {
             print("\r\u{1b}[K", terminator: "")
         }
-        print("❌ \(error)\n")
+        print("❌ \(swish.describeError(error))\n")
     }
 
     // MARK: - Cursor

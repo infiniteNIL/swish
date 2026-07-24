@@ -283,6 +283,19 @@
                              :expected '~form, :actual e#})
                  e#)))
 
+       (and (seq? form) (= (first form) 'thrown-with-msg?))
+       (let [[_ _c pattern & body] form]
+         `(try ~@body
+               (do-report {:type :fail, :message ~msg,
+                           :expected '~form, :actual nil})
+               (catch Exception e#
+                 (if (and (ex-message e#) (re-find ~pattern (ex-message e#)))
+                   (do-report {:type :pass, :message ~msg,
+                               :expected '~form, :actual e#})
+                   (do-report {:type :fail, :message ~msg,
+                               :expected '~form, :actual e#}))
+                 e#)))
+
        :else
        `(try-expr ~msg ~form)))))
 

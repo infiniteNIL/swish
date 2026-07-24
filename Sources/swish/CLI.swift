@@ -28,7 +28,7 @@ struct SwishCLI: ParsableCommand {
                 try interpreter.run(filename: file)
             }
             catch {
-                fputs("error: \(error)\n", stderr)
+                fputs("error: \(interpreter.describeError(error))\n", stderr)
                 throw ExitCode.failure
             }
         }

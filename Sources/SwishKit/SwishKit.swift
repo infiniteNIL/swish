@@ -45,4 +45,11 @@ public struct Swish: @unchecked Sendable {
         }
         return result
     }
+
+    /// Returns a human-readable description of a caught evaluation error, for
+    /// display at a top level (REPL, CLI). Routes the underlying thrown value
+    /// through the printer instead of Swift's raw struct interpolation.
+    public func describeError(_ error: Error) -> String {
+        Printer().strString(evaluator.exprForError(error))
+    }
 }

@@ -192,6 +192,48 @@ struct CoreClojureTestTests {
         #expect(result == .integer(3))
     }
 
+    @Test("is thrown-with-msg? passes when the caught exception's message matches the pattern")
+    func isThrownWithMsgMatchingPasses() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters
+                          t/*test-out* *out*]
+                  (t/is (thrown-with-msg? Exception #"bad" (throw (ex-info "bad thing" {})))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(1), .integer(0)], metadata: nil))
+    }
+
+    @Test("is thrown-with-msg? fails (not errors) when the message doesn't match the pattern")
+    func isThrownWithMsgNonMatchingFails() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters
+                          t/*test-out* *out*]
+                  (t/is (thrown-with-msg? Exception #"nomatch" (throw (ex-info "bad thing" {})))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(0), .integer(1)], metadata: nil))
+    }
+
+    @Test("is thrown-with-msg? fails (not crashes) when the thrown value has no message")
+    func isThrownWithMsgNoMessageFails() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters
+                          t/*test-out* *out*]
+                  (t/is (thrown-with-msg? Exception #"bad" (throw :not-a-message))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(0), .integer(1)], metadata: nil))
+    }
+
     // MARK: - clojure.template / do-template
 
     @Test("do-template substitutes argv symbols with each row's values")
