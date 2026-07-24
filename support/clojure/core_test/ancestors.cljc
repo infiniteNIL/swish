@@ -5,17 +5,22 @@
 ;; Swish-specific overlay for ancestors.cljc from the Jank Clojure Test Suite.
 ;; Upstream defines top-level vars pointing at raw JVM classes (Object,
 ;; clojure.lang.PersistentHashSet) to test ancestors' automatic Java-class-
-;; inheritance fallback, and separately expects a deftype/defrecord's ancestors
-;; to automatically include its protocols via JVM reflection over the
-;; generated interface. Swish has no Java class objects and no JVM reflection
-;; at all (same root limitation already documented for protocols in
-;; CLAUDE.md's Protocols section: "no ancestor-chain fallback"), so those bare
-;; class symbols fail to resolve at namespace-load time, before any test even
-;; runs. Dropped the AncestorT/ChildT class-reference defs and every testing
-;; block that depends on automatic class/protocol-based ancestor discovery.
-;; Everything based on explicit `derive` relationships — including using a
-;; defrecord's type identity as a plain derive tag, which works fine since
-;; Swish represents deftype/defrecord types as keywords — is unchanged.
+;; inheritance fallback. Swish has no Java class objects at all (same root
+;; limitation documented for protocols in CLAUDE.md), so those bare class
+;; symbols fail to resolve at namespace-load time, before any test even runs
+;; — the AncestorT/ChildT class-reference defs and the testing blocks that
+;; depend on them stay dropped.
+;;
+;; The other half of upstream's expectation — a deftype/defrecord's ancestors
+;; automatically including its declared protocols — no longer needs dropping:
+;; Swish now implements this (core.clj's ancestors/parents, via a protocols-of
+;; scan; see CLAUDE.md). New testing blocks below restore that coverage,
+;; adapted to reference each protocol via `(:name ProtocolVar)` rather than
+;; upstream's auto-generated Java interface name, which Swish has no
+;; equivalent of. Everything based on explicit `derive` relationships —
+;; including using a defrecord's type identity as a plain derive tag, which
+;; works fine since Swish represents deftype/defrecord types as keywords — is
+;; unchanged.
 
 (when-var-exists ancestors
 
@@ -78,6 +83,11 @@
                                         (filter keyword?) ; filter out parents by type, tested in next sections
                                         set))))
 
+      (testing "returns ancestors by protocol implementation when tag is a custom type"
+        (is (contains? (ancestors TestAncestorsType) (:name TestAncestorsProtocol)))
+        (is (contains? (ancestors TestAncestorsRecord) (:name TestAncestorsProtocol)))
+        (is (nil? (ancestors TestAncestorsProtocol))))
+
       (testing "does not throw on invalid tag"
         (are [tag] (nil? (ancestors tag))
                    nil
@@ -117,6 +127,13 @@
                               #{} datatypes ::d
                               #{} datatypes ::b
                               #{} datatypes ::a))
+
+      (testing "returns ancestors by protocol implementation when tag is a custom type, whether the tag is in h or not"
+        (are [h] (contains? (ancestors h TestAncestorsRecord) (:name TestAncestorsProtocol))
+                 ; tag in h
+                 datatypes
+                 ; tag not in h
+                 diamond))
 
       (testing "does not throw on invalid tag or hierarchy"
         (are [invalid] (nil? (ancestors invalid invalid))

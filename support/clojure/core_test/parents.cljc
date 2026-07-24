@@ -3,12 +3,18 @@
             [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists]]))
 
 ;; Swish-specific overlay for parents.cljc from the Jank Clojure Test Suite.
-;; Same reason as the ancestors.cljc overlay: upstream expects parents to
-;; automatically include a class's Java superclass/interfaces and a
-;; deftype/defrecord's implemented protocols via JVM reflection. Swish has
-;; neither JVM classes nor reflection (same limitation already documented for
-;; protocols in CLAUDE.md), so those blocks are dropped. Everything based on
-;; explicit `derive` relationships is unchanged.
+;; Same class-inheritance reason as the ancestors.cljc overlay: upstream
+;; expects parents to automatically include a class's Java superclass/
+;; interfaces, which Swish has no equivalent of (no JVM classes) — those
+;; blocks stay dropped.
+;;
+;; The protocol half of upstream's expectation no longer needs dropping:
+;; Swish now implements a deftype/defrecord's parents automatically including
+;; its declared protocols (core.clj's parents, via a protocols-of scan; see
+;; CLAUDE.md). New testing blocks below restore that coverage, adapted to
+;; reference each protocol via `(:name ProtocolVar)` rather than upstream's
+;; auto-generated Java interface name. Everything based on explicit `derive`
+;; relationships is unchanged.
 
 (when-var-exists parents
 
@@ -67,6 +73,11 @@
                             nil ::p-2)
         (is (contains? (parents TestParentsRecord) ::record)))
 
+      (testing "returns parents by protocol implementation when tag is a custom type"
+        (is (contains? (parents TestParentsType) (:name TestParentsProtocol)))
+        (is (contains? (parents TestParentsRecord) (:name TestParentsProtocol)))
+        (is (nil? (parents TestParentsProtocol))))
+
       (testing "does not throw on invalid tag"
         (are [tag] (nil? (parents tag))
                    nil
@@ -106,6 +117,13 @@
                               #{} datatypes ::d
                               #{} datatypes ::b
                               #{} datatypes ::a))
+
+      (testing "returns parents by protocol implementation when tag is a custom type, whether the tag is in h or not"
+        (are [h] (contains? (parents h TestParentsRecord) (:name TestParentsProtocol))
+                 ; tag in h
+                 datatypes
+                 ; tag not in h
+                 diamond))
 
       (testing "does not throw on invalid tag or hierarchy"
         (are [invalid] (nil? (parents invalid invalid))

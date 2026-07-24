@@ -2151,21 +2151,62 @@
                 ret
                 (recur (isa? h (child i) (parent i)) (inc i))))))))
 
+(defn- protocol-map?
+  "[Swish] true if v has the shape defprotocol builds — used by protocols-of
+  below to distinguish a protocol var's value from any other var in scope."
+  [v]
+  (and (map? v) (contains? v :impls) (contains? v :name)))
+
+(defn- protocols-of
+  "[Swish] Returns the set of protocol names that tag (a deftype/defrecord
+  type keyword) implements, by scanning every var in every namespace for a
+  protocol-shaped value whose :impls map contains tag. There is no reverse
+  (type -> protocols) index to look up directly — each protocol's own var
+  holds the forward (protocol -> implementing types) map instead — so this
+  is a real O(all interned vars) scan, not a cheap lookup; see CLAUDE.md.
+  Used by parents/ancestors below to give deftype/defrecord types real
+  ancestor-chain entries for their declared protocols. Deliberately not
+  used by isa? (see CLAUDE.md) — isa? reads the hierarchy map directly and
+  never calls this.
+
+  [Swish] Uses nested reduce rather than into/comp over mapcat/map/filter —
+  a version composing that many lazy core.clj HOFs through a transducer
+  chain crashed (stack overflow) under Swift Testing's smaller-stack runner
+  thread, same root cause already documented for walk/postwalk and
+  run-tests elsewhere in this file: reduce is native (CoreHOF.swift, a
+  Swift loop), so it doesn't add interpreter-recursion stack depth per
+  element the way composed lazy-seq layers do."
+  [tag]
+  (reduce
+   (fn [acc ns]
+     (reduce
+      (fn [acc2 v]
+        (let [pv (deref v)]
+          (if (and (protocol-map? pv) (contains? (:impls pv) tag))
+            (conj acc2 (:name pv))
+            acc2)))
+      acc
+      (vals (ns-interns ns))))
+   #{}
+   (all-ns)))
+
 (defn parents
-  "Returns the immediate parents of tag via a relationship established via derive.
-  h must be a hierarchy obtained from make-hierarchy, if not supplied defaults to
-  the global hierarchy"
+  "Returns the immediate parents of tag via a relationship established via derive,
+  unioned with any protocols tag (a deftype/defrecord type) implements. h must be
+  a hierarchy obtained from make-hierarchy, if not supplied defaults to the
+  global hierarchy"
   {:added "1.0"}
   ([tag] (parents global-hierarchy tag))
-  ([h tag] (not-empty (get (:parents h) tag))))
+  ([h tag] (not-empty (into (or (get (:parents h) tag) #{}) (protocols-of tag)))))
 
 (defn ancestors
   "Returns the immediate and indirect parents of tag via a relationship established
-  via derive. h must be a hierarchy obtained from make-hierarchy, if not supplied
-  defaults to the global hierarchy"
+  via derive, unioned with any protocols tag (a deftype/defrecord type) implements.
+  h must be a hierarchy obtained from make-hierarchy, if not supplied defaults to
+  the global hierarchy"
   {:added "1.0"}
   ([tag] (ancestors global-hierarchy tag))
-  ([h tag] (not-empty (get (:ancestors h) tag))))
+  ([h tag] (not-empty (into (or (get (:ancestors h) tag) #{}) (protocols-of tag)))))
 
 (defn descendants
   "Returns the immediate and indirect children of tag, through a relationship
@@ -2260,9 +2301,17 @@
             (map #(str ", " %) (rest valid-keys))))))
 
 (defn- mm-prefers? [prefer-table h x y]
+  ;; [Swish] Reads (:parents h) directly rather than calling the public
+  ;; parents fn — matching real Clojure's own MultiFn.prefers(), which
+  ;; accesses the hierarchy's internal parents map directly, not the public
+  ;; clojure.core/parents wrapper. Also avoids this recursive dispatch-value
+  ;; ambiguity walk paying the protocol-scan parents/ancestors now do (see
+  ;; CLAUDE.md) on every step — correct either way, since dispatch-value
+  ;; ambiguity is a derive-hierarchy concept, not a deftype/defrecord
+  ;; protocol-implementation concept.
   (or (contains? (get prefer-table x) y)
-      (some #(mm-prefers? prefer-table h x %) (parents h y))
-      (some #(mm-prefers? prefer-table h % y) (parents h x))))
+      (some #(mm-prefers? prefer-table h x %) (get (:parents h) y))
+      (some #(mm-prefers? prefer-table h % y) (get (:parents h) x))))
 
 (defn- mm-dominates? [prefer-table h x y]
   (or (mm-prefers? prefer-table h x y) (isa? h x y)))
