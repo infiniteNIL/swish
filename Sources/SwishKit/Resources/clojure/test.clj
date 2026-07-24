@@ -19,7 +19,10 @@
 ;;   - testing-vars-str does not include file/line
 ;;   - is macro's thrown?/p-thrown? handling stays outside assert-expr
 ;;     dispatch (a bare cond branch, unlike upstream) — see is's own comment
-;;   - run-tests uses doall+reduce instead of apply merge-with + (lazy-seq robustness)
+;;   - run-all-tests's regex-filter arity uses swish-regex-whole-match?
+;;     instead of re-matches — Swish has no general-purpose re-find/re-matches
+;;   - run-tests uses reduce+merge-with instead of (apply merge-with +) — see
+;;     run-tests's own comment
 
 (ns
   ^{:author "Stuart Sierra, with contributions and suggestions by
@@ -463,12 +466,21 @@
   Defaults to current namespace if none given.  Returns a map
   summarizing test results."
   {:added "1.1"}
+  ;; [Swish] real clojure.test uses (apply merge-with + (map test-ns namespaces))
+  ;; directly. That literal form is not just a style difference here — calling
+  ;; merge-with (a variadic user-defined fn) through apply from this position
+  ;; segfaults with a stack overflow under Swift Testing's runner thread (the
+  ;; same class of issue documented for clojure.walk's postwalk: composing
+  ;; interpreted call layers costs more native Swift stack than the equivalent
+  ;; wall-clock-cheap operation suggests, and the smaller-than-`swift run`
+  ;; runner-thread stack is what actually surfaces it). reduce calling
+  ;; merge-with with a fixed 2-arg lambda, once per namespace, does the exact
+  ;; same logical merge without ever invoking merge-with through apply, and is
+  ;; confirmed safe under the real test runner. doall is unneeded either way —
+  ;; reduce already consumes (map test-ns namespaces) lazily without it.
   ([] (run-tests *ns*))
   ([& namespaces]
-   ;; [Swish] use doall+reduce instead of (apply merge-with +) for lazy-seq robustness
-   (let [results (doall (map test-ns namespaces))
-         merged  (reduce #(merge-with + %1 %2) *initial-report-counters* results)
-         summary (assoc merged :type :summary)]
+   (let [summary (assoc (reduce #(merge-with + %1 %2) *initial-report-counters* (map test-ns namespaces)) :type :summary)]
      (do-report summary)
      summary)))
 
@@ -479,7 +491,7 @@
   tested."
   {:added "1.1"}
   ([] (apply run-tests (all-ns)))
-  ([re] (apply run-tests (filter #(re-find re (str (ns-name %))) (all-ns)))))
+  ([re] (apply run-tests (filter #(swish-regex-whole-match? re (name (ns-name %))) (all-ns)))))
 
 (defn successful?
   "Returns true if the given test summary indicates all tests

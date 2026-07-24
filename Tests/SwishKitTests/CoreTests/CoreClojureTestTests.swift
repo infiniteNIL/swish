@@ -359,4 +359,53 @@ struct CoreClojureTestTests {
             """)
         #expect(result == .boolean(true))
     }
+
+    @Test("run-tests merges counts across multiple namespaces")
+    func runTestsMergesAcrossMultipleNamespaces() throws {
+        let result = try swish.eval("""
+            (do
+              (ns test-multi-ns-a (:require [clojure.test :refer [deftest is]]))
+              (deftest a-pass (is (= 1 1)))
+              (deftest a-fail (is (= 1 2)))
+              (ns test-multi-ns-b (:require [clojure.test :refer [deftest is]]))
+              (deftest b-pass (is (= 2 2)))
+              (ns user)
+              (let [summary (binding [clojure.test/*test-out* *out*]
+                              (clojure.test/run-tests 'test-multi-ns-a 'test-multi-ns-b))]
+                [(:test summary) (:pass summary) (:fail summary) (:error summary)]))
+            """)
+        if case .vector(let elems, _) = result {
+            #expect(elems[0] == .integer(3))  // 3 tests across both namespaces
+            #expect(elems[1] == .integer(2))  // 2 passes
+            #expect(elems[2] == .integer(1))  // 1 failure
+            #expect(elems[3] == .integer(0))  // 0 errors
+        } else {
+            Issue.record("Expected vector result, got \(result)")
+        }
+    }
+
+    @Test("run-all-tests filters namespaces by whole-string regex match")
+    func runAllTestsFiltersByRegex() throws {
+        let result = try swish.eval("""
+            (do
+              (ns test-runall-target (:require [clojure.test :refer [deftest is]]))
+              (deftest target-pass (is (= 1 1)))
+              (ns test-runall-other (:require [clojure.test :refer [deftest is]]))
+              (deftest other-pass (is (= 1 1)))
+              (deftest other-pass-2 (is (= 2 2)))
+              (ns user)
+              (let [summary (binding [clojure.test/*test-out* *out*]
+                              (clojure.test/run-all-tests #"test-runall-target"))]
+                [(:test summary) (:pass summary)]))
+            """)
+        if case .vector(let elems, _) = result {
+            // Only test-runall-target's single test should have run — a whole-string
+            // match must not also pick up test-runall-other (which re-find, unlike
+            // re-matches/swish-regex-whole-match?, would have incorrectly matched).
+            #expect(elems[0] == .integer(1))
+            #expect(elems[1] == .integer(1))
+        } else {
+            Issue.record("Expected vector result, got \(result)")
+        }
+    }
 }

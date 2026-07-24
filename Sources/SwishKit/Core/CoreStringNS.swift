@@ -72,6 +72,24 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "Returns a string of all elements in coll, as returned by (seq coll), " +
                  "separated by an optional separator.",
             arglists: [["coll"], ["sep", "coll"]])
+
+    // [Swish] Not a general-purpose re-find/re-matches — Swish has neither. This is
+    // a narrow, single-purpose whole-string-match primitive for run-all-tests's own
+    // regex-filter arity (test.clj); it deliberately isn't named re-matches so it
+    // doesn't imply real re-find/re-matches (capture groups, re-seq, etc.) exist.
+    evaluator.register(name: "swish-regex-whole-match?", arity: .fixed(2),
+        doc: "Internal helper: true if s matches pattern over its entire length. " +
+             "Not a substitute for re-matches, which Swish does not implement.",
+        arglists: [["pattern", "s"]], body: coreSwishRegexWholeMatch)
+}
+
+private func coreSwishRegexWholeMatch(_ args: [Expr]) throws -> Expr {
+    guard case .regex(let re) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "swish-regex-whole-match?",
+            message: "first argument must be a regex")
+    }
+    let s = try requireString(args[1], function: "swish-regex-whole-match?")
+    return .boolean(s.wholeMatch(of: re.regex) != nil)
 }
 
 private func makeEscapeFunction(evaluator: Evaluator) -> Expr {
