@@ -64,6 +64,12 @@
      (when-not (var-has-root? v#)
        (def ~name ~expr))))
 
+(defmacro declare
+  "defs the supplied var names with no bindings, useful for making forward declarations."
+  {:added "1.0"}
+  [& names]
+  `(do ~@(map #(list 'def (vary-meta % assoc :declared true)) names)))
+
 (defn not
   "Returns true if x is logical false, false otherwise."
   {:tag Boolean
@@ -329,6 +335,12 @@
                     s)))]
      (lazy-seq (step n coll)))))
 
+(defn split-at
+  "Returns a vector of [(take n coll) (drop n coll)]"
+  {:added "1.0"}
+  [n coll]
+  [(take n coll) (drop n coll)])
+
 (defn drop-last
   "Return a lazy sequence of all but the last n (default 1) items in coll"
   {:added "1.0"
@@ -568,6 +580,117 @@
         (recur threaded (next forms)))
       x)))
 
+(defmacro condp
+  "Takes a binary predicate, an expression, and a set of clauses.
+  Each clause can take the form of either:
+
+  test-expr result-expr
+
+  test-expr :>> result-fn
+
+  Note :>> is an ordinary keyword.
+
+  For each clause, (pred test-expr expr) is evaluated. If it returns
+  logical true, the clause is a match. If a binary clause matches, the
+  result-expr is returned, if a ternary clause matches, its result-fn,
+  which must be a unary function, is called with the result of the
+  predicate as its argument, the result of that call being the return
+  value of condp. A single default expression can follow the clauses,
+  and its value will be returned if no clause matches. If no default
+  expression is provided and no clause matches, an exception is thrown."
+  {:added "1.0"}
+  [pred expr & clauses]
+  (let [gpred (gensym "pred__")
+        gexpr (gensym "expr__")
+        emit (fn emit [pred expr args]
+               (let [[[a b c :as clause] more]
+                       (split-at (if (= :>> (second args)) 3 2) args)
+                       n (count clause)]
+                 (cond
+                  (= 0 n) `(throw (str "No matching clause: " ~expr))
+                  (= 1 n) a
+                  (= 2 n) `(if (~pred ~a ~expr)
+                             ~b
+                             ~(emit pred expr more))
+                  :else `(if-let [p# (~pred ~a ~expr)]
+                           (~c p#)
+                           ~(emit pred expr more)))))]
+    `(let [~gpred ~pred
+           ~gexpr ~expr]
+       ~(emit gpred gexpr clauses))))
+
+(defmacro cond->
+  "Takes an expression and a set of test/form pairs. Threads expr (via ->)
+  through each form for which the corresponding test
+  expression is true. Note that, unlike cond branching, cond-> threading does
+  not short circuit after the first true test expression."
+  {:added "1.5"}
+  [expr & clauses]
+  (let [g (gensym)
+        steps (map (fn [[test step]] `(if ~test (-> ~g ~step) ~g))
+                    (partition 2 clauses))]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))
+
+(defmacro cond->>
+  "Takes an expression and a set of test/form pairs. Threads expr (via ->>)
+  through each form for which the corresponding test expression
+  is true.  Note that, unlike cond branching, cond->> threading does not
+  short circuit after the first true test expression."
+  {:added "1.5"}
+  [expr & clauses]
+  (let [g (gensym)
+        steps (map (fn [[test step]] `(if ~test (->> ~g ~step) ~g))
+                    (partition 2 clauses))]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))
+
+(defmacro as->
+  "Binds name to expr, evaluates the first form in the lexical context
+  of that binding, then binds name to that result, repeating for each
+  successive form, returning the result of the last form."
+  {:added "1.5"}
+  [expr name & forms]
+  `(let [~name ~expr
+         ~@(interleave (repeat name) (butlast forms))]
+     ~(if (empty? forms)
+        name
+        (last forms))))
+
+(defmacro some->
+  "When expr is not nil, threads it into the first form (via ->),
+  and when that result is not nil, through the next etc"
+  {:added "1.5"}
+  [expr & forms]
+  (let [g (gensym)
+        steps (map (fn [step] `(if (nil? ~g) nil (-> ~g ~step)))
+                    forms)]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))
+
+(defmacro some->>
+  "When expr is not nil, threads it into the first form (via ->>),
+  and when that result is not nil, through the next etc"
+  {:added "1.5"}
+  [expr & forms]
+  (let [g (gensym)
+        steps (map (fn [step] `(if (nil? ~g) nil (->> ~g ~step)))
+                    forms)]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))
+
 ;;; Numeric Predicates
 
 (defn inc
@@ -761,6 +884,38 @@
          ([x y] (reduce1 #(conj %1 (%2 x y)) [] fs))
          ([x y z] (reduce1 #(conj %1 (%2 x y z)) [] fs))
          ([x y z & args] (reduce1 #(conj %1 (apply %2 x y z args)) [] fs))))))
+
+(defn memoize
+  "Returns a memoized version of a referentially transparent function. The
+  memoized version of the function keeps a cache of the mapping from arguments
+  to results and, when calls with the same arguments are repeated often, has
+  higher performance at the expense of higher memory use."
+  {:added "1.0"}
+  [f]
+  (let [mem (atom {})]
+    (fn [& args]
+      (if-let [e (find @mem args)]
+        (val e)
+        (let [ret (apply f args)]
+          (swap! mem assoc args ret)
+          ret)))))
+
+(defn trampoline
+  "trampoline can be used to convert algorithms requiring mutual
+  recursion without stack consumption. Calls f with supplied args, if
+  any. If f returns a fn, calls that fn with no arguments, and
+  continues to repeat, until the return value is not a fn, then
+  returns that non-fn value. Note that if you want to return a
+  function as a final value, you must wrap it in some data structure
+  and unpack it after trampoline returns."
+  {:added "1.0"}
+  ([f]
+   (let [ret (f)]
+     (if (fn? ret)
+       (recur ret)
+       ret)))
+  ([f & args]
+   (trampoline #(apply f args))))
 
 ;;; Volatiles & Transducers
 
@@ -1708,6 +1863,34 @@
                                    ~(do-mod mod-pairs)))))))))]
     `(let [iter# ~(emit-bind (to-groups seq-exprs))]
        (or (iter# ~(second seq-exprs)) (list)))))
+
+(defmacro dotimes
+  "bindings => name n
+
+  Repeatedly executes body (presumably for side-effects) with name
+  bound to integers from 0 through n-1."
+  {:added "1.0"}
+  [bindings & body]
+  (assert-args
+   (vector? bindings) "a vector for its binding"
+   (= 2 (count bindings)) "exactly 2 forms in binding vector")
+  (let [i (first bindings)
+        n (second bindings)]
+    `(let [n# ~n]
+       (loop [~i 0]
+         (when (< ~i n#)
+           ~@body
+           (recur (inc ~i)))))))
+
+(defmacro while
+  "Repeatedly executes body while test expression is true. Presumes
+  some side-effect will cause test to become false/nil. Returns nil."
+  {:added "1.0"}
+  [test & body]
+  `(loop []
+     (when ~test
+       ~@body
+       (recur))))
 
 ;;; Randomization & Concurrency Macros
 

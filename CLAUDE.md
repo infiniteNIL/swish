@@ -57,6 +57,16 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 
 ## Known Limitations (to address later)
 
+### 11 common core forms were missing entirely, now implemented
+
+A systematic audit (direct eval of each candidate, not just grepping source — grep alone gives false negatives for Swift-native/special-form registrations) found `dotimes`, `while`, `condp`, `declare`, `cond->`, `cond->>`, `as->`, `some->`, `some->>`, `memoize`, and `trampoline` completely missing — confirmed by `Undefined symbol` on direct eval, not documented anywhere in this file previously. Unlike most of this file's entries, these aren't deliberate JVM-hierarchy-driven simplifications — they're common, general-purpose Clojure forms that were simply never ported. All 11 are implemented in `core.clj` as straightforward, faithful ports of real Clojure's own source (no Swift/native code, no new `Expr` case), placed alongside their conceptual siblings (`condp` next to `cond`, the five threading macros next to `->`/`->>`, `dotimes`/`while` next to `doseq`, `declare` next to `defonce`, `memoize`/`trampoline` at the end of the Higher-Order Functions section).
+
+Two small dependency gaps surfaced and were closed the same way, for the same reason (staying maximally faithful to upstream rather than rewriting the caller around a missing dependency): `split-at` (needed by `condp`'s real algorithm) didn't exist either and is now a real port (`[(take n coll) (drop n coll)]`), and `unchecked-inc` (used by real Clojure's `dotimes` as a JVM boxing-avoidance hint with no behavioral effect) has no Swish equivalent worth porting — `dotimes` uses plain `inc` instead, which is exactly equivalent since Swish integers are already 64-bit (see the `abs.cljc` overlay's comment in `support/clojure/core_test/`).
+
+`memoize` deliberately uses `find`/`val` rather than `get` to probe its cache, matching real Clojure — this is the one correctness-relevant detail worth calling out: `get` can't distinguish "this argument list was already memoized, and the cached result happens to be `nil`" from "this argument list has never been called," which would cause a memoized nil-returning function to be needlessly re-invoked on every call. `find` returns a real map entry (or `nil` if the key is truly absent) that makes this distinction correctly.
+
+`definline` remains unimplemented, deliberately: it declares an inline-expansion form for a JIT/bytecode compiler to substitute at call sites, and Swish is a tree-walking interpreter with no such compilation pass to hook into — there's no faithful behavior to port, unlike the 11 forms above.
+
 ### Multimethods
 
 `defmulti`/`defmethod` are implemented (`core.clj`, "Hierarchies" and "Multimethods" sections near the end of the file), including full hierarchy-based dispatch (`derive`/`underive`/`isa?`/`parents`/`ancestors`/`descendants`/`make-hierarchy`) and ambiguity resolution (`prefer-method`/`prefers`). `clojure.test/report` and `clojure.test/use-fixtures` (`test.clj`) have been converted from their earlier `cond`-based workarounds to real multimethods.
