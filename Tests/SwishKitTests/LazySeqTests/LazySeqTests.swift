@@ -38,6 +38,16 @@ struct LazySeqTests {
         #expect(try swish.eval("(range 5 0 -1)") == .list(SwishPersistentList([5, 4, 3, 2, 1].map { .integer($0) }), metadata: nil))
     }
 
+    @Test("range 1-arg and 2-arg forms delegate to the 3-arg form (step 1), not a separate composition")
+    func rangeDelegatesToThreeArgForm() throws {
+        #expect(try swish.eval("(= (range 5) (range 0 5 1))") == .boolean(true))
+        #expect(try swish.eval("(= (range 2 8) (range 2 8 1))") == .boolean(true))
+        // Edge cases the take-while+iterate composition also had to get right.
+        #expect(try swish.eval("(range 0)") == .list([], metadata: nil))
+        #expect(try swish.eval("(range -3)") == .list([], metadata: nil))
+        #expect(try swish.eval("(range 3 3)") == .list([], metadata: nil))
+    }
+
     // MARK: - iterate
 
     @Test("iterate produces infinite seq")

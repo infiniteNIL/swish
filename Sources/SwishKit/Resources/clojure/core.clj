@@ -385,9 +385,14 @@
   With no args, returns an infinite lazy seq starting at 0."
   {:added "1.0"
    :static true}
+  ;; [Swish] 1-arg/2-arg forms delegate to the 3-arg form instead of composing
+  ;; take-while over iterate: two independently-recursing interpreted layers
+  ;; (each with its own LazySeqBox) cost ~4.5x more per element than the
+  ;; single self-recursive lazy-seq below, for identical output — measured
+  ;; directly, see CLAUDE.md's lazy-seq per-element cost section.
   ([] (iterate inc 0))
-  ([end] (take-while #(< % end) (iterate inc 0)))
-  ([start end] (take-while #(< % end) (iterate inc start)))
+  ([end] (range 0 end 1))
+  ([start end] (range start end 1))
   ([start end step]
    (lazy-seq
      (let [pred (if (pos? step) #(< % end) #(> % end))]
