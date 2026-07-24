@@ -206,6 +206,18 @@ public class Evaluator {
     private func evalList(_ elements: [Expr], in env: Environment) throws -> Expr {
         guard let head = elements.first
         else { return .list([], metadata: nil) }
+
+        // Fast path: the overwhelming majority of calls are ordinary function
+        // calls, not one of the ~20 special forms below. Reject non-special-form
+        // heads with a single Set lookup instead of paying up to 20 sequential
+        // string-equality comparisons (Swift doesn't compile a switch over an
+        // enum's associated String value to a jump table) before falling through
+        // to this exact same path anyway.
+        guard case .symbol(let headName, _) = head, Evaluator.specialFormNames.contains(headName) else {
+            let callee = try eval(head, in: env)
+            return try callFunction(callee, args: elements.dropFirst(), in: env)
+        }
+
         switch head {
         case .symbol("quote", _):
             guard elements.count == 2
