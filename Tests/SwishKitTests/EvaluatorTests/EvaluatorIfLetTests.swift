@@ -88,4 +88,12 @@ struct EvaluatorIfLetTests {
             try swish.eval("(if-let [x 1 y 2] x :no)")
         }
     }
+
+    // MARK: - if-some
+
+    @Test("if-some binds on 0, takes else on nil")
+    func ifSome() throws {
+        #expect(try swish.eval("(if-some [x 0] x :else)") == .integer(0))
+        #expect(try swish.eval("(if-some [x nil] x :else)") == .keyword("else"))
+    }
 }

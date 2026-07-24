@@ -387,4 +387,13 @@ struct EvaluatorNamespaceTests {
         let result = try swish.eval("(meta (find-ns 'find-ns-meta-test))")
         #expect(result == .map([.keyword("doc"): .string("hello from find-ns")], metadata: nil))
     }
+
+    // MARK: - ns-resolve
+
+    @Test("ns-resolve resolves a symbol in a named namespace different from current")
+    func nsResolve() throws {
+        let swish = Swish()
+        #expect(try swish.eval("(= (ns-resolve 'clojure.core 'inc) (resolve 'inc))") == .boolean(true))
+        #expect(try swish.eval("(ns-resolve 'clojure.core 'no-such-sym-xyz)") == .nil)
+    }
 }

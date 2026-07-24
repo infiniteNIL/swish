@@ -18,4 +18,14 @@ struct CoreVarPredicateTests {
         #expect(try swish.eval("(var? :a)") == .boolean(false))
         #expect(try swish.eval("(var? +)") == .boolean(false))
     }
+
+    // MARK: - bound?
+
+    @Test("bound? is true for a bound var, false for a declared-unbound var")
+    func boundPred() throws {
+        #expect(try swish.eval("(bound? #'+)") == .boolean(true))
+        #expect(
+            try swish.eval("(do (declare mcb2-unbound) (bound? #'mcb2-unbound))")
+                == .boolean(false))
+    }
 }

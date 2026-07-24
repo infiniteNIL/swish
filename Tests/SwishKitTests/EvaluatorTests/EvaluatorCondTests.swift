@@ -68,4 +68,28 @@ struct EvaluatorCondTests {
             try swish.eval("(cond true)")
         }
     }
+
+    // MARK: - condp
+
+    @Test("condp binary clause matches and returns result-expr")
+    func condpBinaryMatch() throws {
+        #expect(try swish.eval("(condp = 2 1 :one 2 :two 3 :three)") == .keyword("two"))
+    }
+
+    @Test("condp :>> ternary clause calls result-fn with predicate's result")
+    func condpArrowMatch() throws {
+        #expect(
+            try swish.eval("(condp #(re-find %1 %2) \"abc123\" #\"\\d+\" :>> (fn [m] (str \"matched:\" m)) :none)")
+                == .string("matched:123"))
+    }
+
+    @Test("condp falls through to a trailing default expression")
+    func condpDefault() throws {
+        #expect(try swish.eval("(condp = 9 1 :one 2 :two :other)") == .keyword("other"))
+    }
+
+    @Test("condp with no match and no default throws")
+    func condpNoMatchThrows() throws {
+        #expect(throws: (any Error).self) { try swish.eval("(condp = 9 1 :one 2 :two)") }
+    }
 }

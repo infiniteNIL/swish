@@ -217,4 +217,56 @@ struct CoreSequencePartitionTests {
         #expect(try swish.eval("(frequencies nil)") == .map([:], metadata: nil))
     }
 
+    // MARK: - split-at
+
+    @Test("split-at returns a 2-vector of take/drop")
+    func splitAtBasic() throws {
+        #expect(
+            try swish.eval("(split-at 2 [1 2 3 4 5])")
+                == .vector([.list([.integer(1), .integer(2)], metadata: nil), .list([.integer(3), .integer(4), .integer(5)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("split-at n=0 returns empty first half")
+    func splitAtZero() throws {
+        #expect(try swish.eval("(first (split-at 0 [1 2 3]))") == .list([], metadata: nil))
+    }
+
+    @Test("split-at n>=count returns empty second half")
+    func splitAtBeyondCount() throws {
+        #expect(try swish.eval("(second (split-at 10 [1 2 3]))") == .list([], metadata: nil))
+    }
+
+    // MARK: - partition-by
+
+    @Test("partition-by groups consecutive equal-f runs")
+    func partitionBy() throws {
+        #expect(
+            try swish.eval("(partition-by even? [1 1 2 2 3])")
+                == .list(
+                    [.list([.integer(1), .integer(1)], metadata: nil),
+                     .list([.integer(2), .integer(2)], metadata: nil),
+                     .list([.integer(3)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("partition-by works as a transducer")
+    func partitionByTransducer() throws {
+        #expect(
+            try swish.eval("(into [] (partition-by odd?) [1 3 2 4 5])")
+                == .vector(
+                    [.vector([.integer(1), .integer(3)], metadata: nil),
+                     .vector([.integer(2), .integer(4)], metadata: nil),
+                     .vector([.integer(5)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("partition-by over a large input does not overflow the stack")
+    func partitionByLargeInput() throws {
+        // Each element is its own partition here, so this realizes 2000 lazy
+        // partition-by steps. That's well past where a broken (eager-recursive)
+        // implementation would overflow the interpreter's own eval stack, so it
+        // catches a stack-accumulation regression — while keeping partition-by's
+        // high per-element interpreter cost (composed take-while/drop/count lazy
+        // layers) from dominating the suite.
+        #expect(try swish.eval("(count (partition-by even? (range 2000)))") == .integer(2000))
+    }
+
 }

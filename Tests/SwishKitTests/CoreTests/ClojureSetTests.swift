@@ -129,4 +129,14 @@ struct ClojureSetTests {
     func supersetFalse() throws {
         #expect(try swish.eval("(s/superset? #{1 2} #{1 2 3})") == .boolean(false))
     }
+
+    @Test("rename-keys: basic, absent source key skipped")
+    func renameKeys() throws {
+        #expect(
+            try swish.eval("(s/rename-keys {:a 1 :b 2} {:a :x})")
+                == .map([.keyword("x"): .integer(1), .keyword("b"): .integer(2)], metadata: nil))
+        #expect(
+            try swish.eval("(s/rename-keys {:a 1} {:z :y})")
+                == .map([.keyword("a"): .integer(1)], metadata: nil))
+    }
 }

@@ -60,4 +60,11 @@ struct EvaluatorWhenLetTests {
         #expect(try swish.eval("(when-let [{:keys [x]} {:x 5}] x)") == .integer(5))
     }
 
+    // MARK: - when-some
+
+    @Test("when-some binds on a false value, not on nil")
+    func whenSome() throws {
+        #expect(try swish.eval("(when-some [x false] :bound)") == .keyword("bound"))
+        #expect(try swish.eval("(when-some [x nil] :bound)") == .nil)
+    }
 }

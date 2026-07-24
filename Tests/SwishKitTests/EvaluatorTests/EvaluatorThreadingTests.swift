@@ -104,4 +104,50 @@ struct EvaluatorThreadingTests {
     func seqPredNil() throws {
         #expect(try swish.eval("(seq? nil)") == .boolean(false))
     }
+
+    // MARK: - cond-> / cond->>
+
+    @Test("cond-> threads only true-tested steps, no short-circuit")
+    func condArrowThreadsTrueSteps() throws {
+        #expect(try swish.eval("(cond-> 1 true inc false (* 42) true inc)") == .integer(3))
+    }
+
+    @Test("cond-> with no true tests returns expr unchanged")
+    func condArrowAllFalse() throws {
+        #expect(try swish.eval("(cond-> 1 false inc false (* 42))") == .integer(1))
+    }
+
+    @Test("cond->> threads via ->> (form last, not first)")
+    func condArrowArrowThreadsViaAppend() throws {
+        #expect(try swish.eval("(cond->> [2 3] true (cons 1))") == .list([.integer(1), .integer(2), .integer(3)], metadata: nil))
+    }
+
+    // MARK: - as->
+
+    @Test("as-> threads through forms using the bound name at arbitrary positions")
+    func asArrowArbitraryPosition() throws {
+        #expect(try swish.eval("(as-> [1 2 3] v (map inc v) (reduce + v) (- v 1))") == .integer(8))
+    }
+
+    // MARK: - some-> / some->>
+
+    @Test("some-> short-circuits to nil on the first nil step")
+    func someArrowShortCircuits() throws {
+        #expect(try swish.eval("(some-> {:a 1} :b :c)") == .nil)
+    }
+
+    @Test("some-> threads through non-nil steps")
+    func someArrowThreadsNonNil() throws {
+        #expect(try swish.eval("(some-> {:a {:b 2}} :a :b inc)") == .integer(3))
+    }
+
+    @Test("some->> short-circuits to nil on the first nil step")
+    func someArrowArrowShortCircuits() throws {
+        #expect(try swish.eval("(some->> [1 2 3] (map inc) (drop 5) first)") == .nil)
+    }
+
+    @Test("some->> threads through non-nil steps")
+    func someArrowArrowThreadsNonNil() throws {
+        #expect(try swish.eval("(some->> [1 2 3] (map inc) reverse first)") == .integer(4))
+    }
 }

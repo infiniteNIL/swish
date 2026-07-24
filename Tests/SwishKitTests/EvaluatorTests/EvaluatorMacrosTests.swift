@@ -215,4 +215,11 @@ let result = try swish.eval("""
             """)
         #expect(result == .integer(25))
     }
+
+    // MARK: - doto
+
+    @Test("doto runs forms in order and returns the original object")
+    func doto() throws {
+        #expect(try swish.eval("(deref (doto (atom 0) (reset! 5) (swap! inc)))") == .integer(6))
+    }
 }

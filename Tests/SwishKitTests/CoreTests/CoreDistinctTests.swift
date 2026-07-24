@@ -35,4 +35,15 @@ struct CoreDistinctTests {
     func distinctAllSame() throws {
         #expect(try swish.eval("(distinct '(1 1 1))") == .list([.integer(1)], metadata: nil))
     }
+
+    // MARK: - distinct?
+
+    @Test("distinct? arities")
+    func distinctPred() throws {
+        #expect(try swish.eval("(distinct? 1)") == .boolean(true))
+        #expect(try swish.eval("(distinct? 1 2)") == .boolean(true))
+        #expect(try swish.eval("(distinct? 1 1)") == .boolean(false))
+        #expect(try swish.eval("(distinct? 1 2 3)") == .boolean(true))
+        #expect(try swish.eval("(distinct? 1 2 3 2)") == .boolean(false))
+    }
 }

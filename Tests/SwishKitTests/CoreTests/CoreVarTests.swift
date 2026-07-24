@@ -50,4 +50,18 @@ struct CoreVarTests {
             *avr-5*
             """) == .integer(2))
     }
+
+    // MARK: - declare
+
+    @Test("declare creates a var referenceable before its later def")
+    func declareForwardReference() throws {
+        #expect(
+            try swish.eval("""
+                (do
+                  (declare mcf-fwd-var)
+                  (defn mcf-uses-fwd [] mcf-fwd-var)
+                  (def mcf-fwd-var 42)
+                  (mcf-uses-fwd))
+                """) == .integer(42))
+    }
 }
