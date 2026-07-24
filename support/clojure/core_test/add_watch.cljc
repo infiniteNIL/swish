@@ -7,13 +7,13 @@
 ;; Two divergences from upstream:
 ;; 1. The upstream "watch atom"/"watch var"/"watch agent" blocks catch errors
 ;;    with `(catch #?(:cljr ... :lpy ... :phel ... :cljs :default :clj
-;;    clojure.lang.ExceptionInfo) e ...)` and/or use ex-info/ex-data directly.
-;;    Swish's reader only recognizes "swish"/"default" as feature keys, so the
-;;    reader-conditional catch form has no matching branch and is dropped
-;;    entirely, leaving a malformed `catch` clause; Swish also has no
-;;    ex-info/ex-data. Since Swish's `catch` already binds `e` to exactly the
-;;    thrown value (rather than requiring ex-data to unwrap it), these blocks
-;;    throw/catch the raw data map directly instead of going through ex-info.
+;;    clojure.lang.ExceptionInfo) e ...)`. Swish's reader only recognizes
+;;    "swish"/"default" as feature keys, so the reader-conditional catch form
+;;    has no matching branch and is dropped entirely, leaving a malformed
+;;    `catch` clause — this overlay's `catch Exception e` replaces it. Now
+;;    that Swish has real ex-info/ex-data, the err handlers below throw real
+;;    ex-info values and read them back via ex-data, matching upstream's
+;;    actual approach rather than throwing/catching a raw data map.
 ;; 2. "watch ref" and "watch agent" are both guarded with when-var-exists.
 ;;    Both guards now pass for real: agent/send/await/agent-error/restart-agent
 ;;    were implemented in Step 2 (real concurrency), and ref/dosync/ref-set/
@@ -28,7 +28,7 @@
             tester1 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 1}))
             tester2 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 2}))
             err (fn [key ref old new]
-                  (throw {:key key :ref ref :old old :new new :tester :err}))
+                  (throw (ex-info "watch error" {:key key :ref ref :old old :new new :tester :err})))
             a (atom 0)
             r (atom 10)
             update! (fn []
@@ -36,7 +36,7 @@
                                         (try
                                           (swap! x inc)
                                           (catch Exception e
-                                            (vswap! state conj e))))]
+                                            (vswap! state conj (ex-data e)))))]
                         (do-update a)
                         (do-update r)))
             keyed (fn [k s] (filter #(= k (:key %)) s))]
@@ -95,13 +95,13 @@
             tester1 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 1}))
             tester2 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 2}))
             err (fn [key ref old new]
-                  (throw {:key key :ref ref :old old :new new :tester :err}))
+                  (throw (ex-info "watch error" {:key key :ref ref :old old :new new :tester :err})))
             update! (fn []
                       (let [do-update (fn [x]
                                         (try
                                           (alter-var-root x inc)
                                           (catch Exception e
-                                            (vswap! state conj e))))]
+                                            (vswap! state conj (ex-data e)))))]
                         (do-update #'testvar-a)
                         (do-update #'testvar-b)))
             keyed (fn [k s] (filter #(= k (:key %)) s))]
@@ -157,13 +157,13 @@
               tester1 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 1}))
               tester2 (fn [key ref old new] (vswap! state conj {:key key :ref ref :old old :new new :tester 2}))
               err (fn [key ref old new]
-                    (throw {:key key :ref ref :old old :new new :tester :err}))
+                    (throw (ex-info "watch error" {:key key :ref ref :old old :new new :tester :err})))
               r (ref 10)
               update! (fn []
                         (try
                           (dosync (ref-set r (inc @r)))
                           (catch Exception e
-                            (vswap! state conj e))))
+                            (vswap! state conj (ex-data e)))))
               keyed (fn [k s] (filter #(= k (:key %)) s))]
 
           ;; add a watch to the ref
@@ -230,11 +230,11 @@
               agent-end (promise)
               err (fn [key _ref old new]
                     (deliver agent-end :done)
-                    (throw {:key key :old old :new new :tester :err}))
+                    (throw (ex-info "watch error" {:key key :old old :new new :tester :err})))
               g (agent 20)
               update! (fn []
                         (when-let [e (agent-error g)]
-                          (vswap! state conj e)
+                          (vswap! state conj (ex-data e))
                           (restart-agent g :ready))
                         (send g inc))
               _keyed (fn [k s] (set (filter #(= k (:key %)) s)))]
@@ -310,7 +310,7 @@
           (sleep 1)
           (if-let [e (agent-error g)]
             (do
-              (is (= {:key :e :old 26 :new 27 :tester :err} e))
+              (is (= {:key :e :old 26 :new 27 :tester :err} (ex-data e)))
               ;; The final call may not have gone to tester 1
               (is (= #{{:key :g :old 20 :new 21 :tester 1}
                        {:key :g :old 21 :new 22 :tester 1}

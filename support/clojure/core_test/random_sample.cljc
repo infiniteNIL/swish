@@ -3,15 +3,25 @@
             [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p]))
 
 ;; Swish-specific overlay for random_sample.cljc from the Jank Clojure Test
-;; Suite. The only change from upstream is nitems: 10000 -> 1000. Swish's
-;; tree-walking interpreter costs roughly 300-475us per lazy-seq element
-;; (see CLAUDE.md's "Interpreter has a high per-element constant cost"
-;; section) — at the upstream nitems, this single fixture (10 draws across
-;; ~8 prob/coll/transducer-form combinations, each walking up to 10000
-;; elements) took ~148 seconds on its own, dominating the entire jank suite
-;; run. Every prob/coll/nil/empty/transducer-form code path below is
-;; otherwise identical to upstream — this only shrinks the collection size,
-;; not the coverage.
+;; Suite. The only change from upstream is nitems: 10000 -> 2500 (previously
+;; 1000). Swish's tree-walking interpreter costs roughly 300-475us per
+;; lazy-seq element (see CLAUDE.md's "Interpreter has a high per-element
+;; constant cost" section) — at the upstream nitems, this single fixture (10
+;; draws across ~8 prob/coll/transducer-form combinations, each walking up to
+;; 10000 elements) originally took ~148 seconds on its own, dominating the
+;; entire jank suite run.
+;;
+;; Two interpreter perf fixes landed since (range's 1-arg/2-arg rewrite to
+;; delegate to the 3-arg form, and global-symbol-resolution caching — see
+;; CLAUDE.md), which this fixture exercises directly. Re-measured against
+;; this actual fixture (not extrapolated), release build, via a scratch
+;; sourcepath overlay: nitems=10000 now takes ~49s (a ~3x speedup from ~148s)
+;; — real, but still nearly doubling the whole suite's ~51s total runtime for
+;; one fixture. nitems=2500 (~8.5s) is the re-measured middle ground: keeps
+;; this fixture from dominating the suite while landing meaningfully closer
+;; to upstream's coverage than the original 1000. Every prob/coll/nil/empty/
+;; transducer-form code path below is otherwise identical to upstream — this
+;; only changes the collection size, not the coverage.
 
 (when-var-exists random-sample
 
@@ -40,7 +50,7 @@
     ;; the collection. Length of each subset should be between 0 and
     ;; the length of the original collection.
     (let [draws 10
-          nitems 1000
+          nitems 2500
           coll (doall (range nitems))
           prob 0.5]
       (testing "positive tests"
