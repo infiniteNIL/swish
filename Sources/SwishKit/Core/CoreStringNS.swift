@@ -73,13 +73,14 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
                  "separated by an optional separator.",
             arglists: [["coll"], ["sep", "coll"]])
 
-    // [Swish] Not a general-purpose re-find/re-matches — Swish has neither. This is
-    // a narrow, single-purpose whole-string-match primitive for run-all-tests's own
-    // regex-filter arity (test.clj); it deliberately isn't named re-matches so it
-    // doesn't imply real re-find/re-matches (capture groups, re-seq, etc.) exist.
+    // [Swish] A narrow, single-purpose whole-string-match primitive that predates
+    // real re-matches/re-find/re-seq (now implemented in CoreRegex.swift). Kept as
+    // its own primitive — it's still what run-all-tests's regex-filter arity
+    // (test.clj) calls — but it's now redundant with `(some? (re-matches ...))`
+    // for new code.
     evaluator.register(name: "swish-regex-whole-match?", arity: .fixed(2),
         doc: "Internal helper: true if s matches pattern over its entire length. " +
-             "Not a substitute for re-matches, which Swish does not implement.",
+             "Superseded by re-matches for new code; kept for run-all-tests's regex filter.",
         arglists: [["pattern", "s"]], body: coreSwishRegexWholeMatch)
 }
 

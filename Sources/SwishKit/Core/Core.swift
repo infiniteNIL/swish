@@ -13,6 +13,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerIO(into: evaluator)
     registerNamespace(into: evaluator)
     registerString(into: evaluator)
+    registerRegex(into: evaluator)
     registerPredicates(into: evaluator)
     registerSequenceCore(into: evaluator)
     registerSequenceCollections(into: evaluator)
