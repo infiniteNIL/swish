@@ -70,6 +70,19 @@
   [& names]
   `(do ~@(map #(list 'def (vary-meta % assoc :declared true)) names)))
 
+(defn bound?
+  "Returns true if all of the vars provided as arguments have any bound value,
+  root or thread-local. Implies that deref'ing the provided vars will succeed.
+  Returns true if no vars are provided.
+  [Swish] Checks root-boundness only (var-has-root? -> Var.isBound, i.e. the
+  var has a root value), unlike real Clojure's bound?, which is also true for a
+  var with only a thread-local binding and no root. Swish's thread-local
+  bindings live in the evaluator's bindingFrames, invisible to this check — an
+  acceptable divergence for the common (root-bound) case; see CLAUDE.md."
+  {:added "1.2"}
+  [& vars]
+  (every? var-has-root? vars))
+
 (defn not
   "Returns true if x is logical false, false otherwise."
   {:tag Boolean
@@ -181,6 +194,58 @@
     `(when-let [xs# (seq ~xs)]
        (let [~form (first xs#)]
          ~@body))))
+
+(defmacro if-some
+  "bindings => binding-form test
+
+   If test is not nil, evaluates then with binding-form bound to the
+   value of test, if not, yields else"
+  {:added "1.6"}
+  ([bindings then]
+   `(if-some ~bindings ~then nil))
+  ([bindings then else & oldform]
+   (assert-args
+     (vector? bindings) "a vector for its binding"
+     (nil? oldform) "1 or 2 forms after binding vector"
+     (= 2 (count bindings)) "exactly 2 forms in binding vector")
+   (let [form (bindings 0) tst (bindings 1)]
+     `(let [temp# ~tst]
+        (if (some? temp#)
+          (let [~form temp#]
+            ~then)
+          ~else)))))
+
+(defmacro when-some
+  "bindings => binding-form test
+
+   When test is not nil, evaluates body with binding-form bound to the
+   value of test"
+  {:added "1.6"}
+  [bindings & body]
+  (assert-args
+    (vector? bindings) "a vector for its binding"
+    (= 2 (count bindings)) "exactly 2 forms in binding vector")
+  (let [form (bindings 0) tst (bindings 1)]
+    `(let [temp# ~tst]
+       (if (some? temp#)
+         (let [~form temp#] ~@body)))))
+
+(defmacro doto
+  "Evaluates x then calls all of the methods and functions with the
+  value of x supplied at the front of the given arguments.  The forms
+  are evaluated in order.  Returns x.
+
+  (doto (new java.util.HashMap) (.put \"a\" 1) (.put \"b\" 2))"
+  {:added "1.0"}
+  [x & forms]
+  (let [gx (gensym)]
+    `(let [~gx ~x]
+       ~@(map (fn [f]
+                (if (seq? f)
+                  `(~(first f) ~gx ~@(next f))
+                  `(~f ~gx)))
+              forms)
+       ~gx)))
 
 (defn second
   "Same as (first (next x))"
@@ -524,6 +589,35 @@
   ([pred] (filter (complement pred)))
   ([pred coll] (filter (complement pred) coll)))
 
+(defn mapv
+  "Returns a vector consisting of the result of applying f to the
+  set of first items of each coll, followed by applying f to the set
+  of second items in each coll, until any one of the colls is
+  exhausted.  Any remaining items in other colls are ignored. Function
+  f should accept number-of-colls arguments."
+  {:added "1.4"
+   :static true}
+  ([f coll]
+   (-> (reduce (fn [v o] (conj! v (f o))) (transient []) coll)
+       persistent!))
+  ([f c1 c2]
+   (into [] (map f c1 c2)))
+  ([f c1 c2 c3]
+   (into [] (map f c1 c2 c3)))
+  ([f c1 c2 c3 & colls]
+   (into [] (apply map f c1 c2 c3 colls))))
+
+(defn filterv
+  "Returns a vector of the items in coll for which
+  (pred item) returns logical true."
+  {:added "1.4"
+   :static true}
+  [pred coll]
+  (-> (reduce (fn [v o] (if (pred o) (conj! v o) v))
+              (transient [])
+              coll)
+      persistent!))
+
 ;;; Threading Macros
 
 (defmacro lazy-cat
@@ -846,6 +940,18 @@
     (throw "some-fn requires at least one predicate")
     (fn [& args]
       (or (some #(some % args) preds) false))))
+
+(defn every-pred
+  "Takes a set of predicates and returns a function f that returns true if all of its
+  composing predicates return a logical true value against all of its arguments, else it returns
+  false. Note that f is short-circuiting in that it will stop execution on the first
+  argument that triggers a logical false result against the original predicates."
+  {:added "1.3"}
+  [& preds]
+  (if (empty? preds)
+    (throw "every-pred requires at least one predicate")
+    (fn [& args]
+      (every? (fn [p] (every? p args)) preds))))
 
 (defn juxt
   "Takes a set of functions and returns a fn that is the juxtaposition
@@ -1300,6 +1406,28 @@
   (when (some identity maps)
     (reduce #(conj (or %1 {}) %2) maps)))
 
+(defn reduce-kv
+  "Reduces an associative collection. f should be a function of 3
+  arguments. Returns the result of applying f to init, the first key
+  and the first value in coll, then applying f to that result and the
+  2nd key and value, etc. If coll contains no entries, returns init
+  and f is not called. Note that reduce-kv is supported on vectors,
+  where the keys will be the ordinals.
+  [Swish] Real Clojure dispatches via the IKVReduce protocol; this is a
+  portable version handling maps (via key/val) and vectors (via index),
+  the two associative collections reduce-kv is defined on."
+  {:added "1.4"}
+  [f init coll]
+  (if (vector? coll)
+    (loop [ret init i 0]
+      (if (< i (count coll))
+        (let [ret (f ret i (nth coll i))]
+          (if (reduced? ret)
+            @ret
+            (recur ret (inc i))))
+        ret))
+    (reduce (fn [ret entry] (f ret (key entry) (val entry))) init coll)))
+
 ;;; Sequence Utilities
 
 (def cat
@@ -1322,6 +1450,23 @@
   {:added "1.0"}
   ([f] (comp (map f) cat))
   ([f & colls] (apply concat (apply map f colls))))
+
+(defn reductions
+  "Returns a lazy seq of the intermediate values of the reduction (as
+  per reduce) of coll by f, starting with init."
+  {:added "1.2"}
+  ([f coll]
+   (lazy-seq
+    (if-let [s (seq coll)]
+      (reductions f (first s) (rest s))
+      (list (f)))))
+  ([f init coll]
+   (if (reduced? init)
+     (list @init)
+     (cons init
+           (lazy-seq
+            (when-let [s (seq coll)]
+              (reductions f (f init (first s)) (rest s))))))))
 
 (defn sequential?
   "Returns true if coll implements Sequential"
@@ -1475,6 +1620,49 @@
        (let [seg (doall (take n s))]
          (cons seg (partition-all n step (drop step s))))))))
 
+(defn partition-by
+  "Applies f to each value in coll, splitting it each time f returns a
+   new value.  Returns a lazy seq of partitions.  Returns a stateful
+   transducer when no collection is provided.
+   [Swish] The transducer arity buffers with a (volatile! []) rather than
+   real Clojure's java.util.ArrayList — the same adaptation partition-all's
+   transducer arity already makes — since Swish has no java.util interop."
+  {:added "1.2"
+   :static true}
+  ([f]
+   (fn [rf]
+     (let [a (volatile! [])
+           pv (volatile! ::none)]
+       (fn
+         ([] (rf))
+         ([result]
+          (let [result (if (not-empty @a)
+                         (let [v @a]
+                           (vreset! a [])
+                           (unreduced (rf result v)))
+                         result)]
+            (rf result)))
+         ([result input]
+          (let [pval @pv
+                val (f input)]
+            (vreset! pv val)
+            (if (or (identical? pval ::none)
+                    (= val pval))
+              (do (vswap! a conj input) result)
+              (let [v @a]
+                (vreset! a [])
+                (let [ret (rf result v)]
+                  (when-not (reduced? ret)
+                    (vswap! a conj input))
+                  ret)))))))))
+  ([f coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [fst (first s)
+             fv (f fst)
+             run (cons fst (take-while #(= fv (f %)) (next s)))]
+         (cons run (partition-by f (drop (count run) s))))))))
+
 (defn group-by
   "Returns a map of the elements of coll keyed by the result of
   f on each element. The value at each key will be a vector of the
@@ -1581,6 +1769,23 @@
                         (cons f (step (rest xs) (conj seen f))))))
                   xs seen)))]
      (step coll #{}))))
+
+(defn distinct?
+  "Returns true if no two of the arguments are ="
+  {:tag Boolean
+   :added "1.0"
+   :static true}
+  ([x] true)
+  ([x y] (not (= x y)))
+  ([x y & more]
+   (if (not= x y)
+     (loop [s #{x y} [x & etc :as xs] more]
+       (if xs
+         (if (contains? s x)
+           false
+           (recur (conj s x) etc))
+         true))
+     false)))
 
 (def dedupe-none :__dedupe-none__)
 

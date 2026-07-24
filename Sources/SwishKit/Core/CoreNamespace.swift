@@ -22,6 +22,9 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "resolve", arity: .fixed(1),
         doc: "Returns the var or Class to which a symbol will be resolved in the current namespace, else nil.",
         arglists: [["sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
+    evaluator.register(name: "ns-resolve", arity: .variadic,
+        doc: "Returns the var to which a symbol will be resolved in the namespace (unless found in the environment), else nil. Note that if the symbol is fully qualified, the var/Class to which it resolves need not be present in the namespace.",
+        arglists: [["ns", "sym"], ["ns", "env", "sym"]]) { [evaluator] args in try coreNsResolve(evaluator, args) }
     evaluator.register(name: "ns-interns", arity: .fixed(1),
         doc: "Returns a map of the intern mappings for the namespace.",
         arglists: [["ns"]]) { [evaluator] args in try coreNsInterns(evaluator, args) }
@@ -152,6 +155,34 @@ private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
     // evaluation of these names (which never goes through resolve) is
     // unaffected and still throws exactly as it does today.
     if Evaluator.specialFormNames.contains(name) { return .keyword("special-form") }
+    return .nil
+}
+
+private func coreNsResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    // (ns-resolve ns sym) or (ns-resolve ns env sym). The env arg (local
+    // binding map) is accepted for source compatibility but ignored — Swish
+    // does no local-env var capture here. The symbol is always the last arg.
+    guard args.count == 2 || args.count == 3 else {
+        throw EvaluatorError.invalidArgument(function: "ns-resolve",
+            message: "requires 2 or 3 arguments, got \(args.count)")
+    }
+    let symArg = args[args.count - 1]
+    guard case .symbol(let name, _) = symArg else {
+        throw EvaluatorError.invalidArgument(function: "ns-resolve",
+            message: "last argument must be a symbol, got \(corePrinter.printString(symArg))")
+    }
+    guard case .namespace(let ns) = try coreTheNs(evaluator, [args[0]]) else {
+        throw EvaluatorError.invalidArgument(function: "ns-resolve",
+            message: "first argument must be a namespace or symbol, got \(corePrinter.printString(args[0]))")
+    }
+    // A namespace-qualified symbol (ns/name) resolves by its qualified name,
+    // independent of the passed ns; an unqualified name resolves within the
+    // passed ns (with clojure.core fallback), matching real Clojure.
+    if evaluator.splitQualified(name) != nil {
+        if let v = try? evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
+        return .nil
+    }
+    if let v = evaluator.resolveVar(name: name, in: ns) { return .varRef(v) }
     return .nil
 }
 

@@ -10,14 +10,16 @@
 ;;
 ;; Utilities for recursively walking a data structure.
 ;;
-;; [Swish] Partial port: only walk/postwalk/postwalk-replace, the three
-;; functions clojure.template/do-template actually needs. walk's dispatch
-;; is narrowed to list?/vector?/map?/set? — real Clojure's walk also
-;; special-cases IMapEntry and IRecord, which only matter when walking
-;; *runtime data* (e.g. a defrecord instance or a realized map's entries);
-;; a macro template (the only thing this port is used for) is unevaluated
-;; reader syntax and is never shaped like either. No prewalk/stringify-keys/
-;; keywordize-keys/macroexpand-all — not needed by do-template, not built.
+;; [Swish] Partial port: walk/postwalk/postwalk-replace (the three functions
+;; clojure.template/do-template needs) plus keywordize-keys/stringify-keys
+;; (common enough to warrant porting). walk's dispatch is narrowed to
+;; list?/vector?/map?/set? — real Clojure's walk also special-cases IMapEntry
+;; and IRecord, which only matter when walking *runtime data* (e.g. a
+;; defrecord instance or a realized map's entries); a macro template is
+;; unevaluated reader syntax and is never shaped like either, and
+;; keywordize-keys/stringify-keys do their own map-entry handling via
+;; (into {} (map f x)) rather than relying on walk to dispatch onto entries.
+;; No prewalk/macroexpand-all — not built.
 ;;
 ;; [Swish] walk uses reduce, not map, to rebuild each collection, and
 ;; postwalk recurses directly rather than through partial. map/filter are
@@ -63,3 +65,19 @@
   {:added "1.1"}
   [smap form]
   (clojure.walk/postwalk (fn [x] (if (contains? smap x) (get smap x) x)) form))
+
+(defn keywordize-keys
+  "Recursively transforms all map keys from strings to keywords."
+  {:added "1.1"}
+  [m]
+  (let [f (fn [[k v]] (if (string? k) [(keyword k) v] [k v]))]
+    ;; only apply to maps
+    (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))
+
+(defn stringify-keys
+  "Recursively transforms all map keys from keywords to strings."
+  {:added "1.1"}
+  [m]
+  (let [f (fn [[k v]] (if (keyword? k) [(name k) v] [k v]))]
+    ;; only apply to maps
+    (clojure.walk/postwalk (fn [x] (if (map? x) (into {} (map f x)) x)) m)))

@@ -49,6 +49,16 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "True if s includes substr.",
             arglists: [["s", "substr"]])
 
+        ns.register(name: "index-of", value: coreIndexOf,
+            doc: "Return index of value (string or char) in s, optionally searching " +
+                 "forward from from-index. Return nil if value not found.",
+            arglists: [["s", "value"], ["s", "value", "from-index"]])
+
+        ns.register(name: "last-index-of", value: coreLastIndexOf,
+            doc: "Return last index of value (string or char) in s, optionally " +
+                 "searching backward from from-index. Return nil if value not found.",
+            arglists: [["s", "value"], ["s", "value", "from-index"]])
+
         ns.register(name: "blank?", value: coreBlank,
             doc: "True if s is nil, empty, or contains only whitespace.",
             arglists: [["s"]])
@@ -346,6 +356,86 @@ private let coreIncludes = Expr.nativeFunction(name: "includes?", arity: .fixed(
         throw EvaluatorError.invalidArgument(function: "includes?", message: "second argument must be a string")
     }
     return .boolean(substr.isEmpty || s.contains(substr))
+}
+
+/// Coerces an index-of/last-index-of "value" argument (a string or a single
+/// character) to the string to search for.
+private func stringSearchValue(_ arg: Expr, function: String) throws -> String {
+    switch arg {
+    case .string(let sub):
+        return sub
+
+    case .character(let c):
+        return String(c)
+
+    default:
+        throw EvaluatorError.invalidArgument(function: function,
+            message: "value must be a string or character")
+    }
+}
+
+private func stringSearchFromIndex(_ arg: Expr, function: String) throws -> Int {
+    guard case .integer(let from) = arg else {
+        throw EvaluatorError.invalidArgument(function: function,
+            message: "from-index must be an integer")
+    }
+    return Int(from)
+}
+
+private let coreIndexOf = Expr.nativeFunction(name: "index-of", arity: .variadic) { args in
+    guard args.count == 2 || args.count == 3 else {
+        throw EvaluatorError.invalidArgument(function: "index-of",
+            message: "requires 2 or 3 arguments, got \(args.count)")
+    }
+    let s = try requireString(args[0], function: "index-of")
+    let needle = try stringSearchValue(args[1], function: "index-of")
+    let count = s.count
+    let startOffset = args.count == 3
+        ? max(0, min(try stringSearchFromIndex(args[2], function: "index-of"), count))
+        : 0
+
+    if needle.isEmpty {
+        return .integer(startOffset)
+    }
+
+    let startIdx = s.index(s.startIndex, offsetBy: startOffset)
+    guard let range = s.range(of: needle, range: startIdx..<s.endIndex) else {
+        return .nil
+    }
+    return .integer(s.distance(from: s.startIndex, to: range.lowerBound))
+}
+
+private let coreLastIndexOf = Expr.nativeFunction(name: "last-index-of", arity: .variadic) { args in
+    guard args.count == 2 || args.count == 3 else {
+        throw EvaluatorError.invalidArgument(function: "last-index-of",
+            message: "requires 2 or 3 arguments, got \(args.count)")
+    }
+    let s = try requireString(args[0], function: "last-index-of")
+    let needle = try stringSearchValue(args[1], function: "last-index-of")
+    let count = s.count
+
+    // Upper bound (exclusive character offset) on where a match may END. For the
+    // 3-arg form the match must START at or before from-index, so it may end no
+    // later than from-index + needle.count; a negative from-index means no match
+    // (Java lastIndexOf semantics).
+    var endOffset = count
+    if args.count == 3 {
+        let from = try stringSearchFromIndex(args[2], function: "last-index-of")
+        if from < 0 {
+            return .nil
+        }
+        endOffset = min(from + needle.count, count)
+    }
+
+    if needle.isEmpty {
+        return .integer(endOffset)
+    }
+
+    let endIdx = s.index(s.startIndex, offsetBy: endOffset)
+    guard let range = s.range(of: needle, options: .backwards, range: s.startIndex..<endIdx) else {
+        return .nil
+    }
+    return .integer(s.distance(from: s.startIndex, to: range.lowerBound))
 }
 
 private let coreBlank = Expr.nativeFunction(name: "blank?", arity: .fixed(1)) { args in
