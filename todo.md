@@ -17,6 +17,12 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] ns-resolve, clojure.string/index-of + last-index-of
+- [x] clojure.set/rename-keys, clojure.walk/keywordize-keys + stringify-keys
+- [x] mapv, filterv, reduce-kv, partition-by (lazy + transducer arities), distinct?, every-pred, reductions, when-some, if-some, doto, bound?
+- [x] split-at, dotimes, while, condp, cond->, cond->>, as->, some->, some->>, declare, memoize, trampoline
+- [x] ex-info, ex-message, ex-data, or ex-cause
+- [x] re-pattern, re-matches, re-find, and re-seq
 - [x] Updated Jank Clojure test suite (addressed issues, still no SKIPs, ERRORs, or FAILs)
 - [x] Update roadmap
 - [x] SwishPersistentList (Swift collections doesn't have a list)
