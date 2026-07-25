@@ -199,7 +199,7 @@ public class Evaluator {
     /// pollute namespace introspection with fake "vars" for pure syntax keywords.
     static let specialFormNames: Set<String> = [
         "quote", "syntax-quote", "def", "if", "do", "let", "letfn", "loop", "recur",
-        "fn", "defmacro", "var", "ns", "lazy-seq", "delay", "binding", "throw", "try",
+        "fn", "defmacro", "var", "ns", "lazy-seq", "delay", "binding", "set!", "throw", "try",
         "defrecord", "deftype", "extend-type", "extend-protocol",
     ]
 
@@ -271,6 +271,9 @@ public class Evaluator {
 
         case .symbol("binding", _):
             return try evalBinding(elements, in: env)
+
+        case .symbol("set!", _):
+            return try evalSet(elements, in: env)
 
         case .symbol("throw", _):
             return try evalThrow(elements, in: env)

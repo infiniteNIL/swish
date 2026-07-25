@@ -48,6 +48,55 @@ extension Evaluator {
         return try evalBody(Array(elements.dropFirst(2)), in: env)
     }
 
+    /// `(set! var-symbol value)` — mutates the current thread-local binding of a
+    /// dynamic var established by `binding`, returning the new value. Faithful to
+    /// Clojure's `Var.doSet`: the var must be thread-bound (present in an active
+    /// `binding` frame) or it throws "Can't change/establish root binding". No
+    /// explicit `isDynamic` check is needed — a non-dynamic var can never be
+    /// thread-bound (`binding` rejects them), so it hits the same error. Swish
+    /// vars carry no validator and the dynamic `set!` path notifies no watches,
+    /// matching Clojure, so this is a plain frame mutation. The mutable-`deftype`-
+    /// field form of `set!` is deliberately unimplemented (see CLAUDE.md).
+    func evalSet(_ elements: [Expr], in env: Environment) throws -> Expr {
+        guard elements.count == 3
+        else {
+            throw EvaluatorError.invalidArgument(function: "set!",
+                message: "requires exactly 2 arguments: (set! var-symbol value)")
+        }
+        guard case .symbol(let name, _) = elements[1]
+        else {
+            throw EvaluatorError.invalidArgument(function: "set!",
+                message: "target must be a symbol (Java-field/mutable-field set! is unsupported)")
+        }
+        // Resolve the target var exactly as `binding` does, so `set!` matches
+        // `binding` and the alias-expansion path is handled identically.
+        let v: Var
+        if let qualified = try resolveQualifiedVar(name: name) {
+            v = qualified
+        }
+        else if let local = resolveVar(name: name, in: currentNs()) {
+            v = local
+        }
+        else {
+            throw EvaluatorError.undefinedSymbol(name)
+        }
+        let newValue = try eval(elements[2], in: env)
+        // Mutate the innermost (topmost) active binding frame holding this var.
+        let id = ObjectIdentifier(v)
+        var frames = bindingFrames
+        var i = frames.count - 1
+        while i >= 0 {
+            if frames[i][id] != nil {
+                frames[i][id] = newValue
+                bindingFrames = frames
+                return newValue
+            }
+            i -= 1
+        }
+        throw EvaluatorError.invalidArgument(function: "set!",
+            message: "Can't change/establish root binding of: \(v.namespace.name)/\(v.name) with set")
+    }
+
     func evalLet(_ elements: [Expr], in env: Environment) throws -> Expr {
         let bindingVec = try requireBindingVector(elements, function: "let",
             message: "first argument must be a vector of bindings")

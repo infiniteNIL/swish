@@ -184,8 +184,10 @@ extension Evaluator {
     /// `(deftype Name [fields...] Protocol1 (method [this a] body)... ...)`.
     /// Field mutability annotations (`^:unsynchronized-mutable`/`^:volatile-mutable`)
     /// are accepted (already ignored, same as any other symbol metadata) but have
-    /// no effect — mutable fields need a `set!` special form Swish doesn't have
-    /// yet, see CLAUDE.md.
+    /// no effect — fields stay immutable. `set!` now exists for thread-bound
+    /// dynamic vars, but the mutable-field form of `set!` (which is what these
+    /// annotations would need) is still unimplemented — it requires mutable field
+    /// storage on the type instance, deliberately deferred. See CLAUDE.md.
     func evalDeftype(_ elements: [Expr], in env: Environment) throws -> Expr {
         let (typeName, fields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
             elements, formName: "deftype",
