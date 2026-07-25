@@ -112,4 +112,38 @@
   (try (area (->Triangle 3 4)) (catch Exception e (str e))))
 
 (println)
+(println "reify — an anonymous Shape instance whose methods close over local values")
+(println "-----------------------------------------------------------------------------")
+(defn scaled-square [side factor]
+  (reify Shape
+    (area [this] (* factor side side))       ; closes over `side` and `factor`
+    (perimeter [this] (* factor 4 side))
+    (describe [this] (str "scaled-square(side=" side ", " factor "x)"))
+    (describe [this prefix] (str prefix ": " (describe this)))))
+(def ss (scaled-square 5 3))
+(println "(area ss) -> (closes over side=5, factor=3) ->" (area ss))
+(println "(describe ss) ->" (describe ss))
+(println "(satisfies? Shape ss) ->" (satisfies? Shape ss))
+(println "(map area [(->Circle 2) ss]) -> (reify + deftype, same protocol) ->" (map area [(->Circle 2) ss]))
+
+(println)
+(println "Extending a protocol onto built-in types — Swift-named, with Number/Object fallback")
+(println "----------------------------------------------------------------------------------------")
+(defprotocol Sizeable (sz [this] "A rough 'size' of any value."))
+(extend-protocol Sizeable
+  String (sz [s] (count s))
+  Vector (sz [v] (count v))
+  Number (sz [n] n)            ; one impl fans out to every numeric type
+  Object (sz [_] :unsized))    ; default for any other non-nil value
+(println "(sz \"hello\") -> (String) ->" (sz "hello"))
+(println "(sz [1 2 3 4]) -> (Vector) ->" (sz [1 2 3 4]))
+(println "(sz 42) -> (Int, via Number) ->" (sz 42))
+(println "(sz 3.5) -> (Double, via Number) ->" (sz 3.5))
+(println "(sz 1/2) -> (Ratio, via Number) ->" (sz 1/2))
+(println "(sz :kw) -> (via Object default) ->" (sz :kw))
+(println "(satisfies? Sizeable 99) -> (via Number) ->" (satisfies? Sizeable 99))
+(println "(instance? Number 42) ->" (instance? Number 42))
+(println "(instance? String \"x\") ->" (instance? String "x"))
+
+(println)
 (println "Done.")
