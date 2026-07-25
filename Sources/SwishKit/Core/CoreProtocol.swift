@@ -1,5 +1,31 @@
 private let protocolImplsKey = Expr.keyword("impls")
 
+/// The built-in type keywords that count as numbers — the `Number` fan-out set.
+/// These match `Expr.description` for the numeric `Expr` cases.
+private let numericTypeKeywords: Set<String> = [
+    "integer", "double", "float", "ratio", "bigInteger", "bigDecimal",
+]
+
+/// The fixed, data-modeled ancestor chain (parents only, most-specific first) of a
+/// built-in type keyword — Swish's stand-in for the JVM class hierarchy real
+/// Clojure's `find-protocol-impl` walks. Protocol dispatch and the
+/// `satisfies?`/`instance?`/`extends?` predicates consult this on an exact-type
+/// miss so `(extend-type Number …)`/`(extend-type Object …)` fan out correctly.
+/// `nil` deliberately has no `Object` fallback (matching Clojure/Java, where
+/// `null` is not an `Object`); `Object` is the root; `Number` is-a `Object`.
+func builtinAncestors(ofTypeKeyword k: String) -> [String] {
+    switch k {
+    case "nil", "Object":
+        return []
+
+    case "Number":
+        return ["Object"]
+
+    default:
+        return numericTypeKeywords.contains(k) ? ["Number", "Object"] : ["Object"]
+    }
+}
+
 // MARK: - Registration
 
 func registerProtocol(into evaluator: Evaluator) {
@@ -16,8 +42,14 @@ func registerProtocol(into evaluator: Evaluator) {
         doc: "Returns a collection of the types explicitly extending protocol.",
         arglists: [["protocol"]]) { args in try coreExtenders(args) }
     evaluator.register(name: "instance?", arity: .fixed(2),
-        doc: "Returns true if x is an instance of atype (a deftype/defrecord type, or nil).",
+        doc: "Returns true if x is an instance of atype (a deftype/defrecord type, a built-in type name, or nil).",
         arglists: [["atype", "x"]]) { [evaluator] args in try coreInstance(evaluator, args) }
+    evaluator.register(name: "builtin-ancestors", arity: .fixed(1),
+        doc: "Internal. Returns the data-modeled ancestor chain (Number/Object) of a built-in type keyword — backs the miss-path hierarchy walk in protocol-dispatch.",
+        arglists: [["type-kw"]]) { args in
+        guard case .keyword(let k) = args[0] else { return .vector([], metadata: nil) }
+        return .vector(builtinAncestors(ofTypeKeyword: k).map { .keyword($0) }, metadata: nil)
+    }
     evaluator.register(name: "deftype-field-value", arity: .fixed(2),
         doc: "Internal. Reads field from a deftype/defrecord instance — backs the implicit unqualified field access injected into deftype/defrecord method bodies.",
         arglists: [["instance", "field"]]) { args in
@@ -71,7 +103,15 @@ private func coreSatisfies(_ args: [Expr]) throws -> Expr {
         return .boolean(protocols.elements.contains(.string(protoName)))
     }
     let typeName = args[1].description
-    return .boolean(impls.dict[.keyword(typeName)] != nil)
+    return .boolean(hasImplForTypeOrAncestor(typeName, in: impls.dict))
+}
+
+/// True if `typeName` (or, on an exact miss, any of its built-in ancestors —
+/// `Number`/`Object`) has an entry in a protocol's `:impls` map. Shared by
+/// `satisfies?`/`extends?` so both respect the built-in type hierarchy.
+private func hasImplForTypeOrAncestor(_ typeName: String, in impls: [Expr: Expr]) -> Bool {
+    if impls[.keyword(typeName)] != nil { return true }
+    return builtinAncestors(ofTypeKeyword: typeName).contains { impls[.keyword($0)] != nil }
 }
 
 private func coreExtends(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
@@ -79,7 +119,7 @@ private func coreExtends(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
         throw EvaluatorError.invalidArgument(function: "extends?", message: "first argument must be a protocol")
     }
     let typeName = try evaluator.dispatchTypeName(for: args[1], formName: "extends?")
-    return .boolean(impls.dict[.keyword(typeName)] != nil)
+    return .boolean(hasImplForTypeOrAncestor(typeName, in: impls.dict))
 }
 
 private func coreExtenders(_ args: [Expr]) throws -> Expr {
@@ -95,5 +135,7 @@ private func coreExtenders(_ args: [Expr]) throws -> Expr {
 
 private func coreInstance(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let typeName = try evaluator.dispatchTypeName(for: args[0], formName: "instance?")
-    return .boolean(args[1].description == typeName)
+    let valueType = args[1].description
+    if valueType == typeName { return .boolean(true) }
+    return .boolean(builtinAncestors(ofTypeKeyword: valueType).contains(typeName))
 }

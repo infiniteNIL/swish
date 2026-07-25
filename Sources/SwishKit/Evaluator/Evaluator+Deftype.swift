@@ -97,8 +97,10 @@ extension Evaluator {
     /// passed to `extend`/`extend-type`/`extends?`/`instance?`. `nil` dispatches
     /// as `"nil"` (matching `Expr.nil.description`, and real Clojure's own
     /// `(extend nil Proto {...})` idiom); a `deftype`/`defrecord` bare type-var
-    /// evaluates to `.keyword(qualifiedTypeName)`. Built-in Swish types have no
-    /// first-class type value to extend onto — deferred, see CLAUDE.md.
+    /// evaluates to `.keyword(qualifiedTypeName)`, and a built-in type name
+    /// (`String`, `Int`, `Vector`, `Number`, ... — all bound to their dispatch
+    /// keyword in `core.clj`) likewise evaluates to a `.keyword`. So any keyword
+    /// is accepted here; only a genuinely non-type value throws.
     func dispatchTypeName(for atype: Expr, formName: String) throws -> String {
         switch atype {
         case .nil:
@@ -108,7 +110,7 @@ extension Evaluator {
         default:
             throw EvaluatorError.invalidArgument(
                 function: formName,
-                message: "\(corePrinter.printString(atype)) is not a deftype/defrecord type or nil — extending built-in Swish types is not yet supported")
+                message: "\(corePrinter.printString(atype)) is not a deftype/defrecord type, a built-in type name, or nil")
         }
     }
 

@@ -16,6 +16,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] protocols on built-in types (Swift-named, data-modeled Number/Object hierarchy)
 - [x] re-matcher, re-groups, re-find (1-arg matcher form)
 - [x] reify
 - [x] set! (for thread-bound dynamic vars, but not deftype fields)
@@ -78,7 +79,7 @@
 - [x] bigdec, bigint, inc', dec'
 - [x] keyword
 - [x] deftype
-- [x] protocols (not on built-in types, such Int, Double, etc.)
+- [x] protocols (now also on built-in types — see top of list)
 - [x] ref, dosync, commute, alter, STM
 - [x] futures and promises
 - [x] agents and validators

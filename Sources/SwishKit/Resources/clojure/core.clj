@@ -2146,6 +2146,34 @@
 
 ;;; Protocols
 
+;; Built-in type-name vars, so protocols can be extended onto Swish's built-in
+;; types with real type names — e.g. (extend-type String P ...). Each is bound to
+;; the dispatch keyword the runtime already produces (= the value's `type`, i.e.
+;; its Expr.description), exactly as a deftype's name-var is bound to its
+;; type-identity keyword. Scalars use Swift names (their honest underlying type:
+;; a Swish string IS a Swift String, etc.); persistent collections and
+;; Clojure-native scalars use Swish-native names (no Swift-stdlib equivalent).
+;; Number/Object are hierarchy tags — no value has them as its own type; they
+;; take effect via builtin-ancestors during dispatch. See CLAUDE.md.
+(def String :string)
+(def Int :integer)
+(def Double :double)
+(def Float :float)
+(def Bool :boolean)
+(def Character :character)
+(def Keyword :keyword)
+(def Symbol :symbol)
+(def Ratio :ratio)
+(def BigInt :bigInteger)
+(def BigDecimal :bigDecimal)
+(def Vector :vector)
+(def List :list)
+(def Map :map)
+(def Set :set)
+(def Seq :seq)
+(def Number :Number)
+(def Object :Object)
+
 (defn- protocol-method-spec [spec]
   (let [mname (first spec)
         more (rest spec)
@@ -2168,8 +2196,16 @@
                     " of protocol: #'" (:name (deref proto-var))
                     " found for reify instance")))
       (let [proto (deref proto-var)
+            impls (:impls proto)
             type-kw (if (nil? x) :nil (type x))
-            impl (get (get (:impls proto) type-kw) mkw)]
+            ;; Exact type first; on a miss, walk the built-in ancestor chain
+            ;; (Number/Object) so (extend-type Number ...)/(extend-type Object ...)
+            ;; fan out to every numeric type / act as a default. This mirrors real
+            ;; Clojure's find-protocol-impl walking the class hierarchy, but backed
+            ;; by a fixed data table (see builtin-ancestors) rather than JVM classes.
+            impl (or (get (get impls type-kw) mkw)
+                     (some (fn [anc] (get (get impls anc) mkw))
+                           (builtin-ancestors type-kw)))]
         (if impl
           (apply impl args)
           (throw (str "No implementation of method: :" (name mkw)
