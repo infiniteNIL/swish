@@ -17,6 +17,7 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] reify
 - [x] set! (for thread-bound dynamic vars, but not deftype fields)
 - [x] ns-resolve, clojure.string/index-of + last-index-of
 - [x] clojure.set/rename-keys, clojure.walk/keywordize-keys + stringify-keys

@@ -35,6 +35,7 @@ extension Evaluator {
             if case .symbol("fn", _) = head { return expandFnForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("let", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
             if case .symbol("loop", _) = head { return expandLetForm(elements, outerLocals: locals, listMeta: listMeta) }
+            if case .symbol("reify", _) = head { return expandReifyForm(elements, outerLocals: locals, listMeta: listMeta) }
             return .list(SwishPersistentList(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: listMeta)
 
         case .vector(let elements, let vecMeta):
@@ -97,6 +98,29 @@ extension Evaluator {
         }
         var result = Array(elements.prefix(offset + 1))
         result += Array(elements.dropFirst(offset + 1)).map { expandAliasesInExpr($0, locals: newLocals) }
+        return .list(SwishPersistentList(result), metadata: listMeta)
+    }
+
+    /// `(reify Protocol (mname [params] body...) ... Protocol2 (m2 [params] body...))`.
+    /// Qualify the leading protocol symbols (so they resolve even when the reify
+    /// literal is later evaluated from another namespace), but leave each method
+    /// clause `(mname [params] body...)` untouched — its `mname` is a method name,
+    /// not a call, and its body is (re)expanded with the correct locals by
+    /// `buildProtocolMethodImpls` at reify-eval time (`evalReify`). Recursing into
+    /// a method clause uniformly (as the generic list case does) would wrongly
+    /// qualify `mname` to `ns/mname`, so the per-instance method table would be
+    /// keyed under a qualified name while `protocol-dispatch` looks up the bare
+    /// keyword — a dispatch miss. This mirrors the same care `fn`/`let`/`case` take.
+    private func expandReifyForm(_ elements: SwishPersistentList, outerLocals: Set<String>, listMeta: [Expr: Expr]? = nil) -> Expr {
+        var result: [Expr] = [elements[0]]
+        for el in elements.dropFirst() {
+            if case .list = el {
+                result.append(el)
+            }
+            else {
+                result.append(expandAliasesInExpr(el, locals: outerLocals))
+            }
+        }
         return .list(SwishPersistentList(result), metadata: listMeta)
     }
 

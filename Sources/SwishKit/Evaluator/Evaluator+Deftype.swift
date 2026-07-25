@@ -1,6 +1,14 @@
 private let protocolImplsKey = Expr.keyword("impls")
 private let protocolInlineImplsKey = Expr.keyword("inline-impls")
 
+/// Reserved `data` keys stashing a `reify` instance's inline method table and
+/// the set of protocol names it implements. Module-internal (not `private`) so
+/// `CoreProtocol.swift`'s `reify-method-table` accessor and `satisfies?` can read
+/// them. The `__swish_reify_*__` names are chosen to never collide with a user
+/// protocol-method name (which are bare, unqualified keywords).
+let reifyMethodsKey = Expr.keyword("__swish_reify_methods__")
+let reifyProtocolsKey = Expr.keyword("__swish_reify_protocols__")
+
 extension Evaluator {
     /// One parsed method implementation clause. `clause` is `([params] body...)` —
     /// the same shape `buildFnArity` (used by `fn`/`defn`) already expects, so
@@ -208,6 +216,42 @@ extension Evaluator {
         ns.intern(name: typeName, value: .keyword(qualifiedName))
 
         return .symbol(qualifiedName, metadata: nil)
+    }
+
+    /// `(reify Protocol1 (m1 [this a] body)... Protocol2 (m2 [this] body)...)`.
+    /// Creates one anonymous instance implementing the given protocols. Unlike
+    /// `deftype`, a reify method body closes over the surrounding lexical
+    /// environment — which comes for free because `buildProtocolMethodImpls`
+    /// builds each method as a `SwishFunction` with `capturedEnv: env`, and we
+    /// pass the *local* `env` here. The instance is represented as an anonymous
+    /// `.deftype` (unique gensym name, no fields) carrying its own method table
+    /// and implemented-protocol set inline in `data` — no registration into any
+    /// protocol's `:impls`, since reify methods capture per-evaluation locals and
+    /// so can't share a type-name-keyed entry across evaluations. Only Swish
+    /// protocols are supported (no Object/interface methods — no JVM classes).
+    /// See CLAUDE.md.
+    func evalReify(_ elements: [Expr], in env: Environment) throws -> Expr {
+        let groups = try parseProtocolImplGroups(Array(elements.dropFirst(1)), formName: "reify")
+        var methodTable: [Expr: Expr] = [:]
+        var protocolNames: Set<Expr> = []
+        for group in groups {
+            let protoValue = try eval(group.leadingSymbol, in: env)
+            guard case .map(let protoMap) = protoValue,
+                  case .symbol(let pname, _)? = protoMap.dict[.keyword("name")]
+            else {
+                throw EvaluatorError.invalidArgument(function: "reify",
+                    message: "\(corePrinter.printString(group.leadingSymbol)) is not a protocol")
+            }
+            protocolNames.insert(.string(pname))
+            let impls = try buildProtocolMethodImpls(group.methods, in: env, formName: "reify")
+            for (k, v) in impls { methodTable[k] = v }
+        }
+        let typeName = gensym(prefix: "reify__")
+        let data: [Expr: Expr] = [
+            reifyMethodsKey: .map(methodTable, metadata: nil),
+            reifyProtocolsKey: .set(protocolNames, metadata: nil),
+        ]
+        return .deftype(typeName: typeName, fields: [], data: data, metadata: nil)
     }
 
     /// `(extend-type AType Protocol1 (method [this] body)... Protocol2 (method2 [this] body)...)`.

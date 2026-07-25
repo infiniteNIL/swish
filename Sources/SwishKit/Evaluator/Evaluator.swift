@@ -200,7 +200,7 @@ public class Evaluator {
     static let specialFormNames: Set<String> = [
         "quote", "syntax-quote", "def", "if", "do", "let", "letfn", "loop", "recur",
         "fn", "defmacro", "var", "ns", "lazy-seq", "delay", "binding", "set!", "throw", "try",
-        "defrecord", "deftype", "extend-type", "extend-protocol",
+        "defrecord", "deftype", "reify", "extend-type", "extend-protocol",
     ]
 
     private func evalList(_ elements: [Expr], in env: Environment) throws -> Expr {
@@ -218,6 +218,22 @@ public class Evaluator {
             return try callFunction(callee, args: elements.dropFirst(), in: env)
         }
 
+        return try evalSpecialForm(head, elements, in: env)
+    }
+
+    /// The special-form dispatch switch, deliberately kept in its own function
+    /// rather than inlined into `evalList`. This is a stack-depth measure, not
+    /// cosmetics: `evalList` recurses deeply in this tree-walking interpreter, and
+    /// folding a ~two-dozen-case switch back into it inflates *every* recursive
+    /// `evalList` frame — including the ordinary-call frames (the overwhelming
+    /// majority) that skip the switch entirely and return in the guard above.
+    /// That inflation is enough to overflow the smaller stack of Swift Testing's
+    /// runner thread on the most recursion-heavy tests (e.g. multi-namespace
+    /// `run-tests`). With the switch here, only actual special forms pay the one
+    /// extra frame; ordinary calls never reach it. `headName` was already checked
+    /// against `specialFormNames`, so `default` is effectively unreachable for a
+    /// symbol head — kept only as the safe ordinary-call fallback.
+    private func evalSpecialForm(_ head: Expr, _ elements: [Expr], in env: Environment) throws -> Expr {
         switch head {
         case .symbol("quote", _):
             guard elements.count == 2
@@ -286,6 +302,9 @@ public class Evaluator {
 
         case .symbol("deftype", _):
             return try evalDeftype(elements, in: env)
+
+        case .symbol("reify", _):
+            return try evalReify(elements, in: env)
 
         case .symbol("extend-type", _):
             return try evalExtendType(elements, in: env)

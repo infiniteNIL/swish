@@ -2155,16 +2155,28 @@
     {:name mname :arglists arglists :doc doc}))
 
 (defn- protocol-dispatch [proto-var mkw args]
-  (let [proto (deref proto-var)
-        type-kw (if (nil? (first args)) :nil (type (first args)))
-        impl (get (get (:impls proto) type-kw) mkw)]
-    (if impl
-      (apply impl args)
-      (throw (str "No implementation of method: :" (name mkw)
-                  " of protocol: #'" (:name proto)
-                  " found for type: " (if (namespace type-kw)
-                                         (str (namespace type-kw) "/" (name type-kw))
-                                         (name type-kw)))))))
+  (let [x (first args)
+        rt (reify-method-table x)]
+    ;; A reify instance carries its own inline method table (its methods close
+    ;; over per-evaluation locals, so they can't live in the shared, type-keyed
+    ;; :impls map). Check it first; non-reify args get rt = nil and fall through
+    ;; to the ordinary type-keyed dispatch below unchanged.
+    (if rt
+      (if-let [impl (get rt mkw)]
+        (apply impl args)
+        (throw (str "No implementation of method: :" (name mkw)
+                    " of protocol: #'" (:name (deref proto-var))
+                    " found for reify instance")))
+      (let [proto (deref proto-var)
+            type-kw (if (nil? x) :nil (type x))
+            impl (get (get (:impls proto) type-kw) mkw)]
+        (if impl
+          (apply impl args)
+          (throw (str "No implementation of method: :" (name mkw)
+                      " of protocol: #'" (:name proto)
+                      " found for type: " (if (namespace type-kw)
+                                             (str (namespace type-kw) "/" (name type-kw))
+                                             (name type-kw)))))))))
 
 (defmacro defprotocol
   "A protocol is a named set of named methods and their signatures.

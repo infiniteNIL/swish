@@ -27,6 +27,14 @@ func registerProtocol(into evaluator: Evaluator) {
         default: return .nil
         }
     }
+    evaluator.register(name: "reify-method-table", arity: .fixed(1),
+        doc: "Internal. Returns a reify instance's inline method map, or nil for anything else — backs the reify fast-path in protocol-dispatch.",
+        arglists: [["x"]]) { args in
+        guard case .deftype(_, _, let data, _) = args[0],
+              case .map? = data[reifyMethodsKey]
+        else { return .nil }
+        return data[reifyMethodsKey] ?? .nil
+    }
 }
 
 // MARK: - Helpers
@@ -51,6 +59,16 @@ private func coreExtend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 private func coreSatisfies(_ args: [Expr]) throws -> Expr {
     guard case .map(let protoMap) = args[0], case .map(let impls)? = protoMap.dict[protocolImplsKey] else {
         throw EvaluatorError.invalidArgument(function: "satisfies?", message: "first argument must be a protocol")
+    }
+    // A reify instance carries its implemented-protocol set inline rather than
+    // registering into `:impls`, so check that set by the protocol's qualified
+    // name (the `:name` symbol defprotocol stores).
+    if case .deftype(_, _, let data, _) = args[1],
+       case .set(let protocols)? = data[reifyProtocolsKey] {
+        guard case .symbol(let protoName, _)? = protoMap.dict[.keyword("name")] else {
+            return .boolean(false)
+        }
+        return .boolean(protocols.elements.contains(.string(protoName)))
     }
     let typeName = args[1].description
     return .boolean(impls.dict[.keyword(typeName)] != nil)
