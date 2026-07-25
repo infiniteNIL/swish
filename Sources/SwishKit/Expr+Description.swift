@@ -109,6 +109,9 @@ extension Expr: CustomStringConvertible {
         case .regex:
             return "regex"
 
+        case .matcher:
+            return "matcher"
+
         case .reader:
             return "reader"
 

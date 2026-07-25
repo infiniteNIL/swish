@@ -115,6 +115,10 @@ public indirect enum Expr: Sendable {
     /// A compiled regular expression literal (`#"pattern"`).
     case regex(SwishRegex)
 
+    /// A stateful regex matcher created by `re-matcher` — a mutable cursor
+    /// advanced by 1-arg `(re-find m)` and read by `(re-groups m)`.
+    case matcher(SwishMatcher)
+
     /// A buffered file reader, usable with `line-seq` and `with-open`.
     case reader(SwishReader)
 

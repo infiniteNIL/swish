@@ -127,7 +127,7 @@ public class Evaluator {
              .string, .character, .boolean, .nil, .keyword,
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
-             .reader, .writer, .record, .deftype, .inst, .uuid, .mapEntry, .array, .sharedVector,
+             .matcher, .reader, .writer, .record, .deftype, .inst, .uuid, .mapEntry, .array, .sharedVector,
              .agent, .future, .promise, .ref:
             return expr
 

@@ -13,12 +13,25 @@ func registerRegex(into evaluator: Evaluator) {
              "(a non-participating group is nil in its slot).",
         arglists: [["re", "s"]], body: coreReMatches)
 
-    evaluator.register(name: "re-find", arity: .fixed(2),
-        doc: "Returns the first regex match, if any, of re anywhere in s (not " +
-             "anchored). Same nil/bare-string/vector result shape as re-matches. " +
-             "Only the 2-arg form is implemented — Swish has no re-matcher, so the " +
-             "1-arg (re-find matcher) form does not exist.",
-        arglists: [["re", "s"]], body: coreReFind)
+    evaluator.register(name: "re-find", arity: .atLeastOne,
+        doc: "With [re s], returns the first regex match, if any, of re anywhere " +
+             "in s (not anchored). With [m], returns the next match of the matcher " +
+             "m (from re-matcher), advancing it, or nil once exhausted. Same " +
+             "nil/bare-string/vector result shape as re-matches.",
+        arglists: [["m"], ["re", "s"]], body: coreReFind)
+
+    evaluator.register(name: "re-matcher", arity: .fixed(2),
+        doc: "Returns a stateful matcher over s for re, to be used with the 1-arg " +
+             "re-find and with re-groups. All matches are precomputed eagerly (see " +
+             "CLAUDE.md), so the matcher walks a fixed list left-to-right.",
+        arglists: [["re", "s"]], body: coreReMatcher)
+
+    evaluator.register(name: "re-groups", arity: .fixed(1),
+        doc: "Returns the groups of the most recent match of the matcher m (from a " +
+             "prior re-find on m): the matched string if re has no capture groups, " +
+             "or a vector [match group1 group2 ...] if it does. Throws if no match " +
+             "is current (no re-find yet, or its matches are exhausted).",
+        arglists: [["m"]], body: coreReGroups)
 
     evaluator.register(name: "re-seq", arity: .fixed(2),
         doc: "Returns a sequence of successive matches of re in s, each shaped per " +
@@ -82,6 +95,18 @@ private func coreReMatches(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreReFind(_ args: [Expr]) throws -> Expr {
+    // 1-arg matcher form: (re-find m) advances the matcher to its next match.
+    if args.count == 1 {
+        guard case .matcher(let m) = args[0] else {
+            throw EvaluatorError.invalidArgument(function: "re-find",
+                message: "single-argument form requires a matcher (from re-matcher)")
+        }
+        return m.findNext()
+    }
+    guard args.count == 2 else {
+        throw EvaluatorError.invalidArgument(function: "re-find",
+            message: "expects [m] or [re s], got \(args.count) arguments")
+    }
     guard case .regex(let re) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "re-find",
             message: "first argument must be a regex")
@@ -93,6 +118,34 @@ private func coreReFind(_ args: [Expr]) throws -> Expr {
 
     guard let match = s.firstMatch(of: re.regex) else { return .nil }
     return regexMatchResult(match, in: s)
+}
+
+// MARK: - re-matcher / re-groups
+
+private func coreReMatcher(_ args: [Expr]) throws -> Expr {
+    guard case .regex(let re) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "re-matcher",
+            message: "first argument must be a regex")
+    }
+    guard case .string(let s) = args[1] else {
+        throw EvaluatorError.invalidArgument(function: "re-matcher",
+            message: "second argument must be a string")
+    }
+
+    let results = s.matches(of: re.regex).map { regexMatchResult($0, in: s) }
+    return .matcher(SwishMatcher(results: results))
+}
+
+private func coreReGroups(_ args: [Expr]) throws -> Expr {
+    guard case .matcher(let m) = args[0] else {
+        throw EvaluatorError.invalidArgument(function: "re-groups",
+            message: "argument must be a matcher (from re-matcher)")
+    }
+    guard let last = m.last else {
+        throw EvaluatorError.invalidArgument(function: "re-groups",
+            message: "No match found — call re-find on the matcher first")
+    }
+    return last
 }
 
 // MARK: - re-seq

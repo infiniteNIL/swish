@@ -47,6 +47,7 @@ private enum ExprHash {
     static let promise             = 36
     static let ref                 = 37
     static let deftype             = 38
+    static let matcher             = 39
 }
 
 extension Expr: Hashable {
@@ -164,6 +165,9 @@ extension Expr: Hashable {
 
         case .regex(let v):
             hasher.combine(ExprHash.regex);     hasher.combine(v)
+
+        case .matcher(let v):
+            hasher.combine(ExprHash.matcher);   hasher.combine(ObjectIdentifier(v))
 
         case .reader(let v):
             hasher.combine(ExprHash.reader);    hasher.combine(ObjectIdentifier(v))

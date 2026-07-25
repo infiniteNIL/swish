@@ -13,10 +13,10 @@
       - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
         a public API with better ergonomics
 - [ ] Swift interop
-- [ ] all-ns
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] re-matcher, re-groups, re-find (1-arg matcher form)
 - [x] reify
 - [x] set! (for thread-bound dynamic vars, but not deftype fields)
 - [x] ns-resolve, clojure.string/index-of + last-index-of

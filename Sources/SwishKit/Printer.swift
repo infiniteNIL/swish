@@ -147,6 +147,9 @@ public struct Printer {
         case .regex(let r):
             "#\"\(r.pattern)\""
 
+        case .matcher:
+            "#<Matcher>"
+
         case .reader(let r):
             "#<Reader \(r.path)>"
 

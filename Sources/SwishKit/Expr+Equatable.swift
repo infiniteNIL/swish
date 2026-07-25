@@ -189,6 +189,9 @@ extension Expr: Equatable {
         case (.regex(let a), .regex(let b)):
             return a == b
 
+        case (.matcher(let a), .matcher(let b)):
+            return a === b
+
         case (.reader(let a), .reader(let b)):
             return a === b
 
