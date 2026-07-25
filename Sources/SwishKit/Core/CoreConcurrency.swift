@@ -261,6 +261,22 @@ private func coreSend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .agent(let a) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "send", message: "first argument must be an agent, got \(corePrinter.printString(args[0]))")
     }
-    a.enqueue(evaluator: evaluator, agentExpr: args[0], actionFn: args[1], extraArgs: Array(args.dropFirst(2)))
+    // Inside a dosync, hold the send until the transaction commits (and discard it
+    // on retry/abort) instead of dispatching immediately — matching real Clojure,
+    // so a retried transaction fires the action once, not once per attempt. The
+    // send-time dynamic bindings are captured now, since the action is dispatched
+    // later (on commit), after the transaction body's bindings have been popped.
+    if let tx = evaluator.currentTransaction {
+        let frames = evaluator.captureCurrentBindings()
+        let agentExpr = args[0]
+        let actionFn = args[1]
+        let extraArgs = Array(args.dropFirst(2))
+        tx.addPendingAction {
+            a.enqueueCaptured(evaluator: evaluator, agentExpr: agentExpr, actionFn: actionFn, extraArgs: extraArgs, frames: frames)
+        }
+    }
+    else {
+        a.enqueue(evaluator: evaluator, agentExpr: args[0], actionFn: args[1], extraArgs: Array(args.dropFirst(2)))
+    }
     return args[0]
 }

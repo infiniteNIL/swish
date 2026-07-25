@@ -95,7 +95,16 @@ public final class SwishAgent: @unchecked Sendable {
     /// `send`/`send-off` — enqueues an action to run asynchronously on this
     /// agent's serial queue, with the calling thread's dynamic bindings conveyed.
     func enqueue(evaluator: Evaluator, agentExpr: Expr, actionFn: Expr, extraArgs: [Expr]) {
-        let frames = evaluator.captureCurrentBindings()
+        enqueueCaptured(evaluator: evaluator, agentExpr: agentExpr, actionFn: actionFn,
+                        extraArgs: extraArgs, frames: evaluator.captureCurrentBindings())
+    }
+
+    /// Like `enqueue`, but with the dynamic bindings captured by the caller rather
+    /// than here — used by a `send` issued inside a `dosync`, which is buffered and
+    /// only dispatched on commit, so its bindings must be snapshotted at send time
+    /// (inside the transaction body) rather than at release time.
+    func enqueueCaptured(evaluator: Evaluator, agentExpr: Expr, actionFn: Expr,
+                         extraArgs: [Expr], frames: [[ObjectIdentifier: Expr]]) {
         queue.async {
             evaluator.withInstalledBindings(frames, callDepth: 0) {
                 self.runAction(evaluator: evaluator, agentExpr: agentExpr, actionFn: actionFn, extraArgs: extraArgs)

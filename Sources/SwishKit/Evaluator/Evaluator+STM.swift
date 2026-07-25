@@ -22,6 +22,27 @@ final class TransactionContext {
 
     private var entries: [ObjectIdentifier: Entry] = [:]
 
+    /// Agent `send`/`send-off` calls issued inside this transaction, held rather
+    /// than dispatched immediately. Released only on a successful commit (see
+    /// `releasePendingActions`) and discarded with the whole context on retry or
+    /// abort — matching real Clojure, where in-transaction sends fire exactly once
+    /// on commit, never per retry.
+    private var pendingActions: [() -> Void] = []
+
+    func addPendingAction(_ action: @escaping () -> Void) {
+        pendingActions.append(action)
+    }
+
+    /// Dispatches the buffered sends, in issue order. Called by `coreDosync` only
+    /// after the commit has succeeded.
+    func releasePendingActions() {
+        let actions = pendingActions
+        pendingActions = []
+        for action in actions {
+            action()
+        }
+    }
+
     private func entry(for ref: SwishRef, refExpr: Expr) -> Entry {
         let id = ObjectIdentifier(ref)
         if let existing = entries[id] {

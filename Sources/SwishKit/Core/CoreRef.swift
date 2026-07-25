@@ -96,11 +96,18 @@ private func coreDosync(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         evaluator.currentTransaction = nil
 
         guard let committed = tx.attemptCommit() else {
+            // Version conflict: retry. This attempt's TransactionContext (and any
+            // sends it buffered) is discarded — the next iteration makes a fresh one.
             continue
         }
         for c in committed {
             try notifyWatches(evaluator, watches: c.ref.watches, ref: c.refExpr, old: c.old, new: c.new)
         }
+        // Commit succeeded — now dispatch any send/send-off held during the body,
+        // exactly once. (The abort path in the catch above and the retry path above
+        // both discard the context without releasing, so held sends never fire for
+        // a transaction that didn't commit.)
+        tx.releasePendingActions()
         return result
     }
 }

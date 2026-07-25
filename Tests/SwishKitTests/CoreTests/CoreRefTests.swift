@@ -217,4 +217,64 @@ struct CoreRefTests {
             (ref-history-count r)
             """) == .integer(0))
     }
+
+    // MARK: - send/send-off held until commit (transaction correctness)
+
+    @Test("a send inside a committing dosync fires exactly once, after commit")
+    func sendInCommittingTransactionFiresOnce() throws {
+        #expect(try swish.eval("""
+            (def send-commit-log (atom []))
+            (def send-commit-ag (agent nil))
+            (def send-commit-ref (ref 0))
+            (dosync
+              (send send-commit-ag (fn [_] (swap! send-commit-log conj :fired) nil))
+              (ref-set send-commit-ref 1))
+            (await send-commit-ag)
+            [@send-commit-log @send-commit-ref]
+            """) == .vector([.vector([.keyword("fired")], metadata: nil), .integer(1)], metadata: nil))
+    }
+
+    @Test("a send inside an aborting dosync is discarded (never fires)")
+    func sendInAbortingTransactionIsDiscarded() throws {
+        #expect(try swish.eval("""
+            (def send-abort-log (atom []))
+            (def send-abort-ag (agent nil))
+            (def send-abort-ref (ref 0))
+            (try
+              (dosync
+                (send send-abort-ag (fn [_] (swap! send-abort-log conj :fired) nil))
+                (ref-set send-abort-ref 1)
+                (throw "boom"))
+              (catch Exception e nil))
+            (await send-abort-ag)
+            ;; send discarded, and the ref rolled back
+            [@send-abort-log @send-abort-ref]
+            """) == .vector([.vector([], metadata: nil), .integer(0)], metadata: nil))
+    }
+
+    @Test("a send inside a nested dosync fires once, on the outer commit")
+    func sendInNestedTransactionFiresOnOuterCommit() throws {
+        #expect(try swish.eval("""
+            (def send-nested-log (atom []))
+            (def send-nested-ag (agent nil))
+            (def send-nested-ref (ref 0))
+            (dosync
+              (dosync
+                (send send-nested-ag (fn [_] (swap! send-nested-log conj :fired) nil)))
+              (ref-set send-nested-ref 1))
+            (await send-nested-ag)
+            [@send-nested-log @send-nested-ref]
+            """) == .vector([.vector([.keyword("fired")], metadata: nil), .integer(1)], metadata: nil))
+    }
+
+    @Test("a send outside any dosync still fires immediately")
+    func sendOutsideTransactionFiresImmediately() throws {
+        #expect(try swish.eval("""
+            (def send-plain-log (atom []))
+            (def send-plain-ag (agent nil))
+            (send send-plain-ag (fn [_] (swap! send-plain-log conj :immediate) nil))
+            (await send-plain-ag)
+            @send-plain-log
+            """) == .vector([.keyword("immediate")], metadata: nil))
+    }
 }
