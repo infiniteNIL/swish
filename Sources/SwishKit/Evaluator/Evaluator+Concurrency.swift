@@ -45,4 +45,40 @@ extension Evaluator {
         get { threadLocalBox(for: Self.cancellationCheckKey, default: nil).value }
         set { threadLocalBox(for: Self.cancellationCheckKey, default: nil).value = newValue }
     }
+
+    private static let agentActionSendsKey = "swish.evaluator.agentActionSends"
+
+    /// Nested `send`/`send-off` calls issued while an agent action is running on
+    /// this thread, held rather than dispatched immediately. `nil` means "not
+    /// inside an action" (dispatch immediately). Released on the action's
+    /// successful completion, discarded if it throws — matching Clojure's
+    /// `Agent.nested`. Thread-local for the same reason `currentTransaction` is:
+    /// `SwishAgent.runAction` runs synchronously on the agent's own serial queue.
+    var currentAgentActionSends: [() -> Void]? {
+        get { threadLocalBox(for: Self.agentActionSendsKey, default: [() -> Void]?.none).value }
+        set { threadLocalBox(for: Self.agentActionSendsKey, default: [() -> Void]?.none).value = newValue }
+    }
+
+    /// Buffers a nested send. Only called when `currentAgentActionSends != nil`
+    /// (i.e. an action is running); a get-append-set since the buffer is a value
+    /// type behind the thread-local.
+    func holdAgentActionSend(_ action: @escaping () -> Void) {
+        var buffer = currentAgentActionSends ?? []
+        buffer.append(action)
+        currentAgentActionSends = buffer
+    }
+
+    /// Dispatches the currently-held nested sends and clears the buffer to empty
+    /// (still "in an action", so more can accumulate after) — matching Clojure's
+    /// `releasePendingSends`. A no-op returning 0 when not inside an action. Backs
+    /// both the end-of-action release in `runAction` and `release-pending-sends`.
+    @discardableResult
+    func releaseAgentActionSends() -> Int {
+        guard let buffer = currentAgentActionSends else { return 0 }
+        currentAgentActionSends = []
+        for action in buffer {
+            action()
+        }
+        return buffer.count
+    }
 }

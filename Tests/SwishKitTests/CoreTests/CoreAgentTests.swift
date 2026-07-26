@@ -301,4 +301,56 @@ struct CoreAgentTests {
             @a
             """) == .integer(2))
     }
+
+    // MARK: - nested sends held until the action completes
+
+    @Test("a send issued inside a successful action is released after the action")
+    func nestedSendReleasedOnSuccess() throws {
+        #expect(try swish.eval("""
+            (def nested-log (atom []))
+            (def nested-a (agent 0))
+            (def nested-b (agent nil))
+            (send nested-a
+              (fn [x]
+                (send nested-b (fn [_] (swap! nested-log conj :b-ran) nil))
+                (inc x)))
+            (await nested-a)
+            (await nested-b)
+            [@nested-a @nested-log]
+            """) == .vector([.integer(1), .vector([.keyword("b-ran")], metadata: nil)], metadata: nil))
+    }
+
+    @Test("a send issued inside an erroring action is discarded")
+    func nestedSendDiscardedOnError() throws {
+        #expect(try swish.eval("""
+            (def nested-err-log (atom []))
+            (def nested-err-a (agent 0))
+            (set-error-mode! nested-err-a :continue)
+            (def nested-err-b (agent nil))
+            (send nested-err-a
+              (fn [_]
+                (send nested-err-b (fn [_] (swap! nested-err-log conj :b-ran) nil))
+                (throw "boom")))
+            (await nested-err-a)
+            (await nested-err-b)
+            ;; the action threw, so its nested send was discarded — b never ran
+            [@nested-err-log (agent-error nested-err-a)]
+            """) == .vector([.vector([], metadata: nil), .nil], metadata: nil))
+    }
+
+    @Test("release-pending-sends outside any action returns 0")
+    func releasePendingSendsOutsideAction() throws {
+        #expect(try swish.eval("(release-pending-sends)") == .integer(0))
+    }
+
+    @Test("a top-level send (not in an action) still fires immediately")
+    func topLevelSendFiresImmediately() throws {
+        #expect(try swish.eval("""
+            (def top-log (atom []))
+            (def top-a (agent nil))
+            (send top-a (fn [_] (swap! top-log conj :ran) nil))
+            (await top-a)
+            @top-log
+            """) == .vector([.keyword("ran")], metadata: nil))
+    }
 }

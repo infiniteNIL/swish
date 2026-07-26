@@ -120,6 +120,9 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "send-off", arity: .atLeastOne,
         doc: "Dispatches an action to an agent, same semantics as send in this implementation.",
         arglists: [["a", "f"], ["a", "f", "&", "args"]]) { [evaluator] args in try coreSend(evaluator, args) }
+    evaluator.register(name: "release-pending-sends", arity: .fixed(0),
+        doc: "Normally, actions sent directly or indirectly during another action are held until the action completes (changes the agent's state). This function can be used to dispatch any pending sent actions immediately. This has no impact on actions sent during a transaction, which are still held until commit. If no action is occurring, does nothing. Returns the number of actions dispatched.",
+        arglists: [[]]) { [evaluator] _ in .integer(evaluator.releaseAgentActionSends()) }
     evaluator.register(name: "await", arity: .atLeastOne,
         doc: "Blocks the current thread until all actions dispatched thus far to each of the agents have occurred.",
         arglists: [["&", "agents"]]) { [evaluator] args in
@@ -272,6 +275,19 @@ private func coreSend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         let actionFn = args[1]
         let extraArgs = Array(args.dropFirst(2))
         tx.addPendingAction {
+            a.enqueueCaptured(evaluator: evaluator, agentExpr: agentExpr, actionFn: actionFn, extraArgs: extraArgs, frames: frames)
+        }
+    }
+    else if evaluator.currentAgentActionSends != nil {
+        // Nested send: issued from inside a running agent action. Hold it until
+        // that action completes (see SwishAgent.runAction) rather than dispatching
+        // now — matching Clojure's dispatch priority (transaction > nested action >
+        // immediate).
+        let frames = evaluator.captureCurrentBindings()
+        let agentExpr = args[0]
+        let actionFn = args[1]
+        let extraArgs = Array(args.dropFirst(2))
+        evaluator.holdAgentActionSend {
             a.enqueueCaptured(evaluator: evaluator, agentExpr: agentExpr, actionFn: actionFn, extraArgs: extraArgs, frames: frames)
         }
     }

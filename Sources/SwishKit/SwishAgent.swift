@@ -73,6 +73,14 @@ public final class SwishAgent: @unchecked Sendable {
     private func runAction(evaluator: Evaluator, agentExpr: Expr, actionFn: Expr, extraArgs: [Expr]) {
         guard state.withLock({ $0.error == nil }) else { return }
         let old = value
+        // Hold any send/send-off issued during this action (nested sends), to be
+        // dispatched only after the action completes successfully — matching
+        // Clojure's Agent.nested. The defer restores the previous buffer (nil at
+        // top level); on the error path below that means the held sends are
+        // discarded without releasing, parallel to a dosync abort.
+        let previousActionSends = evaluator.currentAgentActionSends
+        evaluator.currentAgentActionSends = []
+        defer { evaluator.currentAgentActionSends = previousActionSends }
         do {
             let newValue = try evaluator.call(actionFn, args: [old] + extraArgs)
             if let vf = validator {
@@ -80,6 +88,7 @@ public final class SwishAgent: @unchecked Sendable {
             }
             state.withLock { $0.value = newValue }
             try notifyWatches(evaluator, watches: watches, ref: agentExpr, old: old, new: newValue)
+            evaluator.releaseAgentActionSends()
         } catch {
             let errExpr = evaluator.exprForError(error)
             let (handler, mode) = state.withLock { ($0.errorHandler, $0.effectiveErrorMode) }
