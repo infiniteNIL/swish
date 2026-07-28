@@ -202,4 +202,28 @@ struct EvaluatorLoopTests {
     func recurInsideWhenAllowed() throws {
         _ = try evaluator.eval("(defn f [n] (when (> n 0) (recur (- n 1))))")
     }
+
+    // MARK: - closures capture their iteration's binding (fresh env per iteration)
+
+    @Test("a closure over a loop variable captures its iteration's value, not the final")
+    func loopClosureCapturesIterationValue() throws {
+        #expect(try evaluator.eval("""
+            (vec (map (fn [f] (f))
+                      (loop [i 0 fns []]
+                        (if (< i 3)
+                          (recur (inc i) (conj fns (fn [] i)))
+                          fns))))
+            """) == .vector([.integer(0), .integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("loop closures capture the iteration's value across two loop variables")
+    func loopClosureCapturesTwoVars() throws {
+        #expect(try evaluator.eval("""
+            (vec (map (fn [f] (f))
+                      (loop [i 0 acc []]
+                        (if (< i 3)
+                          (recur (inc i) (conj acc (fn [] (* i 10))))
+                          acc))))
+            """) == .vector([.integer(0), .integer(10), .integer(20)], metadata: nil))
+    }
 }

@@ -152,31 +152,37 @@ extension Evaluator {
         return try evalBody(Array(elements.dropFirst(2)), in: letfnEnv)
     }
 
-    // NOTE (thread-safety retrofit): `loopEnv` below is one `Environment` instance
-    // mutated repeatedly across `recur` iterations (locking makes each individual
-    // `.set` call memory-safe, but doesn't make the sequence of mutations
-    // logically race-free). If a closure created inside the loop body captures
-    // `loopEnv` and escapes to background execution (not possible today — this
-    // step adds no real threading — but will become possible once a later step
-    // adds real agent/future execution), that closure's later `.get` could
-    // observe any iteration's value depending on timing. Deferred until closures
-    // can actually escape to another thread.
+    // Each `recur` iteration runs in a FRESH `Environment` (built from the current
+    // binding values), exactly like `fn` recur in `callUserFunction`. This matters
+    // for both correctness and thread-safety: a closure created in the loop body
+    // captures *its* iteration's bindings (real Clojure semantics — e.g. building a
+    // vector of `(fn [] i)` closures yields each iteration's `i`, not the final
+    // value), and because an iteration's env is never mutated after the body might
+    // capture and escape it, `Environment` needs no per-lookup locking (see
+    // `Environment.swift`). Previously a single `loopEnv` was mutated in place
+    // across iterations, which produced the final value for every captured closure
+    // and was the one post-setup env mutation blocking a lock-free `Environment`.
     func evalLoop(_ elements: [Expr], in env: Environment) throws -> Expr {
         let bindingVec = try requireBindingVector(elements, function: "loop",
             message: "first argument must be a vector of bindings")
-        let loopEnv = Environment(parent: env)
+        // Evaluate the initial binding values once, sequentially, so a later
+        // initializer can see an earlier binding (`(loop [a 1 b (inc a)] ...)`).
+        let setupEnv = Environment(parent: env)
         var names: [String] = []
+        var currentArgs: [Expr] = []
         var patternBindings: [(Expr, String)] = []
         for i in stride(from: 0, to: bindingVec.count, by: 2) {
             let pattern = bindingVec[i]
-            let valueExpr = bindingVec[i + 1]
+            let value = try eval(bindingVec[i + 1], in: setupEnv)
             if case .symbol(let name, _) = pattern {
                 names.append(name)
-                loopEnv.set(name, try eval(valueExpr, in: loopEnv))
+                setupEnv.set(name, value)
+                currentArgs.append(value)
             } else {
                 let tmp = gensym(prefix: "lp__")
                 names.append(tmp)
-                loopEnv.set(tmp, try eval(valueExpr, in: loopEnv))
+                setupEnv.set(tmp, value)
+                currentArgs.append(value)
                 patternBindings.append((pattern, tmp))
             }
         }
@@ -192,16 +198,18 @@ extension Evaluator {
         try validateRecurTailPosition(in: body)
         while true {
             if interruptionCheck?() == true { throw EvaluatorError.interrupted }
+            let iterEnv = Environment(parent: env)
+            for (name, value) in zip(names, currentArgs) {
+                iterEnv.set(name, value)
+            }
             do {
-                return try evalBody(body, in: loopEnv)
+                return try evalBody(body, in: iterEnv)
             } catch let signal as RecurSignal {
                 guard signal.args.count == names.count else {
                     throw EvaluatorError.arityMismatch(
                         name: "loop", expected: .fixed(names.count), got: signal.args.count)
                 }
-                for (name, value) in zip(names, signal.args) {
-                    loopEnv.set(name, value)
-                }
+                currentArgs = signal.args
             }
         }
     }
