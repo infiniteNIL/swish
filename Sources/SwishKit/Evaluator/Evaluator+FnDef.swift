@@ -2,14 +2,29 @@ extension Evaluator {
 
     // MARK: - fn / defmacro
 
-    func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool, outerLocals: Set<String> = []) throws -> FnArity {
+    /// `expandMacros` pre-expands all macro calls in the body once, here at
+    /// definition time (see `macroexpandAll`), so a macro inside a hot loop /
+    /// lazy-seq body isn't re-expanded on every evaluation. It's `true` for
+    /// `fn`/`defn`/`deftype`-method bodies (ordinary code) and **`false`** for a
+    /// `defmacro`'s body (a template that must stay unexpanded — see
+    /// `evalDefmacro`).
+    func buildFnArity(from clause: Expr, functionName: String, validateRecur: Bool,
+                      outerLocals: Set<String> = [], expandMacros: Bool = true) throws -> FnArity {
         guard case .list(let elems, _) = clause, !elems.isEmpty,
               case .vector(let paramExprs, _) = elems[0]
         else {
             throw EvaluatorError.invalidArgument(function: functionName, message: "invalid arity clause")
         }
-        let (params, rawBody) = expandDestructuredParams(paramExprs, body: Array(elems.dropFirst()))
-        if validateRecur { try validateRecurTailPosition(in: rawBody) }
+        let (params, destructuredBody) = expandDestructuredParams(paramExprs, body: Array(elems.dropFirst()))
+        // Validate recur on the UN-expanded body — `validateRecurTailPosition` is
+        // macro-aware (treats `when`/`cond`/… tails as tail positions), so it must
+        // see the source forms, not the expansion (which relocates those tails into
+        // `if`/`let` and would trip the check). Macros never introduce `recur`, so
+        // validating first and expanding after is equivalent and safe.
+        if validateRecur { try validateRecurTailPosition(in: destructuredBody) }
+        // Pre-expand macros once, here, so a macro inside a hot loop / lazy-seq
+        // body isn't re-expanded on every evaluation.
+        let rawBody = expandMacros ? try destructuredBody.map { try macroexpandAll($0) } : destructuredBody
         let allLocals = collectAllParamLocals(paramExprs).union(outerLocals)
         return FnArity(params: params, body: expandAliases(in: rawBody, locals: allLocals))
     }
@@ -70,7 +85,9 @@ extension Evaluator {
                                 metadata: macroMeta)
         case .list:
             let arities = try expandedRestElems.map {
-                try buildFnArity(from: $0, functionName: "defmacro", validateRecur: false)
+                // expandMacros: false — a macro's body is a template, not code to
+                // pre-expand.
+                try buildFnArity(from: $0, functionName: "defmacro", validateRecur: false, expandMacros: false)
             }
             macroValue = .multiArityMacro(name: name, arities: arities, metadata: macroMeta)
         default:

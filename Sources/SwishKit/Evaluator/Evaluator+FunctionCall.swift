@@ -179,6 +179,73 @@ extension Evaluator {
         }
     }
 
+    /// Recursively expands every macro call in `expr` to fixpoint — the compile-
+    /// time macroexpansion a tree-walker otherwise defers to (and re-does on) every
+    /// evaluation. Run once over an `fn`/`defn` body at definition (`buildFnArity`)
+    /// so a macro inside a hot loop / lazy-seq body isn't re-expanded per element.
+    /// Skips `quote`/`syntax-quote` (literal data / macro templates). Conservative:
+    /// a head that isn't a *currently-defined* macro is left untouched, so a
+    /// forward-referenced macro still works (expanded at runtime as before), just
+    /// unoptimized. Expansion is deterministic given the call form, so this yields
+    /// the same result as per-call expansion — and stabilizes gensyms (one
+    /// expansion), matching Clojure's compile-once behavior.
+    func macroexpandAll(_ expr: Expr) throws -> Expr {
+        switch expr {
+        case .list(let elements, _):
+            guard let head = elements.first
+            else { return expr }
+            if case .symbol("quote", _) = head { return expr }
+            if case .symbol("syntax-quote", _) = head { return expr }
+            // Expand the head to fixpoint, then recurse into the result's subforms.
+            var current = expr
+            while let expanded = try macroexpand1(current) {
+                current = expanded
+            }
+            guard case .list(let curElems, let curMeta) = current
+            else { return try macroexpandAll(current) }
+            return .list(SwishPersistentList(try curElems.map { try macroexpandAll($0) }), metadata: curMeta)
+
+        case .seq(let elements):
+            // A macro expansion (via `cons`/`list`/…) can yield `.seq` code forms —
+            // e.g. `when` expands to `(if test (do …))` where `(do …)` is a `.seq`.
+            // Treat them exactly like `.list` and normalize the output to `.list`:
+            // eval dispatches both to `evalList`, but the downstream `expandAliases`
+            // only special-cases `.list`, so a stray `.seq` subform would slip
+            // through un-qualified (its symbols never rewritten to their vars).
+            return try macroexpandAll(.list(SwishPersistentList(elements), metadata: nil))
+
+        case .vector(let elements, let meta):
+            return .vector(try elements.map { try macroexpandAll($0) }, metadata: meta)
+
+        case .map(let sm):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                result[try macroexpandAll(k)] = try macroexpandAll(v)
+            }
+            return .map(result, metadata: sm.metadata)
+
+        case .sortedMap(let dict, let meta):
+            var result: [Expr: Expr] = [:]
+            for (k, v) in dict {
+                result[try macroexpandAll(k)] = try macroexpandAll(v)
+            }
+            return .sortedMap(result, metadata: meta)
+
+        case .set(let ss):
+            var result: Set<Expr> = []
+            for e in ss.elements {
+                result.insert(try macroexpandAll(e))
+            }
+            return .set(SwishSet(elements: result, metadata: ss.metadata))
+
+        case .sortedSet(let elements, let meta):
+            return .sortedSet(try elements.map { try macroexpandAll($0) }, metadata: meta)
+
+        default:
+            return expr
+        }
+    }
+
     private func expandMacro(name: String, params: [String], body: [Expr], args: [Expr]) throws -> Expr {
         let macroEnv = Environment()
         try bindParams(params, to: args, in: macroEnv, name: name)

@@ -22,6 +22,15 @@ extension Evaluator {
         case .symbol("recur", _):
             return
 
+        case .symbol("quote", _), .symbol("syntax-quote", _):
+            // A `recur` textually inside quoted data or a syntax-quote template is
+            // not a `recur` in THIS fn — it's literal data / code being generated
+            // (a macro helper emits `(recur ...)` into its output). Skip it. This is
+            // correct independent of macroexpansion; it stayed latent only because
+            // macro wrappers (`when`/`cond`/`if-not`) used to make the validator
+            // bail (below) before it reached the template.
+            return
+
         case .symbol("if", _):
             if elements.count > 1, recurAppears(in: elements[1]) {
                 throw EvaluatorError.recurNotInTailPosition
@@ -68,6 +77,10 @@ extension Evaluator {
             guard !elements.isEmpty else { return false }
             if case .symbol("fn", _)    = elements[0] { return false }
             if case .symbol("loop", _)  = elements[0] { return false }
+            // A `recur` inside quoted data / a syntax-quote template is generated
+            // code, not a `recur` in this fn — don't count it (see validateTailExpr).
+            if case .symbol("quote", _) = elements[0] { return false }
+            if case .symbol("syntax-quote", _) = elements[0] { return false }
             if case .symbol("recur", _) = elements[0] { return true }
             return elements.contains { recurAppears(in: $0) }
 

@@ -222,4 +222,32 @@ let result = try swish.eval("""
     func doto() throws {
         #expect(try swish.eval("(deref (doto (atom 0) (reset! 5) (swap! inc)))") == .integer(6))
     }
+
+    // MARK: - definition-time macroexpansion (pre-expansion)
+
+    @Test("a macro-introduced reference to a dynamic var resolves across namespaces")
+    func macroDynamicVarCrossNamespace() throws {
+        // `via-when`'s body `(when *mq* *mq*)` pre-expands to `(if *mq* (do *mq*))`,
+        // whose `(do ...)` is a `.seq`. `*mq*` must still be alias-qualified to
+        // `macro-qual-lib/*mq*` so it resolves when called from `user` — the
+        // regression that broke clojure.test's `*report-counters*`.
+        #expect(try swish.eval("""
+            (do
+              (ns macro-qual-lib)
+              (def ^:dynamic *mq* :root)
+              (defn via-when [] (when *mq* *mq*))
+              (ns user)
+              (binding [macro-qual-lib/*mq* :bound]
+                (macro-qual-lib/via-when)))
+            """) == .keyword("bound"))
+    }
+
+    @Test("a recur inside a syntax-quote template in a fn body is not treated as a real recur")
+    func recurInsideSyntaxQuoteTemplateAllowed() throws {
+        // A code-generating fn whose template emits `(recur ...)` must not trip
+        // recur-tail-position validation (the `for`-macro regression).
+        #expect(throws: Never.self) {
+            try swish.eval("(defn gen-loop [n] `(loop [i 0] (when (< i ~n) (recur (inc i)))))")
+        }
+    }
 }
