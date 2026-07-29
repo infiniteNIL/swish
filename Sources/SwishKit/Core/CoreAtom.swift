@@ -67,8 +67,8 @@ func parseMetaValidatorOptions(_ args: [Expr], startingAt start: Int, functionNa
             switch val {
             case .map(let sm):
                 meta = sm.dict.swiftDictionary
-            case .sortedMap(let m, _):
-                meta = m
+            case .sortedMap(let ssm):
+                meta = ssm.asDictionary
             case .nil:
                 meta = nil
             default:

@@ -40,7 +40,7 @@ struct CoreEmptyTests {
 
     @Test("(empty (sorted-map :a 1)) returns an empty sorted map")
     func emptySortedMap() throws {
-        #expect(try swish.eval("(empty (sorted-map :a 1))") == .sortedMap([:], metadata: nil))
+        #expect(try swish.eval("(empty (sorted-map :a 1))") == .sortedMap(sortedKeys: [], sortedValues: []))
     }
 
     @Test("(empty (sorted-set 1 2)) returns an empty sorted set")

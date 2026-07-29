@@ -135,14 +135,14 @@ extension Expr: Hashable {
         case .map(let sm):
             hasher.combine(ExprHash.map);       hasher.combine(sm)   // sm hashes via hashMapContents
 
-        case .sortedMap(let v, _):
-            hasher.combine(ExprHash.map);       hasher.combine(hashMapContents(v))
+        case .sortedMap(let ssm):
+            hasher.combine(ExprHash.map);       hasher.combine(hashMapContents(ssm.asDictionary))
 
         case .set(let s):
             hasher.combine(ExprHash.set);       hasher.combine(s)   // s hashes via hashSetContents
 
-        case .sortedSet(let v, _):
-            hasher.combine(ExprHash.set);       hasher.combine(hashSetContents(v))
+        case .sortedSet(let sss):
+            hasher.combine(ExprHash.set);       hasher.combine(hashSetContents(sss.elements))
 
         case .function(let f):
             hasher.combine(ExprHash.function);          hasher.combine(ObjectIdentifier(f))

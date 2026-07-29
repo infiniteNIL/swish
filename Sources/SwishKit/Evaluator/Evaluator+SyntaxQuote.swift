@@ -86,14 +86,15 @@ extension Evaluator {
             }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let meta):
-            return transformSortedMap(dict, metadata: meta) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
+        case .sortedMap(let ssm):
+            return transformSortedMap(ssm) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
 
         case .set(let ss):
             return .set(Set(ss.elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: ss.metadata)
 
-        case .sortedSet(let elements, let meta):
-            return .sortedSet(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+        case .sortedSet(let sss):
+            return .sortedSet(sss.elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) },
+                              comparator: sss.comparator, metadata: sss.metadata)
 
         default:
             return expr

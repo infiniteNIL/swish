@@ -62,8 +62,8 @@ extension Evaluator {
             }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let mapMeta):
-            return try transformSortedMap(dict, metadata: mapMeta) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
+        case .sortedMap(let ssm):
+            return try transformSortedMap(ssm) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
 
         case .set(let ss):
             var result: Set<Expr> = []
@@ -72,12 +72,12 @@ extension Evaluator {
             }
             return .set(result, metadata: ss.metadata)
 
-        case .sortedSet(let elements, let setMeta):
+        case .sortedSet(let sss):
             var result: [Expr] = []
-            for element in elements {
+            for element in sss.elements {
                 result.append(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
             }
-            return .sortedSet(result, metadata: setMeta)
+            return .sortedSet(result, comparator: sss.comparator, metadata: sss.metadata)
 
         default:
             return expr

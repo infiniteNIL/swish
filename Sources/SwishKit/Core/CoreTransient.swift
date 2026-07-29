@@ -13,24 +13,20 @@ func registerTransient(into evaluator: Evaluator) {
         body: corePersistentBang)
     evaluator.register(name: "assoc!", arity: .variadic,
         doc: "When applied to a transient map, adds mapping of key(s) to val(s). Returns the transient itself.",
-        arglists: [["map", "key", "val"], ["map", "key", "val", "&", "kvs"]],
-        body: coreAssocBang)
+        arglists: [["map", "key", "val"], ["map", "key", "val", "&", "kvs"]]) { [evaluator] args in try coreAssocBang(evaluator, args) }
     evaluator.register(name: "dissoc!", arity: .variadic,
         doc: "Returns a transient map that doesn't contain a mapping for key(s).",
-        arglists: [["map", "key"], ["map", "key", "&", "ks"]],
-        body: coreDisjocBang)
+        arglists: [["map", "key"], ["map", "key", "&", "ks"]]) { [evaluator] args in try coreDisjocBang(evaluator, args) }
     evaluator.register(name: "pop!", arity: .fixed(1),
         doc: "Removes the last item from a transient vector. If the collection is empty, throws an exception. Returns coll.",
         arglists: [["coll"]],
         body: corePopBang)
     evaluator.register(name: "disj!", arity: .atLeastOne,
         doc: "disj[oin]. Returns a transient set that doesn't contain key(s). Returns the transient itself.",
-        arglists: [["set"], ["set", "key"], ["set", "key", "&", "ks"]],
-        body: coreDisjBang)
+        arglists: [["set"], ["set", "key"], ["set", "key", "&", "ks"]]) { [evaluator] args in try coreDisjBang(evaluator, args) }
     evaluator.register(name: "conj!", arity: .variadic,
         doc: "Adds x to the transient collection, and return coll. The addition may happen at different places depending on the concrete type.",
-        arglists: [[], ["coll"], ["coll", "x"], ["coll", "x", "&", "xs"]],
-        body: coreConjBang)
+        arglists: [[], ["coll"], ["coll", "x"], ["coll", "x", "&", "xs"]]) { [evaluator] args in try coreConjBang(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -62,7 +58,7 @@ private func corePersistentBang(_ args: [Expr]) throws -> Expr {
     return tc.value
 }
 
-private func coreAssocBang(_ args: [Expr]) throws -> Expr {
+private func coreAssocBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "assoc!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
@@ -86,12 +82,12 @@ private func coreAssocBang(_ args: [Expr]) throws -> Expr {
             val = .nil
             i += 1
         }
-        tc.value = try coreAssoc([tc.value, key, val])
+        tc.value = try coreAssoc(evaluator, [tc.value, key, val])
     }
     return args[0]
 }
 
-private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
+private func coreDisjocBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "dissoc!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
@@ -100,7 +96,7 @@ private func coreDisjocBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "dissoc!",
             message: transientExpired)
     }
-    tc.value = try coreDissoc([tc.value] + Array(args.dropFirst()))
+    tc.value = try coreDissoc(evaluator, [tc.value] + Array(args.dropFirst()))
     return args[0]
 }
 
@@ -125,7 +121,7 @@ private func corePopBang(_ args: [Expr]) throws -> Expr {
     return args[0]
 }
 
-private func coreDisjBang(_ args: [Expr]) throws -> Expr {
+private func coreDisjBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard case .transient(let tc) = args[0] else {
         throw EvaluatorError.invalidArgument(function: "disj!",
             message: "expected transient, got \(corePrinter.printString(args[0]))")
@@ -144,7 +140,7 @@ private func coreDisjBang(_ args: [Expr]) throws -> Expr {
     return args[0]
 }
 
-private func coreConjBang(_ args: [Expr]) throws -> Expr {
+private func coreConjBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     if args.isEmpty {
         return .transient(TransientCollection(.vector([], metadata: nil)))
     }
@@ -158,7 +154,7 @@ private func coreConjBang(_ args: [Expr]) throws -> Expr {
             message: transientExpired)
     }
     for i in 1..<args.count {
-        tc.value = try conjOne(tc.value, args[i])
+        tc.value = try conjOne(evaluator, tc.value, args[i])
     }
     return args[0]
 }

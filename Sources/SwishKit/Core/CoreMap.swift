@@ -3,28 +3,23 @@ import Collections
 func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "get", arity: .variadic,
         doc: "Returns the value mapped to key, not-found or nil if key not present.",
-        arglists: [["map", "key"], ["map", "key", "not-found"]],
-        body: coreGet)
+        arglists: [["map", "key"], ["map", "key", "not-found"]]) { [evaluator] args in try coreGet(evaluator, args) }
 
     evaluator.register(name: "get-in", arity: .variadic,
         doc: "Returns the value in a nested associative structure, where ks is a sequence of keys. Returns nil if the key is not present, or the not-found value if supplied.",
-        arglists: [["m", "ks"], ["m", "ks", "not-found"]],
-        body: coreGetIn)
+        arglists: [["m", "ks"], ["m", "ks", "not-found"]]) { [evaluator] args in try coreGetIn(evaluator, args) }
 
     evaluator.register(name: "find", arity: .fixed(2),
         doc: "Returns the map entry for key, or nil if key not present.",
-        arglists: [["map", "key"]],
-        body: coreFind)
+        arglists: [["map", "key"]]) { [evaluator] args in try coreFind(evaluator, args) }
 
     evaluator.register(name: "assoc", arity: .variadic,
         doc: "assoc[iate]. When applied to a map, returns a new map of the same (hashed/sorted) type, that contains the mapping of key(s) to val(s). When applied to a vector, returns a new vector that contains val at index. Note - index must be <= (count vector).",
-        arglists: [["map", "key", "val"], ["map", "key", "val", "&", "kvs"]],
-        body: coreAssoc)
+        arglists: [["map", "key", "val"], ["map", "key", "val", "&", "kvs"]]) { [evaluator] args in try coreAssoc(evaluator, args) }
 
     evaluator.register(name: "dissoc", arity: .variadic,
         doc: "dissoc[iate]. Returns a new map of the same (hashed/sorted) type, that does not contain a mapping for key(s).",
-        arglists: [["map"], ["map", "key"], ["map", "key", "&", "ks"]],
-        body: coreDissoc)
+        arglists: [["map"], ["map", "key"], ["map", "key", "&", "ks"]]) { [evaluator] args in try coreDissoc(evaluator, args) }
 
     // Bootstrap: called by the `defn` macro at core.clj:40 before the
     // Clojure merge definition is loaded. The Clojure version (core.clj)
@@ -72,7 +67,7 @@ func registerMap(into evaluator: Evaluator) {
     }
 }
 
-private func coreFind(_ args: [Expr]) throws -> Expr {
+private func coreFind(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .nil:
         return .nil
@@ -81,8 +76,8 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
         guard let value = sm.dict[args[1]] else { return .nil }
         return .mapEntry(args[1], value)
 
-    case .sortedMap(let dict, _):
-        guard let value = dict[args[1]] else { return .nil }
+    case .sortedMap(let ssm):
+        guard let value = try ssm.get(args[1], evaluator.makeComparator(ssm.comparator)) else { return .nil }
         return .mapEntry(args[1], value)
 
     case .record(_, _, let data, _):
@@ -108,7 +103,7 @@ private func coreFind(_ args: [Expr]) throws -> Expr {
 /// — this distinction is what lets `get-in`'s per-step loop correctly tell
 /// a missing key apart from a legitimately nil value without needing a
 /// fake unique sentinel object.
-private func lookupOptional(_ coll: Expr, _ key: Expr) throws -> Expr? {
+private func lookupOptional(_ evaluator: Evaluator, _ coll: Expr, _ key: Expr) throws -> Expr? {
     switch coll {
     case .nil:
         return nil
@@ -116,8 +111,8 @@ private func lookupOptional(_ coll: Expr, _ key: Expr) throws -> Expr? {
     case .map(let sm):
         return sm.dict[key]
 
-    case .sortedMap(let dict, _):
-        return dict[key]
+    case .sortedMap(let ssm):
+        return try ssm.get(key, evaluator.makeComparator(ssm.comparator))
 
     case .record(_, _, let data, _):
         return data[key]
@@ -136,22 +131,22 @@ private func lookupOptional(_ coll: Expr, _ key: Expr) throws -> Expr? {
     case .set(let ss):
         return ss.elements.contains(key) ? key : nil
 
-    case .sortedSet(let elements, _):
-        return ((try? sortedSetContains(elements, key)) == true) ? key : nil
+    case .sortedSet(let sss):
+        return ((try? sss.contains(key, evaluator.makeComparator(sss.comparator))) == true) ? key : nil
 
     case .array(let sa):
         guard case .integer(let idx) = key, idx >= 0, idx < sa.elements.count else { return nil }
         return sa.elements[idx]
 
     case .transient(let tc):
-        return try lookupOptional(tc.value, key)
+        return try lookupOptional(evaluator, tc.value, key)
 
     default:
         return nil
     }
 }
 
-private func coreGetIn(_ args: [Expr]) throws -> Expr {
+private func coreGetIn(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard args.count == 2 || args.count == 3 else {
         throw EvaluatorError.invalidArgument(
             function: "get-in",
@@ -179,13 +174,13 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     }
     var current = args[0]
     for key in keys {
-        guard let value = try lookupOptional(current, key) else { return notFound }
+        guard let value = try lookupOptional(evaluator, current, key) else { return notFound }
         current = value
     }
     return current
 }
 
-func coreDissoc(_ args: [Expr]) throws -> Expr {
+func coreDissoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard !args.isEmpty else {
         throw EvaluatorError.invalidArgument(
             function: "dissoc",
@@ -200,11 +195,11 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
         for key in args.dropFirst() { dict.removeValue(forKey: key) }   // O(log n)
         return .map(SwishMap(dict: dict, metadata: sm.metadata))
 
-    case .sortedMap(var dict, let meta):
-        for key in args.dropFirst() {
-            dict.removeValue(forKey: key)
-        }
-        return .sortedMap(dict, metadata: meta)
+    case .sortedMap(let ssm):
+        let compare = evaluator.makeComparator(ssm.comparator)
+        var result = ssm
+        for key in args.dropFirst() { result = try result.dissoc(key, compare) }
+        return .sortedMap(result)
 
     case .record(let typeName, let fields, var data, _):
         var removedBaseField = false
@@ -236,8 +231,8 @@ private func mapCollection(_ coll: Expr, function: String, project: (TreeDiction
         let items = project(sm.dict)
         return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
-    case .sortedMap(let dict, _):
-        let items = project(TreeDictionary(uniqueKeysWithValues: dict.map { ($0.key, $0.value) }))
+    case .sortedMap(let ssm):
+        let items = project(TreeDictionary(uniqueKeysWithValues: zip(ssm.keys, ssm.values).map { ($0, $1) }))
         return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     case .record(_, _, let data, _):
@@ -256,11 +251,17 @@ private func mapCollection(_ coll: Expr, function: String, project: (TreeDiction
 }
 
 private func coreKeys(_ args: [Expr]) throws -> Expr {
-    try mapCollection(args[0], function: "keys") { Array($0.keys) }
+    if case .sortedMap(let ssm) = args[0] {   // sorted order (not hash order)
+        return ssm.isEmpty ? .nil : .list(SwishPersistentList(ssm.keys), metadata: nil)
+    }
+    return try mapCollection(args[0], function: "keys") { Array($0.keys) }
 }
 
 private func coreVals(_ args: [Expr]) throws -> Expr {
-    try mapCollection(args[0], function: "vals") { Array($0.values) }
+    if case .sortedMap(let ssm) = args[0] {   // sorted order (not hash order)
+        return ssm.isEmpty ? .nil : .list(SwishPersistentList(ssm.values), metadata: nil)
+    }
+    return try mapCollection(args[0], function: "vals") { Array($0.values) }
 }
 
 private func coreMerge(_ args: [Expr]) throws -> Expr {
@@ -272,9 +273,9 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
             hadMapArg = true
             for (k, v) in sm.dict { result[k] = v }
 
-        case .sortedMap(let d, _):
+        case .sortedMap(let ssm):
             hadMapArg = true
-            for (k, v) in d { result[k] = v }
+            for (k, v) in zip(ssm.keys, ssm.values) { result[k] = v }
 
         case .nil:
             break
@@ -288,25 +289,31 @@ private func coreMerge(_ args: [Expr]) throws -> Expr {
     return hadMapArg ? .map(result, metadata: nil) : .nil
 }
 
-func coreAssoc(_ args: [Expr]) throws -> Expr {
+func coreAssoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard args.count >= 3, (args.count - 1) % 2 == 0 else {
         throw EvaluatorError.invalidArgument(
             function: "assoc",
             message: "requires a map and an even number of key/value pairs")
     }
 
-    var isSortedMap = false
+    // Sorted map: binary-search assoc through the comparator, maintaining order.
+    if case .sortedMap(let ssm) = args[0] {
+        let compare = evaluator.makeComparator(ssm.comparator)
+        var result = ssm
+        var i = 1
+        while i < args.count {
+            result = try result.assoc(args[i], args[i + 1], compare)
+            i += 2
+        }
+        return .sortedMap(result)
+    }
+
     var dict: TreeDictionary<Expr, Expr>
     var inputMeta: [Expr: Expr]? = nil
     switch args[0] {
     case .map(let sm):
         dict = sm.dict
         inputMeta = sm.metadata
-
-    case .sortedMap(let d, let m):
-        dict = TreeDictionary(uniqueKeysWithValues: d.map { ($0.key, $0.value) })
-        isSortedMap = true
-        inputMeta = m
 
     case .nil:
         dict = [:]
@@ -345,7 +352,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         return .vector(result, metadata: m)
 
     case .sharedVector(let sa, let m):
-        return try coreAssoc([.vector(SwishPersistentVector(sa.elements), metadata: m)] + Array(args.dropFirst()))
+        return try coreAssoc(evaluator, [.vector(SwishPersistentVector(sa.elements), metadata: m)] + Array(args.dropFirst()))
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -358,17 +365,15 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         dict[args[i]] = args[i + 1]   // O(log n) on TreeDictionary
         i += 2
     }
-    return isSortedMap
-        ? .sortedMap(dict.swiftDictionary, metadata: inputMeta)
-        : .map(SwishMap(dict: dict, metadata: inputMeta))
+    return .map(SwishMap(dict: dict, metadata: inputMeta))
 }
 
-private func coreGet(_ args: [Expr]) throws -> Expr {
+private func coreGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard args.count == 2 || args.count == 3 else {
         throw EvaluatorError.invalidArgument(
             function: "get",
             message: "requires 2 or 3 arguments, got \(args.count)")
     }
     let notFound: Expr = args.count == 3 ? args[2] : .nil
-    return try lookupOptional(args[0], args[1]) ?? notFound
+    return try lookupOptional(evaluator, args[0], args[1]) ?? notFound
 }

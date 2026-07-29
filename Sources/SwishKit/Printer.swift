@@ -273,14 +273,13 @@ public struct Printer {
         case .set(let ss):
             return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(Set(ss.elements), transform: transform)
 
-        case .sortedSet(let elements, let meta):
-            let body = elements.map(transform).joined(separator: " ")
-            return (includeMeta ? metaPrefix(meta) : "") + (elements.isEmpty ? "#{}" : "#{\(body)}")
+        case .sortedSet(let sss):
+            let body = sss.elements.map(transform).joined(separator: " ")
+            return (includeMeta ? metaPrefix(sss.metadata) : "") + (sss.isEmpty ? "#{}" : "#{\(body)}")
 
-        case .sortedMap(let dict, let meta):
-            let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-            let pairs = sortedKeys.flatMap { [transform($0), transform(dict[$0]!)] }.joined(separator: " ")
-            return (includeMeta ? metaPrefix(meta) : "") + (dict.isEmpty ? "{}" : "{\(pairs)}")
+        case .sortedMap(let ssm):
+            let pairs = zip(ssm.keys, ssm.values).flatMap { [transform($0), transform($1)] }.joined(separator: " ")
+            return (includeMeta ? metaPrefix(ssm.metadata) : "") + (ssm.isEmpty ? "{}" : "{\(pairs)}")
 
         default:
             return nil

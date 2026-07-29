@@ -76,8 +76,8 @@ public indirect enum Expr: Sendable {
     case mapEntry(Expr, Expr)
     case map(SwishMap)
     case set(SwishSet)
-    case sortedSet([Expr], metadata: [Expr: Expr]?)
-    case sortedMap([Expr: Expr], metadata: [Expr: Expr]?)
+    case sortedSet(SwishSortedSet)
+    case sortedMap(SwishSortedMap)
     case function(SwishFunction)
     case macro(name: String?, params: [String], body: [Expr], metadata: [Expr: Expr]?)
     case multiArityFunction(SwishMultiArityFunction)
@@ -160,6 +160,18 @@ extension Expr {
 
     public static func map(_ dict: [Expr: Expr], metadata: [Expr: Expr]?) -> Expr {
         .map(SwishMap(dict: TreeDictionary(uniqueKeysWithValues: dict.map { ($0.key, $0.value) }), metadata: metadata))
+    }
+
+    // Sorted-collection constructors. `sortedElements` / `sortedKeys`+`sortedValues`
+    // must already be in `comparator` order — callers that transform an existing
+    // sorted collection preserve its order (and pass its `comparator`); fresh
+    // construction sorts first (in `CoreSet`, evaluator-aware for custom comparators).
+    public static func sortedSet(_ sortedElements: [Expr], comparator: Expr? = nil, metadata: [Expr: Expr]? = nil) -> Expr {
+        .sortedSet(SwishSortedSet(elements: sortedElements, comparator: comparator, metadata: metadata))
+    }
+
+    public static func sortedMap(sortedKeys: [Expr], sortedValues: [Expr], comparator: Expr? = nil, metadata: [Expr: Expr]? = nil) -> Expr {
+        .sortedMap(SwishSortedMap(keys: sortedKeys, values: sortedValues, comparator: comparator, metadata: metadata))
     }
 }
 

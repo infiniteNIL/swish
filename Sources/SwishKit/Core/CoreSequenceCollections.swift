@@ -39,8 +39,7 @@ func registerSequenceCollections(into evaluator: Evaluator) {
         body: coreHashSet)
     evaluator.register(name: "contains?", arity: .fixed(2),
         doc: "Returns true if key is present in the given collection, otherwise returns false. Note that for numerically indexed collections like vectors and Java arrays, this tests if the numeric key is within the range of indexes. 'contains?' operates constant or logarithmic time; it will not perform a linear search for a value. See also 'some'.",
-        arglists: [["coll", "key"]],
-        body: coreContains)
+        arglists: [["coll", "key"]]) { [evaluator] args in try coreContains(evaluator, args) }
     evaluator.register(name: "nth", arity: .atLeastOne,
         doc: "Returns the value at the index. get returns nil if index out of bounds, nth throws an exception unless not-found is supplied. nth also works for strings, Java arrays, regex Matchers and Lists, and, in O(n) time, for sequences.",
         arglists: [["coll", "index"], ["coll", "index", "not-found"]],
@@ -78,14 +77,14 @@ private func coreCount(_ args: [Expr]) throws -> Expr {
     case .map(let sm):
         return .integer(sm.dict.count)
 
-    case .sortedMap(let dict, _):
-        return .integer(dict.count)
+    case .sortedMap(let ssm):
+        return .integer(ssm.count)
 
     case .set(let ss):
         return .integer(ss.elements.count)
 
-    case .sortedSet(let elements, _):
-        return .integer(elements.count)
+    case .sortedSet(let sss):
+        return .integer(sss.count)
 
     case .string(let s):
         return .integer(s.count)
@@ -127,11 +126,11 @@ private func coreEmpty(_ args: [Expr]) throws -> Expr {
     case .set(let ss):
         return .set([], metadata: ss.metadata)
 
-    case .sortedMap(_, let meta):
-        return .sortedMap([:], metadata: meta)
+    case .sortedMap(let ssm):
+        return .sortedMap(sortedKeys: [], sortedValues: [], comparator: ssm.comparator, metadata: ssm.metadata)
 
-    case .sortedSet(_, let meta):
-        return .sortedSet([], metadata: meta)
+    case .sortedSet(let sss):
+        return .sortedSet([], comparator: sss.comparator, metadata: sss.metadata)
 
     case .record:
         // Real JVM Clojure: defrecord instances are IPersistentCollection
@@ -163,7 +162,7 @@ private func coreHashSet(_ args: [Expr]) throws -> Expr {
     .set(Set(args), metadata: nil)
 }
 
-private func coreContains(_ args: [Expr]) throws -> Expr {
+private func coreContains(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let key = args[1]
     switch args[0] {
     case .nil:
@@ -172,14 +171,14 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
     case .map(let sm):
         return .boolean(sm.dict[key] != nil)
 
-    case .sortedMap(let dict, _):
-        return .boolean(dict[key] != nil)
+    case .sortedMap(let ssm):
+        return .boolean(try ssm.get(key, evaluator.makeComparator(ssm.comparator)) != nil)
 
     case .set(let ss):
         return .boolean(ss.elements.contains(key))
 
-    case .sortedSet(let elements, _):
-        return .boolean((try? sortedSetContains(elements, key)) ?? elements.contains(key))
+    case .sortedSet(let sss):
+        return .boolean(try sss.contains(key, evaluator.makeComparator(sss.comparator)))
 
     case .vector, .sharedVector:
         let elements = vectorElements(args[0]) ?? []
@@ -205,7 +204,7 @@ private func coreContains(_ args: [Expr]) throws -> Expr {
         return .boolean(idx >= 0 && idx < s.count)
 
     case .transient(let tc):
-        return try coreContains([tc.value, key])
+        return try coreContains(evaluator, [tc.value, key])
 
     default:
         throw EvaluatorError.invalidArgument(function: "contains?",

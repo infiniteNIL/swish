@@ -67,17 +67,14 @@ func registerSequenceVector(into evaluator: Evaluator) {
             if sa.elements.isEmpty { return .nil }
             return .list(SwishPersistentList(sa.elements.reversed()), metadata: nil)
 
-        case .sortedMap(let m, _):
-            if m.isEmpty { return .nil }
-            let sortedKeys = m.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-            let entries = sortedKeys.reversed().map { k -> Expr in
-                .vector([k, m[k]!], metadata: nil)
-            }
+        case .sortedMap(let ssm):
+            if ssm.isEmpty { return .nil }
+            let entries = zip(ssm.keys, ssm.values).reversed().map { Expr.vector([$0, $1], metadata: nil) }
             return .list(SwishPersistentList(entries), metadata: nil)
 
-        case .sortedSet(let elements, _):
-            if elements.isEmpty { return .nil }
-            return .list(SwishPersistentList(elements.reversed()), metadata: nil)
+        case .sortedSet(let sss):
+            if sss.isEmpty { return .nil }
+            return .list(SwishPersistentList(sss.elements.reversed()), metadata: nil)
 
         default:
             throw EvaluatorError.invalidArgument(

@@ -197,15 +197,15 @@ extension Parser {
                 collectAnonFnRefsInExpr(k, into: &refs)
                 collectAnonFnRefsInExpr(v, into: &refs)
             }
-        case .sortedMap(let dict, _):
-            for (k, v) in dict {
+        case .sortedMap(let ssm):
+            for (k, v) in zip(ssm.keys, ssm.values) {
                 collectAnonFnRefsInExpr(k, into: &refs)
                 collectAnonFnRefsInExpr(v, into: &refs)
             }
         case .set(let ss):
             collectAnonFnRefs(Array(ss.elements), into: &refs)
-        case .sortedSet(let elems, _):
-            collectAnonFnRefs(elems, into: &refs)
+        case .sortedSet(let sss):
+            collectAnonFnRefs(sss.elements, into: &refs)
         default:
             break
         }
@@ -231,16 +231,17 @@ extension Parser {
             for (k, v) in sm.dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let meta):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict { result[normalizeAnonFnArgRef(k)] = normalizeAnonFnArgRef(v) }
-            return .sortedMap(result, metadata: meta)
+        case .sortedMap(let ssm):
+            let keys = ssm.keys.map { normalizeAnonFnArgRef($0) }
+            let values = ssm.values.map { normalizeAnonFnArgRef($0) }
+            return .sortedMap(sortedKeys: keys, sortedValues: values, comparator: ssm.comparator, metadata: ssm.metadata)
 
         case .set(let ss):
             return .set(Set(ss.elements.map { normalizeAnonFnArgRef($0) }), metadata: ss.metadata)
 
-        case .sortedSet(let elems, let meta):
-            return .sortedSet(elems.map { normalizeAnonFnArgRef($0) }, metadata: meta)
+        case .sortedSet(let sss):
+            return .sortedSet(sss.elements.map { normalizeAnonFnArgRef($0) },
+                              comparator: sss.comparator, metadata: sss.metadata)
 
         default:
             return expr

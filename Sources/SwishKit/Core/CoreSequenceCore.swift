@@ -31,8 +31,7 @@ func registerSequenceCore(into evaluator: Evaluator) {
         body: coreNext)
     evaluator.register(name: "conj", arity: .variadic,
         doc: "conj[oin]. Returns a new collection with the xs 'added'. (conj nil item) returns (item). The 'addition' may happen at different 'places' depending on the concrete type.",
-        arglists: [["coll", "x"], ["coll", "x", "&", "xs"]],
-        body: coreConj)
+        arglists: [["coll", "x"], ["coll", "x", "&", "xs"]]) { [evaluator] args in try coreConj(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -68,9 +67,8 @@ func asSequence(_ expr: Expr) throws -> [Expr]? {
         let sortedKeys = sm.dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
         return sortedKeys.map { .mapEntry($0, sm.dict[$0]!) }
 
-    case .sortedMap(let dict, _):
-        let sortedKeys = dict.keys.sorted { (try? compareExprValue($0, $1)).map { $0 < 0 } ?? false }
-        return sortedKeys.map { .mapEntry($0, dict[$0]!) }
+    case .sortedMap(let ssm):
+        return ssm.entries   // already in comparator order
 
     case .mapEntry(let k, let v):
         return [k, v]
@@ -78,8 +76,8 @@ func asSequence(_ expr: Expr) throws -> [Expr]? {
     case .set(let ss):
         return Array(ss.elements)
 
-    case .sortedSet(let elements, _):
-        return elements
+    case .sortedSet(let sss):
+        return sss.elements   // already in comparator order
 
     case .lazySeq:
         // Iteratively realize the full lazy seq into an array.
@@ -230,10 +228,36 @@ private func coreNext(_ args: [Expr]) throws -> Expr {
     return rest.isEmpty ? .nil : .list(SwishPersistentList(rest), metadata: nil)
 }
 
-private func coreConj(_ args: [Expr]) throws -> Expr {
+private func coreConj(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     guard !args.isEmpty else { return .vector([], metadata: nil) }
     var result = args[0]
-    for item in args.dropFirst() { result = try conjOne(result, item) }
+    for item in args.dropFirst() { result = try conjOne(evaluator, result, item) }
+    return result
+}
+
+/// `conj`s a map-shaped item (another map/sortedMap, a map entry, or a `[k v]`
+/// vector) into a sorted map, assoc-ing each entry through the comparator so order
+/// is maintained. The sorted-map analogue of `mergeIntoDict`.
+private func sortedMapConjItem(_ evaluator: Evaluator, _ ssm: SwishSortedMap, _ item: Expr) throws -> SwishSortedMap {
+    let compare = evaluator.makeComparator(ssm.comparator)
+    var result = ssm
+    switch item {
+    case .map(let other):
+        for (k, v) in other.dict { result = try result.assoc(k, v, compare) }
+
+    case .sortedMap(let other):
+        for (k, v) in zip(other.keys, other.values) { result = try result.assoc(k, v, compare) }
+
+    case .mapEntry(let k, let v):
+        result = try result.assoc(k, v, compare)
+
+    case .vector(let entry, _) where entry.count == 2:
+        result = try result.assoc(entry[0], entry[1], compare)
+
+    default:
+        throw EvaluatorError.invalidArgument(function: "conj",
+            message: "map conj requires a [key val] vector")
+    }
     return result
 }
 
@@ -245,8 +269,8 @@ private func mergeIntoDict<M: ExprMapStorage>(_ dict: inout M, item: Expr) throw
         for (k, v) in other.dict { dict[k] = v }
         return
     }
-    if case .sortedMap(let other, _) = item {
-        for (k, v) in other { dict[k] = v }
+    if case .sortedMap(let other) = item {
+        for (k, v) in zip(other.keys, other.values) { dict[k] = v }
         return
     }
     if case .mapEntry(let k, let v) = item {
@@ -261,7 +285,7 @@ private func mergeIntoDict<M: ExprMapStorage>(_ dict: inout M, item: Expr) throw
     dict[entry[0]] = entry[1]
 }
 
-func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
+func conjOne(_ evaluator: Evaluator, _ coll: Expr, _ item: Expr) throws -> Expr {
     switch coll {
     case .nil:
         return .list([item], metadata: nil)
@@ -287,18 +311,18 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         try mergeIntoDict(&dict, item: item)   // O(log n) on TreeDictionary
         return .map(SwishMap(dict: dict, metadata: sm.metadata))
 
-    case .sortedMap(var dict, let meta):
+    case .sortedMap(let ssm):
         if case .nil = item { return coll }
-        try mergeIntoDict(&dict, item: item)
-        return .sortedMap(dict, metadata: meta)
+        return .sortedMap(try sortedMapConjItem(evaluator, ssm, item))
 
     case .set(let ss):
         var elems = ss.elements
         elems.insert(item)
         return .set(SwishSet(elements: elems, metadata: ss.metadata))
 
-    case .sortedSet(let elems, let meta):
-        return .sortedSet(try sortedSetInsert(elems, item), metadata: meta)
+    case .sortedSet(let sss):
+        let cmp = evaluator.makeComparator(sss.comparator)
+        return .sortedSet(try sss.inserting(item, cmp))
 
     case .lazySeq:
         return .lazySeq(LazySeqBox(head: item, tail: coll))

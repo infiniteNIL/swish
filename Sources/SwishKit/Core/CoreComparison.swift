@@ -87,8 +87,8 @@ private func coreIdentical(_ args: [Expr]) throws -> Expr {
     case (.map(let a), .map(let b)):
         return .boolean(a === b)
 
-    case (.sortedMap(let a, let am), .sortedMap(let b, let bm)):
-        return .boolean(a == b && am == bm)
+    case (.sortedMap(let a), .sortedMap(let b)):
+        return .boolean(a === b)
 
     default:
         return .boolean(args[0] == args[1])
@@ -235,4 +235,45 @@ private func compareConsecutivePairs(
 ) throws -> Expr {
     if args.count == 1 { return .boolean(singleArgResult) }
     return try .boolean(zip(args, args.dropFirst()).allSatisfy { try compare($0, $1) })
+}
+
+extension Evaluator {
+    /// Builds a -/0/+ comparison closure from an optional Swish comparator value.
+    /// `nil` → the default `compareExprValue`. A user comparator may return an
+    /// integer (-/0/+) or a boolean (`true` ⇒ a<b); a boolean comparator needs a
+    /// second, reversed call to distinguish "greater" from "equal" — matching
+    /// Clojure's boolean→3-way promotion. Used by the sorted collections
+    /// (`SwishSortedSet`/`SwishSortedMap`) to honor `sorted-*-by` comparators.
+    func makeComparator(_ comparator: Expr?) -> (Expr, Expr) throws -> Int {
+        guard let comp = comparator else {
+            return { try compareExprValue($0, $1) }
+        }
+        return { [self] a, b in
+            let r = try call(comp, args: [a, b])
+            switch r {
+            case .integer(let n):
+                return n
+
+            case .boolean(let lessThan):
+                if lessThan { return -1 }
+                // Not (a < b): call reversed to distinguish (a > b) from (a == b).
+                let reversed = try call(comp, args: [b, a])
+                switch reversed {
+                case .boolean(let greaterThan):
+                    return greaterThan ? 1 : 0
+
+                case .integer(let n2):
+                    return n2 != 0 ? 1 : 0
+
+                default:
+                    throw EvaluatorError.invalidArgument(function: "comparator",
+                        message: "comparator must return an integer or boolean")
+                }
+
+            default:
+                throw EvaluatorError.invalidArgument(function: "comparator",
+                    message: "comparator must return an integer or boolean")
+            }
+        }
+    }
 }

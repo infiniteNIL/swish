@@ -15,6 +15,7 @@
 - [ ] Swift interop
 - [ ] (loaded-libs)
 
+- [x] sorted collections now honor comparators
 - [x] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
     - Maps and Sets now backed by TreeDictionary and TreeSet from Swift Collections
     - big increase in performance

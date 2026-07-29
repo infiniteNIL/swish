@@ -13,13 +13,13 @@ extension Evaluator {
             }
             return sm.dict[args[0]] ?? (args.count == 2 ? args[1] : .nil)
 
-        case .sortedMap(let dict, _):
+        case .sortedMap(let ssm):
             guard args.count == 1 || args.count == 2
             else {
                 throw EvaluatorError.invalidArgument(function: "map",
                     message: "requires 1 or 2 arguments, got \(args.count)")
             }
-            return dict[args[0]] ?? (args.count == 2 ? args[1] : .nil)
+            return try ssm.get(args[0], makeComparator(ssm.comparator)) ?? (args.count == 2 ? args[1] : .nil)
 
         case .record(_, _, let data, _):
             guard args.count == 1 || args.count == 2
@@ -114,13 +114,13 @@ extension Evaluator {
             }
             return ss.elements.contains(args[0]) ? args[0] : .nil
 
-        case .sortedSet(let elements, _):
+        case .sortedSet(let sss):
             guard args.count == 1
             else {
                 throw EvaluatorError.invalidArgument(function: "sorted-set",
                     message: "requires 1 argument, got \(args.count)")
             }
-            return ((try? sortedSetContains(elements, args[0])) == true) ? args[0] : .nil
+            return (try sss.contains(args[0], makeComparator(sss.comparator))) ? args[0] : .nil
 
         case .transient(let tc):
             return try call(tc.value, args: args)
@@ -135,9 +135,9 @@ extension Evaluator {
             let sym = Expr.symbol(name, metadata: nil)
             switch args[0] {
             case .map(let sm):              return sm.dict[sym] ?? notFound
-            case .sortedMap(let d, _):      return d[sym] ?? notFound
+            case .sortedMap(let ssm):       return try ssm.get(sym, makeComparator(ssm.comparator)) ?? notFound
             case .set(let ss):              return ss.elements.contains(sym) ? sym : notFound
-            case .sortedSet(let elems, _):  return ((try? sortedSetContains(elems, sym)) == true) ? sym : notFound
+            case .sortedSet(let sss):       return (try sss.contains(sym, makeComparator(sss.comparator))) ? sym : notFound
             default:                        return notFound
             }
 

@@ -101,23 +101,23 @@ extension Expr: Equatable {
         case (.set(let a), .set(let b)):
             return a == b
 
-        case (.sortedSet(let a, _), .sortedSet(let b, _)):
-            return Set(a) == Set(b)
-
-        case (.sortedSet(let a, _), .set(let b)):
-            return setEqualsSorted(b.elements, a)
-
-        case (.set(let a), .sortedSet(let b, _)):
-            return setEqualsSorted(a.elements, b)
-
-        case (.sortedMap(let a, _), .sortedMap(let b, _)):
+        case (.sortedSet(let a), .sortedSet(let b)):
             return a == b
 
-        case (.sortedMap(let a, _), .map(let b)):
-            return mapEqualsSorted(b.dict, a)
+        case (.sortedSet(let a), .set(let b)):
+            return setEqualsSorted(b.elements, a.elements)
 
-        case (.map(let a), .sortedMap(let b, _)):
-            return mapEqualsSorted(a.dict, b)
+        case (.set(let a), .sortedSet(let b)):
+            return setEqualsSorted(a.elements, b.elements)
+
+        case (.sortedMap(let a), .sortedMap(let b)):
+            return a == b
+
+        case (.sortedMap(let a), .map(let b)):
+            return mapEqualsSorted(b.dict, a.asDictionary)
+
+        case (.map(let a), .sortedMap(let b)):
+            return mapEqualsSorted(a.dict, b.asDictionary)
 
         case (.function(let a), .function(let b)):
             return a === b

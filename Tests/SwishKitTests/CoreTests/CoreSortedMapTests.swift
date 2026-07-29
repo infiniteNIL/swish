@@ -77,4 +77,65 @@ struct CoreSortedMapTests {
     func hashSetSortedSetAsKey() throws {
         #expect(try swish.eval("(get {(sorted-set 1 2 3) :found} #{1 2 3})") == .keyword("found"))
     }
+
+    // MARK: - comparators honored, sorted keys/vals, subseq/rsubseq
+
+    @Test("sorted-map-by honors the comparator (descending order)")
+    func sortedMapByComparator() throws {
+        #expect(try swish.eval("(vec (seq (sorted-map-by > 1 :a 3 :b 2 :c)))")
+            == .vector([.vector([.integer(3), .keyword("b")], metadata: nil),
+                        .vector([.integer(2), .keyword("c")], metadata: nil),
+                        .vector([.integer(1), .keyword("a")], metadata: nil)], metadata: nil))
+    }
+
+    @Test("sorted-set-by honors the comparator (descending order)")
+    func sortedSetByComparator() throws {
+        #expect(try swish.eval("(vec (sorted-set-by > 5 1 3 2 4))")
+            == .vector(SwishPersistentVector([5, 4, 3, 2, 1].map { .integer($0) }), metadata: nil))
+    }
+
+    @Test("keys and vals of a sorted-map are in sorted (not hash) order")
+    func sortedMapKeysValsSorted() throws {
+        #expect(try swish.eval("(vec (keys (sorted-map :z 1 :a 2 :m 3)))")
+            == .vector([.keyword("a"), .keyword("m"), .keyword("z")], metadata: nil))
+        #expect(try swish.eval("(vec (vals (sorted-map :z 1 :a 2 :m 3)))")
+            == .vector([.integer(2), .integer(3), .integer(1)], metadata: nil))
+    }
+
+    @Test("assoc into a sorted-map keeps sorted order")
+    func sortedMapAssocKeepsOrder() throws {
+        #expect(try swish.eval("(vec (keys (assoc (sorted-map 1 :a 3 :c) 2 :b)))")
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
+    }
+
+    @Test("get / contains? on a sorted collection use the comparator")
+    func sortedGetContainsUseComparator() throws {
+        #expect(try swish.eval("(get (sorted-map-by > 1 :a 2 :b) 2)") == .keyword("b"))
+        #expect(try swish.eval("(contains? (sorted-set-by > 5 1 3) 3)") == .boolean(true))
+        #expect(try swish.eval("(get (sorted-set-by > 5 1 3) 3)") == .integer(3))
+    }
+
+    @Test("comparator-defined equality dedups (compare 0 = same element)")
+    func sortedComparatorEqualityDedup() throws {
+        #expect(try swish.eval("(count (sorted-set-by (fn [a b] 0) 1 2 3))") == .integer(1))
+    }
+
+    @Test("subseq single-test forms")
+    func subseqSingle() throws {
+        #expect(try swish.eval("(vec (subseq (sorted-set 1 2 3 4 5) > 2))") == .vector(SwishPersistentVector([3, 4, 5].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(vec (subseq (sorted-set 1 2 3 4 5) <= 3))") == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
+    }
+
+    @Test("subseq range form and rsubseq")
+    func subseqRangeAndRsubseq() throws {
+        #expect(try swish.eval("(vec (subseq (sorted-set 1 2 3 4 5) > 1 < 5))") == .vector(SwishPersistentVector([2, 3, 4].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(vec (rsubseq (sorted-set 1 2 3 4 5) < 4))") == .vector(SwishPersistentVector([3, 2, 1].map { .integer($0) }), metadata: nil))
+    }
+
+    @Test("subseq over a sorted-map yields entries")
+    func subseqSortedMap() throws {
+        #expect(try swish.eval("(vec (subseq (sorted-map 1 :a 2 :b 3 :c) >= 2))")
+            == .vector([.vector([.integer(2), .keyword("b")], metadata: nil),
+                        .vector([.integer(3), .keyword("c")], metadata: nil)], metadata: nil))
+    }
 }

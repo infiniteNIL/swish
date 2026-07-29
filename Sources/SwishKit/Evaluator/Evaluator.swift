@@ -144,12 +144,13 @@ public class Evaluator {
             }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let mapMeta):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[try eval(k, in: env)] = try eval(v, in: env)
+        case .sortedMap(let ssm):
+            let compare = makeComparator(ssm.comparator)
+            var result = SwishSortedMap(keys: [], values: [], comparator: ssm.comparator, metadata: ssm.metadata)
+            for (k, v) in zip(ssm.keys, ssm.values) {
+                result = try result.assoc(eval(k, in: env), eval(v, in: env), compare)
             }
-            return .sortedMap(result, metadata: mapMeta)
+            return .sortedMap(result)
 
         case .set(let ss):
             var result: Set<Expr> = []
@@ -162,12 +163,13 @@ public class Evaluator {
             }
             return .set(result, metadata: ss.metadata)
 
-        case .sortedSet(let elements, let setMeta):
-            var result: [Expr] = []
-            for element in elements {
-                result = try sortedSetInsert(result, eval(element, in: env))
+        case .sortedSet(let sss):
+            let compare = makeComparator(sss.comparator)
+            var result = SwishSortedSet(elements: [], comparator: sss.comparator, metadata: sss.metadata)
+            for element in sss.elements {
+                result = try result.inserting(eval(element, in: env), compare)
             }
-            return .sortedSet(result, metadata: setMeta)
+            return .sortedSet(result)
 
         case .symbol(let name, _):
             if let value = env.get(name) {
@@ -349,12 +351,13 @@ public class Evaluator {
         return .map(result, metadata: metadata)
     }
 
-    func transformSortedMap(_ dict: [Expr: Expr], metadata: [Expr: Expr]? = nil, _ transform: (Expr) throws -> Expr) rethrows -> Expr {
-        var result: [Expr: Expr] = [:]
-        for (k, v) in dict {
-            result[try transform(k)] = try transform(v)
-        }
-        return .sortedMap(result, metadata: metadata)
+    func transformSortedMap(_ ssm: SwishSortedMap, _ transform: (Expr) throws -> Expr) rethrows -> Expr {
+        // Positional transform: preserves the comparator, metadata, and (assumed
+        // order-preserving) sorted layout — used only by structural template
+        // transforms (syntax-quote), never on runtime-reordering input.
+        let keys = try ssm.keys.map(transform)
+        let values = try ssm.values.map(transform)
+        return .sortedMap(sortedKeys: keys, sortedValues: values, comparator: ssm.comparator, metadata: ssm.metadata)
     }
 }
 

@@ -224,12 +224,8 @@ extension Evaluator {
             }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let meta):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in dict {
-                result[try macroexpandAll(k)] = try macroexpandAll(v)
-            }
-            return .sortedMap(result, metadata: meta)
+        case .sortedMap(let ssm):
+            return try transformSortedMap(ssm) { try macroexpandAll($0) }
 
         case .set(let ss):
             var result: Set<Expr> = []
@@ -238,8 +234,9 @@ extension Evaluator {
             }
             return .set(result, metadata: ss.metadata)
 
-        case .sortedSet(let elements, let meta):
-            return .sortedSet(try elements.map { try macroexpandAll($0) }, metadata: meta)
+        case .sortedSet(let sss):
+            return .sortedSet(try sss.elements.map { try macroexpandAll($0) },
+                              comparator: sss.comparator, metadata: sss.metadata)
 
         default:
             return expr

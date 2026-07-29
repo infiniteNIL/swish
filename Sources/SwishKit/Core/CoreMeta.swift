@@ -25,8 +25,16 @@ func registerMeta(into evaluator: Evaluator) {
 
 private func coreMeta(_ args: [Expr]) throws -> Expr {
     switch args[0] {
-    case .symbol(_, let m), .list(_, let m), .vector(_, let m), .sortedMap(_, let m), .sortedSet(_, let m):
+    case .symbol(_, let m), .list(_, let m), .vector(_, let m):
         guard let m else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .sortedMap(let ssm):
+        guard let m = ssm.metadata else { return .nil }
+        return .map(m, metadata: nil)
+
+    case .sortedSet(let sss):
+        guard let m = sss.metadata else { return .nil }
         return .map(m, metadata: nil)
 
     case .map(let sm):
@@ -105,11 +113,11 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
     case .set(let ss):
         return .set(SwishSet(elements: ss.elements, metadata: newMeta))
 
-    case .sortedSet(let e, _):
-        return .sortedSet(e, metadata: newMeta)
+    case .sortedSet(let sss):
+        return .sortedSet(sss.withMetadata(newMeta))
 
-    case .sortedMap(let d, _):
-        return .sortedMap(d, metadata: newMeta)
+    case .sortedMap(let ssm):
+        return .sortedMap(ssm.withMetadata(newMeta))
 
     case .function(let f):
         f.metadata = newMeta

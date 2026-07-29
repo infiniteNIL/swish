@@ -12,9 +12,9 @@ extension Expr {
         case .list(let e, let m):                      return .list(e, metadata: merged(m))
         case .vector(let e, let m):                    return .vector(e, metadata: merged(m))
         case .map(let sm):                             return .map(SwishMap(dict: sm.dict, metadata: merged(sm.metadata)))
-        case .sortedMap(let d, let m):                 return .sortedMap(d, metadata: merged(m))
+        case .sortedMap(let ssm):                      return .sortedMap(ssm.withMetadata(merged(ssm.metadata)))
         case .set(let s):                              return .set(SwishSet(elements: s.elements, metadata: merged(s.metadata)))
-        case .sortedSet(let s, let m):                 return .sortedSet(s, metadata: merged(m))
+        case .sortedSet(let sss):                      return .sortedSet(sss.withMetadata(merged(sss.metadata)))
         case .function(let f):
             f.metadata = merged(f.metadata)
             return .function(f)

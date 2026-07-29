@@ -426,6 +426,53 @@ operate on the single stored `TreeDictionary` (its `.keys`/`.values` views
 correspond). Iteration order of `(seq m)` is unchanged — `asSequence`/`Printer`
 sort map keys explicitly regardless of backing.
 
+### Sorted collections — comparators honored (was a silent correctness bug)
+`.sortedMap`/`.sortedSet` were plain `[Expr:Expr]`/`[Expr]` with NO comparator
+field, and `sorted-map-by`/`sorted-set-by` (`CoreSet.swift`) **dropped `args[0]`
+(the comparator) entirely**, building with the default `compareExprValue` — so
+`(sorted-set-by > 5 1 3)` silently came back ascending. Worse, `keys`/`vals` on a
+sorted map were unsorted (they went through the hash-ordered `mapCollection`
+path), and `subseq`/`rsubseq` didn't exist. Fixed by backing `.sortedMap`/
+`.sortedSet` with `SwishSortedMap`/`SwishSortedSet` — a comparator-sorted array +
+a stored `comparator: Expr?`.
+
+**Why not swift-collections' `SortedSet`/`SortedDictionary`:** they exist (the
+`SortedCollections` module, a B-tree), but are (a) **`Comparable`-only** — no
+per-instance runtime comparator, which is exactly what `sorted-*-by` needs, and a
+runtime comparator is a Swish fn that needs the evaluator to invoke and can throw
+(comparing a keyword to a number errors), which a static non-throwing
+`Comparable.<` can't express (and the underlying `_BTree` is `internal`); and (b)
+explicitly **unstable prototypes** (the product is literally
+`UnstableSortedCollections`, not re-exported by the `Collections` umbrella). Same
+situation as the indexed vector — no library type matches our model — so we rolled
+our own.
+
+**Chosen: sorted array, not a balanced tree.** The foundational win is
+correctness; a sorted array delivers it plus O(log n) lookup and O(n log n) batch
+construction. Incremental `conj`/`into` stays O(n)/op (O(n²) build), acceptable for
+the least-used core collection; a persistent balanced tree (O(log n) insert) is
+deferred as not worth the complexity/risk.
+
+**Two design points.** (1) **Comparator-defined equality:** in a sorted
+collection, two keys/elements comparing `0` are the "same" (Clojure semantics), so
+membership/dedup/lookup go through the comparator, never a Swift `Dictionary`/`Set`
+— this falls out of binary-search insert naturally. `(count (sorted-set-by (fn [a
+b] 0) 1 2 3))` → 1. (2) **Evaluator threading:** a custom comparator is a Swish fn,
+so it must be invoked through the evaluator (`Evaluator.makeComparator` — native
+`compareExprValue` for the nil default, else `call` the fn, promoting a boolean
+result to 3-way with a reversed call, like `CoreSort`). This made the
+mutation/lookup ops evaluator-aware: `conjOne` gained an evaluator param, and
+`conj`/`conj!`/`assoc`/`assoc!`/`dissoc`/`dissoc!`/`disj`/`disj!`/`get`/`get-in`/
+`find`/`contains?` + the sorted constructors are now registered `{ [evaluator]
+args in … }`. Read ops (`seq`/`keys`/`vals`/`printer`) just read the pre-sorted
+backing, no evaluator needed. Equality/hashing ignore the comparator and reuse
+`hashMapContents`/`hashSetContents` for cross-`==`/hash-consistency with `.map`/
+`.set`. `subseq`/`rsubseq` (`CoreSet.swift`) are native, filtering the sorted
+backing by a bound-fn built from the comparator + the test fn applied to
+`(compare ek key)` vs 0 — the same semantics as Clojure's `mk-bound-fn`. (Known
+pre-existing gap, orthogonal: calling a *sorted* set/map as a function isn't
+wired into the call dispatch, though `get`/`contains?` work.)
+
 ### LazySeqBox NSLock stays (rejected Mutex swap) — measured
 `LazySeqBox.swift` uses `NSLock`, not `Synchronization.Mutex` like the rest of the
 codebase (an oversight per git history: the `Mutex` retrofit `c511047` never

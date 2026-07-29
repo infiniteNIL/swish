@@ -48,8 +48,8 @@ extension Evaluator {
             }
             return .map(result, metadata: sm.metadata)
 
-        case .sortedMap(let dict, let mapMeta):
-            return transformSortedMap(dict, metadata: mapMeta) { expandAliasesInExpr($0, locals: locals) }
+        case .sortedMap(let ssm):
+            return transformSortedMap(ssm) { expandAliasesInExpr($0, locals: locals) }
 
         case .set(let ss):
             var result: Set<Expr> = []
@@ -58,8 +58,9 @@ extension Evaluator {
             }
             return .set(result, metadata: ss.metadata)
 
-        case .sortedSet(let elements, let setMeta):
-            return .sortedSet(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: setMeta)
+        case .sortedSet(let sss):
+            return .sortedSet(sss.elements.map { expandAliasesInExpr($0, locals: locals) },
+                              comparator: sss.comparator, metadata: sss.metadata)
 
         default:
             return expr
