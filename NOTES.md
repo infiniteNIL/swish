@@ -469,9 +469,15 @@ backing, no evaluator needed. Equality/hashing ignore the comparator and reuse
 `hashMapContents`/`hashSetContents` for cross-`==`/hash-consistency with `.map`/
 `.set`. `subseq`/`rsubseq` (`CoreSet.swift`) are native, filtering the sorted
 backing by a bound-fn built from the comparator + the test fn applied to
-`(compare ek key)` vs 0 — the same semantics as Clojure's `mk-bound-fn`. (Known
-pre-existing gap, orthogonal: calling a *sorted* set/map as a function isn't
-wired into the call dispatch, though `get`/`contains?` work.)
+`(compare ek key)` vs 0 — the same semantics as Clojure's `mk-bound-fn`.
+
+Sorted collections are also callable as functions (membership/lookup, comparator-
+aware): `callCollection` (`Evaluator+CallableCollections.swift`) has `.sortedSet`/
+`.sortedMap` cases. A follow-up caught that `callFunction`'s dispatch list
+(`Evaluator+FunctionCall.swift`) listed `.sortedMap` but not `.sortedSet`, so
+`((sorted-set 1 2 3) 2)` errored `not a function` while the sorted *map* worked and
+`ifn?` already reported both callable — fixed by adding `.sortedSet` to that one
+case list.
 
 ### LazySeqBox NSLock stays (rejected Mutex swap) — measured
 `LazySeqBox.swift` uses `NSLock`, not `Synchronization.Mutex` like the rest of the

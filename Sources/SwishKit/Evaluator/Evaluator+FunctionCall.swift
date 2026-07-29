@@ -42,7 +42,7 @@ extension Evaluator {
                                         args: evaluated, in: maf.capturedEnv ?? env,
                                         selfExpr: callee)
 
-        case .map, .sortedMap, .keyword, .vector, .sharedVector, .mapEntry, .set, .record, .transient, .symbol, .varRef, .promise:
+        case .map, .sortedMap, .keyword, .vector, .sharedVector, .mapEntry, .set, .sortedSet, .record, .transient, .symbol, .varRef, .promise:
             return try call(callee, args: evalArgs(args, in: env))
 
         default:

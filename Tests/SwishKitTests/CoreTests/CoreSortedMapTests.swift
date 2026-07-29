@@ -138,4 +138,22 @@ struct CoreSortedMapTests {
             == .vector([.vector([.integer(2), .keyword("b")], metadata: nil),
                         .vector([.integer(3), .keyword("c")], metadata: nil)], metadata: nil))
     }
+
+    // MARK: - sorted collections callable as functions
+
+    @Test("a sorted-set is callable as a membership function")
+    func sortedSetAsFunction() throws {
+        #expect(try swish.eval("((sorted-set 1 2 3) 2)") == .integer(2))
+        #expect(try swish.eval("((sorted-set 1 2 3) 9)") == .nil)
+        #expect(try swish.eval("((sorted-set-by > 5 1 3) 3)") == .integer(3))   // comparator-aware
+        #expect(try swish.eval("(ifn? (sorted-set 1 2))") == .boolean(true))
+    }
+
+    @Test("a sorted-map is callable as a lookup function")
+    func sortedMapAsFunction() throws {
+        #expect(try swish.eval("((sorted-map :a 1) :a)") == .integer(1))
+        #expect(try swish.eval("((sorted-map :a 1) :b)") == .nil)
+        #expect(try swish.eval("((sorted-map :a 1) :b :none)") == .keyword("none"))
+        #expect(try swish.eval("((sorted-map-by > 1 :a 2 :b) 2)") == .keyword("b"))   // comparator-aware
+    }
 }
