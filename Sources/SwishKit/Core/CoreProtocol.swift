@@ -1,3 +1,5 @@
+import Collections
+
 private let protocolImplsKey = Expr.keyword("impls")
 
 /// The built-in type keywords that count as numbers — the `Number` fan-out set.
@@ -82,7 +84,7 @@ private func coreExtend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         guard case .map(let mmap) = args[i + 1] else {
             throw EvaluatorError.invalidArgument(function: "extend", message: "expected a map of method implementations")
         }
-        try evaluator.registerProtocolImpl(protoValue: protoValue, typeName: typeName, methodImpls: mmap.dict, inline: false, formName: "extend")
+        try evaluator.registerProtocolImpl(protoValue: protoValue, typeName: typeName, methodImpls: mmap.dict.swiftDictionary, inline: false, formName: "extend")
         i += 2
     }
     return .nil
@@ -109,7 +111,7 @@ private func coreSatisfies(_ args: [Expr]) throws -> Expr {
 /// True if `typeName` (or, on an exact miss, any of its built-in ancestors —
 /// `Number`/`Object`) has an entry in a protocol's `:impls` map. Shared by
 /// `satisfies?`/`extends?` so both respect the built-in type hierarchy.
-private func hasImplForTypeOrAncestor(_ typeName: String, in impls: [Expr: Expr]) -> Bool {
+private func hasImplForTypeOrAncestor(_ typeName: String, in impls: TreeDictionary<Expr, Expr>) -> Bool {
     if impls[.keyword(typeName)] != nil { return true }
     return builtinAncestors(ofTypeKeyword: typeName).contains { impls[.keyword($0)] != nil }
 }

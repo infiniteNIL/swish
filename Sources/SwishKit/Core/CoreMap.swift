@@ -1,3 +1,5 @@
+import Collections
+
 func registerMap(into evaluator: Evaluator) {
     evaluator.register(name: "get", arity: .variadic,
         doc: "Returns the value mapped to key, not-found or nil if key not present.",
@@ -195,8 +197,8 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
 
     case .map(let sm):
         var dict = sm.dict
-        for key in args.dropFirst() { dict.removeValue(forKey: key) }
-        return .map(dict, metadata: sm.metadata)
+        for key in args.dropFirst() { dict.removeValue(forKey: key) }   // O(log n)
+        return .map(SwishMap(dict: dict, metadata: sm.metadata))
 
     case .sortedMap(var dict, let meta):
         for key in args.dropFirst() {
@@ -220,7 +222,12 @@ func coreDissoc(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func mapCollection(_ coll: Expr, function: String, project: ([Expr: Expr]) -> [Expr]) throws -> Expr {
+// `project` operates on a single `TreeDictionary` value so `keys`/`vals` (separate
+// calls with `{ $0.keys }` / `{ $0.values }`) iterate the SAME structure in
+// corresponding order — required by `case`, which zips `(keys pairs)` with
+// `(vals pairs)` positionally. (Materializing a fresh `[Expr:Expr]` per call would
+// give two independently-ordered dictionaries and misalign them.)
+private func mapCollection(_ coll: Expr, function: String, project: (TreeDictionary<Expr, Expr>) -> [Expr]) throws -> Expr {
     switch coll {
     case .nil:
         return .nil
@@ -230,11 +237,11 @@ private func mapCollection(_ coll: Expr, function: String, project: ([Expr: Expr
         return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     case .sortedMap(let dict, _):
-        let items = project(dict)
+        let items = project(TreeDictionary(uniqueKeysWithValues: dict.map { ($0.key, $0.value) }))
         return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     case .record(_, _, let data, _):
-        let items = project(data)
+        let items = project(TreeDictionary(uniqueKeysWithValues: data.map { ($0.key, $0.value) }))
         return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 
     default:
@@ -289,7 +296,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
     }
 
     var isSortedMap = false
-    var dict: [Expr: Expr]
+    var dict: TreeDictionary<Expr, Expr>
     var inputMeta: [Expr: Expr]? = nil
     switch args[0] {
     case .map(let sm):
@@ -297,7 +304,7 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
         inputMeta = sm.metadata
 
     case .sortedMap(let d, let m):
-        dict = d
+        dict = TreeDictionary(uniqueKeysWithValues: d.map { ($0.key, $0.value) })
         isSortedMap = true
         inputMeta = m
 
@@ -348,10 +355,12 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
 
     var i = 1
     while i < args.count {
-        dict[args[i]] = args[i + 1]
+        dict[args[i]] = args[i + 1]   // O(log n) on TreeDictionary
         i += 2
     }
-    return isSortedMap ? .sortedMap(dict, metadata: inputMeta) : .map(dict, metadata: inputMeta)
+    return isSortedMap
+        ? .sortedMap(dict.swiftDictionary, metadata: inputMeta)
+        : .map(SwishMap(dict: dict, metadata: inputMeta))
 }
 
 private func coreGet(_ args: [Expr]) throws -> Expr {

@@ -125,7 +125,7 @@ private func coreEmpty(_ args: [Expr]) throws -> Expr {
         return .map(SwishMap(dict: [:], metadata: sm.metadata))
 
     case .set(let ss):
-        return .set(SwishSet(elements: [], metadata: ss.metadata))
+        return .set([], metadata: ss.metadata)
 
     case .sortedMap(_, let meta):
         return .sortedMap([:], metadata: meta)
@@ -160,7 +160,7 @@ private func coreHashMap(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreHashSet(_ args: [Expr]) throws -> Expr {
-    .set(SwishSet(elements: Set(args), metadata: nil))
+    .set(Set(args), metadata: nil)
 }
 
 private func coreContains(_ args: [Expr]) throws -> Expr {

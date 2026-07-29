@@ -160,7 +160,7 @@ public class Evaluator {
                     throw EvaluatorError.duplicateSetElement(Printer().printString(evaled))
                 }
             }
-            return .set(SwishSet(elements: result, metadata: ss.metadata))
+            return .set(result, metadata: ss.metadata)
 
         case .sortedSet(let elements, let setMeta):
             var result: [Expr] = []

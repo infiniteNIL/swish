@@ -240,7 +240,7 @@ private func coreConj(_ args: [Expr]) throws -> Expr {
 /// Merges a `conj`-style item (another map/sortedMap, a map entry, or a `[k v]`
 /// vector) into `dict` in place — shared by `conjOne`'s `.map` and `.sortedMap`
 /// cases, which differ only in which `Expr` case they wrap the result back into.
-private func mergeIntoDict(_ dict: inout [Expr: Expr], item: Expr) throws {
+private func mergeIntoDict<M: ExprMapStorage>(_ dict: inout M, item: Expr) throws {
     if case .map(let other) = item {
         for (k, v) in other.dict { dict[k] = v }
         return
@@ -284,8 +284,8 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
     case .map(let sm):
         if case .nil = item { return coll }
         var dict = sm.dict
-        try mergeIntoDict(&dict, item: item)
-        return .map(dict, metadata: sm.metadata)
+        try mergeIntoDict(&dict, item: item)   // O(log n) on TreeDictionary
+        return .map(SwishMap(dict: dict, metadata: sm.metadata))
 
     case .sortedMap(var dict, let meta):
         if case .nil = item { return coll }

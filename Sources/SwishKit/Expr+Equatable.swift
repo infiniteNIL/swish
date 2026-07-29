@@ -1,6 +1,18 @@
 import Foundation
 import BigInt
 import BigDecimal
+import Collections
+
+// Cross-backing equality: a hash-map/hash-set equals a sorted-map/sorted-set with
+// the same contents, but `TreeDictionary`/`TreeSet` (the `.map`/`.set` backing)
+// have no direct `==` with the sorted variants' `[Expr:Expr]`/`[Expr]`.
+private func mapEqualsSorted(_ tree: TreeDictionary<Expr, Expr>, _ sorted: [Expr: Expr]) -> Bool {
+    tree.count == sorted.count && sorted.allSatisfy { tree[$0.key] == $0.value }
+}
+
+private func setEqualsSorted(_ tree: TreeSet<Expr>, _ sorted: [Expr]) -> Bool {
+    tree.count == sorted.count && sorted.allSatisfy { tree.contains($0) }
+}
 
 extension Expr: Equatable {
     public static func == (lhs: Expr, rhs: Expr) -> Bool {
@@ -93,19 +105,19 @@ extension Expr: Equatable {
             return Set(a) == Set(b)
 
         case (.sortedSet(let a, _), .set(let b)):
-            return Set(a) == b.elements
+            return setEqualsSorted(b.elements, a)
 
         case (.set(let a), .sortedSet(let b, _)):
-            return a.elements == Set(b)
+            return setEqualsSorted(a.elements, b)
 
         case (.sortedMap(let a, _), .sortedMap(let b, _)):
             return a == b
 
         case (.sortedMap(let a, _), .map(let b)):
-            return a == b.dict
+            return mapEqualsSorted(b.dict, a)
 
         case (.map(let a), .sortedMap(let b, _)):
-            return a.dict == b
+            return mapEqualsSorted(a.dict, b)
 
         case (.function(let a), .function(let b)):
             return a === b

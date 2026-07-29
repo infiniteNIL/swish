@@ -2,6 +2,37 @@ import Foundation
 import BigInt
 import BigDecimal
 
+// MARK: - Backing-independent map/set content hashes
+
+// `.map` is backed by `TreeDictionary` and `.sortedMap` by a Swift `[Expr:Expr]`,
+// yet the two are cross-`==` (a hash-map equals a sorted-map with the same
+// entries), so they must hash equal — but `TreeDictionary` and `Dictionary` don't
+// produce the same hash for equal contents. These helpers compute an
+// order-independent content hash (XOR of per-entry hashes — commutative, so
+// order doesn't matter; keys are unique) usable from either backing, so both
+// sides route through the same algorithm. Same rationale for `.set`/`.sortedSet`.
+
+func hashMapContents<S: Sequence>(_ entries: S) -> Int where S.Element == (key: Expr, value: Expr) {
+    var acc = 0
+    for (k, v) in entries {
+        var h = Hasher()
+        h.combine(k)
+        h.combine(v)
+        acc ^= h.finalize()
+    }
+    return acc
+}
+
+func hashSetContents<S: Sequence>(_ elements: S) -> Int where S.Element == Expr {
+    var acc = 0
+    for e in elements {
+        var h = Hasher()
+        h.combine(e)
+        acc ^= h.finalize()
+    }
+    return acc
+}
+
 // MARK: - Hash discriminants
 
 /// Named type discriminants for Expr.hash(into:).
@@ -102,16 +133,16 @@ extension Expr: Hashable {
             hasher.combine(ExprHash.vector);    hasher.combine([k, v])
 
         case .map(let sm):
-            hasher.combine(ExprHash.map);       hasher.combine(sm)
+            hasher.combine(ExprHash.map);       hasher.combine(sm)   // sm hashes via hashMapContents
 
         case .sortedMap(let v, _):
-            hasher.combine(ExprHash.map);       hasher.combine(v)
+            hasher.combine(ExprHash.map);       hasher.combine(hashMapContents(v))
 
         case .set(let s):
-            hasher.combine(ExprHash.set);       hasher.combine(s)
+            hasher.combine(ExprHash.set);       hasher.combine(s)   // s hashes via hashSetContents
 
         case .sortedSet(let v, _):
-            hasher.combine(ExprHash.set);       hasher.combine(Set(v))
+            hasher.combine(ExprHash.set);       hasher.combine(hashSetContents(v))
 
         case .function(let f):
             hasher.combine(ExprHash.function);          hasher.combine(ObjectIdentifier(f))

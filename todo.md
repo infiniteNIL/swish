@@ -14,8 +14,12 @@
         a public API with better ergonomics
 - [ ] Swift interop
 - [ ] (loaded-libs)
-- [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
+    - Maps and Sets now backed by TreeDictionary and TreeSet from Swift Collections
+    - big increase in performance
+- [x] cleaned up CLAUDE.md. Added NOTES.md
+- [x] removed all local modifications to jank test suite. Now all overlays
 - [x] vector now backed by SwishPersistentVector. Big performance improvement
 - [x] performance issue with creating seqs
 - [x] performance increase: pre expand macros in fn/defn/deftype-method bodies once at definition time

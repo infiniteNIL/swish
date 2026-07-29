@@ -1,6 +1,7 @@
 import Foundation
 import BigInt
 import BigDecimal
+import Collections
 import Synchronization
 
 /// Specifies how many arguments a function accepts
@@ -148,12 +149,17 @@ public indirect enum Expr: Sendable {
 // MARK: - Convenience constructors
 
 extension Expr {
+    // Convenience constructors from plain Swift collections, converting to the
+    // persistent HAMT backing. Used by cold "build a fresh dict/set, then wrap"
+    // paths (the O(n) conversion is a one-time build cost). Hot mutation paths
+    // (assoc/dissoc/conj/disj) instead operate on the `TreeDictionary`/`TreeSet`
+    // directly and wrap via `SwishMap`/`SwishSet`'s own init to keep O(log n).
     public static func set(_ elements: Set<Expr>, metadata: [Expr: Expr]?) -> Expr {
-        .set(SwishSet(elements: elements, metadata: metadata))
+        .set(SwishSet(elements: TreeSet(elements), metadata: metadata))
     }
 
     public static func map(_ dict: [Expr: Expr], metadata: [Expr: Expr]?) -> Expr {
-        .map(SwishMap(dict: dict, metadata: metadata))
+        .map(SwishMap(dict: TreeDictionary(uniqueKeysWithValues: dict.map { ($0.key, $0.value) }), metadata: metadata))
     }
 }
 

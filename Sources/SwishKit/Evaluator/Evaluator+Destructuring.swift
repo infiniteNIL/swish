@@ -1,3 +1,5 @@
+import Collections
+
 private let destructuringSpecialKeys: Set<Expr> = [
     .keyword("keys"), .keyword("strs"), .keyword("syms"), .keyword("as"), .keyword("or")
 ]
@@ -68,7 +70,7 @@ extension Evaluator {
             for element in ss.elements {
                 result.insert(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
             }
-            return .set(SwishSet(elements: result, metadata: ss.metadata))
+            return .set(result, metadata: ss.metadata)
 
         case .sortedSet(let elements, let setMeta):
             var result: [Expr] = []
@@ -268,12 +270,12 @@ extension Evaluator {
         return result
     }
 
-    private func destructureMapPattern(_ dict: [Expr: Expr], value valueExpr: Expr) throws -> [(String, Expr)] {
+    private func destructureMapPattern(_ dict: TreeDictionary<Expr, Expr>, value valueExpr: Expr) throws -> [(String, Expr)] {
         let tmpName = gensym(prefix: "ds__")
         let tmpSym = Expr.symbol(tmpName, metadata: nil)
         var result: [(String, Expr)] = [(tmpName, valueExpr)]
 
-        let orMap: [Expr: Expr]
+        let orMap: TreeDictionary<Expr, Expr>
         if let orExpr = dict[.keyword("or")], case .map(let orSm) = orExpr { orMap = orSm.dict } else { orMap = [:] }
 
         func addBinding(_ name: String, _ getExpr: Expr) {

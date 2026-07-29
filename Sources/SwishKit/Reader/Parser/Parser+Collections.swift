@@ -134,7 +134,7 @@ extension Parser {
                 throw ParserError.duplicateSetElement(key, line: startToken.line, column: startToken.column)
             }
         }
-        return .set(SwishSet(elements: set, metadata: nil))
+        return .set(set, metadata: nil)
     }
 
     // MARK: - Anonymous function literal
@@ -237,7 +237,7 @@ extension Parser {
             return .sortedMap(result, metadata: meta)
 
         case .set(let ss):
-            return .set(SwishSet(elements: Set(ss.elements.map { normalizeAnonFnArgRef($0) }), metadata: ss.metadata))
+            return .set(Set(ss.elements.map { normalizeAnonFnArgRef($0) }), metadata: ss.metadata)
 
         case .sortedSet(let elems, let meta):
             return .sortedSet(elems.map { normalizeAnonFnArgRef($0) }, metadata: meta)

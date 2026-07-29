@@ -236,7 +236,7 @@ extension Evaluator {
             for e in ss.elements {
                 result.insert(try macroexpandAll(e))
             }
-            return .set(SwishSet(elements: result, metadata: ss.metadata))
+            return .set(result, metadata: ss.metadata)
 
         case .sortedSet(let elements, let meta):
             return .sortedSet(try elements.map { try macroexpandAll($0) }, metadata: meta)

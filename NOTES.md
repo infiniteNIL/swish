@@ -397,6 +397,35 @@ full upstream coverage. Verified by `SwishPersistentVectorTests.swift`
 stays a flat `[Expr]`; `subvec` still copies its slice (trie-slice sharing
 deferred).
 
+### Persistent maps/sets (HAMT) — same O(n²) build, fixed via swift-collections
+`SwishMap`/`SwishSet` wrapped a plain Swift `[Expr:Expr]`/`Set<Expr>`, so every
+`assoc`/`dissoc`/`conj`/`disj` full-copied (COW, O(n)) and all map/set building was
+O(n²) — the same class as the vector-`conj` bug, hitting `into`/`reduce`+`assoc`/
+`zipmap`/`merge`/`frequencies`/`group-by`. Unlike the indexed vector,
+swift-collections HAS the right structure, so `.map`/`.set` are now backed by
+`TreeDictionary`/`TreeSet` (HAMT: structural sharing, O(log n) persistent ops).
+Measured, release before/after (best-of-3): `(count (into {} (map (fn [i] [i i])
+(range 100000))))` **80.9s → 2.1s (~38x)**; `(count (into #{} (range 100000)))`
+**28.1s → 1.4s (~20x)**; `(count (zipmap (range 50000) (range 50000)))`
+**13.9s → 1.5s (~9x)**. `.sortedMap`/`.sortedSet` stay plain (no persistent sorted
+structure in swift-collections; deferred).
+
+**Two correctness subtleties surfaced.** (1) **Cross-backing hash consistency:** a
+`.map`/`.set` and an equal `.sortedMap`/`.sortedSet` are `=` and must hash equal,
+but `TreeDictionary`/`TreeSet` don't hash like Swift `Dictionary`/`Set`. Fixed by
+hashing both sides through backing-independent XOR-of-per-entry helpers
+(`hashMapContents`/`hashSetContents`, Expr+Hashable.swift). Verified by
+`CoreSortedMapTests` (a hash-map and equal sorted-map collide as one set element /
+same map key). (2) **`keys`/`vals` correspondence:** the `case` macro zips `(keys
+pairs)` with `(vals pairs)` positionally. `mapCollection`'s `project` closure
+initially materialized a *fresh* `[Expr:Expr]` per call via `.swiftDictionary`, so
+`(keys m)` and `(vals m)` read two independently-ordered Swift dictionaries and
+misaligned — breaking `case` under some hash seeds (deterministic-looking in a
+fresh process, flaky in the shared test evaluator). Fixed by having `project`
+operate on the single stored `TreeDictionary` (its `.keys`/`.values` views
+correspond). Iteration order of `(seq m)` is unchanged — `asSequence`/`Printer`
+sort map keys explicitly regardless of backing.
+
 ### LazySeqBox NSLock stays (rejected Mutex swap) — measured
 `LazySeqBox.swift` uses `NSLock`, not `Synchronization.Mutex` like the rest of the
 codebase (an oversight per git history: the `Mutex` retrofit `c511047` never

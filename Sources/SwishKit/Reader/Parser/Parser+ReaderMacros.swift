@@ -148,7 +148,7 @@ extension Parser {
             return [.keyword("tag"): .string(s)]
 
         case .map(let sm):
-            return sm.dict
+            return sm.dict.swiftDictionary
 
         default:
             throw ParserError.invalidMetadataSpec(line: token.line, column: token.column)

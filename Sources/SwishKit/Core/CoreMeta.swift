@@ -78,7 +78,7 @@ private func coreWithMeta(_ args: [Expr]) throws -> Expr {
     let newMeta: [Expr: Expr]?
     switch args[1] {
     case .map(let sm):
-        newMeta = sm.dict
+        newMeta = sm.dict.swiftDictionary
 
     case .nil:
         newMeta = nil
@@ -224,7 +224,7 @@ private func metadataTarget(_ expr: Expr) -> MetadataHolder? {
 private func metadataDict(_ meta: Expr, function: String) throws -> [Expr: Expr]? {
     switch meta {
     case .map(let sm):
-        return sm.dict
+        return sm.dict.swiftDictionary
 
     case .nil:
         return nil

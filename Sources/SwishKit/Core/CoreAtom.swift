@@ -66,7 +66,7 @@ func parseMetaValidatorOptions(_ args: [Expr], startingAt start: Int, functionNa
         if key == .keyword("meta") {
             switch val {
             case .map(let sm):
-                meta = sm.dict
+                meta = sm.dict.swiftDictionary
             case .sortedMap(let m, _):
                 meta = m
             case .nil:

@@ -56,7 +56,7 @@ extension Evaluator {
             for element in ss.elements {
                 result.insert(expandAliasesInExpr(element, locals: locals))
             }
-            return .set(SwishSet(elements: result, metadata: ss.metadata))
+            return .set(result, metadata: ss.metadata)
 
         case .sortedSet(let elements, let setMeta):
             return .sortedSet(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: setMeta)

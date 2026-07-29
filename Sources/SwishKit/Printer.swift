@@ -268,10 +268,10 @@ public struct Printer {
             return "[" + transform(k) + " " + transform(v) + "]"
 
         case .map(let sm):
-            return (includeMeta ? metaPrefix(sm.metadata) : "") + printMapString(sm.dict, transform: transform)
+            return (includeMeta ? metaPrefix(sm.metadata) : "") + printMapString(sm.dict.swiftDictionary, transform: transform)
 
         case .set(let ss):
-            return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(ss.elements, transform: transform)
+            return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(Set(ss.elements), transform: transform)
 
         case .sortedSet(let elements, let meta):
             let body = elements.map(transform).joined(separator: " ")

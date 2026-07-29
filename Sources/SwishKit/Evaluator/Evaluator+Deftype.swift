@@ -132,11 +132,11 @@ extension Evaluator {
 
         var impls: [Expr: Expr] = [:]
         if case .map(let existingImpls)? = currentProtoMap.dict[protocolImplsKey] {
-            impls = existingImpls.dict
+            impls = existingImpls.dict.swiftDictionary
         }
         var inlineImpls: Set<Expr> = []
         if case .set(let existingInline)? = currentProtoMap.dict[protocolInlineImplsKey] {
-            inlineImpls = existingInline.elements
+            inlineImpls = Set(existingInline.elements)
         }
 
         let typeKey = Expr.keyword(typeName)
@@ -149,7 +149,7 @@ extension Evaluator {
         }
 
         var existingMethods: [Expr: Expr] = [:]
-        if case .map(let m)? = impls[typeKey] { existingMethods = m.dict }
+        if case .map(let m)? = impls[typeKey] { existingMethods = m.dict.swiftDictionary }
         for (k, v) in methodImpls { existingMethods[k] = v }
         impls[typeKey] = .map(existingMethods, metadata: nil)
         if inline { inlineImpls.insert(typeKey) }
@@ -157,7 +157,7 @@ extension Evaluator {
         var newProtoMap = currentProtoMap.dict
         newProtoMap[protocolImplsKey] = .map(impls, metadata: nil)
         newProtoMap[protocolInlineImplsKey] = .set(inlineImpls, metadata: nil)
-        protoVar.value = .map(newProtoMap, metadata: nil)
+        protoVar.value = .map(SwishMap(dict: newProtoMap, metadata: nil))
     }
 
     /// Parses `(formName TypeName [field ...] & opts+specs)`'s header and registers any

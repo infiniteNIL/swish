@@ -24,14 +24,18 @@ let package = Package(
             from: "5.3.0"),
         .package(
             url: "https://github.com/Zollerboy1/BigDecimal.git",
-            from: "1.0.0")
+            from: "1.0.0"),
+        .package(
+            url: "https://github.com/apple/swift-collections.git",
+            from: "1.1.0")
     ],
     targets: [
         .target(
             name: "SwishKit",
             dependencies: [
                 .product(name: "BigInt", package: "BigInt"),
-                .product(name: "BigDecimal", package: "BigDecimal")
+                .product(name: "BigDecimal", package: "BigDecimal"),
+                .product(name: "Collections", package: "swift-collections")
             ],
             resources: [
                 .copy("Resources/clojure")
