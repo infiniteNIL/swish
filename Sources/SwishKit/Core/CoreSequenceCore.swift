@@ -111,11 +111,35 @@ func asSequence(_ expr: Expr) throws -> [Expr]? {
 }
 
 private func coreFirst(_ args: [Expr]) throws -> Expr {
-    if case .lazySeq(let box) = args[0] {
+    // Read the head directly for the common seq shapes — O(1) — instead of routing
+    // through `seqOf`, which converts a whole `.list` (SwishPersistentList) to an
+    // array (O(n)) just to return element 0. That made every `(first s)` in a
+    // first/next walk O(n), so walking a list/vector via the seq protocol
+    // (every?/some/lazy map/filter, and any vector once its first `rest` turns it
+    // into a `.list`) was O(n²). `coreRest`/`coreNext` already special-case `.list`.
+    switch args[0] {
+    case .lazySeq(let box):
         return (try box.forceHead()) ?? .nil
+
+    case .list(let elems, _):
+        return elems.first ?? .nil
+
+    case .seq(let elems):
+        return elems.first ?? .nil
+
+    case .vector(let elems, _):
+        return elems.first ?? .nil
+
+    case .sharedVector(let sa, _):
+        return sa.elements.first ?? .nil
+
+    case .nil:
+        return .nil
+
+    default:
+        let elements = try seqOf(args[0], function: "first")
+        return elements.first ?? .nil
     }
-    let elements = try seqOf(args[0], function: "first")
-    return elements.first ?? .nil
 }
 
 private func coreRest(_ args: [Expr]) throws -> Expr {
