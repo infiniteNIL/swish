@@ -4,6 +4,13 @@
             [clojure.edn :as edn]
             [clojure.test :refer [are deftest is testing]]))
 
+;; Swish-specific overlay for read_string.cljc from the Jank Clojure Test Suite.
+;; Swish UUIDs are value types (like :cljr), so a parsed #uuid is `identical?` to
+;; an equal literal — upstream's :default asserts the opposite. The :swish branch
+;; in "Tagged Elements / UUIDs" encodes that. Kept as a support/ overlay rather
+;; than an in-place subtree edit so `git subtree pull` stays conflict-free (the
+;; :swish dialect tag is Swish-local, not recognized upstream).
+
 ;; Many of these tests were largely inspired by the ClojureScript reader test suite:
 ;; https://github.com/clojure/clojurescript/blob/master/src/test/cljs/cljs/reader_test.cljs
 
@@ -18,7 +25,7 @@
      :lpy     (* 1000 (.timestamp date))
      :phel    (php/intval (php/-> date (format "Uv")))
      :cljs    (.valueOf date)
-     :default (.getTime date)))
+     :default (inst-ms date)))
 
 (when-var-exists clojure.edn/read-string
   (deftest test-read-string
@@ -352,8 +359,9 @@
         (let [parsed-uid (edn/read-string "#uuid \"550e8400-e29b-41d4-a716-446655440000\"")
               uid        #uuid "550e8400-e29b-41d4-a716-446655440000"]
           (is (= uid parsed-uid))
-          ;; CLR uuids are value types; always `identical?`
+          ;; CLR and Swish uuids are value types; always `identical?`
           #?(:cljr    (is (identical? uid parsed-uid))
+             :swish   (is (identical? uid parsed-uid))
              :default (is (not (identical? uid parsed-uid))))))
 
       (testing "Unknown Tag"
