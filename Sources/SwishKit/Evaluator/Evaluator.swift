@@ -135,7 +135,7 @@ public class Evaluator {
             return try evalList(elements, in: env)
 
         case .vector(let elements, let vecMeta):
-            return .vector(try elements.map { try eval($0, in: env) }, metadata: vecMeta)
+            return .vector(SwishPersistentVector(try elements.map { try eval($0, in: env) }), metadata: vecMeta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]

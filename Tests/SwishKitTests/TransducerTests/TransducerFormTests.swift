@@ -11,37 +11,37 @@ struct TransducerFormTests {
     @Test("(into [] (map inc) [1 2 3])")
     func mapInc() throws {
         #expect(try swish.eval("(into [] (map inc) [1 2 3])")
-            == .vector([2, 3, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (filter even?) [1 2 3 4])")
     func filterEven() throws {
         #expect(try swish.eval("(into [] (filter even?) [1 2 3 4])")
-            == .vector([2, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (remove odd?) [1 2 3 4])")
     func removeOdd() throws {
         #expect(try swish.eval("(into [] (remove odd?) [1 2 3 4])")
-            == .vector([2, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (keep #(when (even? %) (* % 2))) [1 2 3 4])")
     func keepEven() throws {
         #expect(try swish.eval("(into [] (keep #(when (even? %) (* % 2))) [1 2 3 4])")
-            == .vector([4, 8].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([4, 8].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] cat [[1 2] [3 4]])")
     func catFlattens() throws {
         #expect(try swish.eval("(into [] cat [[1 2] [3 4]])")
-            == .vector([1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (mapcat #(list % (* % 10))) [1 2 3])")
     func mapcatTransducer() throws {
         #expect(try swish.eval("(into [] (mapcat #(list % (* % 10))) [1 2 3])")
-            == .vector([1, 10, 2, 20, 3, 30].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 10, 2, 20, 3, 30].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - Stateful transducers
@@ -49,31 +49,31 @@ struct TransducerFormTests {
     @Test("(into [] (take 3) [1 2 3 4 5])")
     func takeForms() throws {
         #expect(try swish.eval("(into [] (take 3) [1 2 3 4 5])")
-            == .vector([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (drop 2) [1 2 3 4 5])")
     func dropForms() throws {
         #expect(try swish.eval("(into [] (drop 2) [1 2 3 4 5])")
-            == .vector([3, 4, 5].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (take-while #(< % 4)) [1 2 3 4 5])")
     func takeWhileForms() throws {
         #expect(try swish.eval("(into [] (take-while #(< % 4)) [1 2 3 4 5])")
-            == .vector([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (drop-while #(< % 3)) [1 2 3 4 5])")
     func dropWhileForms() throws {
         #expect(try swish.eval("(into [] (drop-while #(< % 3)) [1 2 3 4 5])")
-            == .vector([3, 4, 5].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([3, 4, 5].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (take-nth 2) [0 1 2 3 4])")
     func takeNth() throws {
         #expect(try swish.eval("(into [] (take-nth 2) [0 1 2 3 4])")
-            == .vector([0, 2, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([0, 2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (partition-all 2) [1 2 3 4 5]) flushes trailing partition")
@@ -89,13 +89,13 @@ struct TransducerFormTests {
     @Test("(into [] (distinct) [1 1 2 2 3])")
     func distinctTransducer() throws {
         #expect(try swish.eval("(into [] (distinct) [1 1 2 2 3])")
-            == .vector([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (dedupe) [1 1 2 1 1 3])")
     func dedupeTransducer() throws {
         #expect(try swish.eval("(into [] (dedupe) [1 1 2 1 1 3])")
-            == .vector([1, 2, 1, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 1, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (interpose :x) [1 2 3])")
@@ -125,19 +125,19 @@ struct TransducerFormTests {
     @Test("(into [] (comp (filter odd?) (map inc)) (range 10))")
     func compFilterMap() throws {
         #expect(try swish.eval("(into [] (comp (filter odd?) (map inc)) (range 10))")
-            == .vector([2, 4, 6, 8, 10].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([2, 4, 6, 8, 10].map { .integer($0) }), metadata: nil))
     }
 
     @Test("(into [] (comp (take 5) (filter even?)) (range))")
     func compTakeFilter() throws {
         #expect(try swish.eval("(into [] (comp (take 5) (filter even?)) (range))")
-            == .vector([0, 2, 4].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([0, 2, 4].map { .integer($0) }), metadata: nil))
     }
 
     @Test("take 3 from infinite input")
     func takeInfinite() throws {
         #expect(try swish.eval("(into [] (take 3) (range))")
-            == .vector([0, 1, 2].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - transduce with 1-arity forms
@@ -150,7 +150,7 @@ struct TransducerFormTests {
     @Test("(transduce (filter even?) conj [] (range 10))")
     func transduceFilterEven() throws {
         #expect(try swish.eval("(transduce (filter even?) conj [] (range 10))")
-            == .vector([0, 2, 4, 6, 8].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([0, 2, 4, 6, 8].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - Stateful transducer fresh state per call

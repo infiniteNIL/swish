@@ -196,7 +196,7 @@ extension Parser {
                     case .list(let elems, _):
                         matched = elems.elements
                     case .vector(let elems, _):
-                        matched = elems
+                        matched = elems.elements
                     default:
                         throw ParserError.invalidReaderConditional(
                             "splicing reader conditional requires a sequential",

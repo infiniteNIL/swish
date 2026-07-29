@@ -31,7 +31,7 @@ extension Evaluator {
             return .list(SwishPersistentList(elements.map { preExpandSyntaxQuotesInExpr($0) }), metadata: meta)
 
         case .vector(let elements, let meta):
-            return .vector(elements.map { preExpandSyntaxQuotesInExpr($0) }, metadata: meta)
+            return .vector(SwishPersistentVector(elements.map { preExpandSyntaxQuotesInExpr($0) }), metadata: meta)
 
         default:
             return expr
@@ -77,7 +77,7 @@ extension Evaluator {
             return .list(SwishPersistentList(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
 
         case .vector(let elements, let meta):
-            return .vector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }, metadata: meta)
+            return .vector(SwishPersistentVector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]

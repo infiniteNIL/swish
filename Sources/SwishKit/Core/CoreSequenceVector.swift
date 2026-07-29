@@ -6,10 +6,13 @@ func registerSequenceVector(into evaluator: Evaluator) {
     evaluator.register(name: "peek", arity: .fixed(1),
         doc: "For a vector, returns the last element. For a list, returns the first element. Returns nil for empty or nil.",
         arglists: [["coll"]]) { args in
-        if let elems = vectorElements(args[0]) {
-            return elems.last ?? .nil
-        }
         switch args[0] {
+        case .vector(let elems, _):
+            return elems.last ?? .nil          // O(log₃₂ n), no O(n) array materialization
+
+        case .sharedVector(let sa, _):
+            return sa.elements.last ?? .nil
+
         case .list(let elems, _):
             return elems.first ?? .nil
 
@@ -23,14 +26,21 @@ func registerSequenceVector(into evaluator: Evaluator) {
     evaluator.register(name: "pop", arity: .fixed(1),
         doc: "For a vector, returns a new vector without the last element. For a list, returns a new list without the first element.",
         arglists: [["coll"]]) { args in
-        if let elems = vectorElements(args[0]) {
+        switch args[0] {
+        case .vector(let elems, _):
             guard !elems.isEmpty
             else {
                 throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
             }
-            return .vector(Array(elems.dropLast()), metadata: nil)
-        }
-        switch args[0] {
+            return .vector(elems.popLast(), metadata: nil)   // O(1) amortized
+
+        case .sharedVector(let sa, _):
+            guard !sa.elements.isEmpty
+            else {
+                throw EvaluatorError.invalidArgument(function: "pop", message: "Can't pop empty vector")
+            }
+            return .vector(SwishPersistentVector(Array(sa.elements.dropLast())), metadata: nil)
+
         case .list(let elems, _):
             guard !elems.isEmpty
             else {
@@ -81,7 +91,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
         if case .array(let sa) = args[0] {
             return .sharedVector(sa, metadata: nil)
         }
-        return .vector(try seqOf(args[0], function: "vec"), metadata: nil)
+        return .vector(SwishPersistentVector(try seqOf(args[0], function: "vec")), metadata: nil)
     }
     evaluator.register(name: "shuffle", arity: .fixed(1),
         doc: "Return a random permutation of coll",
@@ -101,7 +111,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
             throw EvaluatorError.invalidArgument(function: "shuffle",
                 message: "cannot shuffle \(corePrinter.printString(args[0]))")
         }
-        return .vector(elems.shuffled(), metadata: nil)
+        return .vector(SwishPersistentVector(elems.shuffled()), metadata: nil)
     }
     evaluator.register(name: "subvec", arity: .variadic,
         doc: "Returns a persistent vector of the items in vector from start (inclusive) to end (exclusive). If end is not supplied, defaults to (count vector).",
@@ -135,7 +145,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
         // something reimplemented here (consistent with other places this
         // codebase doesn't chase JVM performance characteristics, e.g. case's
         // O(n) dispatch — see CLAUDE.md).
-        return .vector(Array(elements[start..<end]), metadata: nil)
+        return .vector(SwishPersistentVector(Array(elements[start..<end])), metadata: nil)
     }
 }
 
@@ -146,7 +156,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
 /// whichever vector case this is" without caring which one it got.
 func vectorElements(_ expr: Expr) -> [Expr]? {
     switch expr {
-    case .vector(let elems, _): return elems
+    case .vector(let elems, _): return elems.elements
     case .sharedVector(let sa, _): return sa.elements
     default: return nil
     }

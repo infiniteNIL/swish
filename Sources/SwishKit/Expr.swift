@@ -67,7 +67,7 @@ public indirect enum Expr: Sendable {
     /// A Java-style object array: seqable but not sequential or associative.
     /// Uses reference semantics so `aset` mutations are visible through all aliases.
     case array(SwishArray)
-    case vector([Expr], metadata: [Expr: Expr]?)
+    case vector(SwishPersistentVector, metadata: [Expr: Expr]?)
     /// A persistent-vector view over a `SwishArray`. Produced by `(vec arr)`.
     /// Sequential and vector?=true; shares mutable storage with the source array.
     case sharedVector(SwishArray, metadata: [Expr: Expr]?)

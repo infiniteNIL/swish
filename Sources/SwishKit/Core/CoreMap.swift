@@ -159,7 +159,7 @@ private func coreGetIn(_ args: [Expr]) throws -> Expr {
     let keys: [Expr]
     switch args[1] {
     case .vector(let elems, _):
-        keys = elems
+        keys = elems.elements
 
     case .sharedVector(let sa, _):
         keys = sa.elements
@@ -328,16 +328,17 @@ func coreAssoc(_ args: [Expr]) throws -> Expr {
                     message: "index \(idx) out of bounds for vector of size \(result.count)")
             }
             if idx == result.count {
-                result.append(args[i + 1])
-            } else {
-                result[idx] = args[i + 1]
+                result = result.conj(args[i + 1])
+            }
+            else {
+                result = result.with(index: idx, args[i + 1])
             }
             i += 2
         }
         return .vector(result, metadata: m)
 
     case .sharedVector(let sa, let m):
-        return try coreAssoc([.vector(sa.elements, metadata: m)] + Array(args.dropFirst()))
+        return try coreAssoc([.vector(SwishPersistentVector(sa.elements), metadata: m)] + Array(args.dropFirst()))
 
     default:
         throw EvaluatorError.invalidArgument(

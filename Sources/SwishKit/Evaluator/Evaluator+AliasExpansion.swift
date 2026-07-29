@@ -39,7 +39,7 @@ extension Evaluator {
             return .list(SwishPersistentList(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: listMeta)
 
         case .vector(let elements, let vecMeta):
-            return .vector(elements.map { expandAliasesInExpr($0, locals: locals) }, metadata: vecMeta)
+            return .vector(SwishPersistentVector(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: vecMeta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]
@@ -139,6 +139,6 @@ extension Evaluator {
             i += 2
         }
         let body = Array(elements.dropFirst(2)).map { expandAliasesInExpr($0, locals: newLocals) }
-        return .list(SwishPersistentList([elements[0], .vector(newBindings, metadata: bindVecMeta)] + body), metadata: listMeta)
+        return .list(SwishPersistentList([elements[0], .vector(SwishPersistentVector(newBindings), metadata: bindVecMeta)] + body), metadata: listMeta)
     }
 }

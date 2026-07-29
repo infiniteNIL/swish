@@ -69,10 +69,10 @@ extension Expr: Equatable {
             return a.elements == b.elements
 
         case (.sharedVector(let a, _), .vector(let b, _)):
-            return a.elements == b
+            return a.elements == b.elements
 
         case (.vector(let a, _), .sharedVector(let b, _)):
-            return a == b.elements
+            return a.elements == b.elements
 
         case (.mapEntry(let k1, let v1), .mapEntry(let k2, let v2)):
             return k1 == k2 && v1 == v2
@@ -253,9 +253,12 @@ extension Expr: Equatable {
             return elems[0]
 
         case .vector(let elems, _):
-            if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
-            return elems[0]
+            // Convert to a persistent list once (its `dropFirst(1)` is O(1)); walking
+            // by rebuilding a trie per step would be O(n²). Only used for cross-type
+            // seq equality (a `.vector` vs a `.list`/`.lazySeq`); `.vector == .vector`
+            // takes the direct element-array path above, not this.
+            expr = .list(SwishPersistentList(elems.elements), metadata: nil)
+            return advanceSeq(&expr)
 
         case .array(let sa):
             let elems = sa.elements
@@ -266,7 +269,7 @@ extension Expr: Equatable {
         case .sharedVector(let sa, _):
             let elems = sa.elements
             if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .vector(Array(elems.dropFirst()), metadata: nil)
+            expr = elems.count == 1 ? .nil : .list(SwishPersistentList(Array(elems.dropFirst())), metadata: nil)
             return elems[0]
 
         case .lazySeq(let box):

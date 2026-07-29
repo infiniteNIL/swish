@@ -15,7 +15,7 @@ extension Evaluator {
         else {
             throw EvaluatorError.invalidArgument(function: functionName, message: "invalid arity clause")
         }
-        let (params, destructuredBody) = expandDestructuredParams(paramExprs, body: Array(elems.dropFirst()))
+        let (params, destructuredBody) = expandDestructuredParams(paramExprs.elements, body: Array(elems.dropFirst()))
         // Validate recur on the UN-expanded body — `validateRecurTailPosition` is
         // macro-aware (treats `when`/`cond`/… tails as tail positions), so it must
         // see the source forms, not the expansion (which relocates those tails into
@@ -25,7 +25,7 @@ extension Evaluator {
         // Pre-expand macros once, here, so a macro inside a hot loop / lazy-seq
         // body isn't re-expanded on every evaluation.
         let rawBody = expandMacros ? try destructuredBody.map { try macroexpandAll($0) } : destructuredBody
-        let allLocals = collectAllParamLocals(paramExprs).union(outerLocals)
+        let allLocals = collectAllParamLocals(paramExprs.elements).union(outerLocals)
         return FnArity(params: params, body: expandAliases(in: rawBody, locals: allLocals))
     }
 
@@ -78,7 +78,7 @@ extension Evaluator {
         let macroValue: Expr
         switch expandedRestElems.first {
         case .vector(let paramExprs, _):
-            let params = extractParamNames(paramExprs)
+            let params = extractParamNames(paramExprs.elements)
             let rawBody = Array(expandedRestElems.dropFirst())
             macroValue = .macro(name: name, params: params,
                                 body: expandAliases(in: rawBody, locals: Set(params)),

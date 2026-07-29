@@ -6,7 +6,7 @@ extension Evaluator {
         guard elements.count >= 2, case .vector(let vec, _) = elements[1] else {
             throw EvaluatorError.invalidArgument(function: function, message: message)
         }
-        return vec
+        return vec.elements
     }
 
     func evalBinding(_ elements: [Expr], in env: Environment) throws -> Expr {
@@ -193,7 +193,7 @@ extension Evaluator {
                 letVec.append(pat)
                 letVec.append(.symbol(tmpName, metadata: nil))
             }
-            body = [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body), metadata: nil)]
+            body = [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(SwishPersistentVector(letVec), metadata: nil)] + body), metadata: nil)]
         }
         try validateRecurTailPosition(in: body)
         while true {

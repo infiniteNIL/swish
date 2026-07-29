@@ -22,7 +22,7 @@ struct ParserAnonymousFnTests {
             Issue.record("Expected (fn [params] body...), got \(expr)")
             return ([], [])
         }
-        return (params, Array(elems.dropFirst(2)))
+        return (params.elements, Array(elems.dropFirst(2)))
     }
 
     @Test("% normalizes to %1 in params and body")

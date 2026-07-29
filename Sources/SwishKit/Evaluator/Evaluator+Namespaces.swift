@@ -129,7 +129,7 @@ extension Evaluator {
         if let doc { meta[.keyword("doc")] = .string(doc) }
         if let arglists {
             meta[.keyword("arglists")] = .list(SwishPersistentList(arglists.map { params in
-                .vector(params.map { .symbol($0, metadata: nil) }, metadata: nil)
+                .vector(SwishPersistentVector(params.map { .symbol($0, metadata: nil) }), metadata: nil)
             }), metadata: nil)
         }
         if !meta.isEmpty { v.metadata = meta }

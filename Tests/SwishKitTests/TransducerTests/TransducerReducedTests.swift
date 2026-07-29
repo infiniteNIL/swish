@@ -93,7 +93,7 @@ struct TransducerReducedTests {
                       (if (= (count acc) 4) (reduced acc) (conj acc x)))
                     [] (range))
             """)
-        #expect(result == .vector([0, 1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(result == .vector(SwishPersistentVector([0, 1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - comp

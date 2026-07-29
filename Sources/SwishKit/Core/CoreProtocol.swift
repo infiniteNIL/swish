@@ -48,7 +48,7 @@ func registerProtocol(into evaluator: Evaluator) {
         doc: "Internal. Returns the data-modeled ancestor chain (Number/Object) of a built-in type keyword — backs the miss-path hierarchy walk in protocol-dispatch.",
         arglists: [["type-kw"]]) { args in
         guard case .keyword(let k) = args[0] else { return .vector([], metadata: nil) }
-        return .vector(builtinAncestors(ofTypeKeyword: k).map { .keyword($0) }, metadata: nil)
+        return .vector(SwishPersistentVector(builtinAncestors(ofTypeKeyword: k).map { .keyword($0) }), metadata: nil)
     }
     evaluator.register(name: "deftype-field-value", arity: .fixed(2),
         doc: "Internal. Reads field from a deftype/defrecord instance — backs the implicit unqualified field access injected into deftype/defrecord method bodies.",

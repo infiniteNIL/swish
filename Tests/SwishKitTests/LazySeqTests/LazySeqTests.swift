@@ -317,7 +317,7 @@ struct LazySeqTests {
 
     @Test("into vector from lazy seq")
     func intoVector() throws {
-        #expect(try swish.eval("(into [] (take 4 (range)))") == .vector([0, 1, 2, 3].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(into [] (take 4 (range)))") == .vector(SwishPersistentVector([0, 1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("doall realizes lazy seq")

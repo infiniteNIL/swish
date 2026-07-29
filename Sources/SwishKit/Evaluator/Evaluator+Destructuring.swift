@@ -51,7 +51,7 @@ extension Evaluator {
         case .vector(let elements, let vecMeta):
             var result: [Expr] = []
             try expandSplicingElements(elements, into: &result, in: env, gensyms: &gensyms)
-            return .vector(result, metadata: vecMeta)
+            return .vector(SwishPersistentVector(result), metadata: vecMeta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]
@@ -190,7 +190,7 @@ extension Evaluator {
             letVec.append(pat)
             letVec.append(.symbol(tmpName, metadata: nil))
         }
-        let wrappedBody = [Expr.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(letVec, metadata: nil)] + body),
+        let wrappedBody = [Expr.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(SwishPersistentVector(letVec), metadata: nil)] + body),
                                      metadata: nil)]
         return (flatParams, wrappedBody)
     }
@@ -208,7 +208,7 @@ extension Evaluator {
             return [(name, valueExpr)]
 
         case .vector(let elements, _):
-            return try destructureVectorPattern(elements, value: valueExpr)
+            return try destructureVectorPattern(elements.elements, value: valueExpr)
 
         case .map(let sm):
             return try destructureMapPattern(sm.dict, value: valueExpr)

@@ -46,7 +46,7 @@ struct TransducerCoreTests {
     @Test("transduce identity with conj")
     func transduceIdentityConj() throws {
         #expect(try swish.eval("(transduce identity conj [] [1 2 3])")
-            == .vector([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("transduce identity over empty coll")
@@ -90,7 +90,7 @@ struct TransducerCoreTests {
                                      (reduced result))))))))]
               (transduce take2 conj [] [1 2 3 4 5]))
             """)
-        #expect(result == .vector([1, 2].map { .integer($0) }, metadata: nil))
+        #expect(result == .vector(SwishPersistentVector([1, 2].map { .integer($0) }), metadata: nil))
     }
 
     // MARK: - into 2-arity (unchanged)
@@ -98,7 +98,7 @@ struct TransducerCoreTests {
     @Test("into 2-arity with vector")
     func intoTwoArityVector() throws {
         #expect(try swish.eval("(into [] [1 2 3])")
-            == .vector([1, 2, 3].map { .integer($0) }, metadata: nil))
+            == .vector(SwishPersistentVector([1, 2, 3].map { .integer($0) }), metadata: nil))
     }
 
     @Test("into 2-arity with map")
@@ -119,6 +119,6 @@ struct TransducerCoreTests {
                              ([result input] (rf result (inc input)))))]
               (into [] inc-xf [1 2 3]))
             """)
-        #expect(result == .vector([2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(result == .vector(SwishPersistentVector([2, 3, 4].map { .integer($0) }), metadata: nil))
     }
 }

@@ -41,7 +41,7 @@ private func coreTransient(_ args: [Expr]) throws -> Expr {
         return .transient(TransientCollection(args[0]))
 
     case .sharedVector(let sa, let meta):
-        return .transient(TransientCollection(.vector(sa.elements, metadata: meta)))
+        return .transient(TransientCollection(.vector(SwishPersistentVector(sa.elements), metadata: meta)))
 
     default:
         throw EvaluatorError.invalidArgument(function: "transient",
@@ -121,7 +121,7 @@ private func corePopBang(_ args: [Expr]) throws -> Expr {
         throw EvaluatorError.invalidArgument(function: "pop!",
             message: "can't pop empty vector")
     }
-    tc.value = .vector(Array(elems.dropLast()), metadata: meta)
+    tc.value = .vector(elems.popLast(), metadata: meta)
     return args[0]
 }
 

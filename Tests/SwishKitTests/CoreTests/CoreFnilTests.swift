@@ -48,7 +48,7 @@ struct CoreFnilTests {
         ]
         for (x, y, z, expected) in cases {
             let form = "\(Self.setup) ((fnil fnil-test-fn 100 200 300) \(x) \(y) \(z))"
-            #expect(try swish.eval(form) == .vector(expected, metadata: nil))
+            #expect(try swish.eval(form) == .vector(SwishPersistentVector(expected), metadata: nil))
         }
     }
 

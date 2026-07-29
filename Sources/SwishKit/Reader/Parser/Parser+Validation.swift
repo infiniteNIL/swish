@@ -50,7 +50,7 @@ extension Parser {
             try validateArityForms(Array(elements.dropFirst(offset)),
                                    makeError: { ParserError.invalidFn("fn \($0)", line: line, column: column) })
         case .vector(let params, _):
-            try validateParamVector(params) { ParserError.invalidFn("fn \($0)", line: line, column: column) }
+            try validateParamVector(params.elements) { ParserError.invalidFn("fn \($0)", line: line, column: column) }
         default:
             throw ParserError.invalidFn("fn requires a parameter vector", line: line, column: column)
         }
@@ -68,7 +68,7 @@ extension Parser {
         }
         switch elements[idx] {
         case .vector(let params, _):
-            try validateParamVector(params) { ParserError.invalidDefmacro("defmacro \($0)", line: line, column: column) }
+            try validateParamVector(params.elements) { ParserError.invalidDefmacro("defmacro \($0)", line: line, column: column) }
         case .list:
             try validateArityForms(Array(elements.dropFirst(idx)),
                                    makeError: { ParserError.invalidDefmacro("defmacro \($0)", line: line, column: column) })
@@ -90,7 +90,7 @@ extension Parser {
             guard !clause.isEmpty, case .vector(let params, _) = clause[0] else {
                 throw makeError("arity clause must begin with a parameter vector")
             }
-            try validateParamVector(params, makeError: makeError)
+            try validateParamVector(params.elements, makeError: makeError)
             let isVariadic = params.contains(.symbol("&", metadata: nil))
             if isVariadic {
                 variadicCount += 1

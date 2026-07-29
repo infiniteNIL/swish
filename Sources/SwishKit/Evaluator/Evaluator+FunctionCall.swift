@@ -215,7 +215,7 @@ extension Evaluator {
             return try macroexpandAll(.list(SwishPersistentList(elements), metadata: nil))
 
         case .vector(let elements, let meta):
-            return .vector(try elements.map { try macroexpandAll($0) }, metadata: meta)
+            return .vector(SwishPersistentVector(try elements.map { try macroexpandAll($0) }), metadata: meta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]

@@ -269,7 +269,7 @@ private let coreSplit = Expr.nativeFunction(name: "split", arity: .variadic) { a
         limit = 0
     }
     let parts = splitImpl(s, regex: re, limit: limit)
-    return .vector(parts.map { .string(String($0)) }, metadata: nil)
+    return .vector(SwishPersistentVector(parts.map { .string(String($0)) }), metadata: nil)
 }
 
 private func trimWhitespace(_ s: String, left: Bool, right: Bool) -> String {

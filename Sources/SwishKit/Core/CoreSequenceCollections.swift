@@ -146,7 +146,7 @@ private func coreEmpty(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreVector(_ args: [Expr]) throws -> Expr {
-    .vector(args, metadata: nil)
+    .vector(SwishPersistentVector(args), metadata: nil)
 }
 
 private func coreHashMap(_ args: [Expr]) throws -> Expr {

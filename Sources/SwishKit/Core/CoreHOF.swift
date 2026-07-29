@@ -91,7 +91,7 @@ private func coreApply(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         tail = elems.elements
 
     case .vector(let elems, _):
-        tail = elems
+        tail = elems.elements
 
     case .nil:
         tail = []

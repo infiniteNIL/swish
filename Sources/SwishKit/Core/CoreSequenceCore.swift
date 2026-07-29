@@ -50,7 +50,7 @@ func asSequence(_ expr: Expr) throws -> [Expr]? {
         return elements
 
     case .vector(let elements, _):
-        return elements
+        return elements.elements
 
     case .array(let sa):
         return sa.elements
@@ -166,7 +166,7 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
         tail = elements
 
     case .vector(let elements, _):
-        tail = elements
+        tail = elements.elements
 
     case .nil:
         tail = []
@@ -276,10 +276,10 @@ func conjOne(_ coll: Expr, _ item: Expr) throws -> Expr {
         return .vector([k, v, item], metadata: nil)
 
     case .vector(let elems, let meta):
-        return .vector(elems + [item], metadata: meta)
+        return .vector(elems.conj(item), metadata: meta)
 
     case .sharedVector(let sa, let meta):
-        return .vector(sa.elements + [item], metadata: meta)
+        return .vector(SwishPersistentVector(sa.elements + [item]), metadata: meta)
 
     case .map(let sm):
         if case .nil = item { return coll }

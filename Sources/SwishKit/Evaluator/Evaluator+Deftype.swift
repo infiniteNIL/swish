@@ -90,7 +90,7 @@ extension Evaluator {
                 [.symbol("deftype-field-value", metadata: nil), .symbol(firstParam, metadata: nil), .keyword(f)],
                 metadata: nil))
         }
-        return [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(letBindings, metadata: nil)] + body), metadata: nil)]
+        return [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(SwishPersistentVector(letBindings), metadata: nil)] + body), metadata: nil)]
     }
 
     /// The dispatch-key string for an already-evaluated "type value" argument, as

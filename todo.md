@@ -16,6 +16,8 @@
 - [ ] (loaded-libs)
 - [ ] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)
 
+- [x] vector now backed by SwishPersistentVector. Big performance improvement
+- [x] performance issue with creating seqs
 - [x] performance increase: pre expand macros in fn/defn/deftype-method bodies once at definition time
 - [x] loop/recur closure-capture correctness fix
 

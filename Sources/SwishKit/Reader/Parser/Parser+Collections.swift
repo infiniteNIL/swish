@@ -55,7 +55,7 @@ extension Parser {
         let elements = try parseDelimited(close: .rightBracket) {
             ParserError.unterminatedVector(line: $0.line, column: $0.column)
         }
-        return .vector(elements, metadata: nil)
+        return .vector(SwishPersistentVector(elements), metadata: nil)
     }
 
     func parseMap() throws -> Expr {
@@ -177,7 +177,7 @@ extension Parser {
             params.append(.symbol("&", metadata: nil))
             params.append(.symbol("%&", metadata: nil))
         }
-        return .vector(params, metadata: nil)
+        return .vector(SwishPersistentVector(params), metadata: nil)
     }
 
     private func collectAnonFnRefs(_ exprs: some Sequence<Expr>, into refs: inout Set<String>) {
@@ -224,7 +224,7 @@ extension Parser {
             return .list(SwishPersistentList(normalizeAnonFnArgRefs(elems)), metadata: meta)
 
         case .vector(let elems, let meta):
-            return .vector(normalizeAnonFnArgRefs(elems), metadata: meta)
+            return .vector(SwishPersistentVector(normalizeAnonFnArgRefs(elems)), metadata: meta)
 
         case .map(let sm):
             var result: [Expr: Expr] = [:]

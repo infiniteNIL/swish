@@ -75,7 +75,7 @@ private func regexMatchResult(_ match: Regex<AnyRegexOutput>.Match, in s: String
         elements.append(output[i].substring.map { .string(String($0)) } ?? .nil)
     }
 
-    return .vector(elements, metadata: nil)
+    return .vector(SwishPersistentVector(elements), metadata: nil)
 }
 
 // MARK: - re-matches / re-find

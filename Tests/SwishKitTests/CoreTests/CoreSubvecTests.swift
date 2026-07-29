@@ -10,8 +10,8 @@ struct CoreSubvecTests {
 
     @Test("subvec with 2 args slices from start to the end of the vector")
     func subvecTwoArity() throws {
-        #expect(try swish.eval("(subvec [0 1 2 3 4] 2)") == .vector([2, 3, 4].map { .integer($0) }, metadata: nil))
-        #expect(try swish.eval("(subvec [0 1 2 3 4] 1)") == .vector([1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2 3 4] 2)") == .vector(SwishPersistentVector([2, 3, 4].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2 3 4] 1)") == .vector(SwishPersistentVector([1, 2, 3, 4].map { .integer($0) }), metadata: nil))
         #expect(try swish.eval("(subvec [1 2 3 4 5] 5)") == .vector([], metadata: nil))
         #expect(try swish.eval("(subvec [] 0)") == .vector([], metadata: nil))
     }
@@ -20,8 +20,8 @@ struct CoreSubvecTests {
 
     @Test("subvec with 3 args slices from start to end")
     func subvecThreeArity() throws {
-        #expect(try swish.eval("(subvec [0 1 2 3 4] 2 4)") == .vector([2, 3].map { .integer($0) }, metadata: nil))
-        #expect(try swish.eval("(subvec [0 1 2 3 4] 1 5)") == .vector([1, 2, 3, 4].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2 3 4] 2 4)") == .vector(SwishPersistentVector([2, 3].map { .integer($0) }), metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2 3 4] 1 5)") == .vector(SwishPersistentVector([1, 2, 3, 4].map { .integer($0) }), metadata: nil))
         #expect(try swish.eval("(subvec [1 2 3 4 5] 2 2)") == .vector([], metadata: nil))
         #expect(try swish.eval("(subvec [] 0 0)") == .vector([], metadata: nil))
     }
@@ -31,13 +31,13 @@ struct CoreSubvecTests {
     @Test("subvec casts NaN indices to 0, matching Java's Number.intValue()")
     func subvecNaNIndices() throws {
         #expect(try swish.eval("(subvec [0 1 2] ##NaN ##NaN)") == .vector([], metadata: nil))
-        #expect(try swish.eval("(subvec [0 1 2] ##NaN 3)") == .vector([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2] ##NaN 3)") == .vector(SwishPersistentVector([0, 1, 2].map { .integer($0) }), metadata: nil))
         #expect(try swish.eval("(subvec [0 1 2] 0 ##NaN)") == .vector([], metadata: nil))
     }
 
     @Test("subvec accepts negative zero as a plain zero index")
     func subvecNegativeZero() throws {
-        #expect(try swish.eval("(subvec [0 1 2] -0 3)") == .vector([0, 1, 2].map { .integer($0) }, metadata: nil))
+        #expect(try swish.eval("(subvec [0 1 2] -0 3)") == .vector(SwishPersistentVector([0, 1, 2].map { .integer($0) }), metadata: nil))
     }
 
     @Test("subvec truncates float indices toward zero")
