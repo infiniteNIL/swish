@@ -85,6 +85,13 @@ public final class Namespace: @unchecked Sendable {
     public func findAlias(_ name: String) -> Namespace? {
         state.withLock { $0.aliases[name] }
     }
+
+    /// Removes the alias `name` if present (idempotent otherwise). Safe with no
+    /// cache concern: aliases are never entered into `Evaluator.qualifiedVarCache`
+    /// (only literal-namespace home-var resolutions are), so nothing to invalidate.
+    public func removeAlias(name: String) {
+        state.withLock { $0.aliases[name] = nil }
+    }
 }
 
 extension Namespace {

@@ -43,6 +43,27 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "symbol", arity: .variadic,
         doc: "Returns a Symbol with the given namespace and name. Arity-1 coerces string to symbol.",
         arglists: [["name"], ["ns", "name"]]) { args in try coreSymbol(args) }
+    evaluator.register(name: "ns-map", arity: .fixed(1),
+        doc: "Returns a map of all the mappings for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsMap(evaluator, args) }
+    evaluator.register(name: "ns-publics", arity: .fixed(1),
+        doc: "Returns a map of the public intern mappings for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsPublics(evaluator, args) }
+    evaluator.register(name: "ns-refers", arity: .fixed(1),
+        doc: "Returns a map of the refer mappings for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsRefers(evaluator, args) }
+    evaluator.register(name: "ns-aliases", arity: .fixed(1),
+        doc: "Returns a map of the aliases for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsAliases(evaluator, args) }
+    evaluator.register(name: "ns-imports", arity: .fixed(1),
+        doc: "Returns a map of the import mappings for the namespace.",
+        arglists: [["ns"]]) { [evaluator] args in try coreNsImports(evaluator, args) }
+    evaluator.register(name: "ns-unalias", arity: .fixed(2),
+        doc: "Removes the alias for the symbol from the namespace.",
+        arglists: [["ns", "sym"]]) { [evaluator] args in try coreNsUnalias(evaluator, args) }
+    evaluator.register(name: "loaded-libs", arity: .fixed(0),
+        doc: "Returns a sorted set of symbols naming the currently loaded libs.",
+        arglists: [[]]) { [evaluator] _ in try coreLoadedLibs(evaluator) }
 }
 
 // MARK: - Helpers
@@ -204,6 +225,80 @@ private func coreNsInterns(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
         result[.symbol(name, metadata: nil)] = .varRef(v)
     }
     return .map(result, metadata: nil)
+}
+
+/// Resolves a namespace-or-symbol argument to its `Namespace`, throwing for
+/// anything else — the shared front-end for the `ns-*` introspection reads.
+private func namespaceArg(_ evaluator: Evaluator, _ arg: Expr, function: String) throws -> Namespace {
+    guard case .namespace(let ns) = try coreTheNs(evaluator, [arg]) else {
+        throw EvaluatorError.invalidArgument(
+            function: function,
+            message: "expected a namespace or symbol, got \(corePrinter.printString(arg))")
+    }
+    return ns
+}
+
+private func isPrivate(_ v: Var) -> Bool {
+    v.metadata?[.keyword("private")] == .boolean(true)
+}
+
+private func coreNsMap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-map")
+    var result: [Expr: Expr] = [:]
+    for (name, v) in ns.mappings {
+        result[.symbol(name, metadata: nil)] = .varRef(v)
+    }
+    return .map(result, metadata: nil)
+}
+
+private func coreNsPublics(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-publics")
+    var result: [Expr: Expr] = [:]
+    for (name, v) in ns.mappings where v.namespace === ns && !isPrivate(v) {
+        result[.symbol(name, metadata: nil)] = .varRef(v)
+    }
+    return .map(result, metadata: nil)
+}
+
+private func coreNsRefers(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-refers")
+    var result: [Expr: Expr] = [:]
+    for (name, v) in ns.mappings where v.namespace !== ns {
+        result[.symbol(name, metadata: nil)] = .varRef(v)
+    }
+    return .map(result, metadata: nil)
+}
+
+private func coreNsAliases(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-aliases")
+    var result: [Expr: Expr] = [:]
+    for (alias, target) in ns.aliases {
+        result[.symbol(alias, metadata: nil)] = .namespace(target)
+    }
+    return .map(result, metadata: nil)
+}
+
+private func coreNsImports(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    // Swish has no host-class system, so a namespace never has import mappings.
+    _ = try namespaceArg(evaluator, args[0], function: "ns-imports")
+    return .map([:], metadata: nil)
+}
+
+private func coreNsUnalias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-unalias")
+    guard case .symbol(let aliasName, _) = args[1] else {
+        throw EvaluatorError.invalidArgument(
+            function: "ns-unalias",
+            message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
+    }
+    ns.removeAlias(name: aliasName)
+    return .nil
+}
+
+private func coreLoadedLibs(_ evaluator: Evaluator) throws -> Expr {
+    let names = evaluator.loadedLibs.withLock { $0 }
+    let symbols = names.map { Expr.symbol($0, metadata: nil) }
+    return .sortedSet(try buildSortedSet(evaluator, elements: symbols, comparator: nil))
 }
 
 private func coreAllNs(_ evaluator: Evaluator) -> Expr {

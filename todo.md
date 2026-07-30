@@ -13,9 +13,8 @@
       - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
         a public API with better ergonomics
 - [ ] Swift interop
-- [ ] (loaded-libs)
 
-- [x] perf: per-call thread-local swap off Thread.threadDictionary (Swift-native EvaluatorThreadState) + cached *ns* Var — ~5-6% on seq workloads. Profiling shows the remaining per-element cost is ARC + Environment alloc + dictionary hashing (architectural, deferred).
+- [x] namespace introspection batch: loaded-libs, ns-map, ns-publics, ns-refers, ns-aliases, ns-imports, ns-unalias, requiring-resolve, use. (Deferred: refer-clojure, remove-ns, ns-unmap, import — see CLAUDE.md.)
 - [x] fixed & {:keys …} trailing-keyword-arg destructuring
 - [x] clojure.walk — added prewalk, prewalk-replace, macroexpand-all.
 - [x] clojure.core — update-vals/update-keys, with-redefs/with-redefs-fn, halt-when, iteration, infinite?, and the typed array constructors (char-array/double-array/long-array/float-array/short-array/byte-array/boolean-array).

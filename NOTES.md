@@ -134,6 +134,34 @@ With the coercion in place, `iteration` was reverted to the idiomatic `[step &
 {:keys [somef vf kf initk] :or {…}}]` form — dropping the `apply hash-map` shim,
 which doubles as an end-to-end regression guard for the fix.
 
+## Namespace-introspection batch — two non-obvious findings
+
+Filled the missing `clojure.core` namespace reflection/loading fns (`ns-map`/
+`ns-publics`/`ns-refers`/`ns-aliases`/`ns-imports`/`ns-unalias`, `loaded-libs`,
+`requiring-resolve`, `use`) on existing machinery — the native reads just project
+`Namespace.mappings`/`aliases`, and `loaded-libs` is a set filled in `loadNs`. Two
+things that weren't obvious going in:
+
+**`use` composes over the native `refer` because `apply` doesn't re-evaluate.** The
+worry was that `refer` is a *native function*, so calling `(refer 'lib :only [join])`
+directly would re-evaluate `[join]` (turning the symbol into the `join` *value*, or an
+error). But `use` receives a *quoted* libspec — `(use '[clojure.string :only [join]])`
+hands `use` the data `[clojure.string :only [join]]` with `join` already a bare symbol
+— and `(apply refer lib (rest arg))` passes those runtime *values* straight through
+without re-evaluation. So the forward composes correctly; no quoting gymnastics needed
+(that trap is real for `refer-clojure`, whose filters are *unquoted* at the call site —
+which, plus its near-no-op status under Swish's auto-refer, is why it's deferred).
+
+**`use` inherits `refer`'s throw-on-clash, which is stricter than Clojure.** Real
+Clojure's `refer` *warns and replaces* when a referred name clashes with an existing
+one; Swish's `Namespace.refer` **throws** `referConflict`. So `(use 'clojure.string)`
+into a namespace that already refers `clojure.core` throws on `reverse`/`replace`
+(names `clojure.string` shadows), where Clojure would warn and proceed. This surfaced
+immediately in the first end-to-end probe. It's a pre-existing `refer` divergence, not
+a `use` bug — documented rather than "fixed," since changing `refer` to warn-and-replace
+is a separate semantic decision. `use` works cleanly for non-shadowing libs
+(`clojure.set`) and `:only`/`:exclude`-filtered forms.
+
 ## Multimethods — `mm-prefers?` stack overflow
 
 `ancestors`/`parents` gained protocol-awareness via `protocols-of` (`core.clj`

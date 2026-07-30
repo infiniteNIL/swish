@@ -21,6 +21,12 @@ public class Evaluator {
     /// full argument.
     let qualifiedVarCache = Mutex<[String: Var]>([:])
 
+    /// Names of libs loaded from a file (via `loadNs` — i.e. `require`/`use`, plus
+    /// `clojure.core` at init), backing `(loaded-libs)`. Deliberately *not* populated
+    /// by `in-ns`/`create-ns`, which never go through `loadNs` — matching Clojure's
+    /// "libs, not ad-hoc namespaces" semantics.
+    let loadedLibs = Mutex<Set<String>>([])
+
     /// Generic `Thread.current.threadDictionary`-backed thread-local, retained only
     /// for the cold-path slots that still use it (`currentTransaction`,
     /// `currentCancellationCheck`, `currentAgentActionSends` — none per-call). The

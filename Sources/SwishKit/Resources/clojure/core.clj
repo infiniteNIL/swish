@@ -2384,6 +2384,32 @@
   {:added "1.9"}
   [x] (boolean (and (symbol? x) (namespace x) true)))
 
+(defn requiring-resolve
+  "Resolves namespace-qualified sym per 'resolve. If initial resolve fails,
+  attempts to require sym's namespace and retries."
+  {:added "1.10"}
+  [sym]
+  (if (qualified-symbol? sym)
+    (or (resolve sym)
+        (do (-> sym namespace symbol require)
+            (resolve sym)))
+    (throw (str "Not a qualified symbol: " sym))))
+
+(defn use
+  "Like 'require, but also refers to each lib's namespace using
+  clojure.core/refer. A bare symbol requires and refers all of a lib's publics;
+  a vector libspec forwards its :only/:exclude filters to refer. Swish
+  simplifications: prefix-lists, :reload, and :rename are unsupported."
+  {:added "1.0"}
+  [& args]
+  (doseq [arg args]
+    (if (sequential? arg)
+      (let [lib (first arg)]
+        (require lib)
+        (apply refer lib (rest arg)))
+      (do (require arg)
+          (refer arg)))))
+
 (defn simple-keyword?
   "Return true if x is a keyword without a namespace"
   {:added "1.9"}
