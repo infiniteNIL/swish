@@ -15,6 +15,10 @@
 - [ ] Swift interop
 - [ ] (loaded-libs)
 
+- [x] fixed & {:keys …} trailing-keyword-arg destructuring
+- [x] clojure.walk — added prewalk, prewalk-replace, macroexpand-all.
+- [x] clojure.core — update-vals/update-keys, with-redefs/with-redefs-fn, halt-when, iteration, infinite?, and the typed array constructors (char-array/double-array/long-array/float-array/short-array/byte-array/boolean-array).
+- [x] clojure.set — added the relational half: select, project, rename, index, map-invert, join (natural + keymap).
 - [x] sorted set now callable as a function
 - [x] sorted collections now honor comparators
 - [x] Use Swift Collections lib for persistent data structures (https://github.com/apple/swift-collections)

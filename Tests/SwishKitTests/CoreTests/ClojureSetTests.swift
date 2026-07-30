@@ -139,4 +139,47 @@ struct ClojureSetTests {
             try swish.eval("(s/rename-keys {:a 1} {:z :y})")
                 == .map([.keyword("a"): .integer(1)], metadata: nil))
     }
+
+    // MARK: - relational functions
+
+    @Test("select keeps elements matching pred")
+    func select() throws {
+        #expect(try swish.eval("(s/select odd? #{1 2 3 4})") == .set([.integer(1), .integer(3)], metadata: nil))
+    }
+
+    @Test("project keeps only the given keys")
+    func project() throws {
+        #expect(try swish.eval("(s/project #{{:a 1 :b 2}} [:a])")
+            == .set([.map([.keyword("a"): .integer(1)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("rename renames keys in each map of a relation")
+    func rename() throws {
+        #expect(try swish.eval("(s/rename #{{:a 1}} {:a :x})")
+            == .set([.map([.keyword("x"): .integer(1)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("index groups maps by the values of ks")
+    func index() throws {
+        #expect(try swish.eval("(= (s/index #{{:a 1 :b 1} {:a 1 :b 2} {:a 2 :b 3}} [:a]) {{:a 1} #{{:a 1 :b 1} {:a 1 :b 2}} {:a 2} #{{:a 2 :b 3}}})")
+            == .boolean(true))
+    }
+
+    @Test("map-invert swaps keys and values")
+    func mapInvert() throws {
+        #expect(try swish.eval("(s/map-invert {:a 1 :b 2})")
+            == .map([.integer(1): .keyword("a"), .integer(2): .keyword("b")], metadata: nil))
+    }
+
+    @Test("join performs a natural join on shared keys")
+    func joinNatural() throws {
+        #expect(try swish.eval("(s/join #{{:a 1} {:a 2}} #{{:a 1 :b 10} {:a 3 :b 30}})")
+            == .set([.map([.keyword("a"): .integer(1), .keyword("b"): .integer(10)], metadata: nil)], metadata: nil))
+    }
+
+    @Test("join with a keymap joins on corresponding keys")
+    func joinKeymap() throws {
+        #expect(try swish.eval("(= (s/join #{{:a 1}} #{{:x 1 :b 2}} {:a :x}) #{{:a 1 :x 1 :b 2}})")
+            == .boolean(true))
+    }
 }

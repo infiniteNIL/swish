@@ -56,6 +56,46 @@ func registerSequenceArray(into evaluator: Evaluator) {
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
         try makeArray(args, function: "object-array", defaultFill: .nil)
     }
+    // Typed array constructors. Swish's `SwishArray` is untyped (a plain `[Expr]`
+    // wrapper), so these differ only in the default fill value; no element-type
+    // validation, matching `int-array`/`object-array` and the documented
+    // `into-array` simplification. `(char-array "abc")` coerces the string to chars
+    // via `asSequence`.
+    evaluator.register(name: "char-array", arity: .variadic,
+        doc: "Creates an array of chars. Single arg: size (fills \\u0000) or seq/string. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "char-array", defaultFill: .character(Character(UnicodeScalar(0))))
+    }
+    evaluator.register(name: "double-array", arity: .variadic,
+        doc: "Creates an array of doubles. Single arg: size (fills 0.0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "double-array", defaultFill: .double(0.0))
+    }
+    evaluator.register(name: "float-array", arity: .variadic,
+        doc: "Creates an array of floats. Single arg: size (fills 0.0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "float-array", defaultFill: .float(0.0))
+    }
+    evaluator.register(name: "long-array", arity: .variadic,
+        doc: "Creates an array of longs. Single arg: size (fills 0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "long-array", defaultFill: .integer(0))
+    }
+    evaluator.register(name: "short-array", arity: .variadic,
+        doc: "Creates an array of shorts. Single arg: size (fills 0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "short-array", defaultFill: .integer(0))
+    }
+    evaluator.register(name: "byte-array", arity: .variadic,
+        doc: "Creates an array of bytes. Single arg: size (fills 0) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "byte-array", defaultFill: .integer(0))
+    }
+    evaluator.register(name: "boolean-array", arity: .variadic,
+        doc: "Creates an array of booleans. Single arg: size (fills false) or seq. Two args: size + init val.",
+        arglists: [["size-or-seq"], ["size", "init"]]) { args in
+        try makeArray(args, function: "boolean-array", defaultFill: .boolean(false))
+    }
 }
 
 // MARK: - Implementations

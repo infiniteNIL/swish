@@ -456,6 +456,39 @@
   [f x]
   (lazy-seq (cons x (iterate f (f x)))))
 
+(defn iteration
+  "Creates a seqable/reducible via repeated calls to step, a function of some
+  (continuation token) 'k'. The first call to step will be passed initk,
+  returning 'ret'. Iff (somef ret) is true, (vf ret) will be included in the
+  iteration, else iteration will terminate and vf/kf will not be called. If
+  (kf ret) is non-nil it will be passed to the next step call, else iteration
+  will terminate.
+
+  This can be used e.g. to consume APIs that return paginated or batched data.
+
+   step - (possibly impure) fn of 'k' -> 'ret'
+   :somef - fn of 'ret' -> logical true/false, default 'some?'
+   :vf - fn of 'ret' -> 'v', the values produced by the iteration, default 'identity'
+   :kf - fn of 'ret' -> 'k' or nil (signaling 'done'), default 'identity'
+   :initk - the first value passed to step, default 'nil'"
+  {:added "1.11"}
+  ;; [Swish] Real Clojure uses `& {:keys [...] :or {...}}` to parse the trailing
+  ;; keyword options; Swish doesn't yet support map-destructuring of trailing
+  ;; kwargs (`(f :k v)`), so the options are collected with `apply hash-map` and
+  ;; destructured from that map instead — behaviorally identical.
+  [step & opts]
+  (let [{:keys [somef vf kf initk]
+         :or {somef some? vf identity kf identity initk nil}} (apply hash-map opts)]
+    ;; [Swish] Returns a plain lazy seq rather than a reify implementing
+    ;; Seqable + IReduceInit (Swish has no such interfaces); it is seqable and
+    ;; reducible via the normal seq path, just without the IReduceInit fast path.
+    ((fn next-step [ret]
+       (when (somef ret)
+         (cons (vf ret)
+               (lazy-seq (when-some [k (kf ret)]
+                           (next-step (step k)))))))
+     (step initk))))
+
 (defn range
   "Returns a lazy sequence of nums from start (inclusive) to end
   (exclusive) by step. start defaults to 0, step defaults to 1.
@@ -1321,6 +1354,67 @@
                   (assoc m k (apply f (get m k) args)))))]
      (up m ks f args))))
 
+(defn update-vals
+  "m f => {k (f v) ...}
+
+  Given a map m and a function f of 1-argument, returns a new map where the keys of m
+  are mapped to result of applying f to the corresponding values of m."
+  {:added "1.11"}
+  [m f]
+  ;; Re-assoc each key with (f v), preserving the map's type (incl. sorted) and meta.
+  (with-meta (reduce-kv (fn [acc k v] (assoc acc k (f v))) m m) (meta m)))
+
+(defn update-keys
+  "m f => {(f k) v ...}
+
+  Given a map m and a function f of 1-argument, returns a new map whose
+  keys are the result of applying f to the keys of m, mapped to the
+  corresponding values of m.
+  f must return a unique key for each key of m, else the behavior is undefined."
+  {:added "1.11"}
+  [m f]
+  (with-meta (reduce-kv (fn [acc k v] (assoc acc (f k) v)) (empty m) m) (meta m)))
+
+(defn with-redefs-fn
+  "Temporarily redefines Vars during a call to func.  Each val of
+  binding-map will replace the root value of its key which must be
+  a Var.  After func is called with no args, the root values of all
+  the Vars will be set back to their old values.  These temporary
+  changes will be visible in all threads.  Useful for mocking out
+  functions during testing.
+
+  Note: unlike real Clojure's .bindRoot (which bypasses watches), Swish
+  sets/restores roots via alter-var-root, so any watches on the redefined
+  vars will fire on both the redefinition and the restore."
+  {:added "1.3"}
+  [binding-map func]
+  (let [root-bind (fn [m]
+                    (doseq [[a-var a-val] m]
+                      (alter-var-root a-var (constantly a-val))))
+        old-vals (zipmap (keys binding-map)
+                         (map deref (keys binding-map)))]
+    (try
+      (root-bind binding-map)
+      (func)
+      (finally
+        (root-bind old-vals)))))
+
+(defmacro with-redefs
+  "binding => var-symbol temp-value-expr
+
+  Temporarily redefines Vars while executing the body.  The
+  temp-value-exprs will be evaluated and each resulting value will
+  replace in parallel the root value of its Var.  After the body is
+  executed, the root values of all the Vars will be set back to their
+  old values.  These temporary changes will be visible in all threads.
+  Useful for mocking out functions during testing."
+  {:added "1.3"}
+  [bindings & body]
+  `(with-redefs-fn
+     ~(zipmap (map (fn [v] (list 'var v)) (take-nth 2 bindings))
+              (take-nth 2 (next bindings)))
+     (fn [] ~@body)))
+
 (defn select-keys
   "Returns a map containing only those entries in map whose key is in keys"
   {:added "1.0"
@@ -1788,6 +1882,30 @@
      false)))
 
 (def dedupe-none :__dedupe-none__)
+
+(defn halt-when
+  "Returns a transducer that ends transduction when pred returns true
+  for an input. When retf is supplied it must be a fn of 2 arguments -
+  it will be passed the (completed) result so far and the input that
+  triggered the predicate, and its return value (if it does not throw
+  an exception) will be the return value of the transducer. If retf
+  is not supplied, the input that triggered the predicate will be
+  returned. If the predicate never returns true the transduction is
+  unaffected."
+  {:added "1.9"}
+  ([pred] (halt-when pred nil))
+  ([pred retf]
+   (fn [rf]
+     (fn
+       ([] (rf))
+       ([result]
+        (if (and (map? result) (contains? result ::halt))
+          (::halt result)
+          (rf result)))
+       ([result input]
+        (if (pred input)
+          (reduced {::halt (if retf (retf (rf result) input) input)})
+          (rf result input)))))))
 
 (defn dedupe
   "Returns a lazy sequence removing consecutive duplicates in coll.

@@ -10,16 +10,14 @@
 ;;
 ;; Utilities for recursively walking a data structure.
 ;;
-;; [Swish] Partial port: walk/postwalk/postwalk-replace (the three functions
-;; clojure.template/do-template needs) plus keywordize-keys/stringify-keys
-;; (common enough to warrant porting). walk's dispatch is narrowed to
-;; list?/vector?/map?/set? — real Clojure's walk also special-cases IMapEntry
-;; and IRecord, which only matter when walking *runtime data* (e.g. a
+;; [Swish] walk/prewalk/postwalk/prewalk-replace/postwalk-replace/
+;; macroexpand-all + keywordize-keys/stringify-keys. walk's dispatch is
+;; narrowed to list?/vector?/map?/set? — real Clojure's walk also special-cases
+;; IMapEntry and IRecord, which only matter when walking *runtime data* (e.g. a
 ;; defrecord instance or a realized map's entries); a macro template is
 ;; unevaluated reader syntax and is never shaped like either, and
 ;; keywordize-keys/stringify-keys do their own map-entry handling via
 ;; (into {} (map f x)) rather than relying on walk to dispatch onto entries.
-;; No prewalk/macroexpand-all — not built.
 ;;
 ;; [Swish] walk uses reduce, not map, to rebuild each collection, and
 ;; postwalk recurses directly rather than through partial. map/filter are
@@ -47,6 +45,11 @@
   [inner outer form]
   (cond
     (list? form) (outer (apply list (reduce (fn [acc x] (conj acc (inner x))) [] form)))
+    ;; [Swish] seqs (cons/lazy-seq/macroexpand results) are distinct from lists
+    ;; here (list? is false on a .seq); real Clojure's walk has a separate seq?
+    ;; branch too. Needed so macroexpand-all recurses into expanded (seq) forms.
+    ;; Rebuilt as a list (=-equivalent) rather than a lazy seq.
+    (seq? form) (outer (apply list (reduce (fn [acc x] (conj acc (inner x))) [] form)))
     (vector? form) (outer (reduce (fn [acc x] (conj acc (inner x))) [] form))
     (set? form) (outer (reduce (fn [acc x] (conj acc (inner x))) #{} form))
     (map? form) (outer (reduce (fn [acc entry] (assoc acc (inner (key entry)) (inner (val entry)))) {} form))
@@ -59,12 +62,33 @@
   [f form]
   (clojure.walk/walk (fn [x] (clojure.walk/postwalk f x)) f form))
 
+(defn prewalk
+  "Like postwalk, but does pre-order traversal."
+  {:added "1.1"}
+  [f form]
+  ;; Recurses directly (not through partial) — see the file header note on
+  ;; runner-thread stack depth.
+  (clojure.walk/walk (fn [x] (clojure.walk/prewalk f x)) identity (f form)))
+
 (defn postwalk-replace
   "Recursively transforms form by replacing keys in smap with their
   values. Does replacement at the leaves of the tree first."
   {:added "1.1"}
   [smap form]
   (clojure.walk/postwalk (fn [x] (if (contains? smap x) (get smap x) x)) form))
+
+(defn prewalk-replace
+  "Recursively transforms form by replacing keys in smap with their
+  values. Does replacement at the root of the tree first."
+  {:added "1.1"}
+  [smap form]
+  (clojure.walk/prewalk (fn [x] (if (contains? smap x) (get smap x) x)) form))
+
+(defn macroexpand-all
+  "Recursively performs all possible macroexpansions in form."
+  {:added "1.1"}
+  [form]
+  (clojure.walk/prewalk (fn [x] (if (seq? x) (macroexpand x) x)) form))
 
 (defn keywordize-keys
   "Recursively transforms all map keys from strings to keywords."

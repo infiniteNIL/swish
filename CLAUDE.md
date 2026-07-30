@@ -78,7 +78,7 @@ no JVM class hierarchy or bytecode compiler). Deep detail → [NOTES.md](NOTES.m
 
 ### Missing core forms — now implemented
 
-Two audit batches found many common forms simply never ported (`dotimes`, `while`,
+Several audit batches found many common forms simply never ported (`dotimes`, `while`,
 `condp`, `cond->`/`cond->>`/`as->`/`some->`/`some->>`, `declare`, `memoize`,
 `trampoline`, `mapv`, `filterv`, `reduce-kv`, `partition-by`, `reductions`,
 `distinct?`, `every-pred`, `when-some`/`if-some`, `doto`, `bound?`, `split-at`,
@@ -89,6 +89,13 @@ Two audit batches found many common forms simply never ported (`dotimes`, `while
 - **`bound?`** checks root-boundness only (`Var.isBound`), not thread-local bindings — matching Clojure's `.hasRoot`, not its `bound?`.
 - **`ns-resolve`**'s 3-arg `(ns env sym)` form accepts but ignores the `env` local-binding map.
 - **`definline` is deliberately unimplemented** — it's an inline-expansion form for a bytecode compiler; a tree-walking interpreter has no such pass to hook into.
+
+A later **standard-library-completion pass** filled the rest of `clojure.set` (`select`/`project`/`rename`/`index`/`map-invert`/`join`), `clojure.walk` (`prewalk`/`prewalk-replace`/`macroexpand-all`), and common `clojure.core` fns (`update-vals`/`update-keys`, `with-redefs`/`with-redefs-fn`, `halt-when`, `iteration`, `infinite?`, the typed array ctors `char-array`/`double-array`/`long-array`/…). Deliberate points:
+- **`clojure.walk/walk` gained a `seq?` branch** (it only handled `list?` before) — real Clojure's `walk` has both, and `macroexpand-all` needs it since macroexpand results are `.seq`, not `.list`. Seqs are rebuilt as lists (=-equivalent).
+- **`with-redefs` sets/restores roots via `alter-var-root`**, which fires watches — real Clojure uses `.bindRoot` (bypasses watches). Minor divergence.
+- **`iteration` returns a plain lazy seq**, not a `reify` of `Seqable`+`IReduceInit` (Swish has no such interfaces) — seqable/reducible, just without the `IReduceInit` fast path. It also can't use `& {:keys …}` (see next) so it collects options with `(apply hash-map opts)`.
+- **Known gap surfaced (not yet fixed): `& {:keys […]}` trailing-keyword-arg destructuring doesn't work** — `(defn f [& {:keys [a]}] a)` called as `(f :a 5)` binds `a` to its default, not `5`. Clojure 1.11's named-args-as-map feature; needs a destructuring-engine change, deferred.
+- Typed array ctors share `int-array`/`object-array`'s untyped `SwishArray` (no element validation), differing only in default fill.
 
 ### Multimethods
 

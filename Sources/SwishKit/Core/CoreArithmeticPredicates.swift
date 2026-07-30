@@ -64,6 +64,13 @@ func registerArithmeticPredicates(into evaluator: Evaluator) {
         arglists: [["num"]],
         body: coreIsNaN
     )
+    evaluator.register(
+        name: "infinite?",
+        arity: .fixed(1),
+        doc: "Returns true if num is negative or positive infinity, else false.",
+        arglists: [["num"]],
+        body: coreIsInfinite
+    )
 }
 
 // MARK: - Implementations
@@ -131,6 +138,18 @@ private func coreIsNaN(_ args: [Expr]) throws -> Expr {
         return .boolean(false)
     default:
         throw EvaluatorError.invalidArgument(function: "NaN?",
+            message: "expected a number, got \(corePrinter.printString(args[0]))")
+    }
+}
+
+private func coreIsInfinite(_ args: [Expr]) throws -> Expr {
+    switch args[0] {
+    case .double(let f): return .boolean(f.isInfinite)
+    case .float(let f):  return .boolean(f.isInfinite)
+    case .integer, .bigInteger, .ratio, .bigDecimal:
+        return .boolean(false)
+    default:
+        throw EvaluatorError.invalidArgument(function: "infinite?",
             message: "expected a number, got \(corePrinter.printString(args[0]))")
     }
 }

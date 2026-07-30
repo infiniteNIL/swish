@@ -69,3 +69,68 @@
    (apply dissoc map (keys kmap))
    kmap))
 
+(defn select
+  "Returns a set of the elements for which pred is true"
+  {:added "1.0"}
+  [pred xset]
+  (reduce (fn [s k] (if (pred k) s (disj s k))) xset xset))
+
+(defn project
+  "Returns a rel of the elements of xrel with only the keys in ks"
+  {:added "1.0"}
+  [xrel ks]
+  (with-meta (set (map (fn [x] (select-keys x ks)) xrel)) (meta xrel)))
+
+(defn rename
+  "Returns a rel of the maps in xrel with the keys in kmap renamed to the vals in kmap"
+  {:added "1.0"}
+  [xrel kmap]
+  (set (map (fn [x] (rename-keys x kmap)) xrel)))
+
+(defn index
+  "Returns a map of the distinct values of ks in the xrel mapped to a
+  set of the maps in xrel with the corresponding values of ks."
+  {:added "1.0"}
+  [xrel ks]
+  (reduce
+   (fn [m x]
+     (let [ik (select-keys x ks)]
+       (assoc m ik (conj (get m ik #{}) x))))
+   {} xrel))
+
+(defn map-invert
+  "Returns the map with the vals mapped to the keys."
+  {:added "1.0"}
+  [m] (reduce (fn [m [k v]] (assoc m v k)) {} m))
+
+(defn join
+  "When passed 2 rels, returns the rel corresponding to the natural
+  join. When passed an additional keymap, joins on the corresponding
+  keys."
+  {:added "1.0"}
+  ([xrel yrel] ;natural join
+   (if (and (seq xrel) (seq yrel))
+     (let [ks (intersection (set (keys (first xrel))) (set (keys (first yrel))))
+           [r s] (if (<= (count xrel) (count yrel))
+                   [xrel yrel]
+                   [yrel xrel])
+           idx (index r ks)]
+       (reduce (fn [ret x]
+                 (let [found (idx (select-keys x ks))]
+                   (if found
+                     (reduce (fn [a b] (conj a (merge b x))) ret found)
+                     ret)))
+               #{} s))
+     #{}))
+  ([xrel yrel km] ;arbitrary key mapping
+   (let [[r s k] (if (<= (count xrel) (count yrel))
+                   [xrel yrel (map-invert km)]
+                   [yrel xrel km])
+         idx (index r (vals k))]
+     (reduce (fn [ret x]
+               (let [found (idx (rename-keys (select-keys x (keys k)) k))]
+                 (if found
+                   (reduce (fn [a b] (conj a (merge b x))) ret found)
+                   ret)))
+             #{} s))))
+
