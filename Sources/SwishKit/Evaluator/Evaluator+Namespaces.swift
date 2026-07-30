@@ -30,9 +30,8 @@ extension Evaluator {
     // MARK: - Current namespace
 
     func currentNs() -> Namespace {
-        let nsVar = findNs("clojure.core")!.findVar(name: "*ns*")!
-        guard case .namespace(let ns) = nsVar.value else {
-            fatalError("*ns* corrupted — expected .namespace, got \(String(describing: nsVar.value))")
+        guard case .namespace(let ns) = starNsVar.value else {
+            fatalError("*ns* corrupted — expected .namespace, got \(String(describing: starNsVar.value))")
         }
         return ns
     }
@@ -49,7 +48,7 @@ extension Evaluator {
     // namespace." Making *ns* genuinely dynamic + thread-local is deferred to
     // whichever later step first introduces real background execution.
     func setCurrentNs(_ ns: Namespace) {
-        findNs("clojure.core")!.findVar(name: "*ns*")!.value = .namespace(ns)
+        starNsVar.value = .namespace(ns)
     }
 
     // MARK: - Symbol resolution helpers

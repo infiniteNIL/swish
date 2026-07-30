@@ -15,22 +15,21 @@ extension Evaluator {
     /// Safe to call from ANY thread, including a GCD pool thread reused from an
     /// earlier, unrelated work item: this unconditionally overwrites (rather than
     /// merges with) whatever stale state might be sitting in that thread's
-    /// `threadDictionary`, which is what makes `Thread.current.threadDictionary`-backed
-    /// thread-local storage safe to use under thread-pool reuse (see `Evaluator.swift`'s
-    /// `bindingFrames` doc comment).
+    /// `EvaluatorThreadState`, which is what makes the per-thread state safe to use
+    /// under thread-pool reuse (see `Evaluator.swift`'s `EvaluatorThreadState`).
     func withInstalledBindings<T>(
         _ frames: [[ObjectIdentifier: Expr]],
         callDepth depth: Int,
         _ body: () throws -> T
     ) rethrows -> T {
-        let depthBox = callDepthBox()
-        let savedFrames = bindingFrames
-        let savedDepth = depthBox.value
-        bindingFrames = frames
-        depthBox.value = depth
+        let threadState = currentThreadState()
+        let savedFrames = threadState.bindingFrames
+        let savedDepth = threadState.callDepth
+        threadState.bindingFrames = frames
+        threadState.callDepth = depth
         defer {
-            bindingFrames = savedFrames
-            depthBox.value = savedDepth
+            threadState.bindingFrames = savedFrames
+            threadState.callDepth = savedDepth
         }
         return try body()
     }

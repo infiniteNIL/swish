@@ -21,12 +21,16 @@ public class Evaluator {
     /// full argument.
     let qualifiedVarCache = Mutex<[String: Var]>([:])
 
+    /// Generic `Thread.current.threadDictionary`-backed thread-local, retained only
+    /// for the cold-path slots that still use it (`currentTransaction`,
+    /// `currentCancellationCheck`, `currentAgentActionSends` — none per-call). The
+    /// hot per-call state (`callDepth`/`bindingFrames`) moved off this onto
+    /// `EvaluatorThreadState` below: the ObjC `NSMutableDictionary` lookup + `NSString`
+    /// key bridge + dynamic cast was too costly to pay on every function call.
     final class ThreadLocalBox<T> {
         var value: T
         init(_ value: T) { self.value = value }
     }
-    private static let bindingFramesKey = "swish.evaluator.bindingFrames"
-    private static let callDepthKey = "swish.evaluator.callDepth"
 
     func threadLocalBox<T>(for key: String, default def: @autoclosure () -> T) -> ThreadLocalBox<T> {
         if let existing = Thread.current.threadDictionary[key] as? ThreadLocalBox<T> {
@@ -37,18 +41,54 @@ public class Evaluator {
         return box
     }
 
-    /// Stack of dynamic-binding frames. Each frame maps var identity → current value.
-    /// Pushed/popped by the `binding` special form. Thread-local (via
-    /// `Thread.current.threadDictionary`): each real OS thread gets its own stack, so
-    /// independent logical call-stacks (e.g. separate agent/future executions once a
-    /// later step adds real background execution) can't corrupt each other's dynamic
-    /// bindings. A lock alone wouldn't be correct here — it would prevent memory
-    /// corruption but not the logical-correctness problem of two unrelated call
-    /// stacks sharing one frame stack. Today, with only one thread ever running,
-    /// this always resolves to the same bucket it always did — no behavior change.
+    // MARK: - Per-thread evaluator state
+
+    /// Per-thread mutable evaluator state: the recursion-depth guard and the
+    /// dynamic-binding frame stack. Both must be per-OS-thread, not global — a
+    /// future/agent body runs on its own GCD thread, and a shared counter or frame
+    /// stack would let two independent logical call-stacks corrupt each other's
+    /// depth tracking (falsely tripping, or masking real overflow) or dynamic
+    /// bindings. Each instance is owned by exactly one thread and mutated only from
+    /// that thread, so its fields need no lock — only the shared `threadStates`
+    /// registry (lookup/insert) is synchronized.
+    final class EvaluatorThreadState {
+        var callDepth: Int = 0
+        var bindingFrames: [[ObjectIdentifier: Expr]] = []
+    }
+
+    /// Registry of per-thread state, keyed by thread identity. Swift-native
+    /// (`Dictionary` + `ObjectIdentifier`), replacing the previous
+    /// `Thread.current.threadDictionary` string-keyed store whose ObjC
+    /// dictionary lookup + `NSString` key bridge + dynamic cast was paid on every
+    /// function call (see NOTES.md, Performance). Process-global, exactly like the
+    /// fixed string keys it replaces — shared across `Evaluator` instances on one
+    /// thread, which is harmless: `callDepth` is a conservative guard, and
+    /// `bindingFrames` is keyed by `Var` identity so a frame from a different
+    /// evaluator simply misses. A stale entry lingers for each dead GCD-pool thread;
+    /// bounded (the pool is bounded) and harmless (`callDepth` returns to 0 after
+    /// each top-level eval, `bindingFrames` empties).
+    private let threadStates = Mutex<[ObjectIdentifier: EvaluatorThreadState]>([:])
+
+    /// The calling thread's `EvaluatorThreadState`, creating it on first access.
+    /// One `Mutex` acquisition to fetch (or insert) the state object; all further
+    /// reads/writes of its fields are lock-free (the object is single-thread-owned).
+    func currentThreadState() -> EvaluatorThreadState {
+        let id = ObjectIdentifier(Thread.current)
+        return threadStates.withLock { states in
+            if let existing = states[id] {
+                return existing
+            }
+            let state = EvaluatorThreadState()
+            states[id] = state
+            return state
+        }
+    }
+
+    /// Stack of dynamic-binding frames (var identity → current value), pushed/popped
+    /// by the `binding` special form. Per-thread — see `EvaluatorThreadState`.
     var bindingFrames: [[ObjectIdentifier: Expr]] {
-        get { threadLocalBox(for: Self.bindingFramesKey, default: [[ObjectIdentifier: Expr]]()).value }
-        set { threadLocalBox(for: Self.bindingFramesKey, default: [[ObjectIdentifier: Expr]]()).value = newValue }
+        get { currentThreadState().bindingFrames }
+        set { currentThreadState().bindingFrames = newValue }
     }
 
     let sourcePaths: [String]
@@ -58,22 +98,26 @@ public class Evaluator {
     /// across concurrent macro-expansion on different threads.
     private let gensymCounterState = Mutex<Int>(0)
 
-    /// Recursion-depth guard, thread-local for the same reason as `bindingFrames`:
-    /// a shared counter would let two threads' independent call-stacks corrupt each
-    /// other's depth tracking (falsely tripping, or masking real overflow).
-    /// Fetches the thread-local call-depth box itself (one dictionary lookup),
-    /// for hot paths that read-then-write it — e.g. `callDepth += 1` on the
-    /// computed property below costs a lookup for the get *and* the set.
-    func callDepthBox() -> ThreadLocalBox<Int> {
-        threadLocalBox(for: Self.callDepthKey, default: 0)
-    }
-
+    /// Recursion-depth guard, per-thread — see `EvaluatorThreadState`. Hot callers
+    /// (`callUserFunction`/`callMacro`) fetch the state once via `currentThreadState()`
+    /// and mutate `callDepth` in place, so guarding a call costs a single registry
+    /// lookup rather than one per read and one per write.
     var callDepth: Int {
-        get { callDepthBox().value }
-        set { callDepthBox().value = newValue }
+        get { currentThreadState().callDepth }
+        set { currentThreadState().callDepth = newValue }
     }
     let maxCallDepth = 1_000
     var interruptionCheck: (() -> Bool)? = nil
+
+    /// The interned `*ns*` Var, cached at init so `currentNs()`/`setCurrentNs(_:)`
+    /// reach the current namespace with a single Var-lock access instead of a
+    /// namespace-registry lookup + a var-table lookup + the value read — three lock
+    /// acquisitions and two string-keyed dictionary hashes — on every call, which
+    /// bare-symbol resolution hits for every self-/forward-referenced fn in a hot
+    /// loop. Safe to cache: `*ns*` is interned exactly once here at init and its Var
+    /// object is never replaced (only its value changes, via `in-ns`/`setCurrentNs`)
+    /// — the same immutability that lets `qualifiedVarCache` skip invalidation.
+    private(set) var starNsVar: Var!
 
     public init(sourcePaths: [String] = []) {
         self.sourcePaths = sourcePaths
@@ -87,6 +131,7 @@ public class Evaluator {
         // 3. *ns* must exist before loading core.clj (evalNs and evalDefmacro use currentNs())
         let nsVar = coreNs.intern(name: "*ns*", value: .namespace(coreNs))
         nsVar.isSystem = true
+        starNsVar = nsVar
 
         // 4. *print-meta* controls whether metadata is printed with values
         let pmVar = coreNs.intern(name: "*print-meta*", value: .boolean(false))

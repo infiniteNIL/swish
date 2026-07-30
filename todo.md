@@ -15,6 +15,7 @@
 - [ ] Swift interop
 - [ ] (loaded-libs)
 
+- [x] perf: per-call thread-local swap off Thread.threadDictionary (Swift-native EvaluatorThreadState) + cached *ns* Var — ~5-6% on seq workloads. Profiling shows the remaining per-element cost is ARC + Environment alloc + dictionary hashing (architectural, deferred).
 - [x] fixed & {:keys …} trailing-keyword-arg destructuring
 - [x] clojure.walk — added prewalk, prewalk-replace, macroexpand-all.
 - [x] clojure.core — update-vals/update-keys, with-redefs/with-redefs-fn, halt-when, iteration, infinite?, and the typed array constructors (char-array/double-array/long-array/float-array/short-array/byte-array/boolean-array).

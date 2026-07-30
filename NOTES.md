@@ -645,3 +645,55 @@ non-home var can later be shadowed by a local `def` creating a new Var.
 `Var.dynamicValue`'s two lock acquisitions were combined into one
 (`snapshotIsDynamicAndValue()`). Measured: `(count (filter … (range 32000)))`
 ~5.6s → ~3.9s (~30%).
+
+### Per-call constant-cost pass: thread-local swap + `*ns*`-Var cache — and the profiling verdict
+Two safe, semantics-preserving per-call micro-optimizations, and — more usefully —
+a profile that settles *where the per-element cost actually lives*.
+
+**(1) Thread-local storage mechanism.** `callDepth` (read+written on every
+`callUserFunction`/`callMacro`) and `bindingFrames` used to resolve through
+`Thread.current.threadDictionary[stringKey] as? ThreadLocalBox<T>` — an ObjC
+`NSMutableDictionary` lookup with a `String`→`NSString` bridge and a dynamic cast,
+paid per call. Replaced with a Swift-native `Mutex<[ObjectIdentifier:
+EvaluatorThreadState]>` keyed by `Thread.current` identity (`Evaluator.swift`): the
+`Mutex` guards only the registry lookup/insert, and each per-thread state object is
+single-thread-owned so its `callDepth`/`bindingFrames` mutate lock-free after one
+fetch. Semantics identical (process-global-per-thread, per-thread isolation for
+futures/agents preserved). Chose the Swift-dictionary form over a lock-free
+`pthread_getspecific` key deliberately (avoids raw C + `Unmanaged` + a Darwin-only
+destructor signature); the two accepted costs are an uncontended lock per call and a
+bounded stale entry per dead GCD-pool thread (harmless — `callDepth` returns to 0 per
+top-level eval, `bindingFrames` empties). The three *cold-path* thread-locals
+(`currentTransaction`/`currentCancellationCheck`/`currentAgentActionSends`) stayed on
+`threadDictionary` — not per-call, so the ObjC cost is irrelevant.
+
+**(2) `*ns*`-Var cache.** `currentNs()` did `findNs("clojure.core")!.findVar(name:
+"*ns*")!` then read `.value` — three lock acquisitions and two string-keyed dict
+hashes — on every bare-symbol fall-through, which every *self-/forward-referenced*
+core fn hits per element (a self-recursive `filter`/`map` isn't yet interned when
+`expandAliases` runs at its own definition, so its self-reference stays bare). Cached
+the `*ns*` Var reference (`starNsVar`) at init; `currentNs()`/`setCurrentNs()` now read/
+write it directly (one lock). Safe with no invalidation — same immutability argument
+as `qualifiedVarCache` (`*ns*` interned once, Var object never replaced). This closes
+the perf half of CLAUDE.md's old "`currentNs()` does two locked dictionary lookups"
+deferred item; the thread-local-`*ns*`-semantics half is a separate threading concern,
+still deferred.
+
+**Measured (release, user time, 3 runs):** `(count (filter odd? (map inc (range
+100000))))` 4.08s → 3.84s (~6%); `(reduce + 0 (map (fn [x] (+ x x)) (range 100000)))`
+1.77s → 1.68s (~5%). Both correct (3453 Swift tests, jank 248/0/0).
+
+**The verdict (why only ~5-6%).** A `sample` profile of the workload, *after* both
+fixes, shows the self-time dominated by three inherent categories, not any hot spot:
+**ARC** (`swift_retain`/`swift_release`/`doDecrementSlow`/`swift_deallocClassInstance`
+— the largest slice, because `Expr` is a heap `indirect enum` so every value churns
+refcounts), **allocation/free** (a fresh `Environment` class + `[String: Expr]`
+dictionary per call), and **string-keyed dictionary hashing** (`Hasher.*` +
+`RawDictionaryStorage.find`: `Environment.get` hashes the symbol name at every scope
+level; `specialFormNames.contains` hashes every list head). Micro-opts can't move
+these — the foundational lever is a **data-structure change** (interning symbols to
+integers to kill the hashing; a small-N binding structure to avoid the per-call dict
+alloc; reducing `Expr` ARC traffic), each a scoped project of its own. This pass's
+value is as much the measurement as the ~5-6%: it redirects "the foundational perf
+work" from lock/lookup micro-opts (now largely exhausted) to the interpreter's core
+representation.
