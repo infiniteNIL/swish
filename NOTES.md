@@ -46,6 +46,94 @@ coll)]`; and `unchecked-inc` (used by Clojure's `dotimes` as a JVM boxing hint
 with no behavioral effect) has no Swish equivalent worth porting — `dotimes` uses
 plain `inc`, exactly equivalent since Swish integers are already 64-bit.
 
+## Standard-library completion pass — clojure.set/walk relational + prewalk halves, common core fns
+
+A third pass (after the two missing-forms batches above) closed out namespaces
+that were only *partially* ported plus a cluster of common `clojure.core` fns. All
+faithful ports on existing machinery — no new subsystem, no new `Expr` case:
+
+- **`clojure.set` relational half** (`set.clj`): `select`, `project`, `rename`,
+  `index`, `map-invert`, `join`. The earlier work had only the algebraic half
+  (`union`/`intersection`/`difference`/`subset?`/…); these are the
+  relation-as-set-of-maps operators.
+- **`clojure.walk` prewalk half** (`walk.clj`): `prewalk`, `prewalk-replace`,
+  `macroexpand-all` — the pre-order counterparts to the `postwalk` family the
+  `do-template` work had already landed.
+- **`clojure.core`**: `update-vals`/`update-keys`, `with-redefs`/`with-redefs-fn`,
+  `halt-when`, `iteration` (all `core.clj`); `infinite?` (native
+  `CoreArithmeticPredicates.swift`, mirroring `NaN?`); and the typed array ctors
+  `char-array`/`double-array`/`long-array`/`float-array`/`short-array`/
+  `byte-array`/`boolean-array` (native `CoreSequenceArray.swift`, mirroring
+  `int-array`/`object-array` — the same untyped `SwishArray`, differing only in
+  default fill value).
+
+**The one real war-story — `walk` only recursed into `.list`, not `.seq`.**
+`macroexpand-all` is built on `walk`/`postwalk`, and `macroexpand` yields a `.seq`,
+not a `.list`. Swish's `walk` (from the earlier minimal port for `do-template`)
+only had a `list?` branch, so `macroexpand-all` expanded the *outer* macro but left
+every nested macro un-expanded — `(when true (when false 1))` stopped at the inner
+`when`. Real Clojure's `walk` handles both `list?` and `seq?`; adding the missing
+`seq?` branch (seqs rebuilt as lists, which are `=`-equivalent) fixed it with no
+regression to the `list?` path.
+
+**Two documented divergences, both because Swish routes through existing machinery
+rather than adding a bespoke path.** `with-redefs` sets and restores roots via
+`alter-var-root`, which fires any watches on the var — real Clojure uses
+`Var.bindRoot`, which bypasses watches; Swish has no watch-bypassing root setter
+worth adding for this. And `iteration` returns a plain lazy seq rather than a
+`reify` of `Seqable`+`IReduceInit` (Swish has neither interface) — seqable and
+reducible all the same, just without the `IReduceInit` fast path.
+
+**This pass is also where the `& {:keys …}` gap surfaced** — `iteration`'s real
+source uses that option shape, and it didn't work, so `iteration` shipped with an
+`(apply hash-map opts)` shim and the gap was documented as deferred. It was closed
+in the next pass (see below), and `iteration` reverted to the idiomatic form.
+
+## `& {:keys …}` keyword-argument destructuring — the missing seq→map coercion
+
+Clojure 1.11's named-arguments-as-map feature — `(defn f [& {:keys [a] :or {a 1}}]
+a)` called as `(f :a 5)` binds `a`=5 — didn't work; `a` stayed at its `:or`
+default. Surfaced while porting `iteration`, whose real source uses exactly this
+option shape; it had to limp along with a `[step & opts]` + `(apply hash-map opts)`
+shim.
+
+Root cause: Swish's map destructuring never coerced a seq value into a map. A
+vector pattern's `&` rest binds the trailing args as a **seq** (`(seq (drop pos
+tmp))` in `destructureVectorPattern`); the `{:keys …}` map pattern then did `(get
+that-seq :a)`, and `get` on a seq is `nil` — so every key missed. Real Clojure's
+`destructure` (the `pmap` local) wraps *every* map-destructure value in a seq→map
+coercion before the `(get …)` reads; that one wrapper is precisely what makes both
+`& {:keys}` **and** `(let [{:keys [a]} '(:a 1)])` work. Swish had the whole
+`&`-rest→map-pattern wiring (`collectLocalNames`/`expandDestructuredParams`) but
+was missing this value coercion.
+
+The fix is one function — `destructureMapPattern` (`Evaluator+Destructuring.swift`).
+Evaluate the value to a `raw` temp once, bind the working temp to Clojure's
+coercion, and let the existing `(get tmp key)` bindings read from that:
+
+```clojure
+(if (seq? raw)
+  (if (next raw) (apply hash-map raw)        ; 2+ elems: flat kv-pairs → map
+                 (if (seq raw) (first raw) {})) ; exactly 1: that elem is the map; empty → {}
+  raw)                                         ; not a seq (map/nil/…): as-is
+```
+
+Two things made this low-risk. (1) `seq?` is **false** for maps, vectors, and nil
+(probed to confirm) and **true** only for lists/seqs — so the coercion fires only
+on the exact case that was broken and leaves every existing real-map/nil
+destructure byte-for-byte unchanged. (2) All destructuring — `fn` params, `let`,
+`loop` — routes through this single function, so the fix lands everywhere at once
+(verified `let`/`loop`-from-a-seq cases, not just `&`-kwargs).
+
+One deliberate simplification: Clojure builds the map with `createAsIfByAssoc`
+(throws on duplicate keys); Swish uses `apply hash-map` (last-wins on dup keys).
+Acceptable — the same category of unenforced-edge simplification as `into-array`'s
+ignored `type`.
+
+With the coercion in place, `iteration` was reverted to the idiomatic `[step &
+{:keys [somef vf kf initk] :or {…}}]` form — dropping the `apply hash-map` shim,
+which doubles as an end-to-end regression guard for the fix.
+
 ## Multimethods — `mm-prefers?` stack overflow
 
 `ancestors`/`parents` gained protocol-awareness via `protocols-of` (`core.clj`

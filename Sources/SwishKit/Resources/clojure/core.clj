@@ -472,22 +472,17 @@
    :kf - fn of 'ret' -> 'k' or nil (signaling 'done'), default 'identity'
    :initk - the first value passed to step, default 'nil'"
   {:added "1.11"}
-  ;; [Swish] Real Clojure uses `& {:keys [...] :or {...}}` to parse the trailing
-  ;; keyword options; Swish doesn't yet support map-destructuring of trailing
-  ;; kwargs (`(f :k v)`), so the options are collected with `apply hash-map` and
-  ;; destructured from that map instead — behaviorally identical.
-  [step & opts]
-  (let [{:keys [somef vf kf initk]
-         :or {somef some? vf identity kf identity initk nil}} (apply hash-map opts)]
-    ;; [Swish] Returns a plain lazy seq rather than a reify implementing
-    ;; Seqable + IReduceInit (Swish has no such interfaces); it is seqable and
-    ;; reducible via the normal seq path, just without the IReduceInit fast path.
-    ((fn next-step [ret]
-       (when (somef ret)
-         (cons (vf ret)
-               (lazy-seq (when-some [k (kf ret)]
-                           (next-step (step k)))))))
-     (step initk))))
+  [step & {:keys [somef vf kf initk]
+           :or {somef some? vf identity kf identity initk nil}}]
+  ;; [Swish] Returns a plain lazy seq rather than a reify implementing
+  ;; Seqable + IReduceInit (Swish has no such interfaces); it is seqable and
+  ;; reducible via the normal seq path, just without the IReduceInit fast path.
+  ((fn next-step [ret]
+     (when (somef ret)
+       (cons (vf ret)
+             (lazy-seq (when-some [k (kf ret)]
+                         (next-step (step k)))))))
+   (step initk)))
 
 (defn range
   "Returns a lazy sequence of nums from start (inclusive) to end

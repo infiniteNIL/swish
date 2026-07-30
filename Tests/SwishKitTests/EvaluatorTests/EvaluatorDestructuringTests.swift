@@ -198,6 +198,84 @@ struct EvaluatorDestructuringTests {
         #expect(try evaluator.eval("((fn [[a b :as all]] all) [1 2])") == .vector([.integer(1), .integer(2)], metadata: nil))
     }
 
+    // MARK: - Keyword-argument destructuring (& {:keys …})
+
+    @Test("kwargs: & {:keys} with no args uses :or defaults")
+    func kwargsDefaults() throws {
+        _ = try evaluator.eval("(defn kw-f [& {:keys [a b] :or {a 1 b 2}}] [a b])")
+        #expect(try evaluator.eval("(kw-f)") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("kwargs: & {:keys} binds one trailing keyword arg")
+    func kwargsOne() throws {
+        _ = try evaluator.eval("(defn kw-g [& {:keys [a b] :or {a 1 b 2}}] [a b])")
+        #expect(try evaluator.eval("(kw-g :a 5)") == .vector([.integer(5), .integer(2)], metadata: nil))
+    }
+
+    @Test("kwargs: & {:keys} binds several trailing keyword args")
+    func kwargsSeveral() throws {
+        _ = try evaluator.eval("(defn kw-h [& {:keys [a b] :or {a 1 b 2}}] [a b])")
+        #expect(try evaluator.eval("(kw-h :a 5 :b 6)") == .vector([.integer(5), .integer(6)], metadata: nil))
+    }
+
+    @Test("kwargs: a single trailing map is accepted as the kwargs map")
+    func kwargsSingleMap() throws {
+        _ = try evaluator.eval("(defn kw-m [& {:keys [a b] :or {a 1 b 2}}] [a b])")
+        #expect(try evaluator.eval("(kw-m {:a 5})") == .vector([.integer(5), .integer(2)], metadata: nil))
+    }
+
+    @Test("kwargs: keyword args follow a fixed positional param")
+    func kwargsAfterPositional() throws {
+        _ = try evaluator.eval("(defn kw-p [x & {:keys [a] :or {a 0}}] [x a])")
+        #expect(try evaluator.eval("(kw-p 7 :a 5)") == .vector([.integer(7), .integer(5)], metadata: nil))
+        #expect(try evaluator.eval("(kw-p 7)") == .vector([.integer(7), .integer(0)], metadata: nil))
+    }
+
+    @Test("kwargs: :as binds the whole kwargs map")
+    func kwargsAs() throws {
+        _ = try evaluator.eval("(defn kw-as [& {:keys [a] :as opts}] [a opts])")
+        let result = try evaluator.eval("(kw-as :a 5)")
+        guard case .vector(let elems, _) = result, elems.count == 2 else {
+            Issue.record("Expected [a opts] vector"); return
+        }
+        #expect(elems[0] == .integer(5))
+        if case .map(let sm) = elems[1] {
+            #expect(sm.dict[.keyword("a")] == .integer(5))
+        } else {
+            Issue.record("Expected map for :as binding")
+        }
+    }
+
+    @Test("kwargs: nested destructuring inside a kwargs map value")
+    func kwargsNested() throws {
+        _ = try evaluator.eval("(defn kw-nest [& {{:keys [x y]} :point}] [x y])")
+        #expect(try evaluator.eval("(kw-nest :point {:x 1 :y 2})") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    // MARK: - seq→map coercion for map destructuring (let/loop)
+
+    @Test("let: map destructuring coerces a kv-pair seq into a map")
+    func letMapFromSeq() throws {
+        #expect(try evaluator.eval("(let [{:keys [a]} '(:a 9)] a)") == .integer(9))
+        #expect(try evaluator.eval("(let [{:keys [a b]} '(:a 1 :b 2)] [a b])") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("loop: map destructuring coerces a kv-pair seq into a map")
+    func loopMapFromSeq() throws {
+        #expect(try evaluator.eval("(loop [{:keys [a]} '(:a 1)] a)") == .integer(1))
+    }
+
+    @Test("regression: map destructuring a real map is unchanged")
+    func mapDestructureRealMapUnchanged() throws {
+        #expect(try evaluator.eval("(let [{:keys [a b]} {:a 1 :b 2}] [a b])") == .vector([.integer(1), .integer(2)], metadata: nil))
+    }
+
+    @Test("regression: map destructuring nil yields defaults/nil")
+    func mapDestructureNilUnchanged() throws {
+        #expect(try evaluator.eval("(let [{:keys [a] :or {a 7}} nil] a)") == .integer(7))
+        #expect(try evaluator.eval("(let [{:keys [a]} nil] a)") == .nil)
+    }
+
     // MARK: - Malformed destructuring
 
     @Test("& with no following binding form throws")

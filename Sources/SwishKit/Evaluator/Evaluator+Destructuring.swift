@@ -271,9 +271,35 @@ extension Evaluator {
     }
 
     private func destructureMapPattern(_ dict: TreeDictionary<Expr, Expr>, value valueExpr: Expr) throws -> [(String, Expr)] {
+        let rawName = gensym(prefix: "ds__")
+        let rawSym = Expr.symbol(rawName, metadata: nil)
         let tmpName = gensym(prefix: "ds__")
         let tmpSym = Expr.symbol(tmpName, metadata: nil)
-        var result: [(String, Expr)] = [(tmpName, valueExpr)]
+        // Clojure's map-destructuring seq→map coercion: if the value is a seq (a
+        // flat list of key/val pairs), build a map from it before looking keys up.
+        // This is what makes `& {:keys [...]}` keyword args work (the `&` binds the
+        // trailing args as a seq) and `(let [{:keys [a]} '(:a 1)] ...)`. A real map
+        // (or nil) isn't a seq, so it's used unchanged.
+        //   (if (seq? raw)
+        //     (if (next raw) (apply hash-map raw) (if (seq raw) (first raw) {}))
+        //     raw)
+        let coerce = Expr.list([
+            .symbol("if", metadata: nil),
+            .list([.symbol("seq?", metadata: nil), rawSym], metadata: nil),
+            .list([
+                .symbol("if", metadata: nil),
+                .list([.symbol("next", metadata: nil), rawSym], metadata: nil),
+                .list([.symbol("apply", metadata: nil), .symbol("hash-map", metadata: nil), rawSym], metadata: nil),
+                .list([
+                    .symbol("if", metadata: nil),
+                    .list([.symbol("seq", metadata: nil), rawSym], metadata: nil),
+                    .list([.symbol("first", metadata: nil), rawSym], metadata: nil),
+                    .map([:], metadata: nil),
+                ], metadata: nil),
+            ], metadata: nil),
+            rawSym,
+        ], metadata: nil)
+        var result: [(String, Expr)] = [(rawName, valueExpr), (tmpName, coerce)]
 
         let orMap: TreeDictionary<Expr, Expr>
         if let orExpr = dict[.keyword("or")], case .map(let orSm) = orExpr { orMap = orSm.dict } else { orMap = [:] }
