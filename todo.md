@@ -14,7 +14,10 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
-- [x] namespace fidelity: refer now matches Clojure's checkReplacement (warn/replace, no throw); added *err* + with-err-str; Clojure-faithful auto-refer (in-ns/create-ns are bare, the ns form refers clojure.core with :refer-clojure support, removed resolveVar's core fallback); implemented ns-unmap, remove-ns, refer-clojure. (Deferred: import — no host classes.)
+- [x] namespace fidelity: refer now matches Clojure's checkReplacement (warn/replace, no throw)
+- [x] added *err* + with-err-str
+- [x] Clojure-faithful auto-refer (in-ns/create-ns are bare, the ns form refers clojure.core with :refer-clojure support, removed resolveVar's core fallback)
+- [x] implemented ns-unmap, remove-ns, refer-clojure. (Deferred: import — no host classes.)
 - [x] namespace introspection batch: loaded-libs, ns-map, ns-publics, ns-refers, ns-aliases, ns-imports, ns-unalias, requiring-resolve, use.
 - [x] fixed & {:keys …} trailing-keyword-arg destructuring
 - [x] clojure.walk — added prewalk, prewalk-replace, macroexpand-all.
