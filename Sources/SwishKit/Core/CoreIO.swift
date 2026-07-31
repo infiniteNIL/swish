@@ -6,6 +6,11 @@ func registerIO(into evaluator: Evaluator) {
     let outVar = evaluator.findNs("clojure.core")!.intern(name: "*out*", value: .nil)
     outVar.isDynamic = true
 
+    // *err* mirrors *out*: a redirectable dynamic var whose value is a writer, or
+    // nil meaning stderr. Backs warnings (e.g. refer clashes) and `with-err-str`.
+    let errVar = evaluator.findNs("clojure.core")!.intern(name: "*err*", value: .nil)
+    errVar.isDynamic = true
+
     evaluator.register(name: "print", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. print and println produce output for human consumption.",
         arglists: [["&", "more"]]) { [evaluator] args in

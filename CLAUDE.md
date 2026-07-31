@@ -26,22 +26,24 @@ See [swift.md](swift.md) for Swift and SwiftUI coding guidelines, including mode
 
 ## Architecture
 
-### Environment Hierarchy
+### Namespace & environment hierarchy
 
-The evaluator uses a two-tier environment chain:
+Global symbol resolution is **namespace-based** (not a core/global environment pair):
 
-- **Core environment** (`Evaluator.coreEnvironment`): holds built-in symbols and
-  functions (e.g. arithmetic operators, `nil`, `true`). Populated at startup;
-  user code should not shadow these at the global level.
-- **Global environment** (`Evaluator.environment`): holds user-defined bindings
-  created with `def`. Its parent is the core environment, so lookups fall
-  through to core when a name isn't found globally.
+- **`clojure.core`** holds all built-ins (natives + `core.clj`), created at startup.
+- **User namespaces** (`user`, and any `(ns …)`) resolve an unqualified name in their
+  *own* mappings only — **there is no implicit clojure.core fallback** (`resolveVar`,
+  `Evaluator+Namespaces.swift`). Core is available because it's **referred**: the `ns`
+  form (and init, for `user`) refers clojure.core into the namespace via
+  `referClojureCore`, filterable by `:refer-clojure` — matching Clojure. So
+  `in-ns`/`create-ns` produce **bare** namespaces where unqualified core names don't
+  resolve until referred. See the Namespaces limitation entry for the full model.
 
-Child environments (for `let` bindings, function calls, etc.) are created with the
-global environment as their parent, forming a full lexical scope chain. Every
-`Environment` is write-once-then-read-only (no lock) — including `loop`/`recur`,
-which **builds a fresh env per iteration** (a closure capturing a loop variable
-must see its iteration's value, not the loop's final value).
+Child environments (for `let` bindings, function calls, etc.) form a full lexical
+scope chain rooted at that namespace resolution. Every `Environment` is
+write-once-then-read-only (no lock) — including `loop`/`recur`, which **builds a fresh
+env per iteration** (a closure capturing a loop variable must see its iteration's
+value, not the loop's final value).
 
 ### Lazy Sequences
 
@@ -99,8 +101,14 @@ A later **standard-library-completion pass** filled the rest of `clojure.set` (`
 
 A **namespace-introspection pass** added the missing `clojure.core` namespace reflection/loading fns on existing machinery (no new `Expr` case): native reads (`CoreNamespace.swift`) `ns-map`/`ns-publics`/`ns-refers`/`ns-aliases` project `Namespace.mappings`/`aliases` (home var ⇔ `v.namespace === ns`; `ns-publics` also drops `:private`); `ns-imports` returns `{}` (no host classes); `ns-unalias` calls a new `Namespace.removeAlias` (no `qualifiedVarCache` concern — aliases are never cached); and pure `core.clj` `requiring-resolve` + `use`. Deliberate points:
 - **`loaded-libs`** is backed by a new `Evaluator.loadedLibs` set populated in **`loadNs`** — the one choke point every file-loaded lib passes through, and which `in-ns`/`create-ns` bypass. So it holds `clojure.core` + `require`d/`use`d libs but not ad-hoc namespaces, matching Clojure's "libs, not namespaces." Returns a sorted-set of symbols.
-- **`use` inherits `refer`'s throw-on-clash**, which is stricter than Clojure: real Clojure's `refer` *warns and replaces* on a name clash with an already-referred var, but Swish's `refer` (`Namespace.refer`) **throws** `referConflict`. So `(use 'clojure.string)` into a namespace that already refers `clojure.core` throws on `reverse`/`replace` (which `clojure.string` shadows), where Clojure would warn and proceed. `use` itself is a faithful `require`+`refer` composition (bare-symbol and `:only`/`:exclude` vector libspecs work; prefix-lists/`:reload`/`:rename` unsupported); the strictness is the pre-existing `refer` divergence, not `use`.
-- **Deferred**: `refer-clojure` (needs macro-level quoting of unquoted filter forms and is largely a no-op under Swish's auto-refer + no `ns-unmap` — low value, real complexity); `remove-ns`/`ns-unmap` (would need removal methods **plus** `qualifiedVarCache` invalidation and rework of the `unowned Var.namespace` assumption — both load-bearing invariants); `import` (no host-class system).
+- **`use`** is a faithful `require`+`refer` composition (bare-symbol and `:only`/`:exclude` vector libspecs work; prefix-lists/`:reload`/`:rename` unsupported).
+
+A later **namespace-fidelity pass** made `refer` match Clojure, added `*err*`, moved the auto-refer into the `ns` form, and implemented `ns-unmap`/`remove-ns`/`refer-clojure`:
+- **`refer` matches Clojure's `checkReplacement`** (verified against `Namespace.java`) — it no longer throws on a clash: replacing a *referred* var warns to `*err*` and replaces (last wins); replacing a *home*/interned var keeps it and warns `REJECTED … you must ns-unmap first`; the same var is a no-op. `Namespace.refer` *returns* the message (no evaluator/`*err*` access); the evaluator-level callers (`coreRefer`, `processRequireDirective`) write it via `writeErr`. `NamespaceError.referConflict` is retired. `(use 'clojure.string)` now behaves like Clojure (warns + last-referred wins).
+- **`*err*`** is a redirectable dynamic var symmetric with `*out*` (`CoreIO.swift`; `Evaluator.currentErr`/`writeErr`; `with-err-str` in `core.clj`); warnings route through it (default target stderr).
+- **Auto-refer is Clojure-faithful.** clojure.core is no longer referred at namespace *creation* (`findOrCreateNs` makes namespaces bare); the `ns` form refers it via `referClojureCore` (`:refer-clojure`-filterable), and init refers it into `user`. `in-ns`/`create-ns` produce **bare** namespaces, and `resolveVar` has **no clojure.core fallback** — unqualified core names resolve only via a refer. `refer-clojure` is a trivial `core.clj` macro (`= (refer 'clojure.core …)`; a standalone `:exclude` is a Clojure-faithful no-op — the effective exclusion is the `ns` form's `:refer-clojure`).
+- **`ns-unmap`/`remove-ns` implemented** (`CoreNamespace.swift`): `ns-unmap` removes a mapping (`Namespace.unmap`) and invalidates the single `"<ns>/<name>"` `qualifiedVarCache` key; `remove-ns` removes the namespace (`Evaluator.removeNs`), prefix-clears the cache, and refuses `clojure.core`. **`remove-ns` keeps `Var.namespace` `unowned`** — a `.varRef` to a var of a removed namespace that outlives it dangles and *crashes* on access (a deliberate, documented footgun matching Clojure's "your problem", which the JVM tolerates). Both break the old `qualifiedVarCache` "nothing deletes mappings" invariant, now invalidated explicitly.
+- **Still deferred**: `import` (no host-class system — `ns-imports` returns `{}`).
 
 ### Multimethods
 
@@ -215,7 +223,7 @@ Deferred because each needs a real design change, not a mechanical fix. Re-verif
 
 **Invariants from shipped work (don't regress):**
 - **`evalList`'s special-form switch lives in a separate `evalSpecialForm(_:_:in:)` for stack depth** — `evalList` is the deepest-recursing function, and in debug builds every recursive frame would otherwise carry the whole switch's frame size (this caused a SIGBUS when `reify` was added as a 25th case). **Add any future special form to `evalSpecialForm`, not `evalList`.**
-- **`qualifiedVarCache` (`Evaluator`) needs no invalidation** — Vars are never replaced in place (`intern` reuses the object, `refer` throws on conflict, nothing deletes mappings), and it caches only literal-namespace (`findNs`) resolutions of home vars (`v.namespace === ns`), never alias- or referred-var resolutions.
+- **`qualifiedVarCache` (`Evaluator`) is invalidated only by the two mapping-deleting APIs** — it caches only literal-namespace (`findNs`) resolutions of home vars (`v.namespace === ns`), never alias/referred resolutions; `intern` reuses the Var object and `refer` never replaces a home var, so the *only* way a cached entry goes stale is deletion: **`ns-unmap` deletes the one `"<ns>/<name>"` key; `remove-ns` prefix-clears every `"<ns>/…"` key.** (Was "needs no invalidation" before those APIs existed.)
 - **`starNsVar` (the cached `*ns*` Var) needs no invalidation** — same immutability as `qualifiedVarCache`: `*ns*` is interned once at init and its Var object is never replaced (only its value changes, via `in-ns`/`setCurrentNs`). `currentNs()`/`setCurrentNs()` read/write it directly. (The *remaining* deferral here is unrelated: `*ns*` is a plain non-dynamic Var, so `in-ns` is not thread-local — a threading-correctness concern documented in `Evaluator+Namespaces.swift`, deferred to whenever real background execution lands, not a perf item.)
 - **Per-call thread-local state (`callDepth`/`bindingFrames`) lives in `EvaluatorThreadState`, keyed by thread identity in a `Mutex`-guarded dict** — the `Mutex` guards only the registry (lookup/insert); each state object is single-thread-owned and its fields mutate lock-free. **Don't** move the cold-path thread-locals (`currentTransaction`/`currentCancellationCheck`/`currentAgentActionSends`) off `Thread.current.threadDictionary` for this reason — they aren't per-call, so the ObjC lookup cost is irrelevant there; only the hot per-call slots earned the swap.
 

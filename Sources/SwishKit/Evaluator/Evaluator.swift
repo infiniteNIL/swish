@@ -13,12 +13,11 @@ public class Evaluator {
     /// (copy-on-write), so this is a safe, cheap point-in-time copy.
     var namespaces: [String: Namespace] { namespacesState.withLock { $0 } }
 
-    /// Caches `"ns/name" -> Var` resolutions for `resolveQualifiedVar`. Safe with no
-    /// invalidation logic: only populated for a *home*-var resolution reached via the
-    /// literal-namespace-name branch (never an alias, which is caller-namespace-
-    /// dependent), and there is no API anywhere to remove or replace a namespace's
-    /// home mapping for a given name — see `resolveQualifiedVar`'s comment for the
-    /// full argument.
+    /// Caches `"ns/name" -> Var` resolutions for `resolveQualifiedVar`. Only populated
+    /// for a *home*-var resolution reached via the literal-namespace-name branch (never
+    /// an alias, which is caller-namespace-dependent). Invalidated by the two APIs that
+    /// now remove mappings: `ns-unmap` deletes the single `"<ns>/<name>"` key, and
+    /// `remove-ns` prefix-clears every `"<ns>/…"` key — see `resolveQualifiedVar`.
     let qualifiedVarCache = Mutex<[String: Var]>([:])
 
     /// Names of libs loaded from a file (via `loadNs` — i.e. `require`/`use`, plus
@@ -149,8 +148,11 @@ public class Evaluator {
         // 5. Load clojure/core.clj — defines Clojure-level macros (defn, etc.) into clojure.core
         loadCoreLibrary()
 
-        // 6. Create user after core.clj so auto-refer picks up all new definitions
+        // 6. Create user (bare) after core.clj, then refer clojure.core into it.
+        // Init doesn't go through an `ns` form, so it refers explicitly — matching
+        // what the `ns` form now does for every namespace (in-ns/create-ns stay bare).
         let userNs = findOrCreateNs("user")
+        referClojureCore(into: userNs)
         setCurrentNs(userNs)
     }
 
@@ -392,6 +394,24 @@ public class Evaluator {
     func currentOut() -> Expr {
         guard let v = findNs("clojure.core")?.findVar(name: "*out*") else { return .nil }
         return dynamicValue(of: v) ?? .nil
+    }
+
+    /// Returns the current value of `*err*`, or `.nil` if unbound (meaning stderr).
+    func currentErr() -> Expr {
+        guard let v = findNs("clojure.core")?.findVar(name: "*err*") else { return .nil }
+        return dynamicValue(of: v) ?? .nil
+    }
+
+    /// Writes to the current `*err*` — a bound writer, else stderr. Best-effort:
+    /// a warning write is fire-and-forget and never propagates an error.
+    func writeErr(_ s: String) {
+        switch currentErr() {
+        case .writer(let wtr):
+            try? wtr.write(s)
+
+        default:
+            FileHandle.standardError.write(Data(s.utf8))
+        }
     }
 
     func transformMap(_ dict: [Expr: Expr], metadata: [Expr: Expr]? = nil, _ transform: (Expr) throws -> Expr) rethrows -> Expr {

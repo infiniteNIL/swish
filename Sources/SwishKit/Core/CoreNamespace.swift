@@ -155,11 +155,15 @@ private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     }
     let currentNs = evaluator.currentNs()
     for (varName, v) in srcNs.mappings where v.namespace === srcNs {
+        let shouldRefer: Bool
         if let only {
-            if only.contains(varName) { try currentNs.refer(v) }
+            shouldRefer = only.contains(varName)
         }
-        else if !exclude.contains(varName) {
-            try currentNs.refer(v)
+        else {
+            shouldRefer = !exclude.contains(varName)
+        }
+        if shouldRefer, let msg = currentNs.refer(v) {
+            evaluator.writeErr(msg + "\n")
         }
     }
     return .nil

@@ -97,4 +97,25 @@ struct CoreNamespaceTests {
         _ = try swish.eval("(use '[clojure.string :only [join]])")
         #expect(try swish.eval(#"(join "-" ["x" "y"])"#) == .string("x-y"))
     }
+
+    // MARK: - refer-clojure / *err*
+
+    @Test("(ns … (:refer-clojure :exclude [inc])) leaves inc unreferred")
+    func nsReferClojureExclude() throws {
+        _ = try swish.eval("(ns rc-test (:refer-clojure :exclude [inc]))")
+        #expect(try swish.eval("(dec 5)") == .integer(4))
+        #expect(throws: EvaluatorError.undefinedSymbol("inc")) {
+            try swish.eval("(inc 5)")
+        }
+    }
+
+    @Test("with-err-str captures a refer clash warning routed through *err*")
+    func withErrStrCapturesReferWarning() throws {
+        _ = try swish.eval("(ns errcap)")
+        let captured = try swish.eval(#"(with-err-str (use 'clojure.string))"#)
+        guard case .string(let s) = captured else {
+            Issue.record("expected a string from with-err-str"); return
+        }
+        #expect(s.contains("WARNING"))
+    }
 }

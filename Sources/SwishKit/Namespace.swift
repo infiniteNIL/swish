@@ -50,18 +50,47 @@ public final class Namespace: @unchecked Sendable {
         return v
     }
 
-    /// Adds a reference to a Var from another namespace under its short name.
-    /// Idempotent for the same Var. Throws if a different Var already occupies that name.
-    public func refer(_ v: Var) throws {
-        try state.withLock { s in
-            if let existing = s.mappings[v.name], existing !== v {
-                throw NamespaceError.referConflict(
-                    name: v.name,
-                    existing: "\(existing.namespace.name)/\(existing.name)",
-                    new: "\(v.namespace.name)/\(v.name)")
+    /// Refers a Var from another namespace under its short name, matching Clojure's
+    /// `Namespace.reference`/`checkReplacement`. Never throws; instead returns an
+    /// optional message for the caller to write to `*err*` (this type has no
+    /// evaluator/`*err*` access):
+    /// - already the same Var → no-op, nil.
+    /// - existing is a **home** (interned) var of this ns → keep it (never replaced);
+    ///   if `v` isn't a `clojure.core` var, return the `REJECTED … ns-unmap first`
+    ///   message.
+    /// - existing is a **referred** var (or absent) → set the mapping; if it replaced
+    ///   an existing referred var, return the `WARNING … being replaced by` message.
+    @discardableResult
+    public func refer(_ v: Var) -> String? {
+        state.withLock { s -> String? in
+            let existing = s.mappings[v.name]
+            if existing === v {
+                return nil
+            }
+            if let existing, existing.namespace === self {
+                if v.namespace.name != "clojure.core" {
+                    return "REJECTED: attempt to replace interned var #'\(existing.namespace.name)/\(existing.name) with #'\(v.namespace.name)/\(v.name) in \(name), you must ns-unmap first"
+                }
+                return nil
+            }
+            let warning: String?
+            if let existing {
+                warning = "WARNING: \(v.name) already refers to: #'\(existing.namespace.name)/\(existing.name) in namespace: \(name), being replaced by: #'\(v.namespace.name)/\(v.name)"
+            }
+            else {
+                warning = nil
             }
             s.mappings[v.name] = v
+            return warning
         }
+    }
+
+    /// Removes the mapping for `name` if present (idempotent otherwise). Backs
+    /// `ns-unmap`. Unlike `removeAlias`, unmapping a **home** var can leave a stale
+    /// `Evaluator.qualifiedVarCache` entry, so the caller must invalidate the
+    /// `"<ns>/<name>"` key.
+    public func unmap(name: String) {
+        state.withLock { $0.mappings[name] = nil }
     }
 
     public func findVar(name: String) -> Var? {

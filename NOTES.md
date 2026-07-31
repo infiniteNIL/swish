@@ -152,15 +152,61 @@ without re-evaluation. So the forward composes correctly; no quoting gymnastics 
 (that trap is real for `refer-clojure`, whose filters are *unquoted* at the call site —
 which, plus its near-no-op status under Swish's auto-refer, is why it's deferred).
 
-**`use` inherits `refer`'s throw-on-clash, which is stricter than Clojure.** Real
-Clojure's `refer` *warns and replaces* when a referred name clashes with an existing
-one; Swish's `Namespace.refer` **throws** `referConflict`. So `(use 'clojure.string)`
-into a namespace that already refers `clojure.core` throws on `reverse`/`replace`
-(names `clojure.string` shadows), where Clojure would warn and proceed. This surfaced
-immediately in the first end-to-end probe. It's a pre-existing `refer` divergence, not
-a `use` bug — documented rather than "fixed," since changing `refer` to warn-and-replace
-is a separate semantic decision. `use` works cleanly for non-shadowing libs
-(`clojure.set`) and `:only`/`:exclude`-filtered forms.
+**`use` inherited `refer`'s throw-on-clash (later fixed).** Swish's `refer` used to
+*throw* on any clash, so `(use 'clojure.string)` into a core-referring namespace threw
+on `reverse`/`replace`. This was first documented as a divergence, then fixed in the
+namespace-fidelity pass below (Clojure warns-and-replaces).
+
+## Namespace-fidelity pass — refer, `*err*`, Clojure-faithful auto-refer, ns-unmap/remove-ns
+
+A follow-up made the namespace system match Clojure, after verifying the real
+semantics against `clojure/lang/Namespace.java` (the earlier "Clojure throws on
+`(use 'clojure.string)`" belief was *wrong* — the WebFetch of `checkReplacement`
+corrected it: current Clojure never throws on a refer clash).
+
+**`refer` → Clojure's `checkReplacement`.** `Namespace.refer` no longer throws: same
+var → no-op; existing is a *home*/interned var → keep it and (unless the newcomer is a
+core var) emit `REJECTED … you must ns-unmap first`; existing is a *referred* var →
+warn `WARNING: … being replaced by …` and replace (last wins). Because `Namespace` has
+no evaluator/`*err*` access, `refer` *returns* the message and the evaluator-level
+callers (`coreRefer`, `processRequireDirective`) write it via `writeErr`.
+`NamespaceError.referConflict` retired.
+
+**`*err*` added** to route those warnings — Swish had `*out*` (redirectable dynamic
+var) but no `*err*`; mirrored it exactly (`CoreIO` intern + `currentErr`/`writeErr` +
+`with-err-str`), default target stderr. `writeErr` is a fire-and-forget best-effort.
+
+**Auto-refer relocated to be Clojure-faithful — the load-bearing part.** The `ns`
+docstring confirms Clojure refers clojure.core *in the `ns` macro* (`:refer-clojure`-
+filterable); `in-ns`/`create-ns` are bare. Swish instead auto-referred everything at
+`findOrCreateNs`. Fixed by (a) making `findOrCreateNs` bare, (b) a `referClojureCore`
+helper called by `evalNs` (default all, or filtered by a `:refer-clojure` directive)
+and by init for `user`, and — the piece that isn't obvious — (c) **removing the
+clojure.core fallback from `resolveVar`**. Without (c), bare namespaces still resolved
+core via the fallback, so the relocation would have been cosmetic. The blast radius of
+(c) is narrow: a *referred* namespace finds core in its own mappings first (fallback
+never reached), so only truly-bare `in-ns`/`create-ns` change — exactly the intent.
+Consequences that broke (and were updated): the init `user` ns now refers core
+explicitly; five `EvaluatorNamespaceTests` that used bare `in-ns` + core, or asserted
+the old "auto-refers" behavior; and a `EvaluatorLiteralsTests` case relying on a
+late-interned core var being visible unqualified (now a Clojure-faithful snapshot: a
+var interned into core *after* a namespace referred it isn't retroactively visible).
+All 248 jank files have `(ns …)` forms, so they get core via `evalNs` — verified 0/0.
+
+With bare namespaces + refer-in-`ns`, **`refer-clojure` collapsed to a trivial macro**
+(`= (refer 'clojure.core …)`); the effective exclusion is the `ns` form's
+`:refer-clojure` (prevent), and a standalone `:exclude` is a no-op just like Clojure —
+no `ns-unmap` dependency, contrary to the earlier plan.
+
+**`ns-unmap`/`remove-ns`** are small once the above lands: `Namespace.unmap` mirrors
+`removeAlias`; `Evaluator.removeNs` deletes from the registry. Both **break the old
+`qualifiedVarCache` "nothing deletes mappings" invariant**, so each invalidates
+explicitly (`ns-unmap` the one `"<ns>/<name>"` key, `remove-ns` a `"<ns>/"` prefix
+clear). Per the chosen memory model, `Var.namespace` stays `unowned`: a `.varRef` to a
+removed namespace's var dangles and *crashes* on access — a deliberate footgun (Clojure
+tolerates it on the JVM; Swift traps). This surfaced immediately as a crash in a *test*
+that created a `Namespace(...).intern(...)` temporary (the namespace deallocated, the
+var's `unowned` namespace dangled) — a good live demonstration of the risk.
 
 ## Multimethods — `mm-prefers?` stack overflow
 

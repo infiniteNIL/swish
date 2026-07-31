@@ -1205,6 +1205,17 @@
        ~@body
        (swish-writer-string s#))))
 
+(defmacro with-err-str
+  "Evaluates exprs in a context in which *err* is bound to a fresh
+  StringWriter.  Returns the string created by any nested warnings or
+  error output."
+  {:added "1.0"}
+  [& body]
+  `(let [s# (swish-string-writer)]
+     (binding [*err* s#]
+       ~@body
+       (swish-writer-string s#))))
+
 (def ^:dynamic *math-context*
   "Bound by with-precision to {:precision n :rounding kw-or-nil} for the
   duration of its body. Swish applies this to the *final result* of the body
@@ -2409,6 +2420,16 @@
         (apply refer lib (rest arg)))
       (do (require arg)
           (refer arg)))))
+
+(defmacro refer-clojure
+  "Same as (refer 'clojure.core <filters>). In Swish the effective way to exclude
+  core vars is the :refer-clojure directive in an ns form (which refers clojure.core
+  with the exclusion applied); a standalone call after a namespace is already set up
+  re-refers clojure.core (a bare :exclude then can't un-refer, matching Clojure)."
+  {:added "1.0"}
+  [& filters]
+  (list* 'clojure.core/refer ''clojure.core
+         (map (fn [f] (list 'quote f)) filters)))
 
 (defn simple-keyword?
   "Return true if x is a keyword without a namespace"

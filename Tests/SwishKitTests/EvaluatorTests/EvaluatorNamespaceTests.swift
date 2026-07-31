@@ -48,12 +48,16 @@ struct EvaluatorNamespaceTests {
         #expect(result == .integer(3))
     }
 
-    @Test("new namespace auto-refers clojure.core so bare + works")
-    func autoReferMakesCoreFnsAvailable() throws {
+    @Test("bare in-ns creates a namespace with clojure.core NOT referred (Clojure-faithful)")
+    func bareInNsHasNoCore() throws {
         let swish = Swish()
         _ = try swish.eval("(in-ns 'myns)")
-        let result = try swish.eval("(+ 1 2)")
-        #expect(result == .integer(3))
+        // an unqualified core name does not resolve in a bare namespace
+        #expect(throws: EvaluatorError.undefinedSymbol("+")) {
+            _ = try swish.eval("(+ 1 2)")
+        }
+        // but qualified access always works
+        #expect(try swish.eval("(clojure.core/+ 1 2)") == .integer(3))
     }
 
     @Test("(def *ns* 1) throws cannotRedefineSystemVar")
@@ -86,10 +90,10 @@ struct EvaluatorNamespaceTests {
         #expect(try swish.eval("x") == .integer(1))
     }
 
-    @Test("Unqualified symbol lookup falls through to clojure.core")
-    func unqualifiedFallsThroughToCore() throws {
+    @Test("the ns form refers clojure.core, so unqualified core names resolve")
+    func nsFormRefersCore() throws {
         let swish = Swish()
-        _ = try swish.eval("(in-ns 'newns)")
+        _ = try swish.eval("(ns newns)")
         let result = try swish.eval("(+ 10 20)")
         #expect(result == .integer(30))
     }
@@ -188,10 +192,10 @@ struct EvaluatorNamespaceTests {
     @Test("(refer ...) with :only refers only the named vars from a user namespace")
     func referOnly() throws {
         let swish = Swish()
-        _ = try swish.eval("(in-ns 'src)")
+        _ = try swish.eval("(ns src)")
         _ = try swish.eval("(def a 1)")
         _ = try swish.eval("(def b 2)")
-        _ = try swish.eval("(in-ns 'consumer)")
+        _ = try swish.eval("(ns consumer)")
         _ = try swish.eval("(refer 'src :only '[a])")
         #expect(try swish.eval("a") == .integer(1))
         #expect(throws: EvaluatorError.undefinedSymbol("b")) {
@@ -202,10 +206,10 @@ struct EvaluatorNamespaceTests {
     @Test("(refer ...) with :exclude skips the listed vars from a user namespace")
     func referExclude() throws {
         let swish = Swish()
-        _ = try swish.eval("(in-ns 'src2)")
+        _ = try swish.eval("(ns src2)")
         _ = try swish.eval("(def x 10)")
         _ = try swish.eval("(def y 20)")
-        _ = try swish.eval("(in-ns 'consumer2)")
+        _ = try swish.eval("(ns consumer2)")
         _ = try swish.eval("(refer 'src2 :exclude '[x])")
         #expect(try swish.eval("y") == .integer(20))
         #expect(throws: EvaluatorError.undefinedSymbol("x")) {
@@ -224,9 +228,9 @@ struct EvaluatorNamespaceTests {
     @Test("refer does not re-export auto-referred clojure.core vars")
     func referDoesNotReExportAutoRefers() throws {
         let swish = Swish()
-        _ = try swish.eval("(in-ns 'myns)")
+        _ = try swish.eval("(ns myns)")
         _ = try swish.eval("(def my-fn (fn [] 42))")
-        _ = try swish.eval("(in-ns 'consumer)")
+        _ = try swish.eval("(ns consumer)")
         _ = try swish.eval("(refer 'myns)")
         #expect(try swish.eval("(my-fn)") == .integer(42))
         // clojure.core/+ should NOT have been re-exported through myns

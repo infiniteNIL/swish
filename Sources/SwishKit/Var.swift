@@ -3,10 +3,15 @@ import Synchronization
 /// A Swish var — an interned, named reference to a value
 public final class Var: @unchecked Sendable {
     public let name: String
-    /// Safe as `unowned` only because `Namespace`s live for the process's
-    /// entire lifetime today — there is no namespace-removal API anywhere in
-    /// the codebase. Revisit (e.g. `unowned(unsafe)` → `weak` with explicit
-    /// nil-handling) if namespace unloading is ever added.
+    /// `unowned` to break the `Namespace`↔`Var` retain cycle (a `Namespace` strongly
+    /// holds its `Var`s via `mappings`). Safe for vars of live namespaces. But
+    /// `remove-ns` can now remove a namespace from the registry: a `.varRef` to one
+    /// of its vars that outlives the namespace leaves this reference dangling, and
+    /// reading `namespace` then traps. That is a deliberate, documented risk — it
+    /// matches Clojure's stance that removing a namespace whose vars you still hold is
+    /// your problem (the JVM tolerates it; Swift crashes). Revisit (`weak` + explicit
+    /// nil-handling, or a strong ref accepting that removed namespaces then leak) only
+    /// if that footgun proves to matter in practice.
     public unowned let namespace: Namespace
 
     private struct State {

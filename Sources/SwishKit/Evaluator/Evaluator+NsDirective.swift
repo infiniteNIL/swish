@@ -24,7 +24,14 @@ extension Evaluator {
         setCurrentNs(ns)
         ns.metadata = meta.isEmpty ? nil : meta
 
-        for directive in elements.dropFirst(idx) {
+        // Clojure-faithful default refer of clojure.core, applied here in the `ns`
+        // form (not at namespace creation), controllable by a :refer-clojure
+        // directive. clojure.core itself is skipped inside referClojureCore.
+        let directives = Array(elements.dropFirst(idx))
+        let (only, exclude) = referClojureFilters(in: directives)
+        referClojureCore(into: ns, only: only, exclude: exclude)
+
+        for directive in directives {
             guard case .list(let parts, _) = directive,
                   !parts.isEmpty,
                   case .keyword(let kind) = parts[0]
@@ -36,12 +43,52 @@ extension Evaluator {
             case "require":
                 try processRequireDirective(Array(parts.dropFirst()), caller: "ns")
 
+            case "refer-clojure":
+                break  // already applied above
+
             default:
                 throw EvaluatorError.invalidArgument(function: "ns",
                     message: "unknown directive ':\(kind)'")
             }
         }
         return .nil
+    }
+
+    /// Extracts `:only`/`:exclude` symbol-name filters from a `:refer-clojure`
+    /// directive in an `ns` form, if present. Returns `(nil, [])` when absent
+    /// (default: refer all of clojure.core). `:rename` is not supported.
+    private func referClojureFilters(in directives: [Expr]) -> (only: Set<String>?, exclude: Set<String>) {
+        for directive in directives {
+            guard case .list(let parts, _) = directive, !parts.isEmpty,
+                  case .keyword("refer-clojure") = parts[0]
+            else {
+                continue
+            }
+            var only: Set<String>? = nil
+            var exclude: Set<String> = []
+            var i = 1
+            while i + 1 < parts.count {
+                guard case .keyword(let key) = parts[i] else {
+                    i += 1
+                    continue
+                }
+                if key == "only" {
+                    only = symbolNameSet(parts[i + 1])
+                }
+                else if key == "exclude" {
+                    exclude = symbolNameSet(parts[i + 1])
+                }
+                i += 2
+            }
+            return (only, exclude)
+        }
+        return (nil, [])
+    }
+
+    /// Collects the symbol names from a vector like `[a b c]`.
+    private func symbolNameSet(_ expr: Expr) -> Set<String> {
+        guard case .vector(let syms, _) = expr else { return [] }
+        return Set(syms.compactMap { if case .symbol(let s, _) = $0 { s } else { nil } })
     }
 
     func processRequireDirective(_ specs: [Expr], caller: String = "require") throws {
@@ -82,7 +129,9 @@ extension Evaluator {
                     switch parts[i + 1] {
                     case .keyword("all"):
                         for (_, v) in loadedNs.mappings where v.namespace === loadedNs {
-                            try currentNs().refer(v)
+                            if let msg = currentNs().refer(v) {
+                                writeErr(msg + "\n")
+                            }
                         }
 
                     case .vector(let syms, _):
@@ -92,7 +141,9 @@ extension Evaluator {
                             else {
                                 throw EvaluatorError.undefinedSymbol("\(nsName)/\(symName)")
                             }
-                            try currentNs().refer(v)
+                            if let msg = currentNs().refer(v) {
+                                writeErr(msg + "\n")
+                            }
                         }
 
                     default:

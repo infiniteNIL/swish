@@ -35,7 +35,7 @@ struct NamespaceTests {
         let homeNs = Namespace(name: "other")
         let homeVar = homeNs.intern(name: "bar", value: .integer(99))
         let ns = Namespace(name: "test")
-        try ns.refer(homeVar)
+        ns.refer(homeVar)
         let newVar = ns.intern(name: "bar", value: .integer(1))
         #expect(newVar !== homeVar)
         #expect(newVar.namespace === ns)
@@ -47,7 +47,7 @@ struct NamespaceTests {
         let homeNs = Namespace(name: "other")
         let v = homeNs.intern(name: "bar", value: .integer(99))
         let ns = Namespace(name: "test")
-        try ns.refer(v)
+        ns.refer(v)
         #expect(ns.findVar(name: "bar") === v)
     }
 
@@ -56,22 +56,33 @@ struct NamespaceTests {
         let homeNs = Namespace(name: "other")
         let v = homeNs.intern(name: "bar")
         let ns = Namespace(name: "test")
-        try ns.refer(v)
-        try ns.refer(v)
+        #expect(ns.refer(v) == nil)
+        #expect(ns.refer(v) == nil)
         #expect(ns.findVar(name: "bar") === v)
     }
 
-    @Test("refer throws when a different Var already occupies the name")
-    func referConflictThrows() throws {
+    @Test("refer warns and replaces a referred Var (Clojure checkReplacement)")
+    func referReplacesReferredVar() throws {
         let ns1 = Namespace(name: "a")
         let ns2 = Namespace(name: "b")
         let ns3 = Namespace(name: "c")
         let v1 = ns1.intern(name: "foo")
         let v2 = ns2.intern(name: "foo")
-        try ns3.refer(v1)
-        #expect(throws: NamespaceError.self) {
-            try ns3.refer(v2)
-        }
+        #expect(ns3.refer(v1) == nil)
+        let msg = ns3.refer(v2)
+        #expect(msg?.hasPrefix("WARNING:") == true)
+        #expect(ns3.findVar(name: "foo") === v2)
+    }
+
+    @Test("refer keeps a home Var and returns REJECTED (Clojure checkReplacement)")
+    func referRejectsOverHomeVar() throws {
+        let ns = Namespace(name: "h")
+        let home = ns.intern(name: "foo")
+        let otherNs = Namespace(name: "o")
+        let other = otherNs.intern(name: "foo")
+        let msg = ns.refer(other)
+        #expect(msg?.hasPrefix("REJECTED:") == true)
+        #expect(ns.findVar(name: "foo") === home)
     }
 
     @Test("findVar returns nil for an unknown name")

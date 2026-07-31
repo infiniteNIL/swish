@@ -177,12 +177,17 @@ struct EvaluatorLiteralsTests {
 
     // MARK: - Core environment
 
-    @Test("Symbol registered in clojure.core is visible in user namespace")
-    func coreEnvironmentSymbolVisibleDuringEval() throws {
+    @Test("A var interned into clojure.core is reachable qualified; a bare name needs a refer (Clojure snapshot refer)")
+    func coreVarReachableQualified() throws {
         let evaluator = Evaluator()
         evaluator.findNs("clojure.core")!.intern(name: "pi", value: .double(3.14159))
-        let result = try evaluator.eval(.symbol("pi", metadata: nil))
-        #expect(result == .double(3.14159))
+        // qualified access always resolves
+        #expect(try evaluator.eval(.symbol("clojure.core/pi", metadata: nil)) == .double(3.14159))
+        // `user` referred clojure.core at init, before `pi` existed, so the bare
+        // name is not retroactively referred — Clojure's refer is a snapshot.
+        #expect(throws: EvaluatorError.undefinedSymbol("pi")) {
+            _ = try evaluator.eval(.symbol("pi", metadata: nil))
+        }
     }
 
     @Test("def interns into user namespace, not clojure.core")

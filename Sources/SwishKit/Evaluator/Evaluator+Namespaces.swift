@@ -6,24 +6,50 @@ extension Evaluator {
         namespacesState.withLock { $0[name] }
     }
 
+    /// Returns the namespace named `name`, creating it **bare** (no auto-refer) if
+    /// absent — matching Clojure, where `in-ns`/`create-ns` produce namespaces with
+    /// clojure.core *not* referred. The default core refer is applied by the `ns`
+    /// form (`evalNs` → `referClojureCore`) and by init for the `user` ns, never here.
     public func findOrCreateNs(_ name: String) -> Namespace {
-        // Insert *and* the auto-refer-from-clojure.core loop happen inside one
-        // lock acquisition, so a concurrent findNs can never observe a namespace
-        // before it's fully populated. Safe from deadlock: this only ever nests
-        // Evaluator.namespaces's lock -> some other Namespace's own lock (via
-        // ns.refer/core.mappings below), never the reverse order.
         namespacesState.withLock { s -> Namespace in
             if let existing = s[name] {
                 return existing
             }
             let ns = Namespace(name: name)
             s[name] = ns
-            if name != "clojure.core", let core = s["clojure.core"] {
-                for (_, v) in core.mappings {
-                    try? ns.refer(v)
-                }
-            }
             return ns
+        }
+    }
+
+    /// Refers clojure.core's vars into `ns` — the default namespace refer, relocated
+    /// out of namespace creation into the `ns` form and init (so `in-ns`/`create-ns`
+    /// stay bare like Clojure). `only`/`exclude` come from a `:refer-clojure`
+    /// directive (nil `only` = refer all). clojure.core itself is skipped.
+    func referClojureCore(into ns: Namespace, only: Set<String>? = nil, exclude: Set<String> = []) {
+        guard ns.name != "clojure.core", let core = findNs("clojure.core") else { return }
+        for (name, v) in core.mappings {
+            if exclude.contains(name) {
+                continue
+            }
+            if let only, !only.contains(name) {
+                continue
+            }
+            ns.refer(v)
+        }
+    }
+
+    /// Removes the namespace `name` from the registry and clears its cached
+    /// qualified-var resolutions (`"<name>/…"` keys). Backs `remove-ns` (which
+    /// guards `clojure.core`). WARNING: a `.varRef` to one of the removed
+    /// namespace's vars that outlives it will dangle — `Var.namespace` is
+    /// `unowned` — and reading it then traps. A deliberate, documented risk
+    /// (matches Clojure's "removing a ns whose vars you still hold is your
+    /// problem", except Swift crashes where the JVM tolerates). See `Var.swift`.
+    func removeNs(_ name: String) {
+        namespacesState.withLock { $0[name] = nil }
+        let prefix = "\(name)/"
+        qualifiedVarCache.withLock { cache in
+            cache = cache.filter { !$0.key.hasPrefix(prefix) }
         }
     }
 
@@ -53,10 +79,13 @@ extension Evaluator {
 
     // MARK: - Symbol resolution helpers
 
-    /// Looks up an unqualified name in `ns`, falling through to clojure.core if not found there.
+    /// Looks up an unqualified name in `ns`'s own mappings only — no implicit
+    /// clojure.core fallback. Core is available because it's *referred* (by the `ns`
+    /// form / init for `user`), so a referred namespace finds a core var here; a
+    /// **bare** `in-ns`/`create-ns` namespace does not, matching Clojure (unqualified
+    /// core names don't resolve until referred). clojure.core finds its own home vars.
     func resolveVar(name: String, in ns: Namespace) -> Var? {
         ns.findVar(name: name)
-            ?? (ns.name != "clojure.core" ? findNs("clojure.core")?.findVar(name: name) : nil)
     }
 
     /// Splits `ns/name` into its two parts. Returns nil for unqualified symbols or the bare "/" symbol.
@@ -81,11 +110,12 @@ extension Evaluator {
     ///      (`v.namespace === ns`) — a *referred* (non-home) var can later be shadowed
     ///      by a local `def` in that namespace (`Namespace.intern` creates a genuinely
     ///      new Var for that case), so a referred-var resolution must never be cached.
-    /// No cache invalidation is needed for what *is* cached: `Namespace.intern` always
-    /// reuses the existing Var object (never a new one) for an already-home mapping,
-    /// `Namespace.refer` throws rather than silently replacing a differing Var, and
-    /// there is no `ns-unmap`/`remove-ns`/any other API to delete a mapping — a home
-    /// resolution, once cached, can never go stale.
+    /// A cached home resolution can only go stale if its mapping is *deleted*, and the
+    /// two APIs that delete mappings invalidate it explicitly: `ns-unmap` (`coreNsUnmap`)
+    /// removes the single `"<ns>/<name>"` key, and `remove-ns` (`Evaluator.removeNs`)
+    /// prefix-clears every `"<ns>/…"` key. Nothing else can stale it: `Namespace.intern`
+    /// reuses the existing Var object for an already-home mapping, and `Namespace.refer`
+    /// never replaces a home var (its `checkReplacement` keeps it).
     func resolveQualifiedVar(name: String) throws -> Var? {
         if let cached = qualifiedVarCache.withLock({ $0[name] }) {
             return cached
