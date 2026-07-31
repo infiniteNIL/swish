@@ -98,6 +98,30 @@ struct CoreNamespaceTests {
         #expect(try swish.eval(#"(join "-" ["x" "y"])"#) == .string("x-y"))
     }
 
+    // MARK: - ns-unmap / remove-ns
+
+    @Test("ns-unmap removes a mapping and invalidates the qualified-var cache")
+    func nsUnmap() throws {
+        _ = try swish.eval("(ns unmap-test)")
+        _ = try swish.eval("(def gone 1)")
+        // resolve caches unmap-test/gone
+        #expect(try swish.eval("(var? (resolve 'unmap-test/gone))") == .boolean(true))
+        _ = try swish.eval("(ns-unmap 'unmap-test 'gone)")
+        #expect(try swish.eval("(resolve 'unmap-test/gone)") == .nil)
+    }
+
+    @Test("remove-ns drops the namespace and refuses clojure.core")
+    func removeNs() throws {
+        _ = try swish.eval("(ns rm-host)")
+        _ = try swish.eval("(create-ns 'to-remove)")
+        #expect(try swish.eval("(some? (find-ns 'to-remove))") == .boolean(true))
+        _ = try swish.eval("(remove-ns 'to-remove)")
+        #expect(try swish.eval("(find-ns 'to-remove)") == .nil)
+        #expect(throws: (any Error).self) {
+            try swish.eval("(remove-ns 'clojure.core)")
+        }
+    }
+
     // MARK: - refer-clojure / *err*
 
     @Test("(ns … (:refer-clojure :exclude [inc])) leaves inc unreferred")

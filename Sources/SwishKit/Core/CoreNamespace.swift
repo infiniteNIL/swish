@@ -61,9 +61,15 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "ns-unalias", arity: .fixed(2),
         doc: "Removes the alias for the symbol from the namespace.",
         arglists: [["ns", "sym"]]) { [evaluator] args in try coreNsUnalias(evaluator, args) }
+    evaluator.register(name: "ns-unmap", arity: .fixed(2),
+        doc: "Removes the mappings for the symbol from the namespace.",
+        arglists: [["ns", "sym"]]) { [evaluator] args in try coreNsUnmap(evaluator, args) }
     evaluator.register(name: "loaded-libs", arity: .fixed(0),
         doc: "Returns a sorted set of symbols naming the currently loaded libs.",
         arglists: [[]]) { [evaluator] _ in try coreLoadedLibs(evaluator) }
+    evaluator.register(name: "remove-ns", arity: .fixed(1),
+        doc: "Removes the namespace named by the symbol. Use with caution. Cannot be used to remove the clojure.core namespace.",
+        arglists: [["sym"]]) { [evaluator] args in try coreRemoveNs(evaluator, args) }
 }
 
 // MARK: - Helpers
@@ -297,6 +303,35 @@ private func coreNsUnalias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
     }
     ns.removeAlias(name: aliasName)
     return .nil
+}
+
+private func coreNsUnmap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let ns = try namespaceArg(evaluator, args[0], function: "ns-unmap")
+    guard case .symbol(let symName, _) = args[1] else {
+        throw EvaluatorError.invalidArgument(
+            function: "ns-unmap",
+            message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
+    }
+    ns.unmap(name: symName)
+    // A home-var mapping may be cached under "<ns>/<name>"; invalidate that one key.
+    evaluator.qualifiedVarCache.withLock { $0["\(ns.name)/\(symName)"] = nil }
+    return .nil
+}
+
+private func coreRemoveNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .symbol(let name, _) = args[0] else {
+        throw EvaluatorError.invalidArgument(
+            function: "remove-ns",
+            message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
+    }
+    if name == "clojure.core" {
+        throw EvaluatorError.invalidArgument(
+            function: "remove-ns",
+            message: "Cannot remove the clojure.core namespace")
+    }
+    guard let ns = evaluator.findNs(name) else { return .nil }
+    evaluator.removeNs(name)
+    return .namespace(ns)
 }
 
 private func coreLoadedLibs(_ evaluator: Evaluator) throws -> Expr {
