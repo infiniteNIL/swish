@@ -138,4 +138,45 @@ struct EvaluatorTryCatchTests {
             try evaluator.eval("(try 1 (catch Exception e e) 2)")
         }
     }
+
+    // MARK: - typed catch (catch-on-type dispatch)
+
+    @Test("catch ExceptionInfo catches an ex-info")
+    func catchExceptionInfo() throws {
+        #expect(try evaluator.eval(#"(try (throw (ex-info "boom" {})) (catch ExceptionInfo e (ex-message e)))"#) == .string("boom"))
+    }
+
+    @Test("catch String catches a thrown string")
+    func catchString() throws {
+        #expect(try evaluator.eval(#"(try (throw "raw") (catch String e e))"#) == .string("raw"))
+    }
+
+    @Test("a non-matching typed catch lets the exception reach a later catch")
+    func typedCatchPropagatesWrongType() throws {
+        #expect(try evaluator.eval(#"(try (throw (ex-info "x" {})) (catch String e :string) (catch Exception e :exc))"#) == .keyword("exc"))
+    }
+
+    @Test("catch clauses are tried in order, first match wins")
+    func typedCatchOrderedFirstMatch() throws {
+        #expect(try evaluator.eval(#"(try (throw (ex-info "x" {})) (catch ExceptionInfo e :exinfo) (catch Exception e :exc))"#) == .keyword("exinfo"))
+    }
+
+    @Test("Throwable and Error are catch-alls like Exception")
+    func throwableAndErrorAreCatchAlls() throws {
+        #expect(try evaluator.eval(#"(try (throw "x") (catch Throwable e :thr))"#) == .keyword("thr"))
+        #expect(try evaluator.eval(#"(try (throw "x") (catch Error e :err))"#) == .keyword("err"))
+    }
+
+    @Test("catch dispatches on a defrecord type")
+    func catchOnRecordType() throws {
+        _ = try evaluator.eval("(defrecord CatchBoom [x])")
+        #expect(try evaluator.eval("(try (throw (->CatchBoom 7)) (catch CatchBoom e (:x e)) (catch Exception e :wrong))") == .integer(7))
+    }
+
+    @Test("an unresolvable catch type never matches, so the throw propagates")
+    func unresolvableCatchTypePropagates() throws {
+        #expect(throws: SwishException.self) {
+            try evaluator.eval(#"(try (throw (ex-info "x" {})) (catch NoSuchType e :nope))"#)
+        }
+    }
 }

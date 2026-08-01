@@ -399,6 +399,39 @@ Scope boundaries: `is`'s bare `thrown?`/`p/thrown?` handling stays outside
 branch for `(let [...] (thrown? ...))` was removed once `are` stopped burying
 `thrown?` in a `let`.)
 
+## Exception-type dispatch — typed `catch` + real `thrown?` class checks
+
+`catch` used to match only the literal symbol `Exception` (it picked
+`catches.first(where: { $0.typeName == "Exception" })`), so every typed catch and
+`clojure.test`'s `thrown?` class silently did nothing. Fixed with **no new
+machinery** — Swish already had everything: a value's type name is `Expr.description`
+(the *type name*, not the printed value), and `instance?` compares that against a
+resolved type via `dispatchTypeName` + `builtinAncestors`. `catchClauseMatches`
+(`Evaluator+TryCatch.swift`) reuses exactly that: catch-all names
+(`Exception`/`Throwable`/`Error`) match anything (Swish has no throwable hierarchy),
+otherwise the clause's type symbol is `try?`-evaluated → `dispatchTypeName` → matched
+against the thrown value's type. Clauses are tried in order, first match wins.
+
+Two deliberate design calls:
+- **Unresolvable clause type ⇒ non-match**, not catch-all. A typo or a JVM class name
+  Swish has no type for (`ArithmeticException`) simply doesn't match and the throw
+  propagates — matching the pre-fix behavior (non-`Exception` catches never fired), so
+  no regression, and no silent swallowing. Combined with `exprForError` stringifying
+  native `EvaluatorError`s, native errors are **type-erased** to `string` — catchable
+  only via a catch-all or a literal `(catch String e)`.
+- **`thrown?`/`thrown-with-msg?` class check is lenient, not strict** (`test.clj`). It
+  keeps the `(catch Exception …)` catch-all and *then* checks the class, failing only
+  when `c` resolves to a Swish type and the caught value isn't `(instance? c …)`;
+  catch-all names and unresolvable classes stay lenient. This was the load-bearing
+  choice for **not** regressing the jank suite: making `thrown?` strictly require the
+  class would have failed every `(thrown? SomeJVMException (native-op))` (the JVM class
+  doesn't resolve, the native error is a string). The lenient guard adds real
+  class-checking for `ExceptionInfo`/records while leaving native-error `thrown?`
+  tests untouched — verified 248/0/0. A macro-hygiene detail: the guard's
+  `(instance? c e#)` and the `catch`'s binding must share one gensym, so the `is`
+  branches build the check with an explicit `(gensym "e")` and `~e` rather than two
+  independent `e#`s (which would be different symbols).
+
 ## ex-info — the uncaught-exception printing bug
 
 While implementing `ex-info`/`ex-message`/`ex-data`/`ex-cause` (pure `core.clj`,

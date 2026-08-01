@@ -274,27 +274,51 @@
                                 (= h 'clojure.core-test.portability/thrown?)))))]
      (cond
        (or (and (seq? form) (= (first form) 'thrown?)) (p-thrown? form))
-       (let [body (if (and (seq? form) (= (first form) 'thrown?)) (drop 2 form) (rest form))]
+       (let [bare? (and (seq? form) (= (first form) 'thrown?))
+             c (when bare? (second form))
+             body (if bare? (drop 2 form) (rest form))
+             e (gensym "e")
+             ;; [Swish] Real class check, now that catch dispatches on type: fail
+             ;; when c resolves to a Swish type and the caught value is not an
+             ;; instance of it. Stays lenient for the catch-all names and for a
+             ;; class that doesn't resolve (e.g. a JVM class name Swish has no
+             ;; type for — as with a stringified native error): those pass on any
+             ;; throw, matching prior behavior. p-thrown? carries no class.
+             class-ok (if (or (not bare?)
+                              (contains? '#{Exception Throwable Error} c))
+                        true
+                        (list 'if (list 'resolve (list 'quote c))
+                              (list 'instance? c e)
+                              true))]
          `(try ~@body
                (do-report {:type :fail, :message ~msg,
                            :expected '~form, :actual nil})
-               (catch Exception e#
-                 (do-report {:type :pass, :message ~msg,
-                             :expected '~form, :actual e#})
-                 e#)))
+               (catch Exception ~e
+                 (if ~class-ok
+                   (do-report {:type :pass, :message ~msg,
+                               :expected '~form, :actual ~e})
+                   (do-report {:type :fail, :message ~msg,
+                               :expected '~form, :actual ~e}))
+                 ~e)))
 
        (and (seq? form) (= (first form) 'thrown-with-msg?))
-       (let [[_ _c pattern & body] form]
+       (let [[_ c pattern & body] form
+             e (gensym "e")
+             class-ok (if (contains? '#{Exception Throwable Error} c)
+                        true
+                        (list 'if (list 'resolve (list 'quote c))
+                              (list 'instance? c e)
+                              true))]
          `(try ~@body
                (do-report {:type :fail, :message ~msg,
                            :expected '~form, :actual nil})
-               (catch Exception e#
-                 (if (and (ex-message e#) (re-find ~pattern (ex-message e#)))
+               (catch Exception ~e
+                 (if (and ~class-ok (ex-message ~e) (re-find ~pattern (ex-message ~e)))
                    (do-report {:type :pass, :message ~msg,
-                               :expected '~form, :actual e#})
+                               :expected '~form, :actual ~e})
                    (do-report {:type :fail, :message ~msg,
-                               :expected '~form, :actual e#}))
-                 e#)))
+                               :expected '~form, :actual ~e}))
+                 ~e)))
 
        :else
        `(try-expr ~msg ~form)))))

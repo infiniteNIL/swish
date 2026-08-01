@@ -234,6 +234,46 @@ struct CoreClojureTestTests {
         #expect(result == .vector([.integer(0), .integer(1)], metadata: nil))
     }
 
+    @Test("is thrown? passes when the thrown value is an instance of the declared type")
+    func isThrownRightTypePasses() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters t/*test-out* *out*]
+                  (t/is (thrown? ExceptionInfo (throw (ex-info "x" {})))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(1), .integer(0)], metadata: nil))
+    }
+
+    @Test("is thrown? fails when the thrown value is a different (resolvable) type")
+    func isThrownWrongTypeFails() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (defrecord ThrownBoom [x])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters t/*test-out* *out*]
+                  (t/is (thrown? ExceptionInfo (throw (->ThrownBoom 1)))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(0), .integer(1)], metadata: nil))
+    }
+
+    @Test("is thrown? stays lenient for an unresolvable class name")
+    func isThrownUnresolvableClassLenient() throws {
+        let result = try swish.eval(#"""
+            (do
+              (require '[clojure.test :as t])
+              (let [counters (ref {:test 0 :pass 0 :fail 0 :error 0})]
+                (binding [t/*report-counters* counters t/*test-out* *out*]
+                  (t/is (thrown? ArithmeticException (throw (ex-info "x" {})))))
+                [(:pass @counters) (:fail @counters)]))
+            """#)
+        #expect(result == .vector([.integer(1), .integer(0)], metadata: nil))
+    }
+
     // MARK: - clojure.template / do-template
 
     @Test("do-template substitutes argv symbols with each row's values")

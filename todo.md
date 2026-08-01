@@ -14,6 +14,8 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] exception-type dispatch: catch now dispatches on the thrown value's type (typed catch, ordered first-match, Exception/Throwable/Error catch-alls)
+- [x] thrown?/thrown-with-msg? check the declared class (lenient for catch-alls + unresolvable JVM class names). Native errors stay type-erased (catch-all/String only).
 - [x] namespace fidelity: refer now matches Clojure's checkReplacement (warn/replace, no throw)
 - [x] added *err* + with-err-str
 - [x] Clojure-faithful auto-refer (in-ns/create-ns are bare, the ns form refers clojure.core with :refer-clojure support, removed resolveVar's core fallback)

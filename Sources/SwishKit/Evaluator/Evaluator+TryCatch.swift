@@ -4,6 +4,10 @@ private struct CatchClause {
     let body: [Expr]
 }
 
+/// `catch`-clause types that catch any thrown value. Swish has no throwable
+/// hierarchy, so these are the universal catch-alls (as `Exception` always was).
+private let catchAllTypeNames: Set<String> = ["Exception", "Throwable", "Error"]
+
 extension Evaluator {
 
     // MARK: - throw / try
@@ -84,10 +88,11 @@ extension Evaluator {
             throw e
         }
         catch {
-            if let clause = catches.first(where: { $0.typeName == "Exception" }) {
+            let thrownValue = exprForError(error)
+            if let clause = catches.first(where: { catchClauseMatches($0.typeName, thrownValue: thrownValue, in: env) }) {
                 do {
                     let catchEnv = Environment(parent: env)
-                    catchEnv.set(clause.bindingName, exprForError(error))
+                    catchEnv.set(clause.bindingName, thrownValue)
                     result = try evalBody(clause.body, in: catchEnv)
                 }
                 catch let catchBodyError {
@@ -107,6 +112,30 @@ extension Evaluator {
             throw err
         }
         return result
+    }
+
+    /// Whether a `catch` clause declaring `typeName` matches `thrownValue`, using the
+    /// same type test as `instance?`: a catch-all name matches any value; otherwise
+    /// the declared type symbol is resolved (eval → `dispatchTypeName`) and matched
+    /// against the thrown value's type name (`Expr.description`) via `builtinAncestors`.
+    /// Anything that doesn't resolve to a dispatchable type is a **non-match**, so an
+    /// undefined / JVM class name (which Swish has no type for) propagates as before —
+    /// e.g. native errors, stringified to type `string`, are caught only by a catch-all
+    /// or a literal `(catch String e …)`.
+    private func catchClauseMatches(_ typeName: String, thrownValue: Expr, in env: Environment) -> Bool {
+        if catchAllTypeNames.contains(typeName) {
+            return true
+        }
+        guard let typeExpr = try? eval(.symbol(typeName, metadata: nil), in: env),
+              let dispatchName = try? dispatchTypeName(for: typeExpr, formName: "catch")
+        else {
+            return false
+        }
+        let valueType = thrownValue.description
+        if valueType == dispatchName {
+            return true
+        }
+        return builtinAncestors(ofTypeKeyword: valueType).contains(dispatchName)
     }
 
     func exprForError(_ error: Error) -> Expr {
