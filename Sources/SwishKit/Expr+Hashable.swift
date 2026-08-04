@@ -225,8 +225,16 @@ extension Expr: Hashable {
         case .record(let t, _, let d, _):
             hasher.combine(ExprHash.record);    hasher.combine(t); hasher.combine(d)
 
-        case .deftype(let t, _, let d, _):
-            hasher.combine(ExprHash.deftype);   hasher.combine(t); hasher.combine(d)
+        case .deftype(let t, _, let d, let box, _):
+            hasher.combine(ExprHash.deftype)
+            // Mutable-bearing deftypes hash by identity (matching their `==`); a
+            // value-hash would shift when a field mutates and corrupt set/map keys.
+            if let box {
+                hasher.combine(ObjectIdentifier(box))
+            }
+            else {
+                hasher.combine(t); hasher.combine(d)
+            }
         }
     }
 }

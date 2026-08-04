@@ -65,7 +65,7 @@ extension Evaluator {
     /// case passes `fields`; `extend-type`/`extend-protocol` don't (matching real
     /// Clojure, where only a type's own compiled methods get direct field access —
     /// retroactive `extend-type` methods don't).
-    func buildProtocolMethodImpls(_ methods: [ProtocolMethodImpl], in env: Environment, formName: String, fields: [String] = []) throws -> [Expr: Expr] {
+    func buildProtocolMethodImpls(_ methods: [ProtocolMethodImpl], in env: Environment, formName: String, fields: [String] = [], mutableFields: [String] = []) throws -> [Expr: Expr] {
         let methodsByName = Dictionary(grouping: methods, by: { $0.name })
         var result: [Expr: Expr] = [:]
         let outerLocals = env.allNames()
@@ -73,7 +73,7 @@ extension Evaluator {
             let arities = try clauses.map { clause -> FnArity in
                 let arity = try buildFnArity(from: clause.clause, functionName: methodName, validateRecur: true, outerLocals: outerLocals.union(fields))
                 guard !fields.isEmpty, let firstParam = arity.params.first else { return arity }
-                return FnArity(params: arity.params, body: wrapWithFieldBindings(arity.body, firstParam: firstParam, fields: fields))
+                return FnArity(params: arity.params, body: wrapWithFieldBindings(arity.body, firstParam: firstParam, fields: fields, mutableFields: mutableFields))
             }
             result[.keyword(methodName)] = arities.count == 1
                 ? .function(SwishFunction(name: methodName, params: arities[0].params, body: arities[0].body, capturedEnv: env, metadata: nil))
@@ -82,15 +82,153 @@ extension Evaluator {
         return result
     }
 
-    private func wrapWithFieldBindings(_ body: [Expr], firstParam: String, fields: [String]) -> [Expr] {
+    /// Injects a method body's implicit field access. Mutable fields are rewritten
+    /// to go through the instance's storage box **live** (so a read after a `set!`
+    /// in the same method sees the new value); immutable fields keep the cheaper
+    /// snapshot `let` (correct because they never change, and — unlike mutable
+    /// fields — they stay closable by nested `fn`s). The two field sets are disjoint,
+    /// so the transforms don't interact.
+    private func wrapWithFieldBindings(_ body: [Expr], firstParam: String, fields: [String], mutableFields: [String]) -> [Expr] {
+        let mutableSet = Set(mutableFields)
+        let rewritten = mutableSet.isEmpty
+            ? body
+            : body.map { substituteMutableFields($0, thisParam: firstParam, mutableFields: mutableSet, shadowed: []) }
+        let immutableFields = fields.filter { !mutableSet.contains($0) }
+        guard !immutableFields.isEmpty else { return rewritten }
         var letBindings: [Expr] = []
-        for f in fields {
+        for f in immutableFields {
             letBindings.append(.symbol(f, metadata: nil))
             letBindings.append(.list(
                 [.symbol("deftype-field-value", metadata: nil), .symbol(firstParam, metadata: nil), .keyword(f)],
                 metadata: nil))
         }
-        return [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(SwishPersistentVector(letBindings), metadata: nil)] + body), metadata: nil)]
+        return [.list(SwishPersistentList([.symbol("let", metadata: nil), .vector(SwishPersistentVector(letBindings), metadata: nil)] + rewritten), metadata: nil)]
+    }
+
+    /// Heads whose forms are *not* descended into when rewriting mutable-field access:
+    /// nested closures (`fn`/`fn*`) — Clojure forbids mutable-field access from a
+    /// closure, so leaving a bare field symbol there yields an `Undefined symbol` at
+    /// runtime (its compile-time error's analog) — and quoted data (literal, not code).
+    private static let mutableFieldBoundaryHeads: Set<String> = ["fn", "fn*", "quote", "syntax-quote"]
+
+    /// Definition-time rewrite (run once per `deftype`, never per call — so no hot-path
+    /// cost) of a method body so its mutable fields are read/written through the
+    /// instance's `MutableFieldStore`:
+    /// - a bare, non-shadowed mutable-field symbol → `(deftype-mutable-field-get this :f)`
+    /// - `(set! f v)` on a non-shadowed mutable field → `(deftype-mutable-field-set! this :f v)`
+    /// `let`/`loop` binding names shadow within their body (so an inner rebinding of a
+    /// field name is respected); `fn`/`fn*`/`quote`/`syntax-quote` are hard boundaries.
+    private func substituteMutableFields(_ expr: Expr, thisParam: String, mutableFields: Set<String>, shadowed: Set<String>) -> Expr {
+        switch expr {
+        case .symbol(let name, _):
+            guard mutableFields.contains(name), !shadowed.contains(name) else { return expr }
+            return mutableFieldGet(thisParam: thisParam, field: name)
+
+        case .list(let elems, let meta):
+            let elements = elems.elements
+            guard let head = elements.first else { return expr }
+
+            if case .symbol(let h, _) = head, Self.mutableFieldBoundaryHeads.contains(h) {
+                return expr
+            }
+
+            if case .symbol("set!", _) = head, elements.count == 3,
+               case .symbol(let target, _) = elements[1],
+               mutableFields.contains(target), !shadowed.contains(target) {
+                let newValue = substituteMutableFields(elements[2], thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
+                return mutableFieldSet(thisParam: thisParam, field: target, value: newValue)
+            }
+
+            if case .symbol(let h, _) = head, h == "let" || h == "loop",
+               elements.count >= 2, case .vector(let bindingVec, _) = elements[1] {
+                return substituteBindingForm(head: head, bindingVec: bindingVec.elements, body: Array(elements.dropFirst(2)),
+                                             meta: meta, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
+            }
+
+            let mapped = elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
+            return .list(SwishPersistentList(mapped), metadata: meta)
+
+        case .vector(let vec, let meta):
+            let mapped = vec.elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
+            return .vector(SwishPersistentVector(mapped), metadata: meta)
+
+        case .map(let sm):
+            var newDict: [Expr: Expr] = [:]
+            for (k, v) in sm.dict {
+                let nk = substituteMutableFields(k, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
+                let nv = substituteMutableFields(v, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
+                newDict[nk] = nv
+            }
+            return .map(newDict, metadata: sm.metadata)
+
+        case .set(let ss):
+            let mapped = ss.elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
+            return .set(Set(mapped), metadata: ss.metadata)
+
+        default:
+            return expr
+        }
+    }
+
+    /// Rewrites a `let`/`loop` form: each init expr is rewritten with the names bound
+    /// by *prior* pairs shadowed (left-to-right, matching `let` scoping), then the body
+    /// with all bound names shadowed. Binding *patterns* are left untouched (they're
+    /// targets, not reads); a name that any pattern binds shadows the field within.
+    private func substituteBindingForm(head: Expr, bindingVec: [Expr], body: [Expr], meta: [Expr: Expr]?,
+                                       thisParam: String, mutableFields: Set<String>, shadowed: Set<String>) -> Expr {
+        var newBindings: [Expr] = []
+        var scope = shadowed
+        var i = 0
+        while i < bindingVec.count {
+            let pattern = bindingVec[i]
+            newBindings.append(pattern)
+            if i + 1 < bindingVec.count {
+                let initExpr = substituteMutableFields(bindingVec[i + 1], thisParam: thisParam, mutableFields: mutableFields, shadowed: scope)
+                newBindings.append(initExpr)
+            }
+            scope.formUnion(collectBoundSymbols(pattern))
+            i += 2
+        }
+        let newBody = body.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: scope) }
+        let rebuilt = [head, .vector(SwishPersistentVector(newBindings), metadata: nil)] + newBody
+        return .list(SwishPersistentList(rebuilt), metadata: meta)
+    }
+
+    /// Every symbol appearing anywhere in a binding pattern — conservatively (any
+    /// symbol in a destructuring vector/map counts as bound). Over-collecting is the
+    /// safe direction: it can only *stop* a field rewrite (→ a resolvable local or an
+    /// `Undefined symbol`), never wrongly rewrite a genuinely-shadowed name.
+    private func collectBoundSymbols(_ pattern: Expr) -> Set<String> {
+        switch pattern {
+        case .symbol(let name, _):
+            return [name]
+
+        case .vector(let vec, _):
+            return vec.elements.reduce(into: Set<String>()) { $0.formUnion(collectBoundSymbols($1)) }
+
+        case .map(let sm):
+            var names: Set<String> = []
+            for (k, v) in sm.dict {
+                names.formUnion(collectBoundSymbols(k))
+                names.formUnion(collectBoundSymbols(v))
+            }
+            return names
+
+        default:
+            return []
+        }
+    }
+
+    private func mutableFieldGet(thisParam: String, field: String) -> Expr {
+        .list(
+            [.symbol("deftype-mutable-field-get", metadata: nil), .symbol(thisParam, metadata: nil), .keyword(field)],
+            metadata: nil)
+    }
+
+    private func mutableFieldSet(thisParam: String, field: String, value: Expr) -> Expr {
+        .list(
+            [.symbol("deftype-mutable-field-set!", metadata: nil), .symbol(thisParam, metadata: nil), .keyword(field), value],
+            metadata: nil)
     }
 
     /// The dispatch-key string for an already-evaluated "type value" argument, as
@@ -165,51 +303,83 @@ extension Evaluator {
     /// diverge only in what they build once the type is registered (deftype: one `.deftype`-
     /// wrapping ctor; defrecord: a `.record`-wrapping ctor plus a `map->` ctor).
     func parseTypeHeaderAndRegisterInlineProtocols(
-        _ elements: [Expr], formName: String, usage: String, in env: Environment
-    ) throws -> (typeName: String, fields: [String], qualifiedName: String) {
+        _ elements: [Expr], formName: String, usage: String, allowMutableFields: Bool, in env: Environment
+    ) throws -> (typeName: String, fields: [String], mutableFields: [String], qualifiedName: String) {
         guard elements.count >= 3,
               case .symbol(let typeName, _) = elements[1],
               case .vector(let fieldExprs, _) = elements[2]
         else {
             throw EvaluatorError.invalidArgument(function: formName, message: usage)
         }
-        let fields: [String] = try fieldExprs.map {
-            guard case .symbol(let name, _) = $0 else {
+        var fields: [String] = []
+        var mutableFields: [String] = []
+        for fieldExpr in fieldExprs.elements {
+            guard case .symbol(let name, let meta) = fieldExpr else {
                 throw EvaluatorError.invalidArgument(function: formName, message: "fields must be symbols")
             }
-            return name
+            fields.append(name)
+            // Only `deftype` honors `^:unsynchronized-mutable`/`^:volatile-mutable`
+            // (`defrecord` passes `allowMutableFields: false` — Clojure forbids mutable
+            // record fields).
+            if allowMutableFields, fieldIsMutable(meta) {
+                mutableFields.append(name)
+            }
         }
         let qualifiedName = "\(currentNs().name)/\(typeName)"
 
         let groups = try parseProtocolImplGroups(Array(elements.dropFirst(3)), formName: formName)
         for group in groups {
             let protoValue = try eval(group.leadingSymbol, in: env)
-            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: formName, fields: fields)
+            let methodImpls = try buildProtocolMethodImpls(group.methods, in: env, formName: formName, fields: fields, mutableFields: mutableFields)
             try registerProtocolImpl(protoValue: protoValue, typeName: qualifiedName, methodImpls: methodImpls, inline: true, formName: formName)
         }
 
-        return (typeName, fields, qualifiedName)
+        return (typeName, fields, mutableFields, qualifiedName)
+    }
+
+    /// True if a field symbol's metadata marks it `^:unsynchronized-mutable` or
+    /// `^:volatile-mutable` (Clojure's two mutable-field annotations). `^:kw x`
+    /// reads as `{:kw true}`, so a truthy value under either key suffices.
+    private func fieldIsMutable(_ metadata: [Expr: Expr]?) -> Bool {
+        guard let metadata else { return false }
+        for key in ["unsynchronized-mutable", "volatile-mutable"] {
+            if let v = metadata[.keyword(key)], v != .nil, v != .boolean(false) {
+                return true
+            }
+        }
+        return false
     }
 
     /// `(deftype Name [fields...] Protocol1 (method [this a] body)... ...)`.
     /// Field mutability annotations (`^:unsynchronized-mutable`/`^:volatile-mutable`)
-    /// are accepted (already ignored, same as any other symbol metadata) but have
-    /// no effect — fields stay immutable. `set!` now exists for thread-bound
-    /// dynamic vars, but the mutable-field form of `set!` (which is what these
-    /// annotations would need) is still unimplemented — it requires mutable field
-    /// storage on the type instance, deliberately deferred. See CLAUDE.md.
+    /// are honored: such a field is stored in a per-instance `MutableFieldStore`
+    /// (reference identity ⇒ Clojure's object semantics), its method-body reads/`set!`
+    /// are rewritten to go through that box (`wrapWithFieldBindings`), and the presence
+    /// of any mutable field flips the instance to identity `=`/hash. Immutable fields
+    /// stay in the value-type `data`. See CLAUDE.md.
     func evalDeftype(_ elements: [Expr], in env: Environment) throws -> Expr {
-        let (typeName, fields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
+        let (typeName, fields, mutableFields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
             elements, formName: "deftype",
-            usage: "expected (deftype TypeName [field ...] & opts+specs)", in: env)
+            usage: "expected (deftype TypeName [field ...] & opts+specs)", allowMutableFields: true, in: env)
 
-        let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
+        let mutableSet = Set(mutableFields)
+        let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName, mutableSet] args in
             guard args.count == fields.count else {
                 throw EvaluatorError.noMatchingArity(name: typeName, got: args.count)
             }
             var data: [Expr: Expr] = [:]
-            for (f, v) in zip(fields, args) { data[.keyword(f)] = v }
-            return .deftype(typeName: qualifiedName, fields: fields, data: data, metadata: nil)
+            var mutableValues: [String: Expr] = [:]
+            for (f, v) in zip(fields, args) {
+                if mutableSet.contains(f) {
+                    mutableValues[f] = v
+                }
+                else {
+                    data[.keyword(f)] = v
+                }
+            }
+            // A fresh box per instance ⇒ fresh identity; `nil` when no mutable fields.
+            let box = mutableSet.isEmpty ? nil : MutableFieldStore(mutableValues)
+            return .deftype(typeName: qualifiedName, fields: fields, data: data, mutableStorage: box, metadata: nil)
         }
 
         let ns = currentNs()
@@ -253,7 +423,7 @@ extension Evaluator {
             reifyMethodsKey: .map(methodTable, metadata: nil),
             reifyProtocolsKey: .set(protocolNames, metadata: nil),
         ]
-        return .deftype(typeName: typeName, fields: [], data: data, metadata: nil)
+        return .deftype(typeName: typeName, fields: [], data: data, mutableStorage: nil, metadata: nil)
     }
 
     /// `(extend-type AType Protocol1 (method [this] body)... Protocol2 (method2 [this] body)...)`.

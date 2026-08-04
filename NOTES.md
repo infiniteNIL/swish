@@ -300,6 +300,48 @@ only the leading protocol symbols and leaves method clauses untouched. Same
 `deftype`/`defrecord` have the identical latent hazard but never hit it (always
 effectively top-level).
 
+## Mutable `deftype` fields — the reference-box + definition-time transform
+
+The deepest remaining semantic gap: `^:unsynchronized-mutable`/`^:volatile-mutable`
+parsed but no-op'd, because `.deftype` stored fields in a value-type `data: [Expr:Expr]`
+(no identity, no mutation). The jank suite doesn't exercise this at all, so it was pure
+fidelity work with no regression pressure — we defined the coverage.
+
+**Storage.** `Expr` is a value enum, but a *class* associated value carries reference
+identity. Added `mutableStorage: MutableFieldStore?` (a `final class` over a
+`Mutex<[String:Expr]>`) to `.deftype` only (`defrecord` forbids mutable fields). Copying
+the enum copies the box *pointer*, so `this` inside a method and the caller's binding
+share one store — exactly Clojure's object identity. `nil` for every ordinary deftype and
+for `reify` ⇒ zero overhead, zero behavior change in the common case. The ctor splits its
+positional args: mutable → a fresh box (fresh identity per instance), immutable → `data`.
+
+**The one hard part — live reads.** A snapshot `let` (what immutable fields use) is stale
+after a `set!`, and even trivial methods hit this: `(set! n (+ n x)) n` must return the
+*new* `n`. So mutable fields can't be snapshotted — each read must hit the box. Rather than
+add a hot-path symbol-resolution branch (perf-sensitive) or a new `Expr` case (churn), the
+fix is a **definition-time** rewrite of the method body (`substituteMutableFields`, run once
+per `deftype`, never per call): a bare non-shadowed field symbol → `(deftype-mutable-field-get
+this :f)`, `(set! f v)` → `(deftype-mutable-field-set! this :f v)`. Because it runs *after*
+`buildFnArity`'s macroexpansion, it only ever walks core special forms.
+
+**Why the walker stays simple (and faithful).** The fear with any AST-substitution pass is
+shadowing correctness (cf. the `case`/`expandAliases` revert). Two things keep this one small:
+(1) `let`/`loop` bindings shadow via a conservative `collectBoundSymbols` (over-collecting is
+safe — it can only *stop* a rewrite, never wrongly rewrite a shadowed name); (2) `fn`/`fn*`/
+`quote`/`syntax-quote` are **hard boundaries** — which isn't a shortcut but *faithful*: Clojure
+genuinely forbids mutable-field access from a nested closure, so leaving a bare field symbol
+there (→ runtime `Undefined symbol`) is the analog of its compile error.
+
+**`set!` untouched.** The field form is desugared into a native call before `evalSet` ever
+sees it, so `evalSet` stays dynamic-var-only and `(set! *dynamic-var* …)` inside a method (the
+transform leaves it alone — not a mutable field) still routes there.
+
+**Identity `=`/hash.** A non-nil box flips the instance to identity `==` (`box1 === box2`) and
+`ObjectIdentifier` hashing. This is faithful (Clojure deftype is identity-`=` by default) *and*
+avoids the footgun where a value-hash shifts when a field mutates and corrupts set/map keys;
+immutable-only deftypes keep Swish's existing value `=`. `identical?` falls through to `==`, so
+two copies of one mutable instance are `identical?` — correct.
+
 ## Agent lifecycle — send buffering implementation
 
 Real Clojure funnels every agent's actions through two shared process-wide pools

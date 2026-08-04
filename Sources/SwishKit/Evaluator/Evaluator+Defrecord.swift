@@ -1,8 +1,8 @@
 extension Evaluator {
     func evalDefrecord(_ elements: [Expr], in env: Environment) throws -> Expr {
-        let (typeName, fields, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
+        let (typeName, fields, _, qualifiedName) = try parseTypeHeaderAndRegisterInlineProtocols(
             elements, formName: "defrecord",
-            usage: "expected (defrecord TypeName [field ...])", in: env)
+            usage: "expected (defrecord TypeName [field ...])", allowMutableFields: false, in: env)
 
         let positionalCtor: @Sendable ([Expr]) throws -> Expr = { [fields, qualifiedName, typeName] args in
             guard args.count == fields.count else {

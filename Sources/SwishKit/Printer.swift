@@ -165,8 +165,8 @@ public struct Printer {
         case .record(let typeName, _, let data, _):
             "#\(typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName)\(printMapString(data, transform: printString))"
 
-        case .deftype(let typeName, let fields, let data, _):
-            printDeftype(typeName: typeName, fields: fields, data: data)
+        case .deftype(let typeName, let fields, let data, let box, _):
+            printDeftype(typeName: typeName, fields: fields, data: data, mutableStorage: box)
 
         default:
             fatalError("unreachable: collection and lazySeq cases are handled by formatCollection/formatLazySeq above")
@@ -331,9 +331,15 @@ public struct Printer {
         return "^\(printMapString(meta, transform: printString)) "
     }
 
-    private func printDeftype(typeName: String, fields: [String], data: [Expr: Expr]) -> String {
+    private func printDeftype(typeName: String, fields: [String], data: [Expr: Expr], mutableStorage: MutableFieldStore?) -> String {
         let shortName = typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName
-        let values = fields.map { printString(data[.keyword($0)] ?? .nil) }.joined(separator: " ")
+        // Immutable fields live in `data`; mutable ones (if any) live in the box —
+        // read each field's *current* value from wherever it's stored.
+        let mutableFields = mutableStorage?.snapshot ?? [:]
+        let values = fields.map { field -> String in
+            let value = data[.keyword(field)] ?? mutableFields[field] ?? .nil
+            return printString(value)
+        }.joined(separator: " ")
         return "#\(shortName)[\(values)]"
     }
 

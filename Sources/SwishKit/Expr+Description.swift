@@ -103,7 +103,7 @@ extension Expr: CustomStringConvertible {
         case .record(let typeName, _, _, _):
             return typeName
 
-        case .deftype(let typeName, _, _, _):
+        case .deftype(let typeName, _, _, _, _):
             return typeName
 
         case .regex:

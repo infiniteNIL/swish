@@ -47,7 +47,7 @@ struct CoreProtocolTests {
     func deftypeCreatesInstances() throws {
         _ = try swish.eval("(deftype DT1 [a b])")
         let result = try swish.eval("(->DT1 1 2)")
-        if case .deftype(let t, let fields, let data, _) = result {
+        if case .deftype(let t, let fields, let data, _, _) = result {
             #expect(t.hasSuffix("/DT1"))
             #expect(fields == ["a", "b"])
             #expect(data[.keyword("a")] == .integer(1))

@@ -27,6 +27,28 @@ public final class TransientCollection: @unchecked Sendable {
     public init(_ value: Expr) { self.value = value }
 }
 
+/// Per-instance mutable storage for a `deftype`'s `^:unsynchronized-mutable`/
+/// `^:volatile-mutable` fields. A **reference type** deliberately: `.deftype` is a
+/// value-type enum, so copying an instance around copies this box's *reference* —
+/// which is exactly what gives a mutable deftype Clojure's identity semantics
+/// (`this` inside a method and the caller's binding share one store, so a `set!`
+/// is seen everywhere). Immutable fields stay in the value-type `.deftype` `data`.
+/// The `Mutex` covers `^:volatile-mutable`'s cross-thread visibility requirement
+/// (safe, if conservative, for `^:unsynchronized-mutable` too). Two boxes are
+/// equal only by identity — see `Expr+Equatable`/`Expr+Hashable`.
+public final class MutableFieldStore: @unchecked Sendable {
+    private let state: Mutex<[String: Expr]>
+
+    public init(_ fields: [String: Expr]) { state = Mutex(fields) }
+
+    func get(_ field: String) -> Expr { state.withLock { $0[field] ?? .nil } }
+
+    func set(_ field: String, to value: Expr) { state.withLock { $0[field] = value } }
+
+    /// A snapshot of the current field values — for printing only.
+    var snapshot: [String: Expr] { state.withLock { $0 } }
+}
+
 /// Mutable reference-type backing for Java-style arrays.
 /// Shared between a `.array` and any `.sharedVector` produced by `(vec arr)`.
 public final class SwishArray: @unchecked Sendable {
@@ -143,7 +165,12 @@ public indirect enum Expr: Sendable {
     /// `assoc`/`seq`/callable-as-fn) — matching real Clojure's "deftype provides no
     /// functionality not specified by the user, other than a constructor."
     /// `typeName` is namespace-qualified (e.g. `"user/Point"`).
-    case deftype(typeName: String, fields: [String], data: [Expr: Expr], metadata: [Expr: Expr]?)
+    /// `data` holds the *immutable* fields. `mutableStorage` is non-nil only when the
+    /// type declares `^:unsynchronized-mutable`/`^:volatile-mutable` fields — it's the
+    /// reference box giving those fields identity semantics (see `MutableFieldStore`).
+    /// A non-nil box also flips this instance to **identity** `=`/hash (Clojure's
+    /// deftype default). `nil` for every ordinary deftype and for `reify` instances.
+    case deftype(typeName: String, fields: [String], data: [Expr: Expr], mutableStorage: MutableFieldStore?, metadata: [Expr: Expr]?)
 }
 
 // MARK: - Convenience constructors

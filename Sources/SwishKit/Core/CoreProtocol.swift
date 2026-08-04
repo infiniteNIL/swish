@@ -57,14 +57,29 @@ func registerProtocol(into evaluator: Evaluator) {
         arglists: [["instance", "field"]]) { args in
         switch args[0] {
         case .record(_, _, let data, _): return data[args[1]] ?? .nil
-        case .deftype(_, _, let data, _): return data[args[1]] ?? .nil
+        case .deftype(_, _, let data, _, _): return data[args[1]] ?? .nil
         default: return .nil
         }
+    }
+    evaluator.register(name: "deftype-mutable-field-get", arity: .fixed(2),
+        doc: "Internal. Reads a `^:unsynchronized-mutable`/`^:volatile-mutable` field live from a deftype instance's storage box — backs the mutable-field reads rewritten into deftype method bodies.",
+        arglists: [["instance", "field"]]) { args in
+        guard case .deftype(_, _, _, let box?, _) = args[0], case .keyword(let field) = args[1] else { return .nil }
+        return box.get(field)
+    }
+    evaluator.register(name: "deftype-mutable-field-set!", arity: .fixed(3),
+        doc: "Internal. Writes a mutable deftype field into the instance's storage box, returning the new value — backs the (set! field value) form rewritten into deftype method bodies.",
+        arglists: [["instance", "field", "value"]]) { args in
+        guard case .deftype(_, _, _, let box?, _) = args[0], case .keyword(let field) = args[1] else {
+            throw EvaluatorError.invalidArgument(function: "set!", message: "target is not a mutable field of a deftype instance")
+        }
+        box.set(field, to: args[2])
+        return args[2]
     }
     evaluator.register(name: "reify-method-table", arity: .fixed(1),
         doc: "Internal. Returns a reify instance's inline method map, or nil for anything else — backs the reify fast-path in protocol-dispatch.",
         arglists: [["x"]]) { args in
-        guard case .deftype(_, _, let data, _) = args[0],
+        guard case .deftype(_, _, let data, _, _) = args[0],
               case .map? = data[reifyMethodsKey]
         else { return .nil }
         return data[reifyMethodsKey] ?? .nil
@@ -97,7 +112,7 @@ private func coreSatisfies(_ args: [Expr]) throws -> Expr {
     // A reify instance carries its implemented-protocol set inline rather than
     // registering into `:impls`, so check that set by the protocol's qualified
     // name (the `:name` symbol defprotocol stores).
-    if case .deftype(_, _, let data, _) = args[1],
+    if case .deftype(_, _, let data, _, _) = args[1],
        case .set(let protocols)? = data[reifyProtocolsKey] {
         guard case .symbol(let protoName, _)? = protoMap.dict[.keyword("name")] else {
             return .boolean(false)

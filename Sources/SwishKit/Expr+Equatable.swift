@@ -219,7 +219,14 @@ extension Expr: Equatable {
         case (.record(let t1, _, let d1, _), .record(let t2, _, let d2, _)):
             return t1 == t2 && d1 == d2
 
-        case (.deftype(let t1, _, let d1, _), .deftype(let t2, _, let d2, _)):
+        case (.deftype(let t1, _, let d1, let box1, _), .deftype(let t2, _, let d2, let box2, _)):
+            // A deftype with mutable fields is a reference object with Clojure's
+            // identity `=` (two instances are equal only if they share one storage
+            // box). This also avoids a mutable-hash footgun. Immutable-only deftypes
+            // keep value `=` (same box-less `nil` on both sides falls through here).
+            if box1 != nil || box2 != nil {
+                return box1 === box2
+            }
             return t1 == t2 && d1 == d2
 
         default:

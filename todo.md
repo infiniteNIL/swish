@@ -14,6 +14,11 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] mutable deftype fields: ^:unsynchronized-mutable/^:volatile-mutable now honored via a per-instance reference box (identity =/hash)
+- [x] method-body reads/set! rewritten at definition time to go through it. defrecord ignores
+- [x] nested-fn field access is a boundary (Clojure restriction).
+- [x] set! (thread-bound dynamic vars + mutable deftype fields)
+
 - [x] exception-type dispatch: catch now dispatches on the thrown value's type (typed catch, ordered first-match, Exception/Throwable/Error              catch-alls)
 - [x] thrown?/thrown-with-msg? check the declared class (lenient for catch-alls + unresolvable JVM class names). Native errors stay type-erased
       (catch-all/String only).
@@ -42,7 +47,6 @@
 - [x] protocols on built-in types (Swift-named, data-modeled Number/Object hierarchy)
 - [x] re-matcher, re-groups, re-find (1-arg matcher form)
 - [x] reify
-- [x] set! (for thread-bound dynamic vars, but not deftype fields)
 - [x] ns-resolve, clojure.string/index-of + last-index-of
 - [x] clojure.set/rename-keys, clojure.walk/keywordize-keys + stringify-keys
 - [x] mapv, filterv, reduce-kv, partition-by (lazy + transducer arities), distinct?, every-pred, reductions, when-some, if-some, doto, bound?
