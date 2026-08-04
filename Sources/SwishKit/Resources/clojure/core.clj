@@ -406,6 +406,12 @@
   [n coll]
   [(take n coll) (drop n coll)])
 
+(defn splitv-at
+  "Returns a vector of [(into [] (take n) coll) (drop n coll)]"
+  {:added "1.12"}
+  [n coll]
+  [(into [] (take n) coll) (drop n coll)])
+
 (defn drop-last
   "Return a lazy sequence of all but the last n (default 1) items in coll"
   {:added "1.0"
@@ -1186,6 +1192,12 @@
                                         (close ~(first bindings)))))
     :else (throw "with-open only allows Symbols in bindings")))
 
+(defn printf
+  "Prints formatted output, as per format"
+  {:added "1.0"}
+  [fmt & args]
+  (print (apply format fmt args)))
+
 (defn line-seq
   "Returns the lines of text from rdr as a lazy sequence of strings.
   rdr must be a reader (use with with-open)."
@@ -1495,6 +1507,15 @@
         (if v v (recur (next s))))
       nil)))
 
+(def
+ ^{:doc "Returns false if (pred x) is logical true for any x in
+  coll, else true.
+  [Swish] Drops real Clojure's :tag Boolean return hint (a JVM type hint
+  with no meaning here, and Boolean is intentionally not a Swish type name)."
+   :arglists '([pred coll])
+   :added "1.0"}
+ not-any? (comp not some))
+
 (defn merge
   "Returns a map that consists of the rest of the maps conj-ed onto
   the first.  If a key occurs in more than one map, the mapping from
@@ -1529,6 +1550,35 @@
     (reduce (fn [ret entry] (f ret (key entry) (val entry))) init coll)))
 
 ;;; Sequence Utilities
+
+(defn bounded-count
+  "If coll is counted? returns its count, else will count at most the first n
+  elements of coll using its seq"
+  {:added "1.9"}
+  [n coll]
+  (if (counted? coll)
+    (count coll)
+    (loop [i 0 s (seq coll)]
+      (if (and s (< i n))
+        (recur (inc i) (next s))
+        i))))
+
+(defn replace
+  "Given a map of replacement pairs and a vector/collection, returns a
+  vector/seq with any elements = a key in smap replaced with the
+  corresponding val in smap.  Returns a transducer when no collection is
+  provided."
+  {:added "1.0"}
+  ([smap]
+   (map #(if-let [e (find smap %)] (val e) %)))
+  ([smap coll]
+   (if (vector? coll)
+     (reduce (fn [v i]
+               (if-let [e (find smap (nth v i))]
+                 (assoc v i (val e))
+                 v))
+             coll (range (count coll)))
+     (map #(if-let [e (find smap %)] (val e) %) coll))))
 
 (def cat
   (fn [rf]
@@ -1688,6 +1738,29 @@
          (if (= n (count p))
            (cons p (partition n step pad (drop step s)))
            (list (take n (concat p pad)))))))))
+
+(defn partitionv
+  "Returns a lazy sequence of vectors of n items each, at offsets step
+  apart. If step is not supplied, defaults to n, i.e. the partitions
+  do not overlap. If a pad collection is supplied, use its elements as
+  necessary to complete last partition upto n items. In case there are
+  not enough padding elements, return a partition with less than n items."
+  {:added "1.12"}
+  ([n coll]
+   (partitionv n n coll))
+  ([n step coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (into [] (take n) s)]
+         (when (= n (count p))
+           (cons p (partitionv n step (nthrest s step))))))))
+  ([n step pad coll]
+   (lazy-seq
+     (when-let [s (seq coll)]
+       (let [p (into [] (take n) s)]
+         (if (= n (count p))
+           (cons p (partitionv n step pad (nthrest s step)))
+           (list (into [] (take n) (concat p pad)))))))))
 
 (defn partition-all
   "Returns a lazy sequence of lists like partition, but may include

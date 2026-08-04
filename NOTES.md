@@ -558,6 +558,24 @@ at the cost of full-string eagerness: `(take 3 (re-seq re huge-string))` does th
 full scan up front. `seq?` is `true` (an ordinary `.seq`), matching Clojure, but
 `lazy-seq?` is `false` where Clojure reports `true` — the visible seam.
 
+## split-lines — the `\r\n` grapheme-cluster trap
+
+`clojure.string/split-lines` is implemented **directly** (`CoreStringNS.swift`:
+normalize `\r\n`→`\n`, then split on `\n`, dropping trailing empties), *not* by
+delegating to the regex `split` with `#"\r?\n"` as Clojure does. The reason is a
+Swift-specific trap: Swift strings iterate by **extended grapheme cluster**, and
+`\r\n` (CR+LF) is a *single* Character. A `\r?\n` regex under Swift Regex's default
+grapheme semantics matches neither half of that combined grapheme, so
+`(split "a\r\nb" #"\r?\n")` returns `["a\r\nb"]` — no split — while
+`(split "a\r\nb" #"\r\n")` *does* split (the literal two-char pattern matches the
+grapheme). Confirmed by making control chars visible: `(split-lines "l1\r\nl2\r\nl3")`
+via the regex path gave count 1. Normalizing `\r\n`→`\n` first sidesteps the grapheme
+entirely (a lone `\r` is left intact — not a line boundary, exactly as `#"\r?\n"`
+requires). **Latent implication:** the general `split`/regex path has the same
+grapheme blind spot for CRLF input — user code doing `(str/split s #"\r?\n")` on
+Windows-style text will under-split. Not fixed here (out of scope), but flagged: a
+real fix would set `.matchingSemantics(.unicodeScalar)` on `SwishRegex`.
+
 ---
 
 ## Performance — per-element cost investigation & fixes

@@ -40,6 +40,10 @@ func registerArithmeticCoercion(into evaluator: Evaluator) {
         doc: "Coerce to arbitrary-precision integer.",
         arglists: [["x"]],
         body: coreBigInt)
+    evaluator.register(name: "biginteger", arity: .fixed(1),
+        doc: "Coerce to arbitrary-precision integer. [Swish] has no distinct BigInteger type (Clojure's biginteger returns java.math.BigInteger vs bigint's clojure.lang.BigInt), so biginteger == bigint here.",
+        arglists: [["x"]],
+        body: coreBigInt)
     evaluator.register(name: "bigdec", arity: .fixed(1),
         doc: "Coerce to BigDecimal.",
         arglists: [["x"]],

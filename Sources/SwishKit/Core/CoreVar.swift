@@ -18,6 +18,12 @@ func registerVar(into evaluator: Evaluator) {
         }
         return .boolean(v.isBound)
     }
+    evaluator.register(name: "find-var", arity: .fixed(1),
+        doc: "Returns the global var named by the namespace-qualified symbol, or nil if no var with that name.",
+        arglists: [["sym"]]) { [evaluator] args in try coreFindVar(evaluator, args) }
+    evaluator.register(name: "thread-bound?", arity: .variadic,
+        doc: "Returns true if all of the vars provided as arguments have thread-local bindings. Implies that set!'ing the provided vars will succeed.",
+        arglists: [["&", "vars"]]) { [evaluator] args in try coreThreadBound(evaluator, args) }
 }
 
 // MARK: - Implementations
@@ -46,6 +52,45 @@ private func coreAlterVarRoot(_ evaluator: Evaluator, _ args: [Expr]) throws -> 
             return newValue
         }
     }
+}
+
+private func coreFindVar(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    guard case .symbol(let qualified, _) = args[0] else {
+        throw EvaluatorError.invalidArgument(
+            function: "find-var", message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
+    }
+    // Must be namespace-qualified — split on the first "/" (a leading "/" means an
+    // empty namespace, which is not qualified). Matches Clojure's Var.find.
+    guard let slash = qualified.firstIndex(of: "/"), slash != qualified.startIndex else {
+        throw EvaluatorError.invalidArgument(
+            function: "find-var", message: "Symbol \(qualified) is not fully qualified")
+    }
+    let nsName = String(qualified[..<slash])
+    let name = String(qualified[qualified.index(after: slash)...])
+    guard let ns = evaluator.findNs(nsName) else {
+        throw EvaluatorError.invalidArgument(function: "find-var", message: "No such namespace: \(nsName)")
+    }
+    // Like Clojure's findInternedVar: return the mapping only if it's a home var of
+    // this namespace (not a referred mapping); else nil.
+    guard let v = ns.findVar(name: name), v.namespace === ns else {
+        return .nil
+    }
+    return .varRef(v)
+}
+
+private func coreThreadBound(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    let frames = evaluator.bindingFrames
+    for arg in args {
+        guard case .varRef(let v) = arg else {
+            throw EvaluatorError.invalidArgument(
+                function: "thread-bound?", message: "argument must be a var, got \(corePrinter.printString(arg))")
+        }
+        let id = ObjectIdentifier(v)
+        if !frames.contains(where: { $0[id] != nil }) {
+            return .boolean(false)
+        }
+    }
+    return .boolean(true)
 }
 
 private func coreVarGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {

@@ -14,6 +14,10 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] missing-function batch (14): not-any?, printf, bounded-count, partitionv,
+      splitv-at, replace (+transducer), indexed?, find-var, thread-bound?, biginteger,
+      find-keyword (divergence: never nil, no interning), clojure.string/split-lines +
+      replace-first + re-quote-replacement.
 - [x] mutable deftype fields: ^:unsynchronized-mutable/^:volatile-mutable now honored via a per-instance reference box (identity =/hash)
 - [x] method-body reads/set! rewritten at definition time to go through it. defrecord ignores
 - [x] nested-fn field access is a boundary (Clojure restriction).

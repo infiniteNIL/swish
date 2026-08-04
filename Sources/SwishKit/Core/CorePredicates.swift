@@ -27,6 +27,9 @@ func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "keyword", arity: .variadic,
         doc: "Returns a Keyword with the given namespace and name. Do not use : in the keyword strings, it will be added automatically. If the name is already a keyword, returns it. Returns nil if the name is nil.",
         arglists: [["name"], ["ns", "name"]]) { args in try coreKeyword(args) }
+    evaluator.register(name: "find-keyword", arity: .variadic,
+        doc: "Returns a Keyword with the given namespace and name if one already exists. [Swish] keywords are value types, not interned in a table, so \"already interned\" is unanswerable — this returns the keyword for any valid name (like keyword) and never nil for a valid name (a documented divergence: Clojure returns nil for a never-interned name).",
+        arglists: [["name"], ["ns", "name"]]) { args in try coreKeyword(args) }
     evaluator.register(name: "symbol?",  arity: .fixed(1), doc: "Return true if x is a Symbol",                      arglists: [["x"]]) { args in if case .symbol  = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "string?",  arity: .fixed(1), doc: "Return true if x is a String",                      arglists: [["x"]]) { args in if case .string    = args[0] { return .boolean(true) }; return .boolean(false) }
     evaluator.register(name: "char?",    arity: .fixed(1), doc: "Returns true if x is a Character.",                  arglists: [["x"]]) { args in if case .character = args[0] { return .boolean(true) }; return .boolean(false) }
@@ -83,6 +86,19 @@ func registerPredicates(into evaluator: Evaluator) {
     evaluator.register(name: "counted?", arity: .fixed(1), doc: "Returns true if coll implements count in constant time", arglists: [["coll"]]) { args in
         switch args[0] {
         case .list, .seq, .vector, .sharedVector, .mapEntry, .map, .sortedMap, .set, .sortedSet, .record:
+            return .boolean(true)
+
+        default:
+            return .boolean(false)
+        }
+    }
+    evaluator.register(name: "indexed?", arity: .fixed(1),
+        doc: "Return true if coll implements Indexed, indicating efficient lookup by index",
+        arglists: [["coll"]]) { args in
+        // Clojure's Indexed is the vector family (vectors, subvectors, map entries) —
+        // the same cases `vector?` covers. Lists/seqs/strings/ranges are not Indexed.
+        switch args[0] {
+        case .vector, .sharedVector, .mapEntry:
             return .boolean(true)
 
         default:

@@ -83,6 +83,22 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
                  "separated by an optional separator.",
             arglists: [["coll"], ["sep", "coll"]])
 
+        ns.register(name: "split-lines", value: coreSplitLines,
+            doc: "Splits s on \\n or \\r\\n. Trailing empty lines are not returned.",
+            arglists: [["s"]])
+
+        ns.register(name: "replace-first", value: makeReplaceFirstFunction(evaluator: evaluator),
+            doc: "Replaces the first instance of match with replacement in s. " +
+                 "match/replacement can be: string/string, char/char, " +
+                 "pattern/string, or pattern/function.",
+            arglists: [["s", "match", "replacement"]])
+
+        ns.register(name: "re-quote-replacement", value: coreReQuoteReplacement,
+            doc: "Given a replacement string that you wish to be a literal replacement " +
+                 "for a pattern match in replace or replace-first, do the necessary " +
+                 "escaping of special characters in the replacement.",
+            arglists: [["replacement"]])
+
     // [Swish] A narrow, single-purpose whole-string-match primitive that predates
     // real re-matches/re-find/re-seq (now implemented in CoreRegex.swift). Kept as
     // its own primitive — it's still what run-all-tests's regex-filter arity
@@ -203,6 +219,89 @@ private func makeReplaceFunction(evaluator: Evaluator) -> Expr {
                 message: "match must be a string, character, or regex")
         }
     }
+}
+
+/// `replace-first`: like `makeReplaceFunction` but replaces only the first match.
+/// Same match/replacement type combinations (string/string, char/char, regex/string,
+/// regex/fn); the regex branches stop after the first match.
+private func makeReplaceFirstFunction(evaluator: Evaluator) -> Expr {
+    return Expr.nativeFunction(name: "replace-first", arity: .fixed(3)) { [evaluator] args in
+        let s = try requireNonNilStr(args[0], function: "replace-first")
+        switch args[1] {
+        case .string(let match):
+            guard case .string(let repl) = args[2] else {
+                throw EvaluatorError.invalidArgument(function: "replace-first",
+                    message: "string match requires string replacement")
+            }
+            // Empty match inserts the replacement at the front (matching Clojure).
+            if match.isEmpty {
+                return .string(repl + s)
+            }
+            guard let range = s.range(of: match) else { return .string(s) }
+            return .string(s.replacingCharacters(in: range, with: repl))
+
+        case .character(let match):
+            guard case .character(let repl) = args[2] else {
+                throw EvaluatorError.invalidArgument(function: "replace-first",
+                    message: "char match requires char replacement")
+            }
+            guard let range = s.range(of: String(match)) else { return .string(s) }
+            return .string(s.replacingCharacters(in: range, with: String(repl)))
+
+        case .regex(let re):
+            guard let match = s.firstMatch(of: re.regex) else { return .string(s) }
+            var result = String(s[s.startIndex..<match.range.lowerBound])
+            switch args[2] {
+            case .string(let replTemplate):
+                result += expandReplacementTemplate(replTemplate, output: match.output)
+
+            default:
+                let matchStr = String(s[match.range])
+                guard case .string(let repl) = try evaluator.call(args[2], args: [.string(matchStr)]) else {
+                    throw EvaluatorError.invalidArgument(function: "replace-first",
+                        message: "replacement function must return a string")
+                }
+                result += repl
+            }
+            result += s[match.range.upperBound...]
+            return .string(result)
+
+        default:
+            throw EvaluatorError.invalidArgument(function: "replace-first",
+                message: "match must be a string, character, or regex")
+        }
+    }
+}
+
+/// `re-quote-replacement`: escapes `\` and `$` in a replacement string so it's treated
+/// literally by `replace`/`replace-first`'s regex-template dialect (mirrors Java
+/// `Matcher.quoteReplacement`). Pairs with `expandReplacementTemplate`, where `\x` is a
+/// literal `x` — so `\$`/`\\` here become a literal `$`/`\` there.
+private let coreReQuoteReplacement = Expr.nativeFunction(name: "re-quote-replacement", arity: .fixed(1)) { args in
+    let s = try requireString(args[0], function: "re-quote-replacement")
+    var result = ""
+    for ch in s {
+        if ch == "\\" || ch == "$" {
+            result.append("\\")
+        }
+        result.append(ch)
+    }
+    return .string(result)
+}
+
+/// `split-lines`: splits on `\n` or `\r\n` (matching Clojure's `#"\r?\n"`), with
+/// trailing empty lines dropped. Implemented directly rather than via the regex
+/// `splitImpl` because Swift treats `\r\n` as a single grapheme cluster that a
+/// `\r?\n` regex won't match — so we normalize `\r\n` → `\n` (a lone `\r` is left
+/// intact, i.e. not a line boundary, exactly as `\r?\n` requires) then split on `\n`.
+private let coreSplitLines = Expr.nativeFunction(name: "split-lines", arity: .fixed(1)) { args in
+    let s = try requireString(args[0], function: "split-lines")
+    let normalized = s.replacingOccurrences(of: "\r\n", with: "\n")
+    var parts = normalized.split(separator: "\n", omittingEmptySubsequences: false).map { String($0) }
+    while parts.count > 1, parts.last == "" {
+        parts.removeLast()
+    }
+    return .vector(SwishPersistentVector(parts.map { .string($0) }), metadata: nil)
 }
 
 /// Expands `$N` capture-group backreferences (`$0` = whole match, `$1`... = groups
