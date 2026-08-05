@@ -31,6 +31,7 @@ See [swift.md](swift.md) for Swift and SwiftUI coding guidelines, including mode
 Global symbol resolution is **namespace-based** (not a core/global environment pair):
 
 - **`clojure.core`** holds all built-ins (natives + `core.clj`), created at startup.
+
 - **User namespaces** (`user`, and any `(ns …)`) resolve an unqualified name in their
   *own* mappings only — **there is no implicit clojure.core fallback** (`resolveVar`,
   `Evaluator+Namespaces.swift`). Core is available because it's **referred**: the `ns`
@@ -50,27 +51,41 @@ value, not the loop's final value).
 Swish supports genuine lazy sequences via `LazySeqBox` (`Sources/SwishKit/LazySeqBox.swift`). A `.lazySeq(LazySeqBox)` case in `Expr` holds an unrealized thunk. Forcing the box produces a head/tail pair (or empty). Thunks run at most once (memoized). `lazy-seq` is a special form (not a macro) that captures the body and lexical environment.
 
 - Infinite producers (`range`, `iterate`, `cycle`, `repeat`, `repeatedly`) are defined in `core.clj`.
+
 - `map`, `filter`, `concat`, `mapcat`, `lazy-cat` are defined lazily in `core.clj` and shadow the bootstrap native registrations after core loads.
+
 - `*print-length*` (default 1000) caps how many elements the printer realizes before emitting `...`. The `Printer` struct exposes `printLengthCap: Int?` to control this.
+
 - `unquote-splicing` handles lazy seqs by fully realizing them (so macros like `lazy-cat` that use `~@(map ...)` work correctly).
-- `LazySeqBox` has a **custom `deinit`** that iteratively unlinks long realized chains — required because `Expr` is an `indirect enum` and the compiler-generated recursive `deinit` overflows the stack at ~20k elements. Don't remove it. It also stays on `NSLock` (not `Mutex`) deliberately — converting its `deinit` to `Mutex.withLock` reintroduces the overflow (see NOTES.md).
+
+- `LazySeqBox` has a **custom `deinit`** that iteratively unlinks long realized chains — required because `Expr` is an `indirect enum` and the compiler-generated recursive `deinit` overflows the stack at ~20k elements. Don't remove it. It also stays on `NSLock` (not `Mutex`) deliberately
+
+— converting its `deinit` to `Mutex.withLock` reintroduces the overflow (see NOTES.md).
 
 ### Transducers
 
 Swish supports Clojure-style transducers (Clojure 1.7+).
 
 - `reduced` is a new `Expr` case `case reduced(Expr)` — a sentinel signalling early termination from `reduce`. Native functions `reduced`, `reduced?`, `unreduced`, `ensure-reduced` are registered in `CoreHOF.swift`. `deref` on a `reduced` value returns the wrapped value.
+
 - `reduce` (`CoreHOF.swift`) iterates lazily (handles `.lazySeq` without materializing) and checks for `.reduced` after each step to break early.
+
 - `volatile!`/`vswap!`/`vreset!` are atom aliases in `core.clj`. Stateful transducers (`take`, `drop`, `partition-all`, etc.) store per-invocation state in atoms created inside their 1-arity closure.
+
 - `comp`, `completing`, `transduce`, `into` (3-arity), and all 1-arity HOF transducer forms are defined in `core.clj`.
+
 - `sequence` is lazy: each input element steps through the transducer with a fresh `[]` accumulator; outputs are collected and drained lazily. The 1-arity completion `(rf [])` flushes buffered state after input exhaustion. Infinite seqs + `(take n)` terminate correctly via `reduced`.
+
 - `eduction` delegates to `sequence`; calling `eduction` creates fresh transducer state, but the returned lazy seq cannot be re-reduced independently.
 
 ## Data Structures
 
 - **`Expr.list`** is backed by `SwishPersistentList` (`SwishPersistentList.swift`), a cons-cell persistent list with O(1) `cons`/`first`/`rest`/`count`.
+
 - **`Expr.vector`** is backed by `SwishPersistentVector` (`SwishPersistentVector.swift`), a Clojure-style 32-way bit-partitioned persistent vector trie with a tail buffer: O(1)-amortized `conj`/`pop`, O(log₃₂ n) `nth`/`assoc`, structural sharing. `conjOne`/`conj!`/`pop`/`peek`/`pop!`/`assoc` route through it. `SwishPersistentVector.hash` combines its backing array directly so a `.vector` stays cross-`==`/hash-consistent with an equal `.sharedVector` / 2-element `.mapEntry`. (`.sharedVector` — the `SwishArray`-backed `vec`-of-a-Java-array — stays a flat `[Expr]`.)
+
 - **`Expr.map`/`Expr.set`** (`SwishMap`/`SwishSet`) are backed by swift-collections' `TreeDictionary`/`TreeSet` (HAMT persistent map/set): `assoc`/`dissoc`/`conj`/`disj` share structure (O(log n)), so map/set *building* is O(n log n), not O(n²). Hot paths (`coreAssoc`/`coreDissoc`/`conjOne`/transient `assoc!`/`conj!`/`disj!`) operate on the tree directly; cold paths use a `TreeDictionary.swiftDictionary` materializer. Two invariants: **(1)** `.map`/`.sortedMap` and `.set`/`.sortedSet` must hash equal (they're cross-`==`), and `TreeDictionary`/`TreeSet` don't hash like Swift `Dictionary`/`Set`, so both route through backing-independent `hashMapContents`/`hashSetContents` (`Expr+Hashable.swift`) — **don't** delegate `.map`/`.set` hashing to the collection's own `hash`. **(2)** `keys`/`vals` must iterate corresponding order, so `mapCollection` (`CoreMap.swift`) projects one `TreeDictionary` value, never a freshly-materialized `[Expr:Expr]` per call (two independently-ordered dictionaries would misalign `case`, which zips `(keys pairs)` with `(vals pairs)`). Map iteration order is otherwise unchanged: `asSequence`/`Printer` sort keys explicitly regardless of backing.
+
 - **`Expr.sortedMap`/`Expr.sortedSet`** (`SwishSortedMap`/`SwishSortedSet`) hold a comparator-sorted array **plus a stored comparator** (`comparator: Expr?`, nil = default `compareExprValue`). This honors `sorted-map-by`/`sorted-set-by` (previously the comparator was silently discarded), keeps `keys`/`vals`/`seq` in sorted order, and — per Clojure — treats two keys/elements that **compare `0`** as the same (dedup by the comparator, not `=`). `subseq`/`rsubseq` (`CoreSet.swift`) do range queries. **A custom comparator is a Swish fn invoked via the evaluator** (`Evaluator.makeComparator` → native `compareExprValue` for nil, else `call` the fn, normalizing boolean→3-way like `CoreSort`), so the mutation/lookup ops (`assoc`/`dissoc`/`conj`/`disj`/`get`/`contains?`/constructors) are **evaluator-aware** — read ops (`seq`/`keys`/`printer`) just read the pre-sorted backing. Equality/hashing ignore the comparator and stay cross-`==`/hash-consistent with `.map`/`.set` via `hashMapContents`/`hashSetContents`. swift-collections' `SortedSet`/`SortedDictionary` don't fit (they're `Comparable`-only — no runtime comparator — and flagged `UnstableSortedCollections`), so this is our own. **Sorted-array backing means O(log n) lookup + O(n log n) batch construction but O(n) insert (O(n²) incremental `into`)** — acceptable for the least-used collection; a persistent balanced tree is a deferred optimization.
 
 ## Known Limitations
@@ -87,47 +102,73 @@ Several audit batches found many common forms simply never ported (`dotimes`, `w
 `ns-resolve`, `clojure.set/rename-keys`, `clojure.walk/keywordize-keys`/
 `stringify-keys`, `clojure.string/index-of`/`last-index-of`, …). All are faithful
 `core.clj`/native ports; see NOTES.md for the full list and placement. Deliberate points:
+
 - **`memoize` must probe its cache with `find`/`val`, not `get`** — `get` can't distinguish "already memoized, result happens to be `nil`" from "never called," which would re-invoke a nil-returning memoized fn on every call.
+
 - **`bound?`** checks root-boundness only (`Var.isBound`), not thread-local bindings — matching Clojure's `.hasRoot`, not its `bound?`.
+
 - **`ns-resolve`**'s 3-arg `(ns env sym)` form accepts but ignores the `env` local-binding map.
+
 - **`definline` is deliberately unimplemented** — it's an inline-expansion form for a bytecode compiler; a tree-walking interpreter has no such pass to hook into.
 
 A later **standard-library-completion pass** filled the rest of `clojure.set` (`select`/`project`/`rename`/`index`/`map-invert`/`join`), `clojure.walk` (`prewalk`/`prewalk-replace`/`macroexpand-all`), and common `clojure.core` fns (`update-vals`/`update-keys`, `with-redefs`/`with-redefs-fn`, `halt-when`, `iteration`, `infinite?`, the typed array ctors `char-array`/`double-array`/`long-array`/…). Deliberate points:
+
 - **`clojure.walk/walk` gained a `seq?` branch** (it only handled `list?` before) — real Clojure's `walk` has both, and `macroexpand-all` needs it since macroexpand results are `.seq`, not `.list`. Seqs are rebuilt as lists (=-equivalent).
+
 - **`with-redefs` sets/restores roots via `alter-var-root`**, which fires watches — real Clojure uses `.bindRoot` (bypasses watches). Minor divergence.
+
 - **`iteration` returns a plain lazy seq**, not a `reify` of `Seqable`+`IReduceInit` (Swish has no such interfaces) — seqable/reducible, just without the `IReduceInit` fast path. It uses the idiomatic `& {:keys …}` option form (see next).
+
 - **`& {:keys […]}` trailing-keyword-arg destructuring (Clojure 1.11 named-args-as-map) is implemented** — `(defn f [& {:keys [a] :or {a 1}}] a)` called as `(f :a 5)` binds `a` to `5`. The fix is a **seq→map coercion in `destructureMapPattern` (`Evaluator+Destructuring.swift`)**, matching real Clojure's `destructure`: every map-destructure value is first evaluated to a `raw` temp, then coerced — `(if (seq? raw) (if (next raw) (apply hash-map raw) (if (seq raw) (first raw) {})) raw)` — before the `(get …)` bindings read from it. This makes `&`-rest kwargs work (the rest is a seq, now coerced to a map), and equally `(let [{:keys [a]} '(:a 9)] a)` → `9` and the same for `loop`, since all destructuring routes through this one function. `seq?` is false for maps/vectors/nil, so real-map and nil destructures are unchanged (verified). Uses `apply hash-map` where real Clojure uses `createAsIfByAssoc` — last-wins on duplicate keys rather than throwing, an acceptable simplification.
+
 - Typed array ctors share `int-array`/`object-array`'s untyped `SwishArray` (no element validation), differing only in default fill.
 
 A **namespace-introspection pass** added the missing `clojure.core` namespace reflection/loading fns on existing machinery (no new `Expr` case): native reads (`CoreNamespace.swift`) `ns-map`/`ns-publics`/`ns-refers`/`ns-aliases` project `Namespace.mappings`/`aliases` (home var ⇔ `v.namespace === ns`; `ns-publics` also drops `:private`); `ns-imports` returns `{}` (no host classes); `ns-unalias` calls a new `Namespace.removeAlias` (no `qualifiedVarCache` concern — aliases are never cached); and pure `core.clj` `requiring-resolve` + `use`. Deliberate points:
+
 - **`loaded-libs`** is backed by a new `Evaluator.loadedLibs` set populated in **`loadNs`** — the one choke point every file-loaded lib passes through, and which `in-ns`/`create-ns` bypass. So it holds `clojure.core` + `require`d/`use`d libs but not ad-hoc namespaces, matching Clojure's "libs, not namespaces." Returns a sorted-set of symbols.
+
 - **`use`** is a faithful `require`+`refer` composition (bare-symbol and `:only`/`:exclude` vector libspecs work; prefix-lists/`:reload`/`:rename` unsupported).
 
 A **missing-function completeness batch** ported 14 more audited fns: `core.clj` `not-any?`/`printf`/`bounded-count`/`partitionv`/`splitv-at`/`replace` (incl. its 1-arity transducer form); natives `indexed?` (`CorePredicates.swift`, the vector family), `find-var`/`thread-bound?` (`CoreVar.swift`), `biginteger` (`CoreArithmeticCoercion.swift`); and `clojure.string/split-lines`/`replace-first`/`re-quote-replacement` (`CoreStringNS.swift`). Deliberate points:
+
 - **`biginteger` == `bigint`** — Swish has no distinct `BigInteger` type (Clojure's `biginteger` returns `java.math.BigInteger` vs `bigint`'s `clojure.lang.BigInt`), so both share `coreBigInt`.
+
 - **`find-keyword` behaves like `keyword` (never `nil` for a valid name)** — Swish keywords are value types, not interned in a table, so "already interned?" is unanswerable; it returns the keyword for any valid name. Divergence from Clojure (which returns `nil` for a never-interned name); benign, and interning was rejected as a large hot-path change whose only payoff is this one fn (Swish value keywords already give `identical?`-equality for free).
+
 - **`split-lines` is implemented directly, not via the regex `split`** — Swift treats `\r\n` as a single grapheme cluster that a `\r?\n` regex won't match, so it normalizes `\r\n`→`\n` (leaving a lone `\r` intact, per `#"\r?\n"`) then splits on `\n`, dropping trailing empties.
+
 - **`bytes?` and `read+string` are deliberately unimplemented.** `bytes?` — Swish's typed-array ctors deliberately share one untyped `SwishArray` (no element-type tag), so a byte-array is indistinguishable from an object-array; any predicate is wrong for some reachable input, and a loud `Undefined symbol` beats a silently-wrong answer. `read+string` — its purpose is capturing exact consumed source, which needs per-form reader position tracking the parser doesn't expose (a `pr-str` re-print defeats the point).
 
 A later **namespace-fidelity pass** made `refer` match Clojure, added `*err*`, moved the auto-refer into the `ns` form, and implemented `ns-unmap`/`remove-ns`/`refer-clojure`:
+
 - **`refer` matches Clojure's `checkReplacement`** (verified against `Namespace.java`) — it no longer throws on a clash: replacing a *referred* var warns to `*err*` and replaces (last wins); replacing a *home*/interned var keeps it and warns `REJECTED … you must ns-unmap first`; the same var is a no-op. `Namespace.refer` *returns* the message (no evaluator/`*err*` access); the evaluator-level callers (`coreRefer`, `processRequireDirective`) write it via `writeErr`. `NamespaceError.referConflict` is retired. `(use 'clojure.string)` now behaves like Clojure (warns + last-referred wins).
+
 - **`*err*`** is a redirectable dynamic var symmetric with `*out*` (`CoreIO.swift`; `Evaluator.currentErr`/`writeErr`; `with-err-str` in `core.clj`); warnings route through it (default target stderr).
+
 - **Auto-refer is Clojure-faithful.** clojure.core is no longer referred at namespace *creation* (`findOrCreateNs` makes namespaces bare); the `ns` form refers it via `referClojureCore` (`:refer-clojure`-filterable), and init refers it into `user`. `in-ns`/`create-ns` produce **bare** namespaces, and `resolveVar` has **no clojure.core fallback** — unqualified core names resolve only via a refer. `refer-clojure` is a trivial `core.clj` macro (`= (refer 'clojure.core …)`; a standalone `:exclude` is a Clojure-faithful no-op — the effective exclusion is the `ns` form's `:refer-clojure`).
+
 - **`ns-unmap`/`remove-ns` implemented** (`CoreNamespace.swift`): `ns-unmap` removes a mapping (`Namespace.unmap`) and invalidates the single `"<ns>/<name>"` `qualifiedVarCache` key; `remove-ns` removes the namespace (`Evaluator.removeNs`), prefix-clears the cache, and refuses `clojure.core`. **`remove-ns` keeps `Var.namespace` `unowned`** — a `.varRef` to a var of a removed namespace that outlives it dangles and *crashes* on access (a deliberate, documented footgun matching Clojure's "your problem", which the JVM tolerates). Both break the old `qualifiedVarCache` "nothing deletes mappings" invariant, now invalidated explicitly.
+
 - **Still deferred**: `import` (no host-class system — `ns-imports` returns `{}`).
 
 ### Multimethods
 
 `defmulti`/`defmethod` + full hierarchy dispatch (`derive`/`isa?`/`parents`/`ancestors`/`descendants`/`make-hierarchy`) and ambiguity resolution (`prefer-method`) are implemented in pure `core.clj` (no new `Expr` case) — method/prefer tables are atoms attached via function metadata. Divergences (no JVM class hierarchy):
+
 - **No method-resolution cache** — `mm-find-method` re-runs the linear best-match scan on every dispatch (O(n) in method count, like `case`'s dispatch), vs Clojure's cached O(1)-after-first.
+
 - **`ancestors`/`parents` reflect declared protocols but not Java-class inheritance.** `isa?` deliberately does *not* get protocol-awareness (it's a raw hierarchy-map lookup). `mm-prefers?` reads `(:parents h)` directly, not the public `parents` fn (matches Clojure's `MultiFn.prefers()`, and avoids a runner-thread stack overflow — see NOTES.md).
 
 ### Protocols
 
 `defprotocol`, `deftype`, `defrecord`, `extend`/`extend-type`/`extend-protocol`, `satisfies?`, `extends?`, `extenders`, `instance?` are implemented (`Evaluator+Defprotocol.swift`, `Evaluator+Deftype.swift`, `Evaluator+Defrecord.swift`, `CoreProtocol.swift`). Protocols extend onto `deftype`/`defrecord` **and built-in types**. Divergences (no JVM class hierarchy):
+
 - **Built-in types dispatch via type-name vars + a data-modeled `Number`/`Object` table** (`builtinAncestors`, `CoreProtocol.swift`), not the JVM class graph. `core.clj` binds `(def String :string)`, `(def Int :integer)`, `(def Number :Number)`, etc. **Naming is Swift-first** (`String`/`Int`/`Double`/`Bool` — a Swish string *is* a Swift `String`), not Java (`Long`/`Integer`/`Boolean` intentionally absent); Clojure-native collections use Swish names (`Vector`/`List`/`Map`/`Set`/`Seq`/…). `nil` dispatches as `"nil"` and never falls back to `Object`. Real ObjC/Swift class-hierarchy dispatch is a deliberate future concern — an *additive* foreign-object `Expr` case, not a rewrite of the enum. Detail in NOTES.md.
+
 - **Exact-type-match dispatch**: sorted collections and map-entries are distinct keys (`:sorted-map`/`:sorted-set`/`:map-entry`), so extending `Map`/`Set`/`Vector` doesn't catch them.
+
 - **Mutable `deftype` fields** (`^:unsynchronized-mutable`/`^:volatile-mutable`) are implemented (`Evaluator+Deftype.swift`, `MutableFieldStore` in `Expr.swift`). Such a field lives in a per-instance **reference box** (`.deftype`'s `mutableStorage` associated value) — since `Expr` is a value enum, copying an instance copies the box *reference*, giving Clojure's object identity (a `set!` in one method call is visible in the next, and to every holder). Immutable fields stay in the value-type `data`. A method body's mutable-field reads/`set!` are rewritten at **definition time** (`substituteMutableFields`, once per `deftype` ⇒ no per-call cost) to go through the box: a bare field symbol → a live box read, `(set! field v)` → a box write. Divergences: **(1)** a mutable-bearing deftype gets **identity `=`/hash** (matching Clojure's deftype default, and dodging the mutating-a-hash-key footgun); an immutable-only deftype keeps Swish's value `=`. **(2)** mutable fields are **not accessible from nested `fn` closures** inside a method (Clojure restriction — the transform treats `fn`/`fn*`/`quote`/`syntax-quote` as hard boundaries; a field ref there is left bare ⇒ runtime `Undefined symbol`, the analog of Clojure's compile error). **(3)** `defrecord` ignores the annotations (Clojure throws). `let`/`loop` bindings correctly shadow a field name within their body.
+
 - `deftype`/`defrecord` **inline** method bodies get unqualified field access (a synthetic `let` binds each field from the method's first param) — matching Clojure, where retroactive `extend-type` methods don't.
 
 ### `reify`
@@ -141,11 +182,17 @@ A later **namespace-fidelity pass** made `refer` match Clojure, added `*err*`, m
 ### STM (Software Transactional Memory)
 
 `ref`, `dosync`, `ref-set`, `alter`, `commute`, `ensure` (`SwishRef.swift`, `Evaluator+STM.swift`, `CoreRef.swift`) use optimistic concurrency with deliberate simplifications vs. Clojure:
+
 - **Conflict detection covers every touched ref (read *or* written), not just Clojure's write-focused read-set** — strictly conservative (more retries, never wrong). So `ensure` reduces to a conflict-checked read and `commute` reduces to `alter` (gives up Clojure's relaxed commutative-op throughput). This is actually *stricter* than Clojure, which doesn't conflict-check plain `deref` and permits write-skew.
+
 - **A single global commit lock**, not per-ref lock ordering; transaction bodies run unlocked, the lock covers only the two-phase verify-then-write commit.
+
 - **No per-ref locking or age-based "barging"** — retries are bounded (10000, matching Clojure's `RETRY_LIMIT`) so a stuck txn throws rather than hangs, but nothing prevents adversarial livelock.
+
 - **Exceptions abort immediately**; only version conflicts retry.
+
 - **Validators run at each `alter`/`ref-set`**, not deferred to commit.
+
 - **No ref history** — `ref-min-history`/`ref-max-history` are get/set pairs, `ref-history-count` always 0; the optimistic design never blocks readers on writers, so history has no role.
 
 ### Agent lifecycle no-ops
@@ -179,8 +226,11 @@ Clojure's `subvec` is O(1) (a `SubVector` view). Swish's (`CoreSequence.swift`) 
 ### `with-precision` rounds only the final result, and supports one rounding mode
 
 Swish implements `with-precision`/`*math-context*` (`core.clj`) with two simplifications:
+
 - **Only the body's overall final result is rounded, not every intermediate BigDecimal op** — the arithmetic ops (`CoreArithmeticBasic.swift`) are plain closures with no evaluator access to read `*math-context*`, so `with-precision` expands to `(binding [*math-context* …] (round-with-math-context (do ~@body)))`. Matches Clojure for a single-expression body; differs for a body chaining multiple ops.
+
 - **Only `:HALF_UP` is supported** (the vendored BigDecimal package rounds with one fixed HALF_UP-style strategy) — any other requested mode (`UP`/`DOWN`/`CEILING`/`FLOOR`/`HALF_DOWN`/`HALF_EVEN`/`UNNECESSARY`) throws rather than silently computing the wrong answer.
+
 - **Note:** `bigdec-round-to-precision` (`CoreArithmeticPrecision.swift`) works around a real negative-rounding bug in the vendored `BigDecimal.withPrecision(_:)` by sign-normalizing. That's a vendored-package bug — don't "fix" it a second time if it's patched upstream; check first (NOTES.md).
 
 ### `format` follows Foundation's printf dialect, not Java's `java.util.Formatter`
@@ -236,9 +286,13 @@ The tree-walker costs ~300–475µs per element for lazy-seq chains (`filter`/`r
 Deferred because each needs a real design change, not a mechanical fix. Re-verify against current source before acting — this is a map, not a guarantee. (Items that were on this list and are now **done** — `cons`/`conj`-on-list O(1) via `SwishPersistentList`, `Environment` per-level `Mutex` removed, `evalList` fast-path + `evalSpecialForm` extraction, global-symbol `qualifiedVarCache`, the `currentNs()` double-lookup (now a cached `*ns*` Var), and the per-call thread-local storage swap off `Thread.current.threadDictionary` — are written up in NOTES.md; several carry load-bearing invariants repeated below.)
 
 **Invariants from shipped work (don't regress):**
+
 - **`evalList`'s special-form switch lives in a separate `evalSpecialForm(_:_:in:)` for stack depth** — `evalList` is the deepest-recursing function, and in debug builds every recursive frame would otherwise carry the whole switch's frame size (this caused a SIGBUS when `reify` was added as a 25th case). **Add any future special form to `evalSpecialForm`, not `evalList`.**
+
 - **`qualifiedVarCache` (`Evaluator`) is invalidated only by the two mapping-deleting APIs** — it caches only literal-namespace (`findNs`) resolutions of home vars (`v.namespace === ns`), never alias/referred resolutions; `intern` reuses the Var object and `refer` never replaces a home var, so the *only* way a cached entry goes stale is deletion: **`ns-unmap` deletes the one `"<ns>/<name>"` key; `remove-ns` prefix-clears every `"<ns>/…"` key.** (Was "needs no invalidation" before those APIs existed.)
+
 - **`starNsVar` (the cached `*ns*` Var) needs no invalidation** — same immutability as `qualifiedVarCache`: `*ns*` is interned once at init and its Var object is never replaced (only its value changes, via `in-ns`/`setCurrentNs`). `currentNs()`/`setCurrentNs()` read/write it directly. (The *remaining* deferral here is unrelated: `*ns*` is a plain non-dynamic Var, so `in-ns` is not thread-local — a threading-correctness concern documented in `Evaluator+Namespaces.swift`, deferred to whenever real background execution lands, not a perf item.)
+
 - **Per-call thread-local state (`callDepth`/`bindingFrames`) lives in `EvaluatorThreadState`, keyed by thread identity in a `Mutex`-guarded dict** — the `Mutex` guards only the registry (lookup/insert); each state object is single-thread-owned and its fields mutate lock-free. **Don't** move the cold-path thread-locals (`currentTransaction`/`currentCancellationCheck`/`currentAgentActionSends`) off `Thread.current.threadDictionary` for this reason — they aren't per-call, so the ObjC lookup cost is irrelevant there; only the hot per-call slots earned the swap.
 
 ### `fn` literals redo static analysis on every evaluation
