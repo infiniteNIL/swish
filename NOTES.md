@@ -558,6 +558,34 @@ at the cost of full-string eagerness: `(take 3 (re-seq re huge-string))` does th
 full scan up front. `seq?` is `true` (an ordinary `.seq`), matching Clojure, but
 `lazy-seq?` is `false` where Clojure reports `true` — the visible seam.
 
+## Printing — per-call configured printer, without a formatter cost
+
+The print-control vars (`*print-length*` etc.) were *nominal*: the print fns used a fixed
+global `Printer`, so `(binding [*print-length* 5] …)` was silently ignored, and `*print-level*`/
+`*print-namespace-maps*`/`*print-readably*` didn't exist. Making them work means building a
+`Printer` configured from the current var values on each print — but the naive version regresses
+perf, because `Printer.init()` built two Foundation formatters (`NumberFormatter` +
+`ISO8601DateFormatter`), which are expensive (the old global `corePrinter` existed precisely to
+avoid that). The fix: **move the formatters to shared module-level instances** (guarded by the
+existing `formatterLock`), so `Printer` is a cheap config-only value; `makePrinter()` then costs a
+struct copy plus a few `dynamicValue(of:)` reads (the vars' `Var`s are cached at init like
+`starNsVar`). Also: the print vars weren't `isDynamic`, so `binding` on them threw — now fixed.
+
+`*print-level*` needed a `depth` parameter threaded through the recursive printer methods (the
+`transform` closures become `{ self.printString($0, depth: depth+1) }`); a collection at
+`depth >= cap` prints `#`.
+
+**`print-method` hook.** The native `Printer` can't call the evaluator, so it carries an optional
+`userTypePrinter` closure consulted **only at deftype/defrecord/reify nodes** — meaning
+non-record printing pays nothing, and the closure fires once per user-type node (nesting handled).
+The closure is built **once** (cached on the evaluator, `[unowned self]`) after `core.clj` loads,
+so a print pays no `findVar`/closure-allocation for it. It calls `swish-print-method-string`, which
+renders through the user's method into a fresh `swish-string-writer` (the `with-out-str` machinery)
+— with `*out*` bound to that writer so method bodies write via `print`/`pr` (Swish has no
+host-`Writer` interop, so `(.write w …)` isn't available). Recursion is avoided by making
+`print-method`'s `:default` write the native form via a *hook-free* shared printer
+(`swish-write-default`), and by the hook returning nil for types with no registered method.
+
 ## hash — a deterministic port because Swift's `Hasher` is per-process-randomized
 
 `hash` was missing entirely (probe: `(resolve 'hash)` → false). The tempting shortcut —

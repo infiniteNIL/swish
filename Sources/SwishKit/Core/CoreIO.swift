@@ -24,23 +24,27 @@ func registerIO(into evaluator: Evaluator) {
     evaluator.register(name: "pr-str", arity: .variadic,
         doc: "pr to a string, returning it. Prints the object(s), separated by spaces, " +
              "in a form that the reader can read back.",
-        arglists: [["&", "more"]]) { args in
-        .string(args.map { corePrinter.printString($0) }.joined(separator: " "))
+        arglists: [["&", "more"]]) { [evaluator] args in
+        let printer = evaluator.makePrinter()
+        return .string(args.map { printer.printString($0) }.joined(separator: " "))
     }
     evaluator.register(name: "print-str", arity: .variadic,
         doc: "print to a string, returning it",
-        arglists: [["&", "more"]]) { args in
-        .string(args.map { strStringForPrint($0) }.joined(separator: " "))
+        arglists: [["&", "more"]]) { [evaluator] args in
+        let printer = evaluator.makePrinter()
+        return .string(args.map { strStringForPrint($0, printer: printer) }.joined(separator: " "))
     }
     evaluator.register(name: "println-str", arity: .variadic,
         doc: "println to a string, returning it",
-        arglists: [["&", "more"]]) { args in
-        .string(args.map { strStringForPrint($0) }.joined(separator: " ") + "\n")
+        arglists: [["&", "more"]]) { [evaluator] args in
+        let printer = evaluator.makePrinter()
+        return .string(args.map { strStringForPrint($0, printer: printer) }.joined(separator: " ") + "\n")
     }
     evaluator.register(name: "prn-str", arity: .variadic,
         doc: "prn to a string, returning it",
-        arglists: [["&", "more"]]) { args in
-        .string(args.map { corePrinter.printString($0) }.joined(separator: " ") + "\n")
+        arglists: [["&", "more"]]) { [evaluator] args in
+        let printer = evaluator.makePrinter()
+        return .string(args.map { printer.printString($0) }.joined(separator: " ") + "\n")
     }
     evaluator.register(name: "pr", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. " +
@@ -108,6 +112,28 @@ func registerIO(into evaluator: Evaluator) {
                 message: "argument must be an in-memory writer created by swish-string-writer")
         }
         return .string(wtr.bufferedString)
+    }
+    evaluator.register(name: "swish-write-default", arity: .fixed(2),
+        doc: "Internal. Writes the default (pr) representation of x to writer w — backs print-method's :default method. Uses the hook-free shared printer, so it never recurses back into print-method.",
+        arglists: [["x", "w"]]) { args in
+        guard case .writer(let wtr) = args[1] else {
+            throw EvaluatorError.invalidArgument(function: "swish-write-default",
+                message: "second argument must be a writer")
+        }
+        try wtr.write(corePrinter.printString(args[0]))
+        return .nil
+    }
+    evaluator.register(name: "flush", arity: .fixed(0),
+        doc: "Flushes the output stream that is the current value of *out*.",
+        arglists: [[]]) { [evaluator] _ in
+        // A SwishWriter writes eagerly (nothing buffered to flush); only stdout needs it.
+        if case .writer = evaluator.currentOut() {
+            // no-op
+        }
+        else {
+            fflush(stdout)
+        }
+        return .nil
     }
 
     evaluator.register(name: "slurp", arity: .variadic,
@@ -334,7 +360,8 @@ private func sourceContainsAutoQualifiedKeyword(_ source: String) -> Bool {
 // MARK: - Print implementations
 
 private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
-    let s = args.map { strStringForPrint($0) }.joined(separator: " ")
+    let printer = evaluator.makePrinter()
+    let s = args.map { strStringForPrint($0, printer: printer) }.joined(separator: " ")
     try writeToOut(evaluator, s + terminator)
     return .nil
 }
@@ -343,15 +370,16 @@ private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String
 /// but nil renders as the literal text "nil" rather than "". strString's empty-string
 /// nil is specific to `str`'s own concatenation semantics ((str nil) => ""); print's
 /// per-argument rendering always shows "nil", matching real Clojure.
-private func strStringForPrint(_ expr: Expr) -> String {
+private func strStringForPrint(_ expr: Expr, printer: Printer) -> String {
     if case .nil = expr {
         return "nil"
     }
-    return corePrinter.strString(expr)
+    return printer.strString(expr)
 }
 
 private func corePrint(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
-    let s = args.map { corePrinter.printString($0) }.joined(separator: " ")
+    let printer = evaluator.makePrinter()
+    let s = args.map { printer.printString($0) }.joined(separator: " ")
     try writeToOut(evaluator, s + terminator)
     return .nil
 }

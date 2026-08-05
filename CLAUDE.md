@@ -54,7 +54,7 @@ Swish supports genuine lazy sequences via `LazySeqBox` (`Sources/SwishKit/LazySe
 
 - `map`, `filter`, `concat`, `mapcat`, `lazy-cat` are defined lazily in `core.clj` and shadow the bootstrap native registrations after core loads.
 
-- `*print-length*` (default 1000) caps how many elements the printer realizes before emitting `...`. The `Printer` struct exposes `printLengthCap: Int?` to control this.
+- `*print-length*` (default 1000) caps how many elements the printer realizes before emitting `...`. It (and the other print-control vars) is read dynamically per print — see the Printing entry under Known Limitations.
 
 - `unquote-splicing` handles lazy seqs by fully realizing them (so macros like `lazy-cat` that use `~@(map ...)` work correctly).
 
@@ -232,6 +232,14 @@ Swish implements `with-precision`/`*math-context*` (`core.clj`) with two simplif
 - **Only `:HALF_UP` is supported** (the vendored BigDecimal package rounds with one fixed HALF_UP-style strategy) — any other requested mode (`UP`/`DOWN`/`CEILING`/`FLOOR`/`HALF_DOWN`/`HALF_EVEN`/`UNNECESSARY`) throws rather than silently computing the wrong answer.
 
 - **Note:** `bigdec-round-to-precision` (`CoreArithmeticPrecision.swift`) works around a real negative-rounding bug in the vendored `BigDecimal.withPrecision(_:)` by sign-normalizing. That's a vendored-package bug — don't "fix" it a second time if it's patched upstream; check first (NOTES.md).
+
+### Printing — control vars are honored, `#:ns{}`, and `print-method` extensibility
+
+The print-control vars are read **per print** by `Evaluator.makePrinter()` (`Evaluator.swift`), which builds a cheap configured `Printer` from `*print-length*`/`*print-level*`/`*print-namespace-maps*`/`*print-readably*`/`*print-meta*` and hands it to the user-facing print fns (`pr`/`prn`/`print`/`println`/`*-str`, `CoreIO.swift`). Previously these vars were *nominal* — the fns used a fixed global `Printer`, so `(binding [*print-length* 5] …)` was silently ignored. **Performance:** `Printer` is now a cheap value type — its two Foundation formatters (`NumberFormatter`/`ISO8601DateFormatter`) are shared module-level instances (guarded by `formatterLock`), so a per-call `Printer` costs a struct copy, never a formatter allocation. All the print vars are now `isDynamic` (they weren't, so `binding` on them used to throw).
+- **`*print-level*`** caps nesting depth: a collection at depth ≥ the cap prints as `#` (depth threaded through the recursive printer methods).
+- **`*print-namespace-maps*`** (default **true**, matching Clojure): a map whose keys all share one namespace prints compactly as `#:ns{:k v …}`. Regular `.map` only — `.sortedMap` and `#::` auto-namespace maps are not compacted (minor gaps). Uses Swish's space-separated map style (`#:a{:x 1 :y 2}`), not Clojure's comma style.
+- **`print-method`** is a real multimethod (`core.clj`) dispatching on `(type x)`; the native printer consults it via a cached `userTypePrinter` hook (`Printer`) **only at deftype/defrecord/reify nodes**, so non-record printing pays nothing and the hook fires per user-type node (handling nesting). `swish-print-method-string` renders through the user method into a fresh in-memory writer (`swish-string-writer`), reusing the `with-out-str` machinery. Divergences: dispatches for **user types only** (not built-ins — that would force all printing through a multimethod); a method body writes with `print`/`pr`/`println` (Swish binds `*out*` to the target writer — there's no host-`Writer` interop, so `(.write w …)` isn't available; the `w` arg is for signature compatibility); `str` does **not** honor `print-method` (only the `pr`/`print` family does). The `:default` method writes the native form via `swish-write-default` (hook-free ⇒ no recursion).
+- **`tagged-literal`/`tagged-literal?`** (a `TaggedLiteral` defrecord printing as `#tag form` via its own `print-method`) and **`reader-conditional`/`reader-conditional?`** (a `ReaderConditional` record) are the data representations; `flush` flushes `*out*` (`fflush(stdout)` for the default). Deferred: qualified record print names (`#user.P{…}`, non-round-tripping), `print-dup`/`*print-dup*`.
 
 ### `format` follows Foundation's printf dialect, not Java's `java.util.Formatter`
 

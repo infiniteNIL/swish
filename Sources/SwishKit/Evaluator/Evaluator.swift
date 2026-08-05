@@ -124,6 +124,20 @@ public class Evaluator {
     /// — the same immutability that lets `qualifiedVarCache` skip invalidation.
     private(set) var starNsVar: Var!
 
+    /// The print-control vars, cached at init (they're interned once and never replaced,
+    /// like `starNsVar`) so `makePrinter()` reads them with a couple of `dynamicValue(of:)`
+    /// thread-local lookups per print — no symbol resolution, no formatter allocation.
+    private(set) var printLengthVar: Var!
+    private(set) var printLevelVar: Var!
+    private(set) var printNamespaceMapsVar: Var!
+    private(set) var printReadablyVar: Var!
+    private(set) var printMetaVar: Var!
+
+    /// The `print-method` printer hook, built once after `core.clj` loads (which defines
+    /// `swish-print-method-string`) and reused by every `makePrinter()` — so a print pays
+    /// no `findVar`/closure allocation for it. `nil` if the helper isn't defined yet.
+    private(set) var printMethodHook: ((Expr) -> String?)?
+
     public init(sourcePaths: [String] = []) {
         self.sourcePaths = sourcePaths
         // 1. Create clojure.core first — register() interns into it
@@ -138,12 +152,19 @@ public class Evaluator {
         nsVar.isSystem = true
         starNsVar = nsVar
 
-        // 4. *print-meta* controls whether metadata is printed with values
-        let pmVar = coreNs.intern(name: "*print-meta*", value: .boolean(false))
-        pmVar.isSystem = true
-
-        // *print-length* caps how many lazy-seq elements the printer realizes.
-        _ = coreNs.intern(name: "*print-length*", value: .integer(1000))
+        // 4. Print-control vars. All are dynamic (rebindable via `binding`) and read by
+        // `makePrinter()` on each user-facing print. `*print-length*` defaults to 1000
+        // (a Swish-specific cap so infinite seqs don't print forever — Clojure's default
+        // is nil); the rest match Clojure's defaults.
+        printMetaVar = coreNs.intern(name: "*print-meta*", value: .boolean(false))
+        printLengthVar = coreNs.intern(name: "*print-length*", value: .integer(1000))
+        printLevelVar = coreNs.intern(name: "*print-level*", value: .nil)
+        printNamespaceMapsVar = coreNs.intern(name: "*print-namespace-maps*", value: .boolean(true))
+        printReadablyVar = coreNs.intern(name: "*print-readably*", value: .boolean(true))
+        for v in [printMetaVar, printLengthVar, printLevelVar, printNamespaceMapsVar, printReadablyVar] {
+            v!.isSystem = true
+            v!.isDynamic = true
+        }
 
         // 5. Load clojure/core.clj — defines Clojure-level macros (defn, etc.) into clojure.core
         loadCoreLibrary()
@@ -154,6 +175,14 @@ public class Evaluator {
         let userNs = findOrCreateNs("user")
         referClojureCore(into: userNs)
         setCurrentNs(userNs)
+
+        // 7. Build the print-method hook once (core.clj now defines swish-print-method-string).
+        if let strFn = findNs("clojure.core")?.findVar(name: "swish-print-method-string")?.value {
+            printMethodHook = { [unowned self] expr in
+                guard let result = try? self.call(strFn, args: [expr]), case .string(let s) = result else { return nil }
+                return s
+            }
+        }
     }
 
     /// Generates a unique symbol with the given prefix
@@ -388,6 +417,37 @@ public class Evaluator {
     private func deref(_ v: Var) throws -> Expr {
         if let val = dynamicValue(of: v) { return val }
         throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
+    }
+
+    /// Builds a `Printer` configured from the current `*print-*` var values. Cheap — a
+    /// struct copy plus a few `dynamicValue(of:)` thread-local reads; the expensive
+    /// formatters are shared module-level (`Printer.swift`). Does not set `userTypePrinter`
+    /// (the `print-method` hook) — the print fns add that only when custom methods exist.
+    func makePrinter() -> Printer {
+        var p = Printer()
+        switch dynamicValue(of: printLengthVar) {
+        case .integer(let n)?: p.printLengthCap = n
+        case .nil?:            p.printLengthCap = nil
+        default:              break
+        }
+        if case .integer(let n)? = dynamicValue(of: printLevelVar) {
+            p.printLevelCap = n
+        }
+        else {
+            p.printLevelCap = nil
+        }
+        p.printNamespaceMaps = isTruthyExpr(dynamicValue(of: printNamespaceMapsVar))
+        p.printReadably = isTruthyExpr(dynamicValue(of: printReadablyVar))
+        p.printMeta = isTruthyExpr(dynamicValue(of: printMetaVar))
+        // The `print-method` hook (built once, cached) is consulted only at
+        // deftype/defrecord/reify nodes, so non-record printing pays nothing.
+        p.userTypePrinter = printMethodHook
+        return p
+    }
+
+    private func isTruthyExpr(_ v: Expr?) -> Bool {
+        guard let v else { return false }
+        return v != .nil && v != .boolean(false)
     }
 
     /// Returns the current value of `*out*`, or `.nil` if unbound (meaning stdout).

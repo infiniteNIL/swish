@@ -2930,6 +2930,66 @@
   (let [{:keys [method-table prefer-table hierarchy-var default-val multimethod-name]} (meta multifn)]
     (mm-find-method multimethod-name @method-table @prefer-table @hierarchy-var default-val dispatch-val)))
 
+;;; print-method — extensible printing
+
+(defmulti print-method
+  "Extensible printing. Define (defmethod print-method SomeType [x writer] ...) to
+  customize how instances of SomeType print via pr/prn/print/println. Dispatches on
+  (type x). [Swish] applies to deftype/defrecord/reify instances (not built-in types);
+  since Swish has no host-Writer interop, a method body writes with print/pr/println —
+  swish binds *out* to the target writer while the method runs, and the writer arg is
+  provided for signature compatibility."
+  {:added "1.0"}
+  (fn [x writer] (type x)))
+
+(defmethod print-method :default [x w]
+  (swish-write-default x w))
+
+(defn- swish-print-method-string
+  "[Swish] Internal, called by the native printer only at deftype/defrecord/reify nodes.
+  If the user registered a print-method for (type x), renders x through it into a fresh
+  string writer and returns the string; else nil, so the native default form is used."
+  [x]
+  (when (get (methods print-method) (type x))
+    (let [w (swish-string-writer)]
+      (binding [*out* w] (print-method x w))
+      (swish-writer-string w))))
+
+;;; Tagged literals & reader conditionals (data representations)
+
+(defrecord TaggedLiteral [tag form])
+
+(defn tagged-literal
+  "Construct a data representation of a tagged literal from a tag symbol and a form."
+  {:added "1.7"}
+  [tag form]
+  (->TaggedLiteral tag form))
+
+(defn tagged-literal?
+  "Return true if the value is the data representation of a tagged literal."
+  {:added "1.7"}
+  [value]
+  (instance? TaggedLiteral value))
+
+(defmethod print-method TaggedLiteral [x w]
+  (print (str "#" (:tag x) " "))
+  (pr (:form x)))
+
+(defrecord ReaderConditional [form splicing?])
+
+(defn reader-conditional
+  "Construct a data representation of a reader conditional. If true, splicing? indicates
+  read-cond-splicing."
+  {:added "1.7"}
+  [form splicing?]
+  (->ReaderConditional form splicing?))
+
+(defn reader-conditional?
+  "Return true if the value is the data representation of a reader conditional."
+  {:added "1.7"}
+  [value]
+  (instance? ReaderConditional value))
+
 (defn prefer-method
   "Causes the multimethod to prefer matches of dispatch-val-x over dispatch-val-y
    when there is a conflict"

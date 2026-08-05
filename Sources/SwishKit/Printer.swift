@@ -3,54 +3,86 @@ import BigInt
 import BigDecimal
 import Synchronization
 
-/// `Printer` is a struct (value type), so it can't hold a `Mutex` field directly.
-/// `NumberFormatter`/`ISO8601DateFormatter` are not safe for concurrent use on one
-/// instance, and `corePrinter` (`Core.swift`) is a single process-wide shared
-/// `Printer` used from error-message-building code across every native function —
-/// exactly the kind of code path that will run on background threads once
-/// agents/futures exist. This module-level lock serializes just the two
-/// formatter-touching call sites, without changing `Printer`'s value semantics.
+// `NumberFormatter`/`ISO8601DateFormatter` are expensive to construct and unsafe for
+// concurrent use, so they're process-wide shared instances (built once) guarded by this
+// lock — NOT per-`Printer` fields. That keeps `Printer` a *cheap* value type: the print
+// fns build a per-call `Printer` configured from the `*print-*` dynamic vars, and that
+// costs only a struct copy, never a formatter allocation.
 private let formatterLock = Mutex<Void>(())
 
-/// Printer for Swish expressions
+private let sharedFloatFormatter: NumberFormatter = {
+    let f = NumberFormatter()
+    f.numberStyle = .decimal
+    f.usesGroupingSeparator = false
+    f.minimumFractionDigits = 1
+    f.maximumFractionDigits = 15
+    return f
+}()
+
+// `nonisolated(unsafe)`: `ISO8601DateFormatter` isn't `Sendable`; it's mutated only via
+// the `formatterLock`-guarded `.string(from:)` call site, so it's manually serialized.
+nonisolated(unsafe) private let sharedInstFormatter: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return f
+}()
+
+/// Printer for Swish expressions. A cheap-to-construct value type holding only config;
+/// the expensive formatters are shared module-level (see above).
 public struct Printer {
-    private let floatFormatter: NumberFormatter
-    private let instFormatter: ISO8601DateFormatter
     public var printMeta: Bool = false
-    /// Maximum number of lazy-seq elements to realize when printing.
+    /// Maximum number of lazy-seq elements to realize when printing (`*print-length*`).
     /// `nil` means no limit (only safe for finite seqs).
     public var printLengthCap: Int? = 1000
+    /// Maximum nesting depth before a collection prints as `#` (`*print-level*`). `nil` = no limit.
+    public var printLevelCap: Int? = nil
+    /// When true, a map whose keys all share one namespace prints compactly as `#:ns{…}`
+    /// (`*print-namespace-maps*`). Defaults true, matching Clojure.
+    public var printNamespaceMaps: Bool = true
+    /// When false, `pr`-style printing renders strings/chars unquoted (`*print-readably*`).
+    public var printReadably: Bool = true
+    /// Optional hook consulted when printing a `deftype`/`defrecord` instance — backs
+    /// `print-method`. Returns a custom rendering, or nil to fall through to the native form.
+    /// Non-`Sendable` closure held safely: `Printer` is `@unchecked Sendable` and is used
+    /// synchronously within one print call.
+    public var userTypePrinter: ((Expr) -> String?)?
 
-    public init() {
-        floatFormatter = NumberFormatter()
-        floatFormatter.numberStyle = .decimal
-        floatFormatter.usesGroupingSeparator = false
-        floatFormatter.minimumFractionDigits = 1
-        floatFormatter.maximumFractionDigits = 15
+    public init() {}
 
-        instFormatter = ISO8601DateFormatter()
-        instFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    }
+    // MARK: - Public entry points (depth 0)
 
-    /// Returns a machine-readable string representation of a Swish expression.
-    /// Strings are quoted and escaped; characters use named forms (e.g. \newline).
-    /// Output round-trips through the reader. Backs the planned `pr-str` native function.
-    public func printString(_ expr: Expr) -> String {
-        if let collection = formatCollection(expr, transform: printString, includeMeta: true) {
+    /// Machine-readable representation (quoted/escaped strings, named chars). Round-trips
+    /// through the reader. Backs `pr-str`.
+    public func printString(_ expr: Expr) -> String { printString(expr, depth: 0) }
+
+    /// Human-readable representation (strings unquoted, chars raw). Backs `str`.
+    public func strString(_ expr: Expr) -> String { strString(expr, depth: 0) }
+
+    /// Like `printString` but floats use `String(value)` for exact round-trip — REPL result form.
+    public func sourceForm(_ expr: Expr) -> String { sourceForm(expr, depth: 0) }
+
+    // MARK: - Depth-threaded implementations
+
+    func printString(_ expr: Expr, depth: Int) -> String {
+        if let cap = printLevelCap, depth >= cap, isCollectionForLevel(expr) {
+            return "#"
+        }
+        let recur: (Expr) -> String = { self.printString($0, depth: depth + 1) }
+        if let collection = formatCollection(expr, transform: recur, includeMeta: true) {
             return collection
         }
         if case .lazySeq(let box) = expr {
-            return formatLazySeq(box, transform: printString)
+            return formatLazySeq(box, transform: recur)
         }
         return switch expr {
         case .integer(let value):
             String(value)
 
         case .double(let value):
-            formatterLock.withLock { _ in floatFormatter.string(from: NSNumber(value: value)) } ?? String(value)
+            formatterLock.withLock { _ in sharedFloatFormatter.string(from: NSNumber(value: value)) } ?? String(value)
 
         case .float(let value):
-            formatterLock.withLock { _ in floatFormatter.string(from: NSNumber(value: Double(value))) } ?? String(value)
+            formatterLock.withLock { _ in sharedFloatFormatter.string(from: NSNumber(value: Double(value))) } ?? String(value)
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
@@ -62,10 +94,10 @@ public struct Printer {
             "\(v)M"
 
         case .string(let value):
-            "\"\(escapeString(value))\""
+            printReadably ? "\"\(escapeString(value))\"" : value
 
         case .character(let char):
-            printCharacter(char)
+            printReadably ? printCharacter(char) : String(char)
 
         case .boolean(let value):
             value ? "true" : "false"
@@ -113,36 +145,36 @@ public struct Printer {
             "#<Namespace \(ns.name)>"
 
         case .atom(let a):
-            "#<Atom: \(printString(a.value))>"
+            "#<Atom: \(printString(a.value, depth: depth + 1))>"
 
         case .transient(let tc):
-            "#<transient \(printString(tc.value))>"
+            "#<transient \(printString(tc.value, depth: depth + 1))>"
 
         case .reduced(let v):
-            "#<reduced \(printString(v))>"
+            "#<reduced \(printString(v, depth: depth + 1))>"
 
         case .delay(let box):
             box.isRealized
-                ? "#<Delay@\((try? box.force()).map { printString($0) } ?? "error")>"
+                ? "#<Delay@\((try? box.force()).map { printString($0, depth: depth + 1) } ?? "error")>"
                 : "#<Delay@pending>"
 
         case .agent(let a):
-            "#<Agent: \(printString(a.value))>"
+            "#<Agent: \(printString(a.value, depth: depth + 1))>"
 
         case .future(let box):
             box.isCancelled
                 ? "#<Future@cancelled>"
                 : box.isRealized
-                    ? "#<Future@\((try? box.deref()).map { printString($0) } ?? "error")>"
+                    ? "#<Future@\((try? box.deref()).map { printString($0, depth: depth + 1) } ?? "error")>"
                     : "#<Future@pending>"
 
         case .promise(let box):
             box.isRealized
-                ? "#<Promise@\(printString(box.deref()))>"
+                ? "#<Promise@\(printString(box.deref(), depth: depth + 1))>"
                 : "#<Promise@pending>"
 
         case .ref(let r):
-            "#<Ref: \(printString(r.value))>"
+            "#<Ref: \(printString(r.value, depth: depth + 1))>"
 
         case .regex(let r):
             "#\"\(r.pattern)\""
@@ -157,31 +189,32 @@ public struct Printer {
             w.path.map { "#<Writer \($0)>" } ?? "#<Writer>"
 
         case .inst(let date):
-            "#inst \"\(formatterLock.withLock { _ in instFormatter.string(from: date) })\""
+            "#inst \"\(formatterLock.withLock { _ in sharedInstFormatter.string(from: date) })\""
 
         case .uuid(let uuid):
             "#uuid \"\(uuid.uuidString.lowercased())\""
 
         case .record(let typeName, _, let data, _):
-            "#\(typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName)\(printMapString(data, transform: printString))"
+            userTypePrinter?(expr) ?? "#\(shortTypeName(typeName))\(printMapString(data, transform: recur))"
 
         case .deftype(let typeName, let fields, let data, let box, _):
-            printDeftype(typeName: typeName, fields: fields, data: data, mutableStorage: box)
+            userTypePrinter?(expr) ?? printDeftype(typeName: typeName, fields: fields, data: data, mutableStorage: box, depth: depth)
 
         default:
             fatalError("unreachable: collection and lazySeq cases are handled by formatCollection/formatLazySeq above")
         }
     }
 
-    /// Returns a human-readable string representation of a Swish expression.
-    /// Strings print without quotes; characters print as the raw character.
-    /// Backs the `str` native function. Named `strString` to mirror `printString` → `pr-str`.
-    public func strString(_ expr: Expr) -> String {
-        if let collection = formatCollection(expr, transform: strString, includeMeta: true) {
+    func strString(_ expr: Expr, depth: Int) -> String {
+        if let cap = printLevelCap, depth >= cap, isCollectionForLevel(expr) {
+            return "#"
+        }
+        let recur: (Expr) -> String = { self.strString($0, depth: depth + 1) }
+        if let collection = formatCollection(expr, transform: recur, includeMeta: true) {
             return collection
         }
         if case .lazySeq(let box) = expr {
-            return formatLazySeq(box, transform: strString)
+            return formatLazySeq(box, transform: recur)
         }
         return switch expr {
         case .nil:
@@ -194,7 +227,7 @@ public struct Printer {
             String(char)
 
         case .double(let value):
-            value.isInfinite ? (value > 0 ? "Infinity" : "-Infinity") : printString(.double(value))
+            value.isInfinite ? (value > 0 ? "Infinity" : "-Infinity") : printString(.double(value), depth: depth)
 
         case .bigInteger(let v):
             "\(v)"
@@ -206,24 +239,26 @@ public struct Printer {
             uuid.uuidString.lowercased()
 
         case .reduced:
-            printString(expr)
+            printString(expr, depth: depth)
 
         case .transient:
-            printString(expr)
+            printString(expr, depth: depth)
 
         default:
-            printString(expr)
+            printString(expr, depth: depth)
         }
     }
 
-    /// Returns the source-code form of a Swish expression for use in result substitution.
-    /// Like `printString` but floats use `String(value)` for exact round-trip fidelity.
-    public func sourceForm(_ expr: Expr) -> String {
-        if let collection = formatCollection(expr, transform: sourceForm, includeMeta: false) {
+    func sourceForm(_ expr: Expr, depth: Int) -> String {
+        if let cap = printLevelCap, depth >= cap, isCollectionForLevel(expr) {
+            return "#"
+        }
+        let recur: (Expr) -> String = { self.sourceForm($0, depth: depth + 1) }
+        if let collection = formatCollection(expr, transform: recur, includeMeta: false) {
             return collection
         }
         if case .lazySeq(let box) = expr {
-            return formatLazySeq(box, transform: sourceForm)
+            return formatLazySeq(box, transform: recur)
         }
         return switch expr {
         case .double(let value):
@@ -233,13 +268,26 @@ public struct Printer {
             String(value)
 
         case .reduced:
-            printString(expr)
+            printString(expr, depth: depth)
 
         case .transient:
-            printString(expr)
+            printString(expr, depth: depth)
 
         default:
-            printString(expr)
+            printString(expr, depth: depth)
+        }
+    }
+
+    // MARK: - Collection formatting
+
+    private func isCollectionForLevel(_ expr: Expr) -> Bool {
+        switch expr {
+        case .list, .seq, .vector, .sharedVector, .array, .mapEntry,
+             .map, .sortedMap, .set, .sortedSet, .lazySeq, .record, .deftype:
+            return true
+
+        default:
+            return false
         }
     }
 
@@ -328,28 +376,81 @@ public struct Printer {
 
     private func metaPrefix(_ meta: [Expr: Expr]?) -> String {
         guard printMeta, let meta, !meta.isEmpty else { return "" }
-        return "^\(printMapString(meta, transform: printString)) "
+        return "^\(printMapString(meta, transform: { self.printString($0, depth: 0) })) "
     }
 
-    private func printDeftype(typeName: String, fields: [String], data: [Expr: Expr], mutableStorage: MutableFieldStore?) -> String {
-        let shortName = typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName
+    private func shortTypeName(_ typeName: String) -> String {
+        typeName.contains("/") ? String(typeName.split(separator: "/").last!) : typeName
+    }
+
+    private func printDeftype(typeName: String, fields: [String], data: [Expr: Expr], mutableStorage: MutableFieldStore?, depth: Int) -> String {
         // Immutable fields live in `data`; mutable ones (if any) live in the box —
         // read each field's *current* value from wherever it's stored.
         let mutableFields = mutableStorage?.snapshot ?? [:]
         let values = fields.map { field -> String in
             let value = data[.keyword(field)] ?? mutableFields[field] ?? .nil
-            return printString(value)
+            return printString(value, depth: depth + 1)
         }.joined(separator: " ")
-        return "#\(shortName)[\(values)]"
+        return "#\(shortTypeName(typeName))[\(values)]"
     }
 
     private func printMapString(_ dict: [Expr: Expr], transform: (Expr) -> String) -> String {
+        // `#:ns{…}`: when every key is a keyword/symbol sharing one namespace, print the
+        // compact namespaced-map form with the shared namespace stripped from each key.
+        if printNamespaceMaps, !dict.isEmpty, let ns = sharedKeyNamespace(dict) {
+            let pairs = dict
+                .map { (transform(stripKeyNamespace($0.key)), transform($0.value)) }
+                .sorted { $0.0 < $1.0 }
+                .flatMap { [$0.0, $0.1] }
+                .joined(separator: " ")
+            return "#:\(ns){\(pairs)}"
+        }
         let pairs = dict
             .map { (transform($0.key), transform($0.value)) }
             .sorted { $0.0 < $1.0 }
             .flatMap { [$0.0, $0.1] }
             .joined(separator: " ")
         return pairs.isEmpty ? "{}" : "{\(pairs)}"
+    }
+
+    /// The common namespace shared by *all* keys, or nil if any key is unqualified or not a
+    /// keyword/symbol (in which case no `#:ns{}` compaction applies).
+    private func sharedKeyNamespace(_ dict: [Expr: Expr]) -> String? {
+        var shared: String?
+        for key in dict.keys {
+            let name: String
+            switch key {
+            case .keyword(let k):     name = k
+            case .symbol(let s, _):   name = s
+            default:                  return nil
+            }
+            guard let slash = name.firstIndex(of: "/"), slash != name.startIndex else {
+                return nil
+            }
+            let ns = String(name[..<slash])
+            if shared == nil {
+                shared = ns
+            }
+            else if shared != ns {
+                return nil
+            }
+        }
+        return shared
+    }
+
+    private func stripKeyNamespace(_ key: Expr) -> Expr {
+        switch key {
+        case .keyword(let k):
+            guard let slash = k.firstIndex(of: "/") else { return key }
+            return .keyword(String(k[k.index(after: slash)...]))
+
+        case .symbol(let s, let meta):
+            guard let slash = s.firstIndex(of: "/") else { return key }
+            return .symbol(String(s[s.index(after: slash)...]), metadata: meta)
+
+        default:
+            return key
+        }
     }
 
     private func printSetString(_ set: Set<Expr>, transform: (Expr) -> String) -> String {

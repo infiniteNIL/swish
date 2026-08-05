@@ -1,7 +1,5 @@
 # Todo
 
-- [ ] Can we remove any supports for Jank test suite
-- [ ] Can we address anything in CLAUDE.md
 - [ ] Can we make any of the builtins just a Clojure function
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
@@ -14,6 +12,16 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] print infrastructure: print-control vars now honored per-print (*print-length*
+      was silently ignored;
+- [x] added *print-level*, *print-namespace-maps*, *print-readably* — all now dynamic).
+- [x] Namespaced maps print #:ns{}.
+- [x] print-method multimethod for user types (deftype/defrecord/reify) via a cached
+      printer hook that fires only at those nodes.
+- [x] tagged-literal/tagged-literal?/reader-conditional?/flush.
+- [x] qualified record print names, print-dup.
+- [x] Can we address anything in CLAUDE.md
+- [x] Can we remove any supports for Jank test suite
 - [x] hash + hash-ordered-coll/hash-unordered-coll/mix-collection-hash: deterministic
       verbatim port of Clojure's Murmur3 hasheq (Swift Hasher is per-process-randomized,
       so a standalone impl). Value-tested against known Clojure outputs. Approximations:
