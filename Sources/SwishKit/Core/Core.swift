@@ -9,6 +9,7 @@ func registerCoreFunctions(into evaluator: Evaluator) {
     registerArithmeticPrecision(into: evaluator)
     registerBitwise(into: evaluator)
     registerComparison(into: evaluator)
+    registerHash(into: evaluator)
     registerMacros(into: evaluator)
     registerIO(into: evaluator)
     registerNamespace(into: evaluator)

@@ -558,6 +558,35 @@ at the cost of full-string eagerness: `(take 3 (re-seq re huge-string))` does th
 full scan up front. `seq?` is `true` (an ordinary `.seq`), matching Clojure, but
 `lazy-seq?` is `false` where Clojure reports `true` — the visible seam.
 
+## hash — a deterministic port because Swift's `Hasher` is per-process-randomized
+
+`hash` was missing entirely (probe: `(resolve 'hash)` → false). The tempting shortcut —
+expose Swish's internal `Expr.hash(into:)` — is **wrong**: that path uses Swift's `Hasher`,
+which is seeded randomly per process (`SWIFT_DETERMINISTIC_HASHING` off by default), so
+`(hash x)` would differ across runs and never match Clojure. Clojure's `hash` is
+`Util.hasheq`, a *deterministic* 32-bit MurmurHash3 algorithm with specified values. So
+`CoreHash.swift` is a **standalone verbatim port** (verified by WebFetching the real
+`Murmur3.java`/`Util.java`/`Numbers.java`, not reconstructed from memory), kept separate
+from `Expr.hash(into:)` (which still backs `TreeDictionary`/`TreeSet` membership — the two
+need not agree, and don't).
+
+**Swift porting notes:** all math is `Int32` with wrapping operators (`&*`/`&+`); Java's
+`>>>` (logical) and `Integer.rotateLeft` are done by bit-casting through `UInt32`; Java
+`String.hashCode` is computed over `s.utf16` (UTF-16 units = Java `char`s), *not* Swift's
+hash; `Double.hashCode` is `(int)(bits ^ (bits >>> 32))` with `-0.0` special-cased to `0`;
+symbols use `Murmur3.hashUnencodedChars(name)` combined (boost `hashCombine`, whose `>> 2`
+is *arithmetic*) with the ns's `String.hashCode`; keywords are `sym.hasheq() + 0x9e3779b9`.
+`BigInteger.hashCode` is reproduced exactly by folding `31*h + word` over the magnitude's
+32-bit big-endian words (from Attaswift `BigUInt.serialize()`), which makes small ratios
+exact too (`(hash 1/3)` = `1 ^ 3` = `2`).
+
+**Validation without a Clojure REPL:** the algorithm is authoritative (source port), and
+outputs were cross-checked against independently-known Clojure values — `(hash nil)`=0,
+`(hash false)`=1237, `(hash \a)`=97, and crucially the non-trivial `(hash [])`=-2017569654
+and `(hash [1 2 3])`=736442005. Matching the collection values transitively confirms
+`hashLong`/`hashOrdered`/`mixCollHash` and every element `hasheq` feeding them. Pinned as
+exact-value tests in `CoreHashTests.swift`.
+
 ## split-lines — the `\r\n` grapheme-cluster trap
 
 `clojure.string/split-lines` is implemented **directly** (`CoreStringNS.swift`:

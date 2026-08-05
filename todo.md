@@ -14,6 +14,10 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] hash + hash-ordered-coll/hash-unordered-coll/mix-collection-hash: deterministic
+      verbatim port of Clojure's Murmur3 hasheq (Swift Hasher is per-process-randomized,
+      so a standalone impl). Value-tested against known Clojure outputs. Approximations:
+      bigDecimal, record, opaque/identity values.
 - [x] missing-function batch (14): not-any?, printf, bounded-count, partitionv,
       splitv-at, replace (+transducer), indexed?, find-var, thread-bound?, biginteger,
       find-keyword (divergence: never nil, no interning), clojure.string/split-lines +
