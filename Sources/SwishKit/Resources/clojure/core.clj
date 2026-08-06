@@ -305,26 +305,11 @@
 
 ;;; Sequence Functions
 
-(defn long-array
-  "Returns an array of longs, from a collection or of n zeros."
-  ([size-or-seq]
-   (if (number? size-or-seq) (object-array size-or-seq 0) (object-array size-or-seq)))
-  ([size _init-val-or-seq]
-   (object-array size 0)))
-
-(defn double-array
-  "Returns an array of doubles, from a collection or of n 0.0s."
-  ([size-or-seq]
-   (if (number? size-or-seq) (object-array size-or-seq 0.0) (object-array size-or-seq)))
-  ([size _init-val-or-seq]
-   (object-array size 0.0)))
-
-(defn float-array
-  "Returns an array of floats, from a collection or of n 0.0s."
-  ([size-or-seq]
-   (if (number? size-or-seq) (object-array size-or-seq 0.0) (object-array size-or-seq)))
-  ([size _init-val-or-seq]
-   (object-array size 0.0)))
+;; [Swish] long-array/double-array/float-array are deliberately NOT defined here.
+;; They are native (CoreSequenceArray.swift), alongside their six siblings
+;; (int-array/char-array/short-array/byte-array/boolean-array/object-array).
+;; Clojure defns here would shadow those natives — a def re-interns the same Var
+;; and overwrites its root — and would silently drop the 2-arity init value.
 
 (def array-map
   "Returns a map created from kvs (delegates to hash-map)."
@@ -2394,7 +2379,9 @@
                     " found for reify instance")))
       (let [proto (deref proto-var)
             impls (:impls proto)
-            type-kw (if (nil? x) :nil (type x))
+            ;; class, not type: dispatch must key on the runtime type, never on a
+            ;; caller's :type metadata. Real Clojure dispatches on class here too.
+            type-kw (if (nil? x) :nil (class x))
             ;; Exact type first; on a miss, walk the built-in ancestor chain
             ;; (Number/Object) so (extend-type Number ...)/(extend-type Object ...)
             ;; fan out to every numeric type / act as a default. This mirrors real
@@ -2935,22 +2922,22 @@
 (defmulti print-method
   "Extensible printing. Define (defmethod print-method SomeType [x writer] ...) to
   customize how instances of SomeType print via pr/prn/print/println. Dispatches on
-  (type x). [Swish] applies to deftype/defrecord/reify instances (not built-in types);
+  (class x). [Swish] applies to deftype/defrecord/reify instances (not built-in types);
   since Swish has no host-Writer interop, a method body writes with print/pr/println —
   swish binds *out* to the target writer while the method runs, and the writer arg is
   provided for signature compatibility."
   {:added "1.0"}
-  (fn [x writer] (type x)))
+  (fn [x writer] (class x)))
 
 (defmethod print-method :default [x w]
   (swish-write-default x w))
 
 (defn- swish-print-method-string
   "[Swish] Internal, called by the native printer only at deftype/defrecord/reify nodes.
-  If the user registered a print-method for (type x), renders x through it into a fresh
+  If the user registered a print-method for (class x), renders x through it into a fresh
   string writer and returns the string; else nil, so the native default form is used."
   [x]
-  (when (get (methods print-method) (type x))
+  (when (get (methods print-method) (class x))
     (let [w (swish-string-writer)]
       (binding [*out* w] (print-method x w))
       (swish-writer-string w))))

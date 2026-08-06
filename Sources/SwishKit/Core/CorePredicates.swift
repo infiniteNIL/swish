@@ -143,12 +143,33 @@ func registerPredicates(into evaluator: Evaluator) {
                 message: "don't know how to get namespace of \(corePrinter.printString(args[0]))")
         }
     }
+    evaluator.register(name: "class", arity: .fixed(1),
+        doc: "Returns a keyword naming the runtime type of x, or nil for nil. " +
+             "Unlike type, ignores any :type metadata on x.",
+        arglists: [["x"]], body: coreClass)
+
+    // (or (:type (meta x)) (class x)), matching real Clojure. The :type metadata
+    // key lets a value present itself as a user-defined type without wrapping it in
+    // a deftype/defrecord — so (type (with-meta [1 2] {:type :point})) is :point.
+    //
+    // The internal dispatch sites deliberately use `class`, not `type`: protocol
+    // dispatch (protocol-dispatch-) and print-method both need the *runtime* type,
+    // and real Clojure dispatches both on class too.
     evaluator.register(name: "type", arity: .fixed(1),
-        doc: "Returns a keyword naming the runtime type of x, or nil for nil.",
+        doc: "Returns the :type metadata of x, or its class if none.",
         arglists: [["x"]]) { args in
-        if case .nil = args[0] { return .nil }
-        return .keyword(args[0].description)
+        if let m = rawMetadata(args[0]), let t = m[.keyword("type")] {
+            return t
+        }
+        return try coreClass(args)
     }
+}
+
+private func coreClass(_ args: [Expr]) throws -> Expr {
+    if case .nil = args[0] {
+        return .nil
+    }
+    return .keyword(args[0].description)
 }
 
 // MARK: - Helpers

@@ -19,9 +19,9 @@ func registerNamespace(into evaluator: Evaluator) {
     evaluator.register(name: "refer", arity: .atLeastOne,
         doc: "refers to all public vars of ns, subject to filters. filters can include at most one each of: :exclude list-of-symbols, :only list-of-symbols, :rename map-of-fromsym-tosym",
         arglists: [["ns-sym", "&", "filters"]]) { [evaluator] args in try coreRefer(evaluator, args) }
-    evaluator.register(name: "resolve", arity: .fixed(1),
-        doc: "Returns the var or Class to which a symbol will be resolved in the current namespace, else nil.",
-        arglists: [["sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
+    evaluator.register(name: "resolve", arity: .variadic,
+        doc: "Returns the var or Class to which a symbol will be resolved in the current namespace (unless found in the environment), else nil.",
+        arglists: [["sym"], ["env", "sym"]]) { [evaluator] args in try coreResolve(evaluator, args) }
     evaluator.register(name: "ns-resolve", arity: .variadic,
         doc: "Returns the var to which a symbol will be resolved in the namespace (unless found in the environment), else nil. Note that if the symbol is fully qualified, the var/Class to which it resolves need not be present in the namespace.",
         arglists: [["ns", "sym"], ["ns", "env", "sym"]]) { [evaluator] args in try coreNsResolve(evaluator, args) }
@@ -175,8 +175,34 @@ private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     return .nil
 }
 
+/// True when `env` — a local-binding map, as passed to the `env`-taking arities of
+/// `resolve`/`ns-resolve` — binds `sym`, which real Clojure treats as shadowing any
+/// var of that name. Anything that isn't a map (including `nil`, the value real
+/// Clojure's 2-arity `ns-resolve` forwards) shadows nothing.
+private func envShadows(_ env: Expr, _ sym: Expr) -> Bool {
+    switch env {
+    case .map(let sm):
+        return sm.dict[sym] != nil
+
+    case .sortedMap(let ssm):
+        return ssm.keys.contains(sym)
+
+    default:
+        return false
+    }
+}
+
 private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0] else { return .nil }
+    // (resolve sym) or (resolve env sym) — the symbol is always the last arg.
+    guard args.count == 1 || args.count == 2 else {
+        throw EvaluatorError.invalidArgument(function: "resolve",
+            message: "requires 1 or 2 arguments, got \(args.count)")
+    }
+    let symArg = args[args.count - 1]
+    guard case .symbol(let name, _) = symArg else { return .nil }
+    if args.count == 2, envShadows(args[0], symArg) {
+        return .nil
+    }
     if let v = try? evaluator.resolveQualifiedVar(name: name) { return .varRef(v) }
     if let v = evaluator.resolveVar(name: name, in: evaluator.currentNs()) { return .varRef(v) }
     // Special forms (let, if, deftype, ...) are hardcoded symbol matches in
@@ -185,14 +211,18 @@ private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
     // Returns a sentinel, not a var: nothing is interned, so bare-symbol
     // evaluation of these names (which never goes through resolve) is
     // unaffected and still throws exactly as it does today.
+    //
+    // Note this reads Evaluator.specialFormNames, NOT the native special-symbol?
+    // (CorePredicates.swift), whose set is deliberately different — it lists the
+    // JVM-Clojure special symbols (let*, fn*, new, ., &, …) while this lists the
+    // forms evalSpecialForm actually implements (let, fn, ns, reify, …).
     if Evaluator.specialFormNames.contains(name) { return .keyword("special-form") }
     return .nil
 }
 
 private func coreNsResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    // (ns-resolve ns sym) or (ns-resolve ns env sym). The env arg (local
-    // binding map) is accepted for source compatibility but ignored — Swish
-    // does no local-env var capture here. The symbol is always the last arg.
+    // (ns-resolve ns sym) or (ns-resolve ns env sym), where env is a local-binding
+    // map that shadows same-named vars. The symbol is always the last arg.
     guard args.count == 2 || args.count == 3 else {
         throw EvaluatorError.invalidArgument(function: "ns-resolve",
             message: "requires 2 or 3 arguments, got \(args.count)")
@@ -201,6 +231,9 @@ private func coreNsResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
     guard case .symbol(let name, _) = symArg else {
         throw EvaluatorError.invalidArgument(function: "ns-resolve",
             message: "last argument must be a symbol, got \(corePrinter.printString(symArg))")
+    }
+    if args.count == 3, envShadows(args[1], symArg) {
+        return .nil
     }
     guard case .namespace(let ns) = try coreTheNs(evaluator, [args[0]]) else {
         throw EvaluatorError.invalidArgument(function: "ns-resolve",

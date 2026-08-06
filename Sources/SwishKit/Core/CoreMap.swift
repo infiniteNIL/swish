@@ -153,24 +153,13 @@ private func coreGetIn(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
             message: "requires 2 or 3 arguments, got \(args.count)")
     }
     let notFound: Expr = args.count == 3 ? args[2] : .nil
-    let keys: [Expr]
-    switch args[1] {
-    case .vector(let elems, _):
-        keys = elems.elements
-
-    case .sharedVector(let sa, _):
-        keys = sa.elements
-
-    case .list(let elems, _):
-        keys = elems.elements
-
-    case .nil:
-        keys = []
-
-    default:
+    // Real Clojure's get-in is (reduce1 get m ks), so ks is anything seqable — not
+    // just a literal vector/list. Coercing through asSequence is what lets a seq or
+    // lazy-seq key path work, e.g. (get-in m (rest ks)) or (get-in m (map f ks)).
+    guard let keys = try asSequence(args[1]) else {
         throw EvaluatorError.invalidArgument(
             function: "get-in",
-            message: "ks must be a sequential collection")
+            message: "ks must be seqable, got \(corePrinter.printString(args[1]))")
     }
     var current = args[0]
     for key in keys {

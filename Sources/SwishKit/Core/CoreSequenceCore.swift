@@ -180,7 +180,14 @@ private func coreListStar(_ args: [Expr]) throws -> Expr {
             function: "list*",
             message: "last argument must be a sequence or nil, got \(corePrinter.printString(args.last!))")
     }
-    return .list(SwishPersistentList(prefix + tail), metadata: nil)
+    let elements = prefix + tail
+    // Real Clojure's 1-arity is (seq args), which is nil — not () — for an empty
+    // collection. Testing the combined result is exactly right: (list* 1 nil) still
+    // yields (1), because only a call with no prefix AND an empty tail is empty.
+    if elements.isEmpty {
+        return .nil
+    }
+    return .list(SwishPersistentList(elements), metadata: nil)
 }
 
 private func coreCons(_ args: [Expr]) throws -> Expr {

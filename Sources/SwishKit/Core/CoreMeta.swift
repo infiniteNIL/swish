@@ -23,63 +23,59 @@ func registerMeta(into evaluator: Evaluator) {
 
 // MARK: - Implementations
 
-private func coreMeta(_ args: [Expr]) throws -> Expr {
-    switch args[0] {
+/// The metadata dictionary carried by `expr`, or nil if it has none — the raw
+/// storage, without wrapping it in an `Expr.map`. Callers that only need to probe a
+/// single key (`type`'s `:type` lookup, `CorePredicates.swift`) use this rather than
+/// `coreMeta` so a metadata read costs an optional unwrap, not a map allocation.
+func rawMetadata(_ expr: Expr) -> [Expr: Expr]? {
+    switch expr {
     case .symbol(_, let m), .list(_, let m), .vector(_, let m):
-        guard let m else { return .nil }
-        return .map(m, metadata: nil)
+        return m
 
     case .sortedMap(let ssm):
-        guard let m = ssm.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return ssm.metadata
 
     case .sortedSet(let sss):
-        guard let m = sss.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return sss.metadata
 
     case .map(let sm):
-        guard let m = sm.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return sm.metadata
 
     case .set(let ss):
-        guard let m = ss.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return ss.metadata
 
     case .function(let f):
-        guard let m = f.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return f.metadata
 
     case .macro(_, _, _, let m):
-        guard let m else { return .nil }
-        return .map(m, metadata: nil)
+        return m
 
     case .multiArityFunction(let maf):
-        guard let m = maf.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return maf.metadata
 
     case .multiArityMacro(_, _, let m):
-        guard let m else { return .nil }
-        return .map(m, metadata: nil)
+        return m
 
     case .varRef(let v):
-        guard let m = v.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return v.metadata
 
     case .namespace(let ns):
-        guard let m = ns.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return ns.metadata
 
     case .atom(let a):
-        guard let m = a.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return a.metadata
 
     case .ref(let r):
-        guard let m = r.metadata else { return .nil }
-        return .map(m, metadata: nil)
+        return r.metadata
 
     default:
-        return .nil
+        return nil
     }
+}
+
+private func coreMeta(_ args: [Expr]) throws -> Expr {
+    guard let m = rawMetadata(args[0]) else { return .nil }
+    return .map(m, metadata: nil)
 }
 
 private func coreWithMeta(_ args: [Expr]) throws -> Expr {

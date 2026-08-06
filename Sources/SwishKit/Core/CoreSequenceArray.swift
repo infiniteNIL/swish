@@ -101,7 +101,15 @@ func registerSequenceArray(into evaluator: Evaluator) {
 // MARK: - Implementations
 
 /// Shared implementation backing `int-array`/`object-array` — a single arg is either
-/// a size (fills with `defaultFill`) or a seq to coerce; two args are size + init val.
+/// a size (fills with `defaultFill`) or a seq to coerce; two args are size plus an
+/// init that is either a scalar fill or a seq of initial elements.
+///
+/// The scalar-vs-seq split mirrors `RT.intArray`/`RT.charArray`/…, which fill every
+/// slot when the init is the array's element scalar (`init instanceof Number`) and
+/// otherwise walk `RT.seq(init)` positionally, leaving any slot past the seq's end at
+/// the default. `SwishArray` is untyped, so seqability stands in for the element-type
+/// test: a number isn't seqable, so `(int-array 3 7)` still fills; a collection is, so
+/// `(int-array 3 [7 8])` gives `[7 8 0]`.
 private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) throws -> Expr {
     switch args[0] {
     case .integer(let n):
@@ -109,8 +117,16 @@ private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) thro
             throw EvaluatorError.invalidArgument(function: function,
                 message: "size must be non-negative")
         }
-        let fill: Expr = args.count > 1 ? args[1] : defaultFill
-        return .array(SwishArray(Array(repeating: fill, count: n)))
+        guard args.count > 1 else {
+            return .array(SwishArray(Array(repeating: defaultFill, count: n)))
+        }
+        guard let initSeq = try asSequence(args[1]) else {
+            return .array(SwishArray(Array(repeating: args[1], count: n)))
+        }
+        var elements = Array(initSeq.prefix(n))
+        elements.append(contentsOf: Array(repeating: defaultFill, count: n - elements.count))
+        return .array(SwishArray(elements))
+
     default:
         return .array(SwishArray(try asSequence(args[0]) ?? []))
     }

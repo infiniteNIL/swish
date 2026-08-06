@@ -535,8 +535,10 @@ cross-namespace merge had never been directly tested before). `doall` isn't need
 exist at the time; it was fixed narrowly with `swish-regex-whole-match?`
 (`CoreStringNS.swift`, via `String.wholeMatch(of:)`) rather than implementing
 general `re-find` (which has since been implemented independently, see below).
-`swish-regex-whole-match?` is now redundant with `re-matches` for new code but kept
-to avoid touching `test.clj`'s call site.
+Once `re-matches` landed that primitive was pure duplication, so it has been
+**removed**: `test.clj`'s filter is now `#(some? (re-matches re …))`, matching
+Clojure. Note the filter must stay a *whole*-string match — `re-find` would
+also match a namespace whose name merely contains the pattern.
 
 ## regex — re-seq eager, and the firstMatch re-anchoring probe
 

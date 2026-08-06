@@ -19,8 +19,6 @@
 ;;   - testing-vars-str does not include file/line
 ;;   - is macro's thrown?/p-thrown? handling stays outside assert-expr
 ;;     dispatch (a bare cond branch, unlike upstream) — see is's own comment
-;;   - run-all-tests's regex-filter arity uses swish-regex-whole-match?
-;;     instead of re-matches — Swish has no general-purpose re-find/re-matches
 ;;   - run-tests uses reduce+merge-with instead of (apply merge-with +) — see
 ;;     run-tests's own comment
 
@@ -528,7 +526,7 @@
   tested."
   {:added "1.1"}
   ([] (apply run-tests (all-ns)))
-  ([re] (apply run-tests (filter #(swish-regex-whole-match? re (name (ns-name %))) (all-ns)))))
+  ([re] (apply run-tests (filter #(some? (re-matches re (name (ns-name %)))) (all-ns)))))
 
 (defn successful?
   "Returns true if the given test summary indicates all tests

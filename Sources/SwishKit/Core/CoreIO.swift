@@ -21,6 +21,12 @@ func registerIO(into evaluator: Evaluator) {
         arglists: [["&", "more"]]) { [evaluator] args in
         try coreOutput(evaluator, args: args, terminator: "\n")
     }
+    evaluator.register(name: "newline", arity: .fixed(0),
+        doc: "Writes a platform-specific newline to *out*.",
+        arglists: [[]]) { [evaluator] _ in
+        try writeToOut(evaluator, "\n")
+        return .nil
+    }
     evaluator.register(name: "pr-str", arity: .variadic,
         doc: "pr to a string, returning it. Prints the object(s), separated by spaces, " +
              "in a form that the reader can read back.",

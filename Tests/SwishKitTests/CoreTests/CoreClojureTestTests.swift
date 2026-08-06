@@ -483,7 +483,7 @@ struct CoreClojureTestTests {
         if case .vector(let elems, _) = result {
             // Only test-runall-target's single test should have run — a whole-string
             // match must not also pick up test-runall-other (which re-find, unlike
-            // re-matches/swish-regex-whole-match?, would have incorrectly matched).
+            // re-matches, would have incorrectly matched).
             #expect(elems[0] == .integer(1))
             #expect(elems[1] == .integer(1))
         } else {

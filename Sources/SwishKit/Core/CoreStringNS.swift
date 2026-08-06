@@ -98,25 +98,6 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
                  "for a pattern match in replace or replace-first, do the necessary " +
                  "escaping of special characters in the replacement.",
             arglists: [["replacement"]])
-
-    // [Swish] A narrow, single-purpose whole-string-match primitive that predates
-    // real re-matches/re-find/re-seq (now implemented in CoreRegex.swift). Kept as
-    // its own primitive — it's still what run-all-tests's regex-filter arity
-    // (test.clj) calls — but it's now redundant with `(some? (re-matches ...))`
-    // for new code.
-    evaluator.register(name: "swish-regex-whole-match?", arity: .fixed(2),
-        doc: "Internal helper: true if s matches pattern over its entire length. " +
-             "Superseded by re-matches for new code; kept for run-all-tests's regex filter.",
-        arglists: [["pattern", "s"]], body: coreSwishRegexWholeMatch)
-}
-
-private func coreSwishRegexWholeMatch(_ args: [Expr]) throws -> Expr {
-    guard case .regex(let re) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "swish-regex-whole-match?",
-            message: "first argument must be a regex")
-    }
-    let s = try requireString(args[1], function: "swish-regex-whole-match?")
-    return .boolean(s.wholeMatch(of: re.regex) != nil)
 }
 
 private func makeEscapeFunction(evaluator: Evaluator) -> Expr {

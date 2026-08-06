@@ -107,7 +107,7 @@ Several audit batches found many common forms simply never ported (`dotimes`, `w
 
 - **`bound?`** checks root-boundness only (`Var.isBound`), not thread-local bindings — matching Clojure's `.hasRoot`, not its `bound?`.
 
-- **`ns-resolve`**'s 3-arg `(ns env sym)` form accepts but ignores the `env` local-binding map.
+- **`ns-resolve`**'s 3-arg `(ns env sym)` form (and `resolve`'s 2-arg `(env sym)`) honors the `env` local-binding map: a symbol bound in `env` shadows any same-named var, so resolution returns `nil` (`envShadows`, `CoreNamespace.swift`). Swish has no `&env`, so `env` is only ever a map the caller passes explicitly — this is source compatibility, not new capability. A non-map `env` (including `nil`, what real Clojure's 2-arity forwards) shadows nothing.
 
 - **`definline` is deliberately unimplemented** — it's an inline-expansion form for a bytecode compiler; a tree-walking interpreter has no such pass to hook into.
 
@@ -275,7 +275,7 @@ A recurring pattern (hit by `assert-expr`/`do-report`, `try-expr`, `do-template`
 
 ### `re-pattern`/`re-matches`/`re-find`/`re-seq` + stateful matchers
 
-Implemented natively (`CoreRegex.swift`, `SwishMatcher.swift`), matching Clojure's arg order and nil/bare-string/vector result shapes, on `Expr.regex(SwishRegex)`/`Regex<AnyRegexOutput>`. A matcher is its own `Expr` case (`.matcher`), keeping `atom?`/`deref` correctly false; matches are precomputed eagerly at `re-matcher` time. **`re-seq` is eager, not lazily realized** (`lazy-seq?` is `false` where Clojure reports `true`) — a measured divergence: `firstMatch(of:)` on a chopped `Substring` re-anchors `^` to the substring's local start, so genuine incremental laziness gives wrong results; `s.matches(of:)` on the whole string is correct but eager (NOTES.md). `swish-regex-whole-match?` (`CoreStringNS.swift`, used by `run-all-tests`) predates and is now redundant with `re-matches`.
+Implemented natively (`CoreRegex.swift`, `SwishMatcher.swift`), matching Clojure's arg order and nil/bare-string/vector result shapes, on `Expr.regex(SwishRegex)`/`Regex<AnyRegexOutput>`. A matcher is its own `Expr` case (`.matcher`), keeping `atom?`/`deref` correctly false; matches are precomputed eagerly at `re-matcher` time. **`re-seq` is eager, not lazily realized** (`lazy-seq?` is `false` where Clojure reports `true`) — a measured divergence: `firstMatch(of:)` on a chopped `Substring` re-anchors `^` to the substring's local start, so genuine incremental laziness gives wrong results; `s.matches(of:)` on the whole string is correct but eager (NOTES.md). The narrow `swish-regex-whole-match?` primitive that predated these has been **removed** — `run-all-tests`'s regex filter now uses `re-matches` directly.
 
 ### `into-array`'s `type` argument is accepted but not enforced
 
