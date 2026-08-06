@@ -1,6 +1,5 @@
 # Todo
 
-- [ ] Can we make any of the builtins just a Clojure function
 - [ ] Embedding API
       - Evaluator.eval(string:) — evaluate Swish source from Swift (already
         exists, exposed?)
@@ -12,6 +11,7 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] Can we make any of the builtins just a Clojure function
 - [x] print infrastructure: print-control vars now honored per-print (*print-length*
       was silently ignored;
 - [x] added *print-level*, *print-namespace-maps*, *print-readably* — all now dynamic).
