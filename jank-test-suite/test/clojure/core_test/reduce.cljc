@@ -1,115 +1,117 @@
 (ns clojure.core-test.reduce
   (:require
-   [clojure.test :as t :refer [deftest is testing]]
+   [clojure.test :as t :refer [deftest is are testing]]
    [clojure.core-test.portability #?(:cljs :refer-macros :default :refer) [when-var-exists] :as p])
   #?(:clj (:import (clojure.lang IReduce))))
 
-(def interop
-  {:int-new (fn [x]
-              (#?(:cljr identity
-                  :lpy python/int
-                  :phel php/intval
-                  :cljs js/Number.
-                  :clj Integer.) x))
-
-   :Integer #?(:cljr System.Int32
-               :lpy python/int
-               :phel php/intval
-               :cljs js/Number
-               :clj Integer/TYPE)
-
-   :Long #?(:cljr System.Int64
-            :lpy python/int
-            :phel php/intval
-            :cljs js/Number
-            :clj Long/TYPE)
-
-   :Float #?(:cljr System.Single
-             :lpy python/float
-             :phel php/floatval
-             :cljs js/Number
-             :clj Long/TYPE)
-
-   :Double #?(:cljr System.Double
-              :lpy python/float
-              :phel php/floatval
-              :cljs js/Number
-              :clj Double/TYPE)
-
-   :Boolean #?(:cljr System.Boolean
-               :lpy python/bool
-               :phel php/boolval
-               :cljs js/Boolean
-               :clj Boolean/TYPE)})
-
-
 (when-var-exists reduce
+
+  ;; Docstring:
+  ;; clojure.core/reduce
+  ;; ([f coll] [f val coll])
+  ;; f should be a function of 2 arguments. If val is not supplied,
+  ;; returns the result of applying f to the first 2 items in coll, then
+  ;; applying f to that result and the 3rd item, etc. If coll contains no
+  ;; items, f must accept no arguments as well, and reduce returns the
+  ;; result of calling f with no arguments.  If coll has only 1 item, it
+  ;; is returned and f is not called.  If val is supplied, returns the
+  ;; result of applying f to val and the first item in coll, then
+  ;; applying f to that result and the 2nd item, etc. If coll contains no
+  ;; items, returns val and f is not called.
+
+  ;; NOTE: we stick to testing `reduce` here, and specifically don't
+  ;; test `reduced` as part of that. Since `reduced` is a separate
+  ;; function, it has its own tests which will validate it.
+
   (deftest test-reduce
-    (testing "common"
-      (is (nil? (reduce nil nil nil)))
-      (is (p/thrown? (reduce nil nil)))
-      (is (= 6 (reduce + 0 [1 2 3]))))
+    ;; first, create a bunch of reducible collections
+    (let [a-range (range 50)
+          a-list (apply list a-range)
+          a-vec (vec a-range)
+          a-set (set a-range)
+          an-obj-array (object-array a-range)
+          an-int-array (int-array a-range)
+          a-long-array (long-array a-range)
+          #?@(:cljs []               ; CLJS doesn't have `float-array`
+              :default [a-float-array (float-array a-range)])
+          a-double-array (double-array a-range)
+          #?@(:cljs []             ; CLJS doesn't have `boolean-array`
+              :default [a-boolean-array (boolean-array (repeat 50 true))])]
+      (testing "arity-2"
+        ;; test various collection types
+        (are [expected f coll] (= expected (reduce f coll))
+          1225 + a-range
+          1225 + a-list
+          1225 + a-vec
+          1225 + a-set
+          1225 + an-obj-array
+          1225 + an-int-array
+          1225 + a-long-array
+          #?@(:cljs []               ; CLJS doesn't have `float-array`
+              :default [1225.0 + a-float-array])
+          1225.0 + a-double-array
+          #?@(:cljs []             ; CLJS doesn't have `boolean-array`
+              :default [true #(and %1 %2) a-boolean-array])
+          0 + '() ; calls arity-0 `f` for initial value, which is then returned
+          0 + []
+          0 + #{}
+          0 + (int-array [])
+          0 + nil)
 
-    (testing "val is not supplied"
-      (is (= 3 (reduce (fn [a b]
-                         (+ a b))
-                       [1 2])))
-
-      (testing "empty coll"
-        (is (= 1 (reduce (fn [] 1) []))))
-
-      (testing "coll with 1 item"
-        (is (= 1 (reduce (fn []
-                           (is false)
-                           (throw (ex-info "should not get here" {})))
-                         [1])))))
-
-    (testing "val is supplied, empty coll"
-      (is (= 1 (reduce (fn []
-                           (is false)
-                         (throw (ex-info "should not get here" {})))
-                       1
+        ;; Validate rules for generating initial element(s)
+        ;; `coll` has three elements, so call arity-2 `f` with first
+        ;; two, then with third, etc.
+        (is (= "Hello, world"
+               (reduce (fn
+                         ([] (throw (ex-info "Not called" {})))
+                         ([x y] (str x y))) ; called with first two elements, then third
+                       ["Hello" ", " "world"])))
+        ;; `coll` has exactly two elements, so call arity-2 `f` with first two and return result
+        (is (= "Hello, world"
+               (reduce (fn
+                         ([] (throw (ex-info "Not called" {})))
+                         ([x y] (str x y))) ; called with first two elements, then third
+                       ["Hello, " "world"])))
+        ;; `coll` has one element, so simply return it
+        (is (= "Hello, world"
+               (reduce (fn
+                         ([] (throw (ex-info "Not called" {})))
+                         ([x y] (throw (ex-info "Not called" {}))))
+                       ["Hello, world"])))
+        ;; `coll` is empty, so call arity-0 `f` and return the result
+        (is (= "Hello, world"
+               (reduce (fn
+                         ([] "Hello, world") ; called because empty coll
+                         ([x y] (throw (ex-info "Not called" {}))))
                        []))))
 
-    (testing "reduction by type"
-      (let [int-new (interop :int-new)
-            arange (range 1 100) ;; enough to cross nodes
-            avec (into [] arange)
-            alist (into () arange)
-            obj-array (into-array arange)
-            int-array (into-array (:Integer interop) (map #(int-new (int %)) arange))
-            long-array (into-array (:Long interop) arange)
-            float-array (into-array (:Float interop) arange)
-            double-array (into-array (:Double interop) arange)
-            all-true (into-array (:Boolean interop) (repeat 10 true))]
+      (testing "arity-3"
+        (are [expected f val coll] (= expected (reduce f val coll))
+          1228 + 3 a-range
+          1228 + 3 a-list
+          1228 + 3 a-vec
+          1228 + 3 a-set
+          1228 + 3 an-obj-array
+          1228 + 3 an-int-array
+          1228 + 3 a-long-array
+          #?@(:cljs []               ; CLJS doesn't have `float-array`
+              :default [1228.0 + 3.0 a-float-array])
+          1228.0 + 3 a-double-array
+          #?@(:cljs []             ; CLJS doesn't have `boolean-array`
+              :default [true #(and %1 %2) true a-boolean-array])
+          [\h \e \l \l \o] conj [\h] "ello"
+          [[:a 1] [:b 2] [:c 3] [:d 4]] conj [] (sorted-map :a 1 :b 2 :c 3 :d 4)
+          {1 :a, 2 :b, 3 :c, 4 :d} (fn [m [k v]] (conj m [v k])) {} {:a 1 :b 2 :c 3 :d 4}
+          3 + 3 '()
+          3 + 3 []
+          3 + 3 #{}
+          3 + 3 (int-array [])
+          3 + 3 nil))
 
-        (testing "val is not supplied"
-          (is (== 4950
-                  (reduce + arange)
-                  (reduce + avec)
-                  #?(:bb 4950
-                     :phel 4950
-                     :clj (.reduce ^IReduce avec +))
-                  (reduce + alist)
-                  (reduce + obj-array)
-                  (reduce + int-array)
-                  (reduce + long-array)
-                  (reduce + float-array)
-                  (reduce + double-array))))
-
-        (testing "val is supplied"
-          (is (== 4951
-                  (reduce + 1 arange)
-                  (reduce + 1 avec)
-                  #?(:bb 4951
-                     :clj (.reduce ^IReduce avec + 1))
-                  (reduce + 1 alist)
-                  (reduce + 1 obj-array)
-                  (reduce + 1 int-array)
-                  (reduce + 1 long-array)
-                  (reduce + 1 float-array)
-                  (reduce + 1 double-array))))
-
-        (is (= true
-               (reduce #(and %1 %2) all-true)
-               (reduce #(and %1 %2) true all-true)))))))
+      (testing "negative tests"
+        (is (p/thrown? (reduce nil nil))) ; tries to call arity-0 `f` to generate inital val
+        (is (p/thrown? (reduce nil nil [1 2 3]))) ; `nil` is not a function
+        (is (nil? (reduce nil nil nil))) ; `f` is never called, returns `val`
+        (is (= :whatever (reduce nil :whatever nil)))
+        (is (p/thrown? (reduce + 42)))
+        (is (p/thrown? (reduce + :foo)))))))
