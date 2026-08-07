@@ -11,6 +11,7 @@
         a public API with better ergonomics
 - [ ] Swift interop
 
+- [x] updated jank suite again (still passing)
 - [x] Can we make any of the builtins just a Clojure function
 - [x] print infrastructure: print-control vars now honored per-print (*print-length*
       was silently ignored;
