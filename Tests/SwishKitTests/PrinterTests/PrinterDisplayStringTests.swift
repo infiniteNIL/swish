@@ -35,9 +35,13 @@ struct PrinterDisplayStringTests {
         #expect(printer.strString(.character(" ")) == " ")
     }
 
-    @Test("displays list with string elements without quotes")
+    /// `strString` unquotes a *top-level* string but not a nested one: Clojure's `str` is
+    /// the value's `toString`, and a collection's `toString` is pr-based. Only the `print`
+    /// family (`*print-readably*` nil) unquotes at every depth.
+    @Test("displays a list's string elements with quotes, though a bare string has none")
     func displaysListWithStrings() {
-        #expect(printer.strString(.list([.string("hello"), .string("world")], metadata: nil)) == "(hello world)")
+        #expect(printer.strString(.string("hello")) == "hello")
+        #expect(printer.strString(.list([.string("hello"), .string("world")], metadata: nil)) == "(\"hello\" \"world\")")
     }
 
     @Test("displays integer same as printString")

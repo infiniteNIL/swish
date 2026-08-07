@@ -1093,3 +1093,118 @@ their `default` — deleted.
 - The existing CLAUDE.md deferrals (`fn`-literal re-analysis caching, REPL paste O(n²),
   `subvec` structure sharing, symbol interning / `Environment` allocation) — each needs
   a real design change, not a refactor.
+
+## Printer fidelity + allocation-free vector iteration
+
+The follow-up to the refactoring audit's two deferred findings — plus two adjacent bugs
+that surfaced while verifying the first, and one uncovered by a test written for the
+second. Baseline held throughout: jank 246 tests / 6725 assertions / 0 failures / 0 errors.
+
+### `str`, `print` and `pr` are three renderings, not two
+
+Swish had two: `printString` (readable) and `strString` (human), with the `print` family
+sharing `strString`. Clojure has three, and the axis is *how far down* the unquoting
+reaches, not whether it happens:
+
+- **`pr`** — readable everywhere.
+- **`str`** — the value's `toString`. A top-level string is itself, but a collection's
+  `toString` is pr-based, so its *elements* stay readable.
+- **`print`** — `(binding [*print-readably* nil] (pr …))`. Suppresses string/char quoting
+  at every depth and changes nothing else.
+
+`str` looks like the outlier but isn't: it is the only one whose behavior *changes* with
+depth, and that follows directly from being `toString`. `print` is the one that reaches
+all the way down. Collapsing the two into one recursion is what produced
+`(str {:a "x"})` => `{:a x}`, and also `(str [nil])` => `[]` (the nested nil rendered as
+`""` and vanished) and `(str [1N])` => `[1]`.
+
+**The fix is two small moves.** `strString` hands a collection to `printString` outright
+rather than recursing — one `isCollectionForLevel` check, since that predicate already
+enumerates exactly the right set and `printString` re-applies the `*print-level*` cap at
+the same depth. And the print family is rebuilt from `printString` with `printReadably`
+false (`outputPrinter`, `CoreIO.swift`) instead of from `strString`, which is what makes
+`(print-str [nil])` => `[nil]` and keeps `1N`/`1.5M`/`#uuid` tagged. `strStringForPrint`
+and its nil special case disappear — `printString`'s `.nil` arm already yields `"nil"` —
+and `coreOutput`/`corePrint` merge into one `writeRendered` now that `readable` is their
+only difference.
+
+Everything downstream of `str` inherits the fix and each is right per Clojure:
+`clojure.string/join` (Clojure appends `(str x)`), `format`'s `%s`, `spit`'s content, and
+`requireNonNilStr`'s coercion for `clojure.string/upper-case` and friends.
+
+### `pr-str` didn't round-trip the special doubles
+
+`(pr-str ##Inf)` was `+∞`, `(pr-str ##-Inf)` was `-∞`, `(pr-str ##NaN)` was `NaN` — the
+`∞` being `NumberFormatter`'s symbol leaking into readable printing. None of it reads
+back, though the reader accepts `##Inf`/`##-Inf`/`##NaN` (`Parser.swift`). `printString`
+and `sourceForm` now emit the reader literals.
+
+**The trap this sets, and why the jank suite catches it.** `str` must *keep* Java
+`Double.toString`'s names — `(str ##Inf)` is `"Infinity"`, which `core_test/str.cljc`
+pins. `strString` used to special-case `.double` infinity only and let NaN (and every
+`.float`) fall through to `printString`; once `printString` started returning `##NaN`,
+`(str ##NaN)` would silently have become `##NaN`. So `strString` needed its own
+`javaSpecialDouble` check covering NaN and `.float` as well. Two helpers now name the two
+spellings explicitly rather than leaving the distinction implicit in a fall-through.
+
+A `.float` infinity is unreachable from Swish code — `(float ##Inf)` throws
+"Value out of range for float" by design — so that arm is covered at the `Printer` level
+directly rather than through `eval`.
+
+### `=` was non-transitive across the three vector representations
+
+Found by a parity test written to guard the vector hash change, not by looking for it.
+`Expr+Equatable` had cross-`==` arms for `.mapEntry`↔`.vector` and
+`.vector`↔`.sharedVector`, but **not** `.mapEntry`↔`.sharedVector`. Reachable from
+ordinary code:
+
+```clojure
+(= (first (seq {:k 7})) [:k 7])                     ;=> true
+(= [:k 7] (vec (object-array [:k 7])))              ;=> true
+(= (first (seq {:k 7})) (vec (object-array [:k 7])))  ;=> false   ← before
+```
+
+The three had *always* hashed alike (one `ExprHash.vector` discriminator), so this wasn't
+a `Hashable`-contract violation — just a missing equality arm. Fixed with the two absent
+cases, factored through a `mapEntryEquals` helper generic over both backings so neither
+has to materialize to compare two elements.
+
+### SwishPersistentVector: a real iterator, and the "trade" that wasn't
+
+`makeIterator()` returned `elements.makeIterator()` — an O(n) array build — with a comment
+framing that allocation as the price of avoiding the default O(n log n) index+subscript
+walk. `==` compared `lhs.elements == rhs.elements`, allocating *two* arrays with no early
+exit, and `hash` combined `elements`.
+
+There is no trade. A leaf-walking `Iterator` (mirroring `SwishPersistentList`'s) is O(n)
+*and* allocation-free: `arrayFor` returns the stored leaf as a COW reference, so the
+iterator caches it and pays one O(log₃₂ n) descent per 32 elements. `==` and `hash` are
+built on it; `elements` keeps its bulk `appendLeaves` copy for callers that genuinely want
+the array.
+
+The boundary arithmetic is `leafStart = index & ~mask`, correct for the tail as well as
+for trie leaves because `tailoff` is always a multiple of 32 and trie leaves are always
+exactly 32 wide — only `tail` is ever partial.
+
+**`hash` is the one place this costs something.** `hasher.combine(elements)` got
+`Array<Expr>.hash(into:)` parity *for free* by literally calling it, which matters because
+`.vector`/`.sharedVector`/`.mapEntry` are cross-`==` under one discriminator. Iterating
+restates the algorithm (count, then each element in order), so `ExprVectorParityTests`
+pins the three representations' hashes together — that suite is the guard, not a nicety.
+`SwishPersistentList.hash` has always made the same assumption.
+
+**Measured** (release, user time, 3 runs each, before → after):
+
+| benchmark | before | after | delta |
+|---|---|---|---|
+| `=` on equal 5 000-element vectors, ×4000 | 0.91 / 0.89 / 0.89 | 0.69 / 0.69 / 0.68 | **−23%** |
+| `=` differing at index 0, ×4000 | 0.47 / 0.48 / 0.47 | 0.21 / 0.21 / 0.21 | **−55%** |
+| vector map-key lookup, ×4000 (hash) | 4.22 / 4.15 / 4.13 | 3.83 / 3.86 / 3.85 | **−7%** |
+| `count` + `mapv` over 5 000, ×2000 | 25.95 / 26.27 / 26.39 | 26.24 / 25.78 / 25.64 | flat |
+| `(count (filter odd? (map inc (range 100000))))` | 5.63 / 5.58 / 5.63 | 5.60 / 5.63 / 5.60 | flat |
+
+The last two are the no-regression checks. `mapv` goes through `asSequence` →
+`.elements`, not the iterator, so it exercises the retained bulk path — flat is the
+expected and desired result there. First measurements were setup-dominated (building the
+vectors swamped the operation under test) and had to be tightened before they said
+anything; the numbers above are from the isolated versions.

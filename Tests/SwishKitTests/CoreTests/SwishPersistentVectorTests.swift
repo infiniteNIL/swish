@@ -84,4 +84,65 @@ struct SwishPersistentVectorTests {
         #expect(seen == (0..<100).map { .integer($0) })
         #expect(Array(v.reversed()) == (0..<100).reversed().map { .integer($0) })
     }
+
+    // MARK: - The leaf-walking iterator
+    //
+    // `makeIterator` walks stored leaves rather than materializing `elements`, refilling a
+    // cached leaf whenever the index crosses its boundary. The sizes below straddle every
+    // boundary that matters: the 32-element tail, the first full trie leaf, and the level
+    // growth at 1024.
+
+    @Test("Iteration yields every element in order, across all leaf/level boundaries",
+          arguments: [0, 1, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025, 2048])
+    func iteratorAcrossBoundaries(_ n: Int) throws {
+        let v = build(n)
+        var seen = [Expr]()
+        var it = v.makeIterator()
+        while let e = it.next() { seen.append(e) }
+        #expect(seen == (0..<n).map { .integer($0) })
+        // And it agrees with the materializing path and with per-index subscripting.
+        #expect(seen == v.elements)
+        #expect(seen == (0..<n).map { v[$0] })
+    }
+
+    @Test("A fresh iterator restarts from the beginning; an exhausted one keeps returning nil")
+    func iteratorRestartAndExhaustion() throws {
+        let v = build(40)
+        #expect(Array(v) == Array(v))
+        var it = v.makeIterator()
+        while it.next() != nil {}
+        #expect(it.next() == nil)
+        #expect(it.next() == nil)
+    }
+
+    @Test("A partially-consumed iterator has taken exactly the prefix it reported")
+    func iteratorPartialConsumption() throws {
+        let v = build(1025)
+        var it = v.makeIterator()
+        var prefix = [Expr]()
+        for _ in 0..<40 {
+            guard let e = it.next() else { break }
+            prefix.append(e)
+        }
+        #expect(prefix == (0..<40).map { .integer($0) })
+        #expect(it.next() == .integer(40))
+    }
+
+    @Test("== bails on the first mismatch and still answers correctly wherever it is",
+          arguments: [0, 500, 1024])
+    func equalityEarlyExit(_ differingIndex: Int) throws {
+        let n = 1025
+        let a = build(n)
+        let b = a.with(index: differingIndex, .integer(-1))
+        #expect(a != b)
+        #expect(b != a)
+        #expect(a == build(n))
+    }
+
+    @Test("Vectors of different lengths are unequal without comparing elements")
+    func equalityDifferentLengths() throws {
+        #expect(build(1024) != build(1025))
+        #expect(build(0) != build(1))
+        #expect(build(0) == SwishPersistentVector())
+    }
 }

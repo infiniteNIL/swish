@@ -75,17 +75,26 @@ struct CorePrinterCollectionTests {
         #expect(try swish.eval(#"(pr-str #{{:a 1}})"#) == .string("#{{:a 1}}"))
     }
 
-    // MARK: - str vs pr-str
+    // MARK: - str vs pr-str vs print-str
 
-    /// [Swish] `str` on a collection renders its *elements* with `str` too, so a nested
-    /// string loses its quotes: `(str {:a "x"})` => `{:a x}`. Real Clojure prints the
-    /// elements readably there (`{:a "x"}`), since its `str` goes through the collection's
-    /// `toString`, which is `pr`-based. A pre-existing divergence, unrelated to the printer
-    /// no longer materializing its input — pinned here so the distinction stays visible.
-    @Test("pr-str quotes a nested string; str renders it unquoted, as *print-readably* false also does")
-    func strVersusPrStr() throws {
+    /// The three renderings differ in *how far down* the unquoting reaches: `pr` quotes
+    /// everywhere, `str` quotes the elements but not a top-level string (it is the value's
+    /// `toString`, and a collection's `toString` is pr-based), and `print` quotes nothing
+    /// at any depth (it binds `*print-readably*` to nil over an ordinary `pr`).
+    @Test("pr-str, str and print-str differ in how deep the unquoting reaches")
+    func threeRenderings() throws {
         #expect(try swish.eval(#"(pr-str {:a "x"})"#) == .string(#"{:a "x"}"#))
-        #expect(try swish.eval(#"(str {:a "x"})"#) == .string("{:a x}"))
+        #expect(try swish.eval(#"(str {:a "x"})"#) == .string(#"{:a "x"}"#))
+        #expect(try swish.eval(#"(print-str {:a "x"})"#) == .string("{:a x}"))
+
+        // Only `str` unquotes a *top-level* string; only `print` unquotes a nested one.
+        #expect(try swish.eval(#"(pr-str "x")"#) == .string(#""x""#))
+        #expect(try swish.eval(#"(str "x")"#) == .string("x"))
+        #expect(try swish.eval(#"(print-str "x")"#) == .string("x"))
+    }
+
+    @Test("*print-readably* false makes pr-str match print-str")
+    func printReadablyFalse() throws {
         #expect(try swish.eval(#"(binding [*print-readably* false] (pr-str {:a "x"}))"#) == .string("{:a x}"))
     }
 }

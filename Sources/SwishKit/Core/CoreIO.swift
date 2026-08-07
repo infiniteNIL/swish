@@ -18,15 +18,16 @@ func registerIO(into evaluator: Evaluator) {
     // instead of resolving by name on every write — see `Evaluator.outVar`.
     evaluator.cacheIOVars(out: outVar, err: errVar)
 
+    // print/println and pr/prn are the same operation; `readable` is the only difference.
     evaluator.register(name: "print", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. print and println produce output for human consumption.",
         arglists: [["&", "more"]]) { [evaluator] args in
-        try coreOutput(evaluator, args: args, terminator: "")
+        try writeRendered(evaluator, args: args, readable: false, terminator: "")
     }
     evaluator.register(name: "println", arity: .variadic,
         doc: "Same as print followed by (newline)",
         arglists: [["&", "more"]]) { [evaluator] args in
-        try coreOutput(evaluator, args: args, terminator: "\n")
+        try writeRendered(evaluator, args: args, readable: false, terminator: "\n")
     }
     evaluator.register(name: "newline", arity: .fixed(0),
         doc: "Writes a platform-specific newline to *out*.",
@@ -57,12 +58,12 @@ func registerIO(into evaluator: Evaluator) {
         doc: "Prints the object(s) to the output stream that is the current value of *out*. " +
              "Prints the object(s) in a form that the reader can read back.",
         arglists: [["&", "more"]]) { [evaluator] args in
-        try corePrint(evaluator, args: args, terminator: "")
+        try writeRendered(evaluator, args: args, readable: true, terminator: "")
     }
     evaluator.register(name: "prn", arity: .variadic,
         doc: "Same as pr followed by (newline)",
         arglists: [["&", "more"]]) { [evaluator] args in
-        try corePrint(evaluator, args: args, terminator: "\n")
+        try writeRendered(evaluator, args: args, readable: true, terminator: "\n")
     }
     evaluator.register(name: "print-doc", arity: .fixed(1),
         doc: "Prints formatted documentation for the var named by symbol to *out*.",
@@ -333,42 +334,41 @@ private func sourceContainsAutoQualifiedKeyword(_ source: String) -> Bool {
 
 // MARK: - Print implementations
 
-private func coreOutput(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
-    let printer = evaluator.makePrinter()
-    let s = args.map { strStringForPrint($0, printer: printer) }.joined(separator: " ")
-    try writeToOut(evaluator, s + terminator)
+/// The printer for one output call. `pr`/`prn` honor whatever `*print-readably*` is
+/// currently bound to; `print`/`println` **force it off**, mirroring Clojure's
+/// `(binding [*print-readably* nil] (apply pr more))`.
+///
+/// Note what that binding does and does not do: it suppresses string and char quoting at
+/// *every* depth, but leaves everything else readable — `nil` still prints as "nil", a
+/// bigint keeps its `N`, a `#uuid` keeps its tag. That is why the print family is built
+/// from `printString` and not from `strString`, whose plain rendering of those is specific
+/// to `str`. See the entry-point comment in `Printer.swift`.
+private func outputPrinter(_ evaluator: Evaluator, readable: Bool) -> Printer {
+    var printer = evaluator.makePrinter()
+    if !readable {
+        printer.printReadably = false
+    }
+    return printer
+}
+
+/// Renders `args` space-separated, appends `terminator`. Shared by all four `*-str` fns
+/// and by `writeRendered`.
+private func renderArgs(_ evaluator: Evaluator, _ args: [Expr], readable: Bool, terminator: String) -> String {
+    let printer = outputPrinter(evaluator, readable: readable)
+    return args.map { printer.printString($0) }.joined(separator: " ") + terminator
+}
+
+/// Backs `print`/`println`/`pr`/`prn` — the four differ only in `readable` and `terminator`.
+private func writeRendered(_ evaluator: Evaluator, args: [Expr], readable: Bool, terminator: String) throws -> Expr {
+    try writeToOut(evaluator, renderArgs(evaluator, args, readable: readable, terminator: terminator))
     return .nil
 }
 
-/// str-style rendering for print/println/print-str/println-str: like `strString`,
-/// but nil renders as the literal text "nil" rather than "". strString's empty-string
-/// nil is specific to `str`'s own concatenation semantics ((str nil) => ""); print's
-/// per-argument rendering always shows "nil", matching real Clojure.
-private func strStringForPrint(_ expr: Expr, printer: Printer) -> String {
-    if case .nil = expr {
-        return "nil"
-    }
-    return printer.strString(expr)
-}
-
-/// Builds one of the four `*-str` bodies: render every argument space-separated with the
-/// current `*print-*` settings, then append `terminator`. `readable` selects `pr`'s
-/// round-trippable rendering over `print`'s human one.
+/// Backs the four `*-str` fns — the same rendering, returned instead of written.
 private func printToStringFn(_ evaluator: Evaluator, readable: Bool, terminator: String) -> @Sendable ([Expr]) throws -> Expr {
     { [evaluator] args in
-        let printer = evaluator.makePrinter()
-        let rendered = args.map { arg in
-            readable ? printer.printString(arg) : strStringForPrint(arg, printer: printer)
-        }
-        return .string(rendered.joined(separator: " ") + terminator)
+        .string(renderArgs(evaluator, args, readable: readable, terminator: terminator))
     }
-}
-
-private func corePrint(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
-    let printer = evaluator.makePrinter()
-    let s = args.map { printer.printString($0) }.joined(separator: " ")
-    try writeToOut(evaluator, s + terminator)
-    return .nil
 }
 
 private func writeToOut(_ evaluator: Evaluator, _ s: String) throws {

@@ -50,16 +50,74 @@ public struct Printer {
     public init() {}
 
     // MARK: - Public entry points (depth 0)
+    //
+    // Three renderings, each matching a distinct Clojure concept. The difference is not
+    // just "quoted vs unquoted" — it is *how far down* the unquoting reaches:
+    //
+    //   pr      readable everywhere.                        (pr-str {:a "x"}) => {:a "x"}
+    //   str     top-level scalar plain, elements readable.  (str    {:a "x"}) => {:a "x"}
+    //                                                       (str    "x")      => x
+    //   print   plain everywhere.                           (print-str {:a "x"}) => {:a x}
+    //
+    // `str` looks like the odd one out but isn't: in Clojure it is the value's `toString`,
+    // and a collection's `toString` is pr-based. `print` is the one that reaches all the
+    // way down, because it binds `*print-readably*` to nil around an ordinary `pr` — which
+    // is why it is built here from `printString` with `printReadably` false (see
+    // `CoreIO.outputPrinter`) rather than from `strString`.
 
     /// Machine-readable representation (quoted/escaped strings, named chars). Round-trips
-    /// through the reader. Backs `pr-str`.
+    /// through the reader. Backs `pr`/`pr-str` — and, with `printReadably` false, the whole
+    /// `print` family.
     public func printString(_ expr: Expr) -> String { printString(expr, depth: 0) }
 
-    /// Human-readable representation (strings unquoted, chars raw). Backs `str`.
+    /// `str`'s representation: a scalar renders plainly (a string is itself, a char is
+    /// itself, `nil` is ""), but a **collection** renders readably, so its nested strings
+    /// keep their quotes. Backs `str` — and, through it, `join`, `format`'s `%s`, `spit`'s
+    /// content, and `clojure.string`'s non-nil coercion.
     public func strString(_ expr: Expr) -> String { strString(expr, depth: 0) }
 
     /// Like `printString` but floats use `String(value)` for exact round-trip — REPL result form.
     public func sourceForm(_ expr: Expr) -> String { sourceForm(expr, depth: 0) }
+
+    // MARK: - Special doubles
+    //
+    // ±Infinity and NaN have two correct spellings, and which one applies is the whole
+    // difference between the readable and the `str` rendering:
+    //
+    //   - `##Inf`/`##-Inf`/`##NaN` — the reader literals (`Parser.swift` accepts exactly
+    //     these), so `pr` must emit them or its output stops round-tripping. Handing the
+    //     values to `sharedFloatFormatter` instead produced `+∞`/`-∞`, which no reader
+    //     accepts.
+    //   - `Infinity`/`-Infinity`/`NaN` — Java's `Double.toString` names, which is what
+    //     `str` produces in Clojure (its `str` *is* `toString`). Pinned by the jank suite.
+
+    /// The reader-round-trippable literal for a special double, or nil if `value` is ordinary.
+    private func readableSpecialDouble(_ value: Double) -> String? {
+        if value.isNaN {
+            return "##NaN"
+        }
+        if value.isInfinite {
+            return value > 0 ? "##Inf" : "##-Inf"
+        }
+        return nil
+    }
+
+    /// Java `Double.toString`'s name for a special double, or nil if `value` is ordinary.
+    private func javaSpecialDouble(_ value: Double) -> String? {
+        if value.isNaN {
+            return "NaN"
+        }
+        if value.isInfinite {
+            return value > 0 ? "Infinity" : "-Infinity"
+        }
+        return nil
+    }
+
+    /// The ordinary (finite) rendering. Callers must rule out the special values first —
+    /// `NumberFormatter` renders those with typographic symbols.
+    private func formattedDouble(_ value: Double) -> String {
+        formatterLock.withLock { _ in sharedFloatFormatter.string(from: NSNumber(value: value)) } ?? String(value)
+    }
 
     // MARK: - Depth-threaded implementations
 
@@ -79,10 +137,10 @@ public struct Printer {
             String(value)
 
         case .double(let value):
-            formatterLock.withLock { _ in sharedFloatFormatter.string(from: NSNumber(value: value)) } ?? String(value)
+            readableSpecialDouble(value) ?? formattedDouble(value)
 
         case .float(let value):
-            formatterLock.withLock { _ in sharedFloatFormatter.string(from: NSNumber(value: Double(value))) } ?? String(value)
+            readableSpecialDouble(Double(value)) ?? formattedDouble(Double(value))
 
         case .ratio(let ratio):
             "\(ratio.numerator)/\(ratio.denominator)"
@@ -206,15 +264,17 @@ public struct Printer {
     }
 
     func strString(_ expr: Expr, depth: Int) -> String {
-        if let cap = printLevelCap, depth >= cap, isCollectionForLevel(expr) {
-            return "#"
-        }
-        let recur: (Expr) -> String = { self.strString($0, depth: depth + 1) }
-        if let collection = formatCollection(expr, transform: recur, includeMeta: true) {
-            return collection
-        }
-        if case .lazySeq(let box) = expr {
-            return formatLazySeq(box, transform: recur)
+        // A collection is handed to `printString` outright rather than recursed here.
+        // Clojure's `str` on a collection is that collection's `toString`, which is
+        // pr-based — so the *elements* print readably (`(str {:a "x"})` => `{:a "x"}`,
+        // `(str [nil])` => `[nil]`, `(str [1N])` => `[1N]`) even though a *top-level*
+        // string does not. Only scalars get str's own rendering below.
+        //
+        // `isCollectionForLevel` already enumerates exactly the set that needs this, and
+        // `printString` re-applies the `*print-level*` cap at this same depth, so handing
+        // off before checking it here loses nothing.
+        if isCollectionForLevel(expr) {
+            return printString(expr, depth: depth)
         }
         return switch expr {
         case .nil:
@@ -226,8 +286,14 @@ public struct Printer {
         case .character(let char):
             String(char)
 
+        // Java's `toString` names, not `printString`'s reader literals — `(str ##Inf)` is
+        // "Infinity", where `(pr-str ##Inf)` is "##Inf". Falling through to `printString`
+        // for NaN (as this used to) would now yield "##NaN".
         case .double(let value):
-            value.isInfinite ? (value > 0 ? "Infinity" : "-Infinity") : printString(.double(value), depth: depth)
+            javaSpecialDouble(value) ?? formattedDouble(value)
+
+        case .float(let value):
+            javaSpecialDouble(Double(value)) ?? formattedDouble(Double(value))
 
         case .bigInteger(let v):
             "\(v)"
@@ -255,11 +321,13 @@ public struct Printer {
             return formatLazySeq(box, transform: recur)
         }
         return switch expr {
+        // `String(value)` round-trips a finite double exactly, but spells the special
+        // values "inf"/"-inf"/"nan", which the reader doesn't accept.
         case .double(let value):
-            String(value)
+            readableSpecialDouble(value) ?? String(value)
 
         case .float(let value):
-            String(value)
+            readableSpecialDouble(Double(value)) ?? String(value)
 
         default:
             printString(expr, depth: depth)

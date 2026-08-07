@@ -107,7 +107,7 @@ Swish supports Clojure-style transducers (Clojure 1.7+).
 
 - **`Expr.list`** is backed by `SwishPersistentList` (`SwishPersistentList.swift`), a cons-cell persistent list with O(1) `cons`/`first`/`rest`/`count`.
 
-- **`Expr.vector`** is backed by `SwishPersistentVector` (`SwishPersistentVector.swift`), a Clojure-style 32-way bit-partitioned persistent vector trie with a tail buffer: O(1)-amortized `conj`/`pop`, O(log₃₂ n) `nth`/`assoc`, structural sharing. **Reach an element via `vectorElement(_:at:)` / `vectorCount(_:)`, not `vectorElements(_:)`** (`CoreSequenceVector.swift`): the latter goes through `SwishPersistentVector.elements`, which is O(n) *and allocates a whole array*, so using it to read one slot silently makes an O(log₃₂ n) lookup O(n) — the bug that made `nth`/`get`/`get-in`/`contains?`/`find` linear on vectors while `(v i)` was logarithmic. `vectorElements` is for callers that genuinely need every element (only `subvec` now). `conjOne`/`conj!`/`pop`/`peek`/`pop!`/`assoc` route through it. `SwishPersistentVector.hash` combines its backing array directly so a `.vector` stays cross-`==`/hash-consistent with an equal `.sharedVector` / 2-element `.mapEntry`. (`.sharedVector` — the `SwishArray`-backed `vec`-of-a-Java-array — stays a flat `[Expr]`.)
+- **`Expr.vector`** is backed by `SwishPersistentVector` (`SwishPersistentVector.swift`), a Clojure-style 32-way bit-partitioned persistent vector trie with a tail buffer: O(1)-amortized `conj`/`pop`, O(log₃₂ n) `nth`/`assoc`, structural sharing. **Reach an element via `vectorElement(_:at:)` / `vectorCount(_:)`, not `vectorElements(_:)`** (`CoreSequenceVector.swift`): the latter goes through `SwishPersistentVector.elements`, which is O(n) *and allocates a whole array*, so using it to read one slot silently makes an O(log₃₂ n) lookup O(n) — the bug that made `nth`/`get`/`get-in`/`contains?`/`find` linear on vectors while `(v i)` was logarithmic. `vectorElements` is for callers that genuinely need every element (only `subvec` now). `conjOne`/`conj!`/`pop`/`peek`/`pop!`/`assoc` route through it. **Iteration, `==` and `hash` all go through a leaf-walking `Iterator`** that hands back the *stored* leaf arrays, so a traversal allocates nothing and `==` bails on the first mismatch (measured: `=` 23% faster on equal vectors, 55% with an early mismatch, hashing 7%; full iteration unchanged). `elements` keeps its bulk leaf copy for callers that genuinely want the whole array. **Invariant:** `SwishPersistentVector.hash` must reproduce `Array<Expr>.hash(into:)` exactly — count as discriminator, then each element in order — because `.vector`, `.sharedVector` (a real `[Expr]`) and a 2-element `.mapEntry` (hashed as `[k, v]`) are cross-`==` and share one hash discriminator. Iterating restates that algorithm instead of delegating to `Array`, so `ExprVectorParityTests` pins the three together; don't change it without that suite passing. All three are also cross-`==` **transitively** — the `.mapEntry`↔`.sharedVector` arm was missing, which made `=` non-transitive on values ordinary code produces. (`.sharedVector` — the `SwishArray`-backed `vec`-of-a-Java-array — stays a flat `[Expr]`.)
 
 - **`Expr.map`/`Expr.set`** (`SwishMap`/`SwishSet`) are backed by swift-collections' `TreeDictionary`/`TreeSet` (HAMT persistent map/set): `assoc`/`dissoc`/`conj`/`disj` share structure (O(log n)), so map/set *building* is O(n log n), not O(n²). Hot paths (`coreAssoc`/`coreDissoc`/`conjOne`/transient `assoc!`/`conj!`/`disj!`) operate on the tree directly; cold paths use a `TreeDictionary.swiftDictionary` materializer. Two invariants: **(1)** `.map`/`.sortedMap` and `.set`/`.sortedSet` must hash equal (they're cross-`==`), and `TreeDictionary`/`TreeSet` don't hash like Swift `Dictionary`/`Set`, so both route through backing-independent `hashMapContents`/`hashSetContents` (`Expr+Hashable.swift`) — **don't** delegate `.map`/`.set` hashing to the collection's own `hash`. **(2)** `keys`/`vals` must iterate corresponding order, so `mapCollection` (`CoreMap.swift`) projects **one stored collection** — a `.map`'s `TreeDictionary`, a `.record`'s `[Expr:Expr]` — never a freshly-materialized copy per call (two independently-ordered dictionaries would misalign `case`, which zips `(keys pairs)` with `(vals pairs)`); it takes a `MapProjection` enum rather than a closure so each case projects its own backing with no conversion. Map iteration order is otherwise unchanged: `asSequence`/`Printer` sort keys explicitly regardless of backing — and `Printer` reads the `TreeDictionary`/`TreeSet` **directly**, never via `swiftDictionary`/`Set(...)`, which would rebuild the whole collection per print.
 
@@ -260,7 +260,32 @@ Swish implements `with-precision`/`*math-context*` (`core.clj`) with two simplif
 
 - **Note:** `bigdec-round-to-precision` (`CoreArithmeticPrecision.swift`) works around a real negative-rounding bug in the vendored `BigDecimal.withPrecision(_:)` by sign-normalizing. That's a vendored-package bug — don't "fix" it a second time if it's patched upstream; check first (NOTES.md).
 
-### Printing — control vars are honored, `#:ns{}`, and `print-method` extensibility
+### Printing — three renderings, control vars, `#:ns{}`, and `print-method`
+
+`Printer` has **three** entry points, matching three distinct Clojure concepts. The
+difference is not "quoted vs unquoted" but *how far down* the unquoting reaches:
+
+| entry point | Clojure equivalent | top-level string | nested elements |
+|---|---|---|---|
+| `printString` | `pr` | `"x"` | readable |
+| `strString` | `str` (the value's `toString`) | `x` | **readable** |
+| print family | `(binding [*print-readably* nil] (pr …))` | `x` | plain |
+
+So `(pr-str {:a "x"})` and `(str {:a "x"})` are both `{:a "x"}`, while
+`(print-str {:a "x"})` is `{:a x}`. `str` looks like the odd one out but isn't — a
+collection's `toString` is pr-based, so only its *scalar* form is plain. `print` is the
+one that reaches all the way down, which is why the print family is built from
+`printString` with `printReadably` false (`outputPrinter`, `CoreIO.swift`), **not** from
+`strString`. Consequences worth knowing: `(str [nil])` is `[nil]` (not `[]`),
+`(str [1N])` is `[1N]`, and `print` keeps `nil`/`1N`/`1.5M`/`#uuid` readable because
+`*print-readably*` governs only strings and chars.
+
+**Special doubles have two spellings and both are load-bearing.** `printString`/
+`sourceForm` emit the reader literals `##Inf`/`##-Inf`/`##NaN` — required for `pr` to
+round-trip, and previously wrong: `NumberFormatter` rendered them `+∞`/`-∞`, which no
+reader accepts. `strString` emits Java `Double.toString`'s `Infinity`/`-Infinity`/`NaN`,
+which is what `str` must give (pinned by the jank suite). `strString` therefore needs its
+*own* special-value check — letting NaN fall through to `printString` now yields `##NaN`.
 
 The print-control vars are read **per print** by `Evaluator.makePrinter()` (`Evaluator.swift`), which builds a cheap configured `Printer` from `*print-length*`/`*print-level*`/`*print-namespace-maps*`/`*print-readably*`/`*print-meta*` and hands it to the user-facing print fns (`pr`/`prn`/`print`/`println`/`*-str`, `CoreIO.swift`). Previously these vars were *nominal* — the fns used a fixed global `Printer`, so `(binding [*print-length* 5] …)` was silently ignored. **Performance:** `Printer` is now a cheap value type — its two Foundation formatters (`NumberFormatter`/`ISO8601DateFormatter`) are shared module-level instances (guarded by `formatterLock`), so a per-call `Printer` costs a struct copy, never a formatter allocation. All the print vars are now `isDynamic` (they weren't, so `binding` on them used to throw).
 - **`*print-level*`** caps nesting depth: a collection at depth ≥ the cap prints as `#` (depth threaded through the recursive printer methods).

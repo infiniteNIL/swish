@@ -14,6 +14,17 @@ private func setEqualsSorted(_ tree: TreeSet<Expr>, _ sorted: [Expr]) -> Bool {
     tree.count == sorted.count && sorted.allSatisfy { tree.contains($0) }
 }
 
+/// A `.mapEntry` is semantically the 2-element vector `[k v]`, so it has to compare equal
+/// to **both** vector representations. Only the `.vector` half used to exist, which made
+/// `=` non-transitive on values ordinary code produces: `(first (seq {:k 7}))` equalled
+/// `[:k 7]`, and `[:k 7]` equalled `(vec (object-array [:k 7]))`, but the entry did not
+/// equal that `.sharedVector`. Generic over the two backings so neither needs its
+/// elements materialized to compare two of them.
+private func mapEntryEquals<C: RandomAccessCollection>(_ k: Expr, _ v: Expr, _ elements: C) -> Bool
+where C.Element == Expr, C.Index == Int {
+    elements.count == 2 && k == elements[0] && v == elements[1]
+}
+
 extension Expr: Equatable {
     public static func == (lhs: Expr, rhs: Expr) -> Bool {
         switch (lhs, rhs) {
@@ -90,10 +101,16 @@ extension Expr: Equatable {
             return k1 == k2 && v1 == v2
 
         case (.mapEntry(let k, let v), .vector(let elems, _)):
-            return elems.count == 2 && k == elems[0] && v == elems[1]
+            return mapEntryEquals(k, v, elems)
 
         case (.vector(let elems, _), .mapEntry(let k, let v)):
-            return elems.count == 2 && elems[0] == k && elems[1] == v
+            return mapEntryEquals(k, v, elems)
+
+        case (.mapEntry(let k, let v), .sharedVector(let sa, _)):
+            return mapEntryEquals(k, v, sa.elements)
+
+        case (.sharedVector(let sa, _), .mapEntry(let k, let v)):
+            return mapEntryEquals(k, v, sa.elements)
 
         case (.map(let a), .map(let b)):
             return a == b

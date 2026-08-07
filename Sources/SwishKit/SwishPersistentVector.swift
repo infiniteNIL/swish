@@ -237,11 +237,43 @@ extension SwishPersistentVector: RandomAccessCollection {
     public func index(after i: Int) -> Int { i + 1 }
     public func index(before i: Int) -> Int { i - 1 }
 
-    // Efficient O(n) iteration (leaf-by-leaf), instead of the default O(n log n)
-    // index+subscript walk.
-    public func makeIterator() -> IndexingIterator<[Expr]> {
-        elements.makeIterator()
+    /// Walks the leaf arrays directly. `arrayFor` hands back the *stored* leaf — a COW
+    /// reference, not a copy — so a full traversal allocates **nothing** and pays one
+    /// O(log₃₂ n) descent per 32 elements, i.e. amortized O(1) each.
+    ///
+    /// This used to return `elements.makeIterator()`, whose comment framed the O(n)
+    /// array it built as the price of avoiding the default O(n log n) index+subscript
+    /// walk. It isn't a real trade: this iterator is O(n) *and* allocation-free, beating
+    /// both. It also makes partial traversals cheap, which is what lets `==` below bail
+    /// on the first mismatch instead of materializing both sides first.
+    public struct Iterator: IteratorProtocol {
+        private let vector: SwishPersistentVector
+        private var index = 0
+        /// The leaf covering `[leafStart, leafEnd)`, refilled when `index` leaves it.
+        private var leaf: [Expr] = []
+        private var leafStart = 0
+        private var leafEnd = 0
+
+        fileprivate init(_ vector: SwishPersistentVector) {
+            self.vector = vector
+        }
+
+        public mutating func next() -> Expr? {
+            guard index < vector.count_ else { return nil }
+            if index >= leafEnd {
+                // Correct for the tail as well as for trie leaves: `tailoff` is always a
+                // multiple of 32 and trie leaves are always exactly 32 wide (only `tail`
+                // is ever partial), so this boundary lands right in both cases.
+                leaf = vector.arrayFor(index)
+                leafStart = index & ~SwishPersistentVector.mask
+                leafEnd = leafStart + leaf.count
+            }
+            defer { index += 1 }
+            return leaf[index - leafStart]
+        }
     }
+
+    public func makeIterator() -> Iterator { Iterator(self) }
 }
 
 extension SwishPersistentVector: ExpressibleByArrayLiteral {
@@ -249,18 +281,34 @@ extension SwishPersistentVector: ExpressibleByArrayLiteral {
 }
 
 extension SwishPersistentVector: Equatable {
+    /// Walks both iterators in step, bailing on the first mismatch. Comparing
+    /// `lhs.elements == rhs.elements` instead would build two full arrays before looking
+    /// at a single element — so a pair differing at index 0 cost O(n) and two allocations.
     public static func == (lhs: SwishPersistentVector, rhs: SwishPersistentVector) -> Bool {
         guard lhs.count_ == rhs.count_ else { return false }
-        return lhs.elements == rhs.elements
+        var a = lhs.makeIterator()
+        var b = rhs.makeIterator()
+        while let x = a.next() {
+            if x != b.next() { return false }
+        }
+        return true
     }
 }
 
 extension SwishPersistentVector: Hashable {
     public func hash(into hasher: inout Hasher) {
-        // Hash the backing array directly, so a vector hashes identically to the
-        // equivalent `[Expr]` — required because `Expr` treats `.vector`,
-        // `.sharedVector` (a `[Expr]`), and 2-element `.mapEntry` (a `[k v]`) as
-        // cross-`==` (see Expr+Equatable/Expr+Hashable), so all three must agree.
-        hasher.combine(elements)
+        // Must reproduce `Array<Expr>.hash(into:)` exactly — the count as a discriminator,
+        // then each element in order. `Expr` treats `.vector`, `.sharedVector` (a real
+        // `[Expr]`) and a 2-element `.mapEntry` (hashed as `[k, v]`) as cross-`==` and
+        // hashes all three under one discriminator (`Expr+Hashable.swift`), so a vector
+        // must hash identically to the equivalent array or map lookups break.
+        //
+        // `hasher.combine(elements)` got that for free by calling Array's implementation,
+        // at the cost of materializing the whole trie on every hash. Iterating instead is
+        // allocation-free but re-states the algorithm, so `ExprVectorParityTests` pins the
+        // three representations' hashes together. `SwishPersistentList.hash` relies on the
+        // same assumption.
+        hasher.combine(count_)
+        for e in self { hasher.combine(e) }
     }
 }

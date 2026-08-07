@@ -33,9 +33,10 @@ struct PrinterMapTests {
         #expect(printer.strString(.map([:], metadata: nil)) == "{}")
     }
 
-    @Test("str prints map with single pair")
+    /// A map's elements print readably under `str` — see `PrinterDisplayStringTests`.
+    @Test("str prints map with single pair, keeping the value string readable")
     func strPrintsMapWithSinglePair() {
-        #expect(printer.strString(.map([.keyword("a"): .string("hello")], metadata: nil)) == "{:a hello}")
+        #expect(printer.strString(.map([.keyword("a"): .string("hello")], metadata: nil)) == "{:a \"hello\"}")
     }
 
     @Test("sourceForm prints map")
