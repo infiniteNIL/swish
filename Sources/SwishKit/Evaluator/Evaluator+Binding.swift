@@ -20,11 +20,8 @@ extension Evaluator {
         var frame: [ObjectIdentifier: Expr] = [:]
         var i = 0
         while i < bindingVec.count {
-            guard case .symbol(let name, _) = bindingVec[i]
-            else {
-                throw EvaluatorError.invalidArgument(function: "binding",
-                    message: "binding target must be a symbol")
-            }
+            let name = try requireSymbol(bindingVec[i], function: "binding",
+                message: "binding target must be a symbol")
             let v: Var
             if let qualified = try resolveQualifiedVar(name: name) {
                 v = qualified
@@ -63,11 +60,8 @@ extension Evaluator {
             throw EvaluatorError.invalidArgument(function: "set!",
                 message: "requires exactly 2 arguments: (set! var-symbol value)")
         }
-        guard case .symbol(let name, _) = elements[1]
-        else {
-            throw EvaluatorError.invalidArgument(function: "set!",
-                message: "target must be a symbol (Java-field/mutable-field set! is unsupported)")
-        }
+        let name = try requireSymbol(elements[1], function: "set!",
+            message: "target must be a symbol (Java-field/mutable-field set! is unsupported)")
         // Resolve the target var exactly as `binding` does, so `set!` matches
         // `binding` and the alias-expansion path is handled identically.
         let v: Var

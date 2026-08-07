@@ -6,6 +6,10 @@ import Foundation
 // strictly one value at a time).
 private let tapQueue = DispatchQueue(label: "swish.tap")
 
+// The two wordings this file's `require*` calls share verbatim across many fns.
+private let firstMustBeAFuture = "first argument must be a future"
+private let firstMustBeAnAgent = "first argument must be an agent"
+
 // MARK: - Registration
 
 func registerConcurrency(into evaluator: Evaluator) {
@@ -23,25 +27,19 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "future-cancel", arity: .fixed(1),
         doc: "Cancels the future, if possible.",
         arglists: [["f"]]) { args in
-        guard case .future(let box) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "future-cancel", message: "first argument must be a future")
-        }
+        let box = try requireFuture(args[0], function: "future-cancel", message: firstMustBeAFuture)
         return .boolean(box.cancel())
     }
     evaluator.register(name: "future-cancelled?", arity: .fixed(1),
         doc: "Returns true if the future has been cancelled.",
         arglists: [["f"]]) { args in
-        guard case .future(let box) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "future-cancelled?", message: "first argument must be a future")
-        }
+        let box = try requireFuture(args[0], function: "future-cancelled?", message: firstMustBeAFuture)
         return .boolean(box.isCancelled)
     }
     evaluator.register(name: "future-done?", arity: .fixed(1),
         doc: "Returns true if the future is done executing (cancelled, completed, or errored).",
         arglists: [["f"]]) { args in
-        guard case .future(let box) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "future-done?", message: "first argument must be a future")
-        }
+        let box = try requireFuture(args[0], function: "future-done?", message: firstMustBeAFuture)
         return .boolean(box.isRealized)
     }
     evaluator.register(name: "future?", arity: .fixed(1),
@@ -59,9 +57,7 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "deliver", arity: .fixed(2),
         doc: "Delivers the supplied value to the promise, releasing any pending derefs. A subsequent call to deliver on a promise that has already been delivered is a no-op and returns nil.",
         arglists: [["promise", "val"]]) { args in
-        guard case .promise(let box) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "deliver", message: "first argument must be a promise")
-        }
+        let box = try requirePromise(args[0], function: "deliver", message: "first argument must be a promise")
         return box.deliver(args[1]) ? args[0] : .nil
     }
 
@@ -70,9 +66,7 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "tap-dispatch!", arity: .fixed(2),
         doc: "Internal. Asynchronously sends x to every function currently in the tapset atom, on a dedicated serial queue, catching and discarding any error each tap raises. Backs tap>.",
         arglists: [["tapset-atom", "x"]]) { [evaluator] args in
-        guard case .atom(let tapsetAtom) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "tap-dispatch!", message: "first argument must be an atom")
-        }
+        let tapsetAtom = try requireAtom(args[0], function: "tap-dispatch!", message: "first argument must be an atom")
         let x = args[1]
         let frames = evaluator.captureCurrentBindings()
         tapQueue.async {
@@ -91,9 +85,7 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "sleep!", arity: .fixed(1),
         doc: "Blocks the current thread for approximately ms milliseconds. Polls a cancellation check installed by future-call, so a cancelled future's sleep exits early.",
         arglists: [["ms"]]) { [evaluator] args in
-        guard case .integer(let ms) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "sleep!", message: "argument must be an integer")
-        }
+        let ms = try requireInteger(args[0], function: "sleep!")
         let deadline = Date().addingTimeInterval(Double(ms) / 1000)
         let tick = 0.02
         while Date() < deadline {
@@ -127,9 +119,8 @@ func registerConcurrency(into evaluator: Evaluator) {
         doc: "Blocks the current thread until all actions dispatched thus far to each of the agents have occurred.",
         arglists: [["&", "agents"]]) { [evaluator] args in
         for a in args {
-            guard case .agent(let agent) = a else {
-                throw EvaluatorError.invalidArgument(function: "await", message: "argument must be an agent, got \(corePrinter.printString(a))")
-            }
+            let agent = try requireAgent(a, function: "await",
+                message: "argument must be an agent, got \(corePrinter.printString(a))")
             agent.await(evaluator: evaluator, agentExpr: a)
         }
         return .nil
@@ -137,14 +128,12 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "await-for", arity: .atLeastOne,
         doc: "Blocks the current thread until all actions dispatched thus far to each of the agents have occurred, or the timeout (in milliseconds) has elapsed. Returns false if it returned due to timeout, true otherwise.",
         arglists: [["timeout-ms", "&", "agents"]]) { [evaluator] args in
-        guard case .integer(let ms) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "await-for", message: "first argument must be an integer timeout in milliseconds")
-        }
+        let ms = try requireInteger(args[0], function: "await-for",
+            message: "first argument must be an integer timeout in milliseconds")
         let group = DispatchGroup()
         for a in args.dropFirst() {
-            guard case .agent(let agent) = a else {
-                throw EvaluatorError.invalidArgument(function: "await-for", message: "argument must be an agent, got \(corePrinter.printString(a))")
-            }
+            let agent = try requireAgent(a, function: "await-for",
+                message: "argument must be an agent, got \(corePrinter.printString(a))")
             agent.awaitAsync(evaluator: evaluator, agentExpr: a, group: group)
         }
         let result = group.wait(timeout: .now() + .milliseconds(ms))
@@ -153,20 +142,14 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "agent-error", arity: .fixed(1),
         doc: "Returns the exception thrown during an asynchronous action of the agent if the agent is failed, else nil.",
         arglists: [["a"]]) { args in
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "agent-error", message: "argument must be an agent")
-        }
+        let agent = try requireAgent(args[0], function: "agent-error")
         return agent.error ?? .nil
     }
     evaluator.register(name: "restart-agent", arity: .atLeastOne,
         doc: "When an agent is failed, changes the agent state to new-state (which must pass the validator, if any) and then un-fails the agent so that sends are allowed again. Accepts an optional :clear-actions option for API compatibility; since Swish dispatches actions eagerly rather than holding a real backlog while failed, this implementation has no observable effect (see CLAUDE.md Known Limitations).",
         arglists: [["a", "new-state"], ["a", "new-state", "&", "options"]]) { [evaluator] args in
-        guard args.count >= 2 else {
-            throw EvaluatorError.invalidArgument(function: "restart-agent", message: "requires at least 2 arguments")
-        }
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "restart-agent", message: "first argument must be an agent")
-        }
+        try requireArgCount(args, atLeast: 2, function: "restart-agent")
+        let agent = try requireAgent(args[0], function: "restart-agent", message: firstMustBeAnAgent)
         var i = 2
         while i + 1 < args.count {
             if args[i] == .keyword("clear-actions") {
@@ -182,26 +165,20 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "set-error-handler!", arity: .fixed(2),
         doc: "Sets the error-handler of agent a to handler-fn (nil to clear). If an action run by the agent throws, handler-fn will be called with two arguments: the agent and the exception. Returns nil.",
         arglists: [["a", "handler-fn"]]) { args in
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "set-error-handler!", message: "first argument must be an agent")
-        }
+        let agent = try requireAgent(args[0], function: "set-error-handler!", message: firstMustBeAnAgent)
         agent.errorHandler = (args[1] == .nil) ? nil : args[1]
         return .nil
     }
     evaluator.register(name: "error-handler", arity: .fixed(1),
         doc: "Returns the error-handler of agent a, or nil if there is none.",
         arglists: [["a"]]) { args in
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "error-handler", message: "argument must be an agent")
-        }
+        let agent = try requireAgent(args[0], function: "error-handler")
         return agent.errorHandler ?? .nil
     }
     evaluator.register(name: "set-error-mode!", arity: .fixed(2),
         doc: "Sets the error-mode of agent a to mode, which must be :continue or :fail. Overrides the dynamic default (see error-mode) regardless of whether an error-handler is set. In :fail mode, an action that throws fails the agent (further sends no-op until restart-agent). In :continue mode, the agent's value is left unchanged and processing continues with the next queued action. Returns nil.",
         arglists: [["a", "mode"]]) { args in
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "set-error-mode!", message: "first argument must be an agent")
-        }
+        let agent = try requireAgent(args[0], function: "set-error-mode!", message: firstMustBeAnAgent)
         guard case .keyword(let k) = args[1], k == "continue" || k == "fail" else {
             throw EvaluatorError.invalidArgument(function: "set-error-mode!", message: "mode must be :continue or :fail")
         }
@@ -211,9 +188,7 @@ func registerConcurrency(into evaluator: Evaluator) {
     evaluator.register(name: "error-mode", arity: .fixed(1),
         doc: "Returns the error-mode of agent a (:continue or :fail). If never explicitly set via set-error-mode!, defaults to :continue once an error-handler has been set (see set-error-handler!), else :fail.",
         arglists: [["a"]]) { args in
-        guard case .agent(let agent) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "error-mode", message: "argument must be an agent")
-        }
+        let agent = try requireAgent(args[0], function: "error-mode")
         return agent.errorMode
     }
     evaluator.register(name: "shutdown-agents", arity: .fixed(0),
@@ -258,12 +233,9 @@ private func coreAgent(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreSend(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard args.count >= 2 else {
-        throw EvaluatorError.invalidArgument(function: "send", message: "requires at least 2 arguments")
-    }
-    guard case .agent(let a) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "send", message: "first argument must be an agent, got \(corePrinter.printString(args[0]))")
-    }
+    try requireArgCount(args, atLeast: 2, function: "send")
+    let a = try requireAgent(args[0], function: "send",
+        message: "first argument must be an agent, got \(corePrinter.printString(args[0]))")
     // Inside a dosync, hold the send until the transaction commits (and discard it
     // on retry/abort) instead of dispatching immediately — matching real Clojure,
     // so a retried transaction fires the action once, not once per attempt. The

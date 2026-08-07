@@ -148,25 +148,14 @@ extension Evaluator {
             let mapped = elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
             return .list(SwishPersistentList(mapped), metadata: meta)
 
-        case .vector(let vec, let meta):
-            let mapped = vec.elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
-            return .vector(SwishPersistentVector(mapped), metadata: meta)
-
-        case .map(let sm):
-            var newDict: [Expr: Expr] = [:]
-            for (k, v) in sm.dict {
-                let nk = substituteMutableFields(k, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
-                let nv = substituteMutableFields(v, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
-                newDict[nk] = nv
-            }
-            return .map(newDict, metadata: sm.metadata)
-
-        case .set(let ss):
-            let mapped = ss.elements.map { substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed) }
-            return .set(Set(mapped), metadata: ss.metadata)
-
         default:
-            return expr
+            // Delegating here also gains `.sortedMap`/`.sortedSet` coverage, which the
+            // hand-rolled arms this replaced were missing: a mutable field named inside
+            // a `(sorted-set …)`-shaped literal in a method body used to be left bare
+            // (⇒ runtime `Undefined symbol`) and is now rewritten like any other.
+            return expr.mappingChildren {
+                substituteMutableFields($0, thisParam: thisParam, mutableFields: mutableFields, shadowed: shadowed)
+            }
         }
     }
 
@@ -314,9 +303,8 @@ extension Evaluator {
         var fields: [String] = []
         var mutableFields: [String] = []
         for fieldExpr in fieldExprs.elements {
-            guard case .symbol(let name, let meta) = fieldExpr else {
-                throw EvaluatorError.invalidArgument(function: formName, message: "fields must be symbols")
-            }
+            let (name, meta) = try requireSymbolWithMeta(fieldExpr, function: formName,
+                message: "fields must be symbols")
             fields.append(name)
             // Only `deftype` honors `^:unsynchronized-mutable`/`^:volatile-mutable`
             // (`defrecord` passes `allowMutableFields: false` — Clojure forbids mutable

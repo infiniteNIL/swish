@@ -120,6 +120,31 @@ private func numericLessThan(_ a: Expr, _ b: Expr, function: String) throws -> B
     }
 }
 
+/// A single -/0/+ comparison over the numeric tower. Backs `compare`'s numeric branch,
+/// which previously called `numericLessThan` twice (once reversed) and so paid two full
+/// `coerceNumericPair` dispatches per comparison — on the path taken by every sorted-map/
+/// sorted-set insert and lookup, `sort`, and `asSequence`'s map-key ordering.
+private func numericCompare(_ a: Expr, _ b: Expr, function: String) throws -> Int {
+    switch try coerceNumericPair(a, b, function: function) {
+    case .ints(let x, let y):
+        return x < y ? -1 : x > y ? 1 : 0
+
+    case .floats(let x, let y):
+        return x < y ? -1 : x > y ? 1 : 0
+
+    case .ratios(let x, let y):
+        let lhs = x.numerator * y.denominator
+        let rhs = y.numerator * x.denominator
+        return lhs < rhs ? -1 : lhs > rhs ? 1 : 0
+
+    case .bigInts(let x, let y):
+        return x < y ? -1 : x > y ? 1 : 0
+
+    case .bigDecimals(let x, let y):
+        return x < y ? -1 : x > y ? 1 : 0
+    }
+}
+
 private func numericEqual(_ a: Expr, _ b: Expr, function: String) throws -> Bool {
     switch try coerceNumericPair(a, b, function: function) {
     case .ints(let x, let y):        return x == y
@@ -174,9 +199,7 @@ func compareExprValue(_ x: Expr, _ y: Expr) throws -> Int {
          (.ratio, _), (_, .ratio),
          (.bigInteger, _), (_, .bigInteger),
          (.bigDecimal, _), (_, .bigDecimal):
-        if try numericLessThan(x, y, function: "compare") { return -1 }
-        if try numericLessThan(y, x, function: "compare") { return 1 }
-        return 0
+        return try numericCompare(x, y, function: "compare")
 
     case (.string(let a), .string(let b)):
         return a < b ? -1 : a > b ? 1 : 0

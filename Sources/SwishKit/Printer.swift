@@ -238,12 +238,6 @@ public struct Printer {
         case .uuid(let uuid):
             uuid.uuidString.lowercased()
 
-        case .reduced:
-            printString(expr, depth: depth)
-
-        case .transient:
-            printString(expr, depth: depth)
-
         default:
             printString(expr, depth: depth)
         }
@@ -266,12 +260,6 @@ public struct Printer {
 
         case .float(let value):
             String(value)
-
-        case .reduced:
-            printString(expr, depth: depth)
-
-        case .transient:
-            printString(expr, depth: depth)
 
         default:
             printString(expr, depth: depth)
@@ -316,10 +304,14 @@ public struct Printer {
             return "[" + transform(k) + " " + transform(v) + "]"
 
         case .map(let sm):
-            return (includeMeta ? metaPrefix(sm.metadata) : "") + printMapString(sm.dict.swiftDictionary, transform: transform)
+            // Printed straight off the `TreeDictionary`; `swiftDictionary` here would
+            // materialize an entire second map on every print just to iterate it.
+            return (includeMeta ? metaPrefix(sm.metadata) : "") + printMapString(sm.dict, transform: transform)
 
         case .set(let ss):
-            return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(Set(ss.elements), transform: transform)
+            // Likewise the `TreeSet` — the elements are only mapped and sorted, so
+            // rebuilding a Swift `Set` from them first bought nothing.
+            return (includeMeta ? metaPrefix(ss.metadata) : "") + printSetString(ss.elements, transform: transform)
 
         case .sortedSet(let sss):
             let body = sss.elements.map(transform).joined(separator: " ")
@@ -394,18 +386,22 @@ public struct Printer {
         return "#\(shortTypeName(typeName))[\(values)]"
     }
 
-    private func printMapString(_ dict: [Expr: Expr], transform: (Expr) -> String) -> String {
+    /// Generic over the key/value sequence so a `.map` prints directly from its
+    /// `TreeDictionary` and `metaPrefix` still passes a plain `[Expr: Expr]`, without
+    /// either having to materialize into the other's representation.
+    private func printMapString(_ dict: some Sequence<(key: Expr, value: Expr)>, transform: (Expr) -> String) -> String {
+        let entries = Array(dict)
         // `#:ns{…}`: when every key is a keyword/symbol sharing one namespace, print the
         // compact namespaced-map form with the shared namespace stripped from each key.
-        if printNamespaceMaps, !dict.isEmpty, let ns = sharedKeyNamespace(dict) {
-            let pairs = dict
+        if printNamespaceMaps, !entries.isEmpty, let ns = sharedKeyNamespace(entries) {
+            let pairs = entries
                 .map { (transform(stripKeyNamespace($0.key)), transform($0.value)) }
                 .sorted { $0.0 < $1.0 }
                 .flatMap { [$0.0, $0.1] }
                 .joined(separator: " ")
             return "#:\(ns){\(pairs)}"
         }
-        let pairs = dict
+        let pairs = entries
             .map { (transform($0.key), transform($0.value)) }
             .sorted { $0.0 < $1.0 }
             .flatMap { [$0.0, $0.1] }
@@ -415,11 +411,11 @@ public struct Printer {
 
     /// The common namespace shared by *all* keys, or nil if any key is unqualified or not a
     /// keyword/symbol (in which case no `#:ns{}` compaction applies).
-    private func sharedKeyNamespace(_ dict: [Expr: Expr]) -> String? {
+    private func sharedKeyNamespace(_ entries: [(key: Expr, value: Expr)]) -> String? {
         var shared: String?
-        for key in dict.keys {
+        for entry in entries {
             let name: String
-            switch key {
+            switch entry.key {
             case .keyword(let k):     name = k
             case .symbol(let s, _):   name = s
             default:                  return nil
@@ -453,7 +449,7 @@ public struct Printer {
         }
     }
 
-    private func printSetString(_ set: Set<Expr>, transform: (Expr) -> String) -> String {
+    private func printSetString(_ set: some Sequence<Expr>, transform: (Expr) -> String) -> String {
         let elements = set
             .map { transform($0) }
             .sorted()

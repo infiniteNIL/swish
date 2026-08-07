@@ -41,14 +41,20 @@ func registerRegex(into evaluator: Evaluator) {
         arglists: [["re", "s"]], body: coreReSeq)
 }
 
+/// The `(re s)` argument pair shared verbatim by `re-matches`/`re-find`/`re-matcher`/
+/// `re-seq` — every one of them takes a compiled pattern and a subject string in that
+/// order, and reported the same two messages.
+private func requireRegexAndString(_ args: [Expr], function: String) throws -> (SwishRegex, String) {
+    let re = try requireRegex(args[0], function: function, message: "first argument must be a regex")
+    let s = try requireString(args[1], function: function, message: "second argument must be a string")
+    return (re, s)
+}
+
 // MARK: - re-pattern
 
 private func coreRePattern(_ args: [Expr]) throws -> Expr {
     if case .regex = args[0] { return args[0] }
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-pattern",
-            message: "argument must be a string")
-    }
+    let s = try requireString(args[0], function: "re-pattern")
     do {
         return .regex(try SwishRegex(pattern: s))
     }
@@ -81,14 +87,7 @@ private func regexMatchResult(_ match: Regex<AnyRegexOutput>.Match, in s: String
 // MARK: - re-matches / re-find
 
 private func coreReMatches(_ args: [Expr]) throws -> Expr {
-    guard case .regex(let re) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-matches",
-            message: "first argument must be a regex")
-    }
-    guard case .string(let s) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "re-matches",
-            message: "second argument must be a string")
-    }
+    let (re, s) = try requireRegexAndString(args, function: "re-matches")
 
     guard let match = s.wholeMatch(of: re.regex) else { return .nil }
     return regexMatchResult(match, in: s)
@@ -97,24 +96,15 @@ private func coreReMatches(_ args: [Expr]) throws -> Expr {
 private func coreReFind(_ args: [Expr]) throws -> Expr {
     // 1-arg matcher form: (re-find m) advances the matcher to its next match.
     if args.count == 1 {
-        guard case .matcher(let m) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "re-find",
-                message: "single-argument form requires a matcher (from re-matcher)")
-        }
+        let m = try requireMatcher(args[0], function: "re-find",
+            message: "single-argument form requires a matcher (from re-matcher)")
         return m.findNext()
     }
     guard args.count == 2 else {
         throw EvaluatorError.invalidArgument(function: "re-find",
             message: "expects [m] or [re s], got \(args.count) arguments")
     }
-    guard case .regex(let re) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-find",
-            message: "first argument must be a regex")
-    }
-    guard case .string(let s) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "re-find",
-            message: "second argument must be a string")
-    }
+    let (re, s) = try requireRegexAndString(args, function: "re-find")
 
     guard let match = s.firstMatch(of: re.regex) else { return .nil }
     return regexMatchResult(match, in: s)
@@ -123,24 +113,15 @@ private func coreReFind(_ args: [Expr]) throws -> Expr {
 // MARK: - re-matcher / re-groups
 
 private func coreReMatcher(_ args: [Expr]) throws -> Expr {
-    guard case .regex(let re) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-matcher",
-            message: "first argument must be a regex")
-    }
-    guard case .string(let s) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "re-matcher",
-            message: "second argument must be a string")
-    }
+    let (re, s) = try requireRegexAndString(args, function: "re-matcher")
 
     let results = s.matches(of: re.regex).map { regexMatchResult($0, in: s) }
     return .matcher(SwishMatcher(results: results))
 }
 
 private func coreReGroups(_ args: [Expr]) throws -> Expr {
-    guard case .matcher(let m) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-groups",
-            message: "argument must be a matcher (from re-matcher)")
-    }
+    let m = try requireMatcher(args[0], function: "re-groups",
+        message: "argument must be a matcher (from re-matcher)")
     guard let last = m.last else {
         throw EvaluatorError.invalidArgument(function: "re-groups",
             message: "No match found — call re-find on the matcher first")
@@ -155,14 +136,7 @@ private func coreReGroups(_ args: [Expr]) throws -> Expr {
 // incremental laziness was tried and empirically found to break `^` anchoring).
 
 private func coreReSeq(_ args: [Expr]) throws -> Expr {
-    guard case .regex(let re) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "re-seq",
-            message: "first argument must be a regex")
-    }
-    guard case .string(let s) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "re-seq",
-            message: "second argument must be a string")
-    }
+    let (re, s) = try requireRegexAndString(args, function: "re-seq")
 
     let results = s.matches(of: re.regex).map { regexMatchResult($0, in: s) }
     return results.isEmpty ? .nil : .seq(results)

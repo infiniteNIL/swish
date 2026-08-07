@@ -214,32 +214,8 @@ extension Evaluator {
             // through un-qualified (its symbols never rewritten to their vars).
             return try macroexpandAll(.list(SwishPersistentList(elements), metadata: nil))
 
-        case .vector(let elements, let meta):
-            return .vector(SwishPersistentVector(try elements.map { try macroexpandAll($0) }), metadata: meta)
-
-        case .map(let sm):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in sm.dict {
-                result[try macroexpandAll(k)] = try macroexpandAll(v)
-            }
-            return .map(result, metadata: sm.metadata)
-
-        case .sortedMap(let ssm):
-            return try transformSortedMap(ssm) { try macroexpandAll($0) }
-
-        case .set(let ss):
-            var result: Set<Expr> = []
-            for e in ss.elements {
-                result.insert(try macroexpandAll(e))
-            }
-            return .set(result, metadata: ss.metadata)
-
-        case .sortedSet(let sss):
-            return .sortedSet(try sss.elements.map { try macroexpandAll($0) },
-                              comparator: sss.comparator, metadata: sss.metadata)
-
         default:
-            return expr
+            return try expr.mappingChildren { try macroexpandAll($0) }
         }
     }
 

@@ -64,10 +64,8 @@ private func formatDirectiveShapes(_ fmt: String) -> [FormatArgShape] {
 }
 
 private func coreFormat(_ args: [Expr]) throws -> Expr {
-    guard case .string(let fmt) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "format",
-            message: "format string must be a string, got \(corePrinter.printString(args[0]))")
-    }
+    let fmt = try requireString(args[0], function: "format",
+        message: "format string must be a string, got \(corePrinter.printString(args[0]))")
     let formatArgs = Array(args.dropFirst())
     // keepAlive holds each %s argument's backing NSString for the duration
     // of this call, so its .utf8String pointer stays valid through the
@@ -114,34 +112,13 @@ private func formatCVarArg(_ expr: Expr, shape: FormatArgShape, keepAlive: inout
 }
 
 private func coreSubs(_ args: [Expr]) throws -> Expr {
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(
-            function: "subs",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "subs",
-            message: "first argument must be a string")
-    }
-    guard case .integer(let start) = args[1] else {
-        throw EvaluatorError.invalidArgument(
-            function: "subs",
-            message: "start must be an integer")
-    }
+    try requireArgCount(args, in: 2...3, function: "subs")
+    let s = try requireString(args[0], function: "subs", message: "first argument must be a string")
+    let start = try requireInteger(args[1], function: "subs", message: "start must be an integer")
     let len = s.count
-    let end: Int
-    if args.count == 3 {
-        guard case .integer(let e) = args[2] else {
-            throw EvaluatorError.invalidArgument(
-                function: "subs",
-                message: "end must be an integer")
-        }
-        end = e
-    }
-    else {
-        end = len
-    }
+    let end = args.count == 3
+        ? try requireInteger(args[2], function: "subs", message: "end must be an integer")
+        : len
     guard start >= 0, end >= start, end <= len,
           let startIdx = s.index(s.startIndex, offsetBy: start, limitedBy: s.endIndex),
           let endIdx = s.index(s.startIndex, offsetBy: end, limitedBy: s.endIndex)

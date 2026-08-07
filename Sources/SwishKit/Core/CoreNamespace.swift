@@ -74,13 +74,12 @@ func registerNamespace(into evaluator: Evaluator) {
 
 // MARK: - Helpers
 
+/// This namespace's house style for a bad symbol argument. Distinct from
+/// `requireSymbol`'s bare default ("argument must be a symbol") — the `ns-*` fns have
+/// always reported the offending value, and tests read these messages.
 private func expectSymbol(_ expr: Expr, function: String) throws -> String {
-    guard case .symbol(let name, _) = expr else {
-        throw EvaluatorError.invalidArgument(
-            function: function,
-            message: "expected a symbol, got \(corePrinter.printString(expr))")
-    }
-    return name
+    try requireSymbol(expr, function: function,
+        message: "expected a symbol, got \(corePrinter.printString(expr))")
 }
 
 // MARK: - Implementations
@@ -109,16 +108,10 @@ private func coreRequire(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 }
 
 private func coreAlias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let aliasName, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "alias",
-            message: "first argument must be a symbol, got \(args[0])")
-    }
-    guard case .symbol(let nsName, _) = args[1] else {
-        throw EvaluatorError.invalidArgument(
-            function: "alias",
-            message: "second argument must be a symbol, got \(args[1])")
-    }
+    let aliasName = try requireSymbol(args[0], function: "alias",
+        message: "first argument must be a symbol, got \(args[0])")
+    let nsName = try requireSymbol(args[1], function: "alias",
+        message: "second argument must be a symbol, got \(args[1])")
     guard let ns = evaluator.findNs(nsName) else {
         throw EvaluatorError.namespaceNotFound(nsName)
     }
@@ -127,11 +120,8 @@ private func coreAlias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let nsName, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "refer",
-            message: "first argument must be a symbol, got \(args[0])")
-    }
+    let nsName = try requireSymbol(args[0], function: "refer",
+        message: "first argument must be a symbol, got \(args[0])")
     guard let srcNs = evaluator.findNs(nsName) else {
         throw EvaluatorError.namespaceNotFound(nsName)
     }
@@ -194,10 +184,7 @@ private func envShadows(_ env: Expr, _ sym: Expr) -> Bool {
 
 private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     // (resolve sym) or (resolve env sym) — the symbol is always the last arg.
-    guard args.count == 1 || args.count == 2 else {
-        throw EvaluatorError.invalidArgument(function: "resolve",
-            message: "requires 1 or 2 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 1...2, function: "resolve")
     let symArg = args[args.count - 1]
     guard case .symbol(let name, _) = symArg else { return .nil }
     if args.count == 2, envShadows(args[0], symArg) {
@@ -223,15 +210,10 @@ private func coreResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 private func coreNsResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     // (ns-resolve ns sym) or (ns-resolve ns env sym), where env is a local-binding
     // map that shadows same-named vars. The symbol is always the last arg.
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(function: "ns-resolve",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "ns-resolve")
     let symArg = args[args.count - 1]
-    guard case .symbol(let name, _) = symArg else {
-        throw EvaluatorError.invalidArgument(function: "ns-resolve",
-            message: "last argument must be a symbol, got \(corePrinter.printString(symArg))")
-    }
+    let name = try requireSymbol(symArg, function: "ns-resolve",
+        message: "last argument must be a symbol, got \(corePrinter.printString(symArg))")
     if args.count == 3, envShadows(args[1], symArg) {
         return .nil
     }
@@ -250,24 +232,37 @@ private func coreNsResolve(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
     return .nil
 }
 
+/// Projects a namespace's mappings to the `{sym varRef}` map every `ns-*` introspection
+/// read returns, keeping only the entries `include` accepts. The four readers differ
+/// solely in that predicate: `ns-map` takes everything, `ns-interns` and `ns-publics`
+/// take home vars (the latter also dropping `:private`), `ns-refers` takes the rest.
+private func nsMappingsMap(_ ns: Namespace, include: (Var) -> Bool) -> Expr {
+    var result: [Expr: Expr] = [:]
+    for (name, v) in ns.mappings where include(v) {
+        result[.symbol(name, metadata: nil)] = .varRef(v)
+    }
+    return .map(result, metadata: nil)
+}
+
 private func coreNsInterns(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
+    // Unlike the other ns-* readers, a *symbol* naming a namespace that doesn't exist
+    // yields {} here rather than throwing — so this keeps its own front end instead of
+    // going through `namespaceArg`.
     let ns: Namespace
     switch args[0] {
     case .symbol(let name, _):
         guard let found = evaluator.findNs(name) else { return .map([:], metadata: nil) }
         ns = found
+
     case .namespace(let n):
         ns = n
+
     default:
         throw EvaluatorError.invalidArgument(
             function: "ns-interns",
             message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
     }
-    var result: [Expr: Expr] = [:]
-    for (name, v) in ns.mappings where v.namespace === ns {
-        result[.symbol(name, metadata: nil)] = .varRef(v)
-    }
-    return .map(result, metadata: nil)
+    return nsMappingsMap(ns) { $0.namespace === ns }
 }
 
 /// Resolves a namespace-or-symbol argument to its `Namespace`, throwing for
@@ -287,29 +282,17 @@ private func isPrivate(_ v: Var) -> Bool {
 
 private func coreNsMap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let ns = try namespaceArg(evaluator, args[0], function: "ns-map")
-    var result: [Expr: Expr] = [:]
-    for (name, v) in ns.mappings {
-        result[.symbol(name, metadata: nil)] = .varRef(v)
-    }
-    return .map(result, metadata: nil)
+    return nsMappingsMap(ns) { _ in true }
 }
 
 private func coreNsPublics(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let ns = try namespaceArg(evaluator, args[0], function: "ns-publics")
-    var result: [Expr: Expr] = [:]
-    for (name, v) in ns.mappings where v.namespace === ns && !isPrivate(v) {
-        result[.symbol(name, metadata: nil)] = .varRef(v)
-    }
-    return .map(result, metadata: nil)
+    return nsMappingsMap(ns) { $0.namespace === ns && !isPrivate($0) }
 }
 
 private func coreNsRefers(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let ns = try namespaceArg(evaluator, args[0], function: "ns-refers")
-    var result: [Expr: Expr] = [:]
-    for (name, v) in ns.mappings where v.namespace !== ns {
-        result[.symbol(name, metadata: nil)] = .varRef(v)
-    }
-    return .map(result, metadata: nil)
+    return nsMappingsMap(ns) { $0.namespace !== ns }
 }
 
 private func coreNsAliases(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
@@ -329,22 +312,16 @@ private func coreNsImports(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
 
 private func coreNsUnalias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let ns = try namespaceArg(evaluator, args[0], function: "ns-unalias")
-    guard case .symbol(let aliasName, _) = args[1] else {
-        throw EvaluatorError.invalidArgument(
-            function: "ns-unalias",
-            message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
-    }
+    let aliasName = try requireSymbol(args[1], function: "ns-unalias",
+        message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
     ns.removeAlias(name: aliasName)
     return .nil
 }
 
 private func coreNsUnmap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let ns = try namespaceArg(evaluator, args[0], function: "ns-unmap")
-    guard case .symbol(let symName, _) = args[1] else {
-        throw EvaluatorError.invalidArgument(
-            function: "ns-unmap",
-            message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
-    }
+    let symName = try requireSymbol(args[1], function: "ns-unmap",
+        message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
     ns.unmap(name: symName)
     // A home-var mapping may be cached under "<ns>/<name>"; invalidate that one key.
     evaluator.qualifiedVarCache.withLock { $0["\(ns.name)/\(symName)"] = nil }
@@ -352,11 +329,8 @@ private func coreNsUnmap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 }
 
 private func coreRemoveNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "remove-ns",
-            message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
-    }
+    let name = try requireSymbol(args[0], function: "remove-ns",
+        message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
     if name == "clojure.core" {
         throw EvaluatorError.invalidArgument(
             function: "remove-ns",
@@ -378,11 +352,8 @@ private func coreAllNs(_ evaluator: Evaluator) -> Expr {
 }
 
 private func coreNsName(_ args: [Expr]) throws -> Expr {
-    guard case .namespace(let ns) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "ns-name",
-            message: "expected a namespace, got \(corePrinter.printString(args[0]))")
-    }
+    let ns = try requireNamespaceValue(args[0], function: "ns-name",
+        message: "expected a namespace, got \(corePrinter.printString(args[0]))")
     return .symbol(ns.name, metadata: nil)
 }
 
@@ -403,18 +374,10 @@ private func coreTheNs(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreIntern(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(function: "intern",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
-    guard case .namespace(let ns) = try coreTheNs(evaluator, [args[0]]) else {
-        throw EvaluatorError.invalidArgument(function: "intern",
-            message: "expected a namespace or symbol, got \(corePrinter.printString(args[0]))")
-    }
-    guard case .symbol(let name, let symMeta) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "intern",
-            message: "name must be a symbol, got \(corePrinter.printString(args[1]))")
-    }
+    try requireArgCount(args, in: 2...3, function: "intern")
+    let ns = try namespaceArg(evaluator, args[0], function: "intern")
+    let (name, symMeta) = try requireSymbolWithMeta(args[1], function: "intern",
+        message: "name must be a symbol, got \(corePrinter.printString(args[1]))")
     let v = ns.intern(name: name, value: args.count == 3 ? args[2] : nil)
     if let symMeta {
         v.metadata = symMeta
@@ -451,9 +414,7 @@ private func coreSymbol(_ args: [Expr]) throws -> Expr {
         default:
             throw EvaluatorError.invalidArgument(function: "symbol", message: "namespace must be a string or nil")
         }
-        guard case .string(let name) = args[1] else {
-            throw EvaluatorError.invalidArgument(function: "symbol", message: "name must be a string")
-        }
+        let name = try requireString(args[1], function: "symbol", message: "name must be a string")
         if let ns {
             return .symbol("\(ns)/\(name)", metadata: nil)
         }

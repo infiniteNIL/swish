@@ -1,5 +1,20 @@
 private let transientExpired = "Transient used after persistent! call"
 
+/// Unwraps a transient and rejects one that `persistent!` has already consumed — the
+/// two-step prologue every `assoc!`/`dissoc!`/`conj!`/`disj!`/`pop!`/`persistent!` body
+/// needs. Not in `CoreArgs.swift` because the expiry rule and its message are specific
+/// to this file's transient lifecycle, not a generic payload unwrap.
+private func requireLiveTransient(_ arg: Expr, function: String) throws -> TransientCollection {
+    guard case .transient(let tc) = arg else {
+        throw EvaluatorError.invalidArgument(function: function,
+            message: "expected transient, got \(corePrinter.printString(arg))")
+    }
+    guard !tc.isInvalidated else {
+        throw EvaluatorError.invalidArgument(function: function, message: transientExpired)
+    }
+    return tc
+}
+
 // MARK: - Registration
 
 func registerTransient(into evaluator: Evaluator) {
@@ -46,27 +61,13 @@ private func coreTransient(_ args: [Expr]) throws -> Expr {
 }
 
 private func corePersistentBang(_ args: [Expr]) throws -> Expr {
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "persistent!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "persistent!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "persistent!")
     tc.isInvalidated = true
     return tc.value
 }
 
 private func coreAssocBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "assoc!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "assoc!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "assoc!")
     guard args.count >= 3 else {
         throw EvaluatorError.arityMismatch(name: "assoc!", expected: .atLeastOne, got: args.count)
     }
@@ -88,27 +89,13 @@ private func coreAssocBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Exp
 }
 
 private func coreDisjocBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "dissoc!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "dissoc!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "dissoc!")
     tc.value = try coreDissoc(evaluator, [tc.value] + Array(args.dropFirst()))
     return args[0]
 }
 
 private func corePopBang(_ args: [Expr]) throws -> Expr {
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "pop!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "pop!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "pop!")
     guard case .vector(let elems, let meta) = tc.value else {
         throw EvaluatorError.invalidArgument(function: "pop!",
             message: "first argument must be a vector, got \(corePrinter.printString(tc.value))")
@@ -122,14 +109,7 @@ private func corePopBang(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreDisjBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "disj!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "disj!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "disj!")
     guard case .set(let ss) = tc.value else {
         throw EvaluatorError.invalidArgument(function: "disj!",
             message: "first argument must be a set, got \(corePrinter.printString(tc.value))")
@@ -145,14 +125,7 @@ private func coreConjBang(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
         return .transient(TransientCollection(.vector([], metadata: nil)))
     }
     if args.count == 1 { return args[0] }
-    guard case .transient(let tc) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "conj!",
-            message: "expected transient, got \(corePrinter.printString(args[0]))")
-    }
-    if tc.isInvalidated {
-        throw EvaluatorError.invalidArgument(function: "conj!",
-            message: transientExpired)
-    }
+    let tc = try requireLiveTransient(args[0], function: "conj!")
     for i in 1..<args.count {
         tc.value = try conjOne(evaluator, tc.value, args[i])
     }

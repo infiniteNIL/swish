@@ -54,10 +54,8 @@ private func coreRand(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreParseBoolean(_ args: [Expr]) throws -> Expr {
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "parse-boolean",
-            message: "expected a string, got \(corePrinter.printString(args[0]))")
-    }
+    let s = try requireString(args[0], function: "parse-boolean",
+        message: "expected a string, got \(corePrinter.printString(args[0]))")
     switch s {
     case "true":
         return .boolean(true)
@@ -71,28 +69,22 @@ private func coreParseBoolean(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreParseLong(_ args: [Expr]) throws -> Expr {
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "parse-long",
-            message: "expected a string, got \(corePrinter.printString(args[0]))")
-    }
+    let s = try requireString(args[0], function: "parse-long",
+        message: "expected a string, got \(corePrinter.printString(args[0]))")
     guard let i = Int(s) else { return .nil }
     return .integer(i)
 }
 
 private func coreParseDouble(_ args: [Expr]) throws -> Expr {
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "parse-double",
-            message: "expected a string, got \(corePrinter.printString(args[0]))")
-    }
+    let s = try requireString(args[0], function: "parse-double",
+        message: "expected a string, got \(corePrinter.printString(args[0]))")
     guard let d = Double(s) else { return .nil }
     return .double(d)
 }
 
 private func coreParseUUID(_ args: [Expr]) throws -> Expr {
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "parse-uuid",
-            message: "expected a string, got \(corePrinter.printString(args[0]))")
-    }
+    let s = try requireString(args[0], function: "parse-uuid",
+        message: "expected a string, got \(corePrinter.printString(args[0]))")
     guard let uuid = UUID(uuidString: s) else { return .nil }
     return .uuid(uuid)
 }

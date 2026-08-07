@@ -30,9 +30,7 @@ func registerRef(into evaluator: Evaluator) {
     evaluator.register(name: "ref-history-count", arity: .fixed(1),
         doc: "Returns the history count for ref. Always 0 in this implementation — see ref-min-history/ref-max-history.",
         arglists: [["ref"]]) { args in
-        guard case .ref = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "ref-history-count", message: "argument must be a ref")
-        }
+        _ = try requireRef(args[0], function: "ref-history-count")
         return .integer(0)
     }
     evaluator.register(name: "ref-min-history", arity: .atLeastOne,
@@ -113,10 +111,8 @@ private func coreDosync(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreRefSet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .ref(let r) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "ref-set",
-            message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
-    }
+    let r = try requireRef(args[0], function: "ref-set",
+        message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
     let tx = try requireTransaction(evaluator, function: "ref-set")
     if let vf = r.validator {
         try checkValidator(evaluator, fn: vf, value: args[1], context: "ref-set")
@@ -129,10 +125,8 @@ private func coreAlter(_ evaluator: Evaluator, _ args: [Expr], functionName: Str
     guard args.count >= 2 else {
         throw EvaluatorError.invalidArgument(function: functionName, message: "requires at least 2 arguments")
     }
-    guard case .ref(let r) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: functionName,
-            message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
-    }
+    let r = try requireRef(args[0], function: functionName,
+        message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
     let tx = try requireTransaction(evaluator, function: functionName)
     let current = tx.read(r, refExpr: args[0])
     let newValue = try evaluator.call(args[1], args: [current] + Array(args.dropFirst(2)))
@@ -144,22 +138,16 @@ private func coreAlter(_ evaluator: Evaluator, _ args: [Expr], functionName: Str
 }
 
 private func coreEnsure(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .ref(let r) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "ensure",
-            message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
-    }
+    let r = try requireRef(args[0], function: "ensure",
+        message: "first argument must be a ref, got \(corePrinter.printString(args[0]))")
     let tx = try requireTransaction(evaluator, function: "ensure")
     return tx.read(r, refExpr: args[0])
 }
 
 private func coreRefHistory(_ args: [Expr], which keyPath: ReferenceWritableKeyPath<SwishRef, Int>, functionName: String) throws -> Expr {
-    guard case .ref(let r) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: functionName, message: "first argument must be a ref")
-    }
+    let r = try requireRef(args[0], function: functionName, message: "first argument must be a ref")
     if args.count >= 2 {
-        guard case .integer(let n) = args[1] else {
-            throw EvaluatorError.invalidArgument(function: functionName, message: "second argument must be an integer")
-        }
+        let n = try requireInteger(args[1], function: functionName, message: "second argument must be an integer")
         r[keyPath: keyPath] = n
         return args[0]
     }

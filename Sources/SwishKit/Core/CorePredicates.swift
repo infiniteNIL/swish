@@ -192,9 +192,7 @@ private func coreKeyword(_ args: [Expr]) throws -> Expr {
         }
 
     case 2:
-        guard case .string(let name) = args[1] else {
-            throw EvaluatorError.invalidArgument(function: "keyword", message: "name must be a string")
-        }
+        let name = try requireString(args[1], function: "keyword", message: "name must be a string")
         switch args[0] {
         case .nil:
             return .keyword(name)

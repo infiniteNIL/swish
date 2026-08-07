@@ -138,12 +138,8 @@ private func coreDeref(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreReset(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .atom(let a) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "reset!",
-            message: "first argument must be an atom, got \(corePrinter.printString(args[0]))")
-    }
+    let a = try requireAtom(args[0], function: "reset!",
+        message: "first argument must be an atom, got \(corePrinter.printString(args[0]))")
     if let vf = a.validator {
         try checkValidator(evaluator, fn: vf, value: args[1], context: "reset!")
     }
@@ -153,18 +149,9 @@ private func coreReset(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreSwap(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard args.count >= 2
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "swap!",
-            message: "requires at least 2 arguments")
-    }
-    guard case .atom(let a) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "swap!",
-            message: "first argument must be an atom, got \(corePrinter.printString(args[0]))")
-    }
+    try requireArgCount(args, atLeast: 2, function: "swap!")
+    let a = try requireAtom(args[0], function: "swap!",
+        message: "first argument must be an atom, got \(corePrinter.printString(args[0]))")
     var old: Expr
     var newValue: Expr
     repeat {

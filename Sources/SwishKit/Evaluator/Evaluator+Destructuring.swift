@@ -55,32 +55,13 @@ extension Evaluator {
             try expandSplicingElements(elements, into: &result, in: env, gensyms: &gensyms)
             return .vector(SwishPersistentVector(result), metadata: vecMeta)
 
-        case .map(let sm):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in sm.dict {
-                result[try syntaxQuoteExpand(k, in: env, gensyms: &gensyms)] = try syntaxQuoteExpand(v, in: env, gensyms: &gensyms)
-            }
-            return .map(result, metadata: sm.metadata)
-
-        case .sortedMap(let ssm):
-            return try transformSortedMap(ssm) { try syntaxQuoteExpand($0, in: env, gensyms: &gensyms) }
-
-        case .set(let ss):
-            var result: Set<Expr> = []
-            for element in ss.elements {
-                result.insert(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
-            }
-            return .set(result, metadata: ss.metadata)
-
-        case .sortedSet(let sss):
-            var result: [Expr] = []
-            for element in sss.elements {
-                result.append(try syntaxQuoteExpand(element, in: env, gensyms: &gensyms))
-            }
-            return .sortedSet(result, comparator: sss.comparator, metadata: sss.metadata)
-
         default:
-            return expr
+            // See `preExpandSyntaxQuote` — `gensyms` is `inout`, so it's threaded
+            // through a local across the delegated walk.
+            var local = gensyms
+            let result = try expr.mappingChildren { try syntaxQuoteExpand($0, in: env, gensyms: &local) }
+            gensyms = local
+            return result
         }
     }
 

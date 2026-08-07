@@ -38,32 +38,8 @@ extension Evaluator {
             if case .symbol("reify", _) = head { return expandReifyForm(elements, outerLocals: locals, listMeta: listMeta) }
             return .list(SwishPersistentList(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: listMeta)
 
-        case .vector(let elements, let vecMeta):
-            return .vector(SwishPersistentVector(elements.map { expandAliasesInExpr($0, locals: locals) }), metadata: vecMeta)
-
-        case .map(let sm):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in sm.dict {
-                result[expandAliasesInExpr(k, locals: locals)] = expandAliasesInExpr(v, locals: locals)
-            }
-            return .map(result, metadata: sm.metadata)
-
-        case .sortedMap(let ssm):
-            return transformSortedMap(ssm) { expandAliasesInExpr($0, locals: locals) }
-
-        case .set(let ss):
-            var result: Set<Expr> = []
-            for element in ss.elements {
-                result.insert(expandAliasesInExpr(element, locals: locals))
-            }
-            return .set(result, metadata: ss.metadata)
-
-        case .sortedSet(let sss):
-            return .sortedSet(sss.elements.map { expandAliasesInExpr($0, locals: locals) },
-                              comparator: sss.comparator, metadata: sss.metadata)
-
         default:
-            return expr
+            return expr.mappingChildren { expandAliasesInExpr($0, locals: locals) }
         }
     }
 

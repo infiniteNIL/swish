@@ -54,11 +54,8 @@ func registerBitwise(into evaluator: Evaluator) {
 // MARK: - Helpers
 
 private func bitwiseInt(_ expr: Expr, function: String) throws -> Int {
-    guard case .integer(let n) = expr else {
-        throw EvaluatorError.invalidArgument(function: function,
-            message: "value must be an integer, got \(corePrinter.printString(expr))")
-    }
-    return n
+    try requireInteger(expr, function: function,
+        message: "value must be an integer, got \(corePrinter.printString(expr))")
 }
 
 // MARK: - Implementations

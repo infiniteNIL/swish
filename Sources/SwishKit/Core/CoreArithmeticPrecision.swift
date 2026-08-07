@@ -67,14 +67,10 @@ private func coreMultiplyP(_ args: [Expr]) throws -> Expr {
 }
 
 private func coreBigDecRoundToPrecision(_ args: [Expr]) throws -> Expr {
-    guard case .bigDecimal(let bd) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "bigdec-round-to-precision",
-            message: "first argument must be a BigDecimal")
-    }
-    guard case .integer(let precision) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "bigdec-round-to-precision",
-            message: "precision must be an integer")
-    }
+    let bd = try requireBigDecimal(args[0], function: "bigdec-round-to-precision",
+        message: "first argument must be a BigDecimal")
+    let precision = try requireInteger(args[1], function: "bigdec-round-to-precision",
+        message: "precision must be an integer")
     // withPrecision(_:) silently fails to round negative values in cases that
     // need to round away from zero (its internal rounding-needed check always
     // evaluates false for a negative remainder) — sign-normalize first, exactly

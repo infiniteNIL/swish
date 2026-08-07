@@ -6,35 +6,19 @@ extension Evaluator {
     func callCollection(_ callee: Expr, args: [Expr]) throws -> Expr {
         switch callee {
         case .map(let sm):
-            guard args.count == 1 || args.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(function: "map",
-                    message: "requires 1 or 2 arguments, got \(args.count)")
-            }
+            try requireArgCount(args, in: 1...2, function: "map")
             return sm.dict[args[0]] ?? (args.count == 2 ? args[1] : .nil)
 
         case .sortedMap(let ssm):
-            guard args.count == 1 || args.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(function: "map",
-                    message: "requires 1 or 2 arguments, got \(args.count)")
-            }
+            try requireArgCount(args, in: 1...2, function: "map")
             return try ssm.get(args[0], makeComparator(ssm.comparator)) ?? (args.count == 2 ? args[1] : .nil)
 
         case .record(_, _, let data, _):
-            guard args.count == 1 || args.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(function: "record",
-                    message: "requires 1 or 2 arguments, got \(args.count)")
-            }
+            try requireArgCount(args, in: 1...2, function: "record")
             return data[args[0]] ?? (args.count == 2 ? args[1] : .nil)
 
         case .keyword(let name):
-            guard args.count == 1 || args.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(function: "keyword",
-                    message: "requires 1 or 2 arguments, got \(args.count)")
-            }
+            try requireArgCount(args, in: 1...2, function: "keyword")
             let notFound: Expr = args.count == 2 ? args[1] : .nil
             switch args[0] {
             case .map(let sm):               return sm.dict[.keyword(name)] ?? notFound
@@ -63,11 +47,7 @@ extension Evaluator {
                 throw EvaluatorError.invalidArgument(function: "vector",
                     message: "requires 1 argument, got \(args.count)")
             }
-            guard case .integer(let idx) = args[0]
-            else {
-                throw EvaluatorError.invalidArgument(function: "vector",
-                    message: "index must be an integer")
-            }
+            let idx = try requireInteger(args[0], function: "vector", message: "index must be an integer")
             guard idx >= 0, idx < elements.count
             else {
                 throw EvaluatorError.invalidArgument(function: "vector",
@@ -81,11 +61,7 @@ extension Evaluator {
                 throw EvaluatorError.invalidArgument(function: "vector",
                     message: "requires 1 argument, got \(args.count)")
             }
-            guard case .integer(let idx) = args[0]
-            else {
-                throw EvaluatorError.invalidArgument(function: "vector",
-                    message: "index must be an integer")
-            }
+            let idx = try requireInteger(args[0], function: "vector", message: "index must be an integer")
             guard idx >= 0, idx < sa.elements.count
             else {
                 throw EvaluatorError.invalidArgument(function: "vector",
@@ -126,11 +102,7 @@ extension Evaluator {
             return try call(tc.value, args: args)
 
         case .symbol(let name, _):
-            guard args.count == 1 || args.count == 2
-            else {
-                throw EvaluatorError.invalidArgument(function: "symbol",
-                    message: "requires 1 or 2 arguments, got \(args.count)")
-            }
+            try requireArgCount(args, in: 1...2, function: "symbol")
             let notFound: Expr = args.count == 2 ? args[1] : .nil
             let sym = Expr.symbol(name, metadata: nil)
             switch args[0] {

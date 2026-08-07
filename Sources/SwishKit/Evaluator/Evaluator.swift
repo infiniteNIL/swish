@@ -133,6 +133,21 @@ public class Evaluator {
     private(set) var printReadablyVar: Var!
     private(set) var printMetaVar: Var!
 
+    /// The `*out*`/`*err*` Vars, cached for the same reason as `starNsVar` and the
+    /// print-control vars: `currentOut()`/`currentErr()` are consulted on *every*
+    /// `print`/`prn`/`println`/warning, and resolving them by name each time cost a
+    /// namespace-registry lookup plus a var-table lookup — two lock acquisitions and two
+    /// string-keyed dictionary hashes per write. `registerIO` interns both at init and
+    /// hands them here; like `*ns*`, the Var objects are never replaced (only their
+    /// values change, via `binding`), so there is nothing to invalidate.
+    private(set) var outVar: Var?
+    private(set) var errVar: Var?
+
+    func cacheIOVars(out: Var, err: Var) {
+        outVar = out
+        errVar = err
+    }
+
     /// The `print-method` printer hook, built once after `core.clj` loads (which defines
     /// `swish-print-method-string`) and reused by every `makePrinter()` — so a print pays
     /// no `findVar`/closure allocation for it. `nil` if the helper isn't defined yet.
@@ -452,13 +467,13 @@ public class Evaluator {
 
     /// Returns the current value of `*out*`, or `.nil` if unbound (meaning stdout).
     func currentOut() -> Expr {
-        guard let v = findNs("clojure.core")?.findVar(name: "*out*") else { return .nil }
+        guard let v = outVar else { return .nil }
         return dynamicValue(of: v) ?? .nil
     }
 
     /// Returns the current value of `*err*`, or `.nil` if unbound (meaning stderr).
     func currentErr() -> Expr {
-        guard let v = findNs("clojure.core")?.findVar(name: "*err*") else { return .nil }
+        guard let v = errVar else { return .nil }
         return dynamicValue(of: v) ?? .nil
     }
 
@@ -474,22 +489,6 @@ public class Evaluator {
         }
     }
 
-    func transformMap(_ dict: [Expr: Expr], metadata: [Expr: Expr]? = nil, _ transform: (Expr) throws -> Expr) rethrows -> Expr {
-        var result: [Expr: Expr] = [:]
-        for (k, v) in dict {
-            result[try transform(k)] = try transform(v)
-        }
-        return .map(result, metadata: metadata)
-    }
-
-    func transformSortedMap(_ ssm: SwishSortedMap, _ transform: (Expr) throws -> Expr) rethrows -> Expr {
-        // Positional transform: preserves the comparator, metadata, and (assumed
-        // order-preserving) sorted layout — used only by structural template
-        // transforms (syntax-quote), never on runtime-reordering input.
-        let keys = try ssm.keys.map(transform)
-        let values = try ssm.values.map(transform)
-        return .sortedMap(sortedKeys: keys, sortedValues: values, comparator: ssm.comparator, metadata: ssm.metadata)
-    }
 }
 
 extension Evaluator: @unchecked Sendable {}

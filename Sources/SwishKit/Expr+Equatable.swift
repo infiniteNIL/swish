@@ -146,9 +146,11 @@ extension Expr: Equatable {
         case (.transient(let a), .transient(let b)):
             return a === b
 
-        // Lazy seqs with the same identity are trivially equal.
-        // Cross-type: a lazy seq and a list (or two different lazy seqs) compare
-        // element-by-element up to 1 000 elements for safety on infinite seqs.
+        // Lazy seqs with the same identity are trivially equal. Otherwise — and for the
+        // cross-type pairings below — `seqEqual` walks both element by element until one
+        // runs out. There is **no element cap**: comparing an infinite seq realizes
+        // forever, matching `hash`, which realizes lazy seqs for the same reason and
+        // hangs on an infinite one exactly as Clojure does.
         case (.lazySeq(let a), .lazySeq(let b)):
             if a === b { return true }
             return seqEqual(lhs, rhs)
@@ -266,30 +268,32 @@ extension Expr: Equatable {
             expr = elems.count == 1 ? .nil : .list(elems.dropFirst(1), metadata: nil)
             return head
 
+        // The four array-ish cases all convert to a persistent list **once** and then
+        // walk it: `SwishPersistentList.dropFirst(1)` is O(1), whereas re-slicing the
+        // backing array (`Array(elems.dropFirst())`) or rebuilding a trie per step
+        // copies the remainder on every element — O(n²) over the walk. Only reached
+        // for *cross-type* seq equality (e.g. a `.vector` vs a `.list`/`.lazySeq`);
+        // same-case comparisons take the direct element path above and never get here.
         case .seq(let elems):
             if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .seq(Array(elems.dropFirst()))
-            return elems[0]
+            expr = .list(SwishPersistentList(elems), metadata: nil)
+            return advanceSeq(&expr)
 
         case .vector(let elems, _):
-            // Convert to a persistent list once (its `dropFirst(1)` is O(1)); walking
-            // by rebuilding a trie per step would be O(n²). Only used for cross-type
-            // seq equality (a `.vector` vs a `.list`/`.lazySeq`); `.vector == .vector`
-            // takes the direct element-array path above, not this.
             expr = .list(SwishPersistentList(elems.elements), metadata: nil)
             return advanceSeq(&expr)
 
         case .array(let sa):
             let elems = sa.elements
             if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .array(SwishArray(Array(elems.dropFirst())))
-            return elems[0]
+            expr = .list(SwishPersistentList(elems), metadata: nil)
+            return advanceSeq(&expr)
 
         case .sharedVector(let sa, _):
             let elems = sa.elements
             if elems.isEmpty { return nil }
-            expr = elems.count == 1 ? .nil : .list(SwishPersistentList(Array(elems.dropFirst())), metadata: nil)
-            return elems[0]
+            expr = .list(SwishPersistentList(elems), metadata: nil)
+            return advanceSeq(&expr)
 
         case .lazySeq(let box):
             guard let head = try? box.forceHead() else {

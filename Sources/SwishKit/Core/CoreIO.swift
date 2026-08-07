@@ -1,5 +1,8 @@
 import Foundation
 
+// Shared verbatim by slurp/spit and the clojure.swift.io reader/writer openers.
+private let pathMustBeAString = "first argument must be a string path"
+
 // MARK: - Registration
 
 func registerIO(into evaluator: Evaluator) {
@@ -10,6 +13,10 @@ func registerIO(into evaluator: Evaluator) {
     // nil meaning stderr. Backs warnings (e.g. refer clashes) and `with-err-str`.
     let errVar = evaluator.findNs("clojure.core")!.intern(name: "*err*", value: .nil)
     errVar.isDynamic = true
+
+    // Hand both to the evaluator so `currentOut()`/`currentErr()` read them directly
+    // instead of resolving by name on every write — see `Evaluator.outVar`.
+    evaluator.cacheIOVars(out: outVar, err: errVar)
 
     evaluator.register(name: "print", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. print and println produce output for human consumption.",
@@ -27,31 +34,25 @@ func registerIO(into evaluator: Evaluator) {
         try writeToOut(evaluator, "\n")
         return .nil
     }
+    // The four `*-str` fns differ only in renderer (readable `pr` vs human `print`) and
+    // whether they append a newline.
     evaluator.register(name: "pr-str", arity: .variadic,
         doc: "pr to a string, returning it. Prints the object(s), separated by spaces, " +
              "in a form that the reader can read back.",
-        arglists: [["&", "more"]]) { [evaluator] args in
-        let printer = evaluator.makePrinter()
-        return .string(args.map { printer.printString($0) }.joined(separator: " "))
-    }
+        arglists: [["&", "more"]],
+        body: printToStringFn(evaluator, readable: true, terminator: ""))
     evaluator.register(name: "print-str", arity: .variadic,
         doc: "print to a string, returning it",
-        arglists: [["&", "more"]]) { [evaluator] args in
-        let printer = evaluator.makePrinter()
-        return .string(args.map { strStringForPrint($0, printer: printer) }.joined(separator: " "))
-    }
+        arglists: [["&", "more"]],
+        body: printToStringFn(evaluator, readable: false, terminator: ""))
     evaluator.register(name: "println-str", arity: .variadic,
         doc: "println to a string, returning it",
-        arglists: [["&", "more"]]) { [evaluator] args in
-        let printer = evaluator.makePrinter()
-        return .string(args.map { strStringForPrint($0, printer: printer) }.joined(separator: " ") + "\n")
-    }
+        arglists: [["&", "more"]],
+        body: printToStringFn(evaluator, readable: false, terminator: "\n"))
     evaluator.register(name: "prn-str", arity: .variadic,
         doc: "prn to a string, returning it",
-        arglists: [["&", "more"]]) { [evaluator] args in
-        let printer = evaluator.makePrinter()
-        return .string(args.map { printer.printString($0) }.joined(separator: " ") + "\n")
-    }
+        arglists: [["&", "more"]],
+        body: printToStringFn(evaluator, readable: true, terminator: "\n"))
     evaluator.register(name: "pr", arity: .variadic,
         doc: "Prints the object(s) to the output stream that is the current value of *out*. " +
              "Prints the object(s) in a form that the reader can read back.",
@@ -80,31 +81,20 @@ func registerIO(into evaluator: Evaluator) {
     evaluator.register(name: "swish-read-line!", arity: .fixed(1),
         doc: "Reads the next line from a SwishReader. Returns the line as a string, or nil at EOF.",
         arglists: [["rdr"]]) { args in
-        guard case .reader(let rdr) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "swish-read-line!",
-                message: "argument must be a reader")
-        }
+        let rdr = try requireReader(args[0], function: "swish-read-line!")
         if let line = rdr.readLine() { return .string(line) }
         return .nil
     }
     evaluator.register(name: "swish-close-reader!", arity: .fixed(1),
         doc: "Closes a SwishReader.",
         arglists: [["rdr"]]) { args in
-        guard case .reader(let rdr) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "swish-close-reader!",
-                message: "argument must be a reader")
-        }
-        rdr.close()
+        try requireReader(args[0], function: "swish-close-reader!").close()
         return .nil
     }
     evaluator.register(name: "swish-close-writer!", arity: .fixed(1),
         doc: "Closes a SwishWriter.",
         arglists: [["wtr"]]) { args in
-        guard case .writer(let wtr) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "swish-close-writer!",
-                message: "argument must be a writer")
-        }
-        wtr.close()
+        try requireWriter(args[0], function: "swish-close-writer!").close()
         return .nil
     }
     evaluator.register(name: "swish-string-writer", arity: .fixed(0),
@@ -122,10 +112,8 @@ func registerIO(into evaluator: Evaluator) {
     evaluator.register(name: "swish-write-default", arity: .fixed(2),
         doc: "Internal. Writes the default (pr) representation of x to writer w — backs print-method's :default method. Uses the hook-free shared printer, so it never recurses back into print-method.",
         arglists: [["x", "w"]]) { args in
-        guard case .writer(let wtr) = args[1] else {
-            throw EvaluatorError.invalidArgument(function: "swish-write-default",
-                message: "second argument must be a writer")
-        }
+        let wtr = try requireWriter(args[1], function: "swish-write-default",
+            message: "second argument must be a writer")
         try wtr.write(corePrinter.printString(args[0]))
         return .nil
     }
@@ -146,10 +134,10 @@ func registerIO(into evaluator: Evaluator) {
         doc: "Reads the file named by f and returns the contents as a string. " +
              "Supported options: :encoding (default \"UTF-8\").",
         arglists: [["f"], ["f", "&", "opts"]]) { args in
-        guard !args.isEmpty, case .string(let path) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "slurp",
-                message: "first argument must be a string path")
-        }
+        // `args.first ?? .nil` keeps the no-args case throwing the same "must be a
+        // string path" message it always did (`.nil` is not a string), rather than
+        // an arity message.
+        let path = try requireString(args.first ?? .nil, function: "slurp", message: pathMustBeAString)
         let encoding = parseEncodingOpt(args.dropFirst()) ?? .utf8
         do {
             return .string(try String(contentsOfFile: path, encoding: encoding))
@@ -164,14 +152,8 @@ func registerIO(into evaluator: Evaluator) {
         doc: "Opposite of slurp. Writes content to the file named by f. " +
              "Supported options: :append (default false).",
         arglists: [["f", "content"], ["f", "content", "&", "opts"]]) { args in
-        guard args.count >= 2 else {
-            throw EvaluatorError.invalidArgument(function: "spit",
-                message: "requires at least 2 arguments")
-        }
-        guard case .string(let path) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "spit",
-                message: "first argument must be a string path")
-        }
+        try requireArgCount(args, atLeast: 2, function: "spit")
+        let path = try requireString(args[0], function: "spit", message: pathMustBeAString)
         let content = corePrinter.strString(args[1])
         let append = parseAppendOpt(args.dropFirst(2))
         do {
@@ -193,10 +175,7 @@ func registerSwiftIONamespace(into evaluator: Evaluator) {
     ns.register(
         name: "reader",
         value: .nativeFunction(name: "reader", arity: .variadic, body: { args in
-            guard let first = args.first, case .string(let path) = first else {
-                throw EvaluatorError.invalidArgument(function: "reader",
-                    message: "first argument must be a string path")
-            }
+            let path = try requireString(args.first ?? .nil, function: "reader", message: pathMustBeAString)
             do {
                 return .reader(try SwishReader(path: path))
             }
@@ -212,10 +191,7 @@ func registerSwiftIONamespace(into evaluator: Evaluator) {
     ns.register(
         name: "writer",
         value: .nativeFunction(name: "writer", arity: .variadic, body: { args in
-            guard let first = args.first, case .string(let path) = first else {
-                throw EvaluatorError.invalidArgument(function: "writer",
-                    message: "first argument must be a string path")
-            }
+            let path = try requireString(args.first ?? .nil, function: "writer", message: pathMustBeAString)
             let append = parseAppendOpt(args.dropFirst())
             do {
                 return .writer(try SwishWriter(path: path, append: append))
@@ -233,10 +209,7 @@ func registerSwiftIONamespace(into evaluator: Evaluator) {
 // MARK: - Reader implementations
 
 private func coreReadString(_ args: [Expr]) throws -> Expr {
-    guard case .string(let source) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "read-string",
-            message: "argument must be a string")
-    }
+    let source = try requireString(args[0], function: "read-string")
     let exprs: [Expr]
     do {
         exprs = try Reader.readString(source)
@@ -259,15 +232,10 @@ private func coreReadString(_ args: [Expr]) throws -> Expr {
 }
 
 private func ednReadString(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .map(let optsMap) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "edn-read-string*",
-            message: "first argument must be a map")
-    }
-    let opts = optsMap.dict
-    guard case .string(let source) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "edn-read-string*",
-            message: "second argument must be a string")
-    }
+    let opts = try requireMap(args[0], function: "edn-read-string*",
+        message: "first argument must be a map").dict
+    let source = try requireString(args[1], function: "edn-read-string*",
+        message: "second argument must be a string")
 
     let tagResolver: (String, Expr) throws -> Expr = { tag, value in
         let tagSym = Expr.symbol(tag, metadata: nil)
@@ -383,6 +351,19 @@ private func strStringForPrint(_ expr: Expr, printer: Printer) -> String {
     return printer.strString(expr)
 }
 
+/// Builds one of the four `*-str` bodies: render every argument space-separated with the
+/// current `*print-*` settings, then append `terminator`. `readable` selects `pr`'s
+/// round-trippable rendering over `print`'s human one.
+private func printToStringFn(_ evaluator: Evaluator, readable: Bool, terminator: String) -> @Sendable ([Expr]) throws -> Expr {
+    { [evaluator] args in
+        let printer = evaluator.makePrinter()
+        let rendered = args.map { arg in
+            readable ? printer.printString(arg) : strStringForPrint(arg, printer: printer)
+        }
+        return .string(rendered.joined(separator: " ") + terminator)
+    }
+}
+
 private func corePrint(_ evaluator: Evaluator, args: [Expr], terminator: String) throws -> Expr {
     let printer = evaluator.makePrinter()
     let s = args.map { printer.printString($0) }.joined(separator: " ")
@@ -401,12 +382,7 @@ private func writeToOut(_ evaluator: Evaluator, _ s: String) throws {
 }
 
 private func corePrintDoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let name, _) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "print-doc",
-            message: "argument must be a symbol")
-    }
+    let name = try requireSymbol(args[0], function: "print-doc")
     if let ns = evaluator.findNs(name) {
         var lines = [String(repeating: "-", count: 25), ns.name]
         if let meta = ns.metadata, case .string(let doc) = meta[.keyword("doc")] {

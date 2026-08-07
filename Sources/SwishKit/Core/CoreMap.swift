@@ -85,11 +85,10 @@ private func coreFind(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
         return .mapEntry(args[1], value)
 
     case .vector, .sharedVector:
-        let elements = vectorElements(args[0]) ?? []
         guard case .integer(let idx) = args[1],
-              idx >= 0, idx < elements.count
+              let element = vectorElement(args[0], at: idx)
         else { return .nil }
-        return .vector([args[1], elements[idx]], metadata: nil)
+        return .vector([args[1], element], metadata: nil)
 
     default:
         throw EvaluatorError.invalidArgument(
@@ -118,9 +117,8 @@ private func lookupOptional(_ evaluator: Evaluator, _ coll: Expr, _ key: Expr) t
         return data[key]
 
     case .vector, .sharedVector:
-        let elements = vectorElements(coll) ?? []
-        guard case .integer(let idx) = key, idx >= 0, idx < elements.count else { return nil }
-        return elements[idx]
+        guard case .integer(let idx) = key else { return nil }
+        return vectorElement(coll, at: idx)
 
     case .string(let s):
         guard case .integer(let idx) = key, idx >= 0,
@@ -147,11 +145,7 @@ private func lookupOptional(_ evaluator: Evaluator, _ coll: Expr, _ key: Expr) t
 }
 
 private func coreGetIn(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(
-            function: "get-in",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "get-in")
     let notFound: Expr = args.count == 3 ? args[2] : .nil
     // Real Clojure's get-in is (reduce1 get m ks), so ks is anything seqable — not
     // just a literal vector/list. Coercing through asSequence is what lets a seq or
@@ -170,11 +164,7 @@ private func coreGetIn(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 func coreDissoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard !args.isEmpty else {
-        throw EvaluatorError.invalidArgument(
-            function: "dissoc",
-            message: "requires at least 1 argument")
-    }
+    try requireArgCount(args, atLeast: 1, function: "dissoc")
     switch args[0] {
     case .nil:
         return .nil
@@ -206,27 +196,40 @@ func coreDissoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     }
 }
 
-// `project` operates on a single `TreeDictionary` value so `keys`/`vals` (separate
-// calls with `{ $0.keys }` / `{ $0.values }`) iterate the SAME structure in
-// corresponding order — required by `case`, which zips `(keys pairs)` with
-// `(vals pairs)` positionally. (Materializing a fresh `[Expr:Expr]` per call would
-// give two independently-ordered dictionaries and misalign them.)
-private func mapCollection(_ coll: Expr, function: String, project: (TreeDictionary<Expr, Expr>) -> [Expr]) throws -> Expr {
+// `project` is applied to one **stored** key/value collection, so `keys`/`vals`
+// (separate calls with `{ Array($0.keys) }` / `{ Array($0.values) }`) iterate the SAME
+// structure in corresponding order — required by `case`, which zips `(keys pairs)` with
+// `(vals pairs)` positionally. Projecting a *freshly materialized* copy per call would
+// give two independently-ordered dictionaries and misalign them; that is the invariant
+// here, and it holds for any single stored collection, not specifically a
+// `TreeDictionary` — hence the generic `project`, which lets `.record` hand over its
+// `[Expr: Expr]` `data` directly rather than building a throwaway `TreeDictionary`
+// (O(n log n)) just to read it back out.
+//
+// There is deliberately no `.sortedMap` case: both callers short-circuit it above to
+// preserve comparator order, so one here would be unreachable.
+private enum MapProjection {
+    case keys
+    case vals
+}
+
+private func mapCollection(_ coll: Expr, function: String, _ projection: MapProjection) throws -> Expr {
+    let items: [Expr]
     switch coll {
     case .nil:
         return .nil
 
     case .map(let sm):
-        let items = project(sm.dict)
-        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
-
-    case .sortedMap(let ssm):
-        let items = project(TreeDictionary(uniqueKeysWithValues: zip(ssm.keys, ssm.values).map { ($0, $1) }))
-        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
+        switch projection {
+        case .keys: items = Array(sm.dict.keys)
+        case .vals: items = Array(sm.dict.values)
+        }
 
     case .record(_, _, let data, _):
-        let items = project(TreeDictionary(uniqueKeysWithValues: data.map { ($0.key, $0.value) }))
-        return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
+        switch projection {
+        case .keys: items = Array(data.keys)
+        case .vals: items = Array(data.values)
+        }
 
     default:
         // Empty seqable collections produce nil (Clojure: seq([]) → nil → KeySeq.create(nil) → nil).
@@ -237,20 +240,21 @@ private func mapCollection(_ coll: Expr, function: String, project: (TreeDiction
         }
         return .nil
     }
+    return items.isEmpty ? .nil : .list(SwishPersistentList(items), metadata: nil)
 }
 
 private func coreKeys(_ args: [Expr]) throws -> Expr {
     if case .sortedMap(let ssm) = args[0] {   // sorted order (not hash order)
         return ssm.isEmpty ? .nil : .list(SwishPersistentList(ssm.keys), metadata: nil)
     }
-    return try mapCollection(args[0], function: "keys") { Array($0.keys) }
+    return try mapCollection(args[0], function: "keys", .keys)
 }
 
 private func coreVals(_ args: [Expr]) throws -> Expr {
     if case .sortedMap(let ssm) = args[0] {   // sorted order (not hash order)
         return ssm.isEmpty ? .nil : .list(SwishPersistentList(ssm.values), metadata: nil)
     }
-    return try mapCollection(args[0], function: "vals") { Array($0.values) }
+    return try mapCollection(args[0], function: "vals", .vals)
 }
 
 private func coreMerge(_ args: [Expr]) throws -> Expr {
@@ -358,11 +362,7 @@ func coreAssoc(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(
-            function: "get",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "get")
     let notFound: Expr = args.count == 3 ? args[2] : .nil
     return try lookupOptional(evaluator, args[0], args[1]) ?? notFound
 }

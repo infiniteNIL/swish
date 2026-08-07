@@ -923,3 +923,173 @@ alloc; reducing `Expr` ARC traffic), each a scoped project of its own. This pass
 value is as much the measurement as the ~5-6%: it redirects "the foundational perf
 work" from lock/lookup micro-opts (now largely exhausted) to the interpreter's core
 representation.
+
+## Refactoring audit — duplication removal + localized algorithmic fixes
+
+A read of all of `Sources/` (tests excluded) for duplication, oversized units, and
+performance problems. **File size turned out to be a non-issue** — the largest Swift
+file is under 600 lines and the `Core/Core*.swift`-by-domain /
+`Evaluator/Evaluator+*.swift`-by-concern split is sound, so nothing was split.
+`core.clj` is ~3000 lines but is one namespace with strict definition-order
+dependencies mirroring real Clojure's own single-file `core.clj`; splitting it would
+buy load-order fragility and no structure.
+
+Baseline held exactly across all four phases: `swift test` 3527 → 3561 (only the 34
+new tests below), jank 246 tests / 6725 assertions / 0 failures / 0 errors.
+
+### Phase 1 — `CoreArgs.swift`, the shared argument validation
+
+164 hand-written `guard case .X(let y) = args[i] else { throw .invalidArgument(…) }`
+sites plus 36 arity guards, with three *mutually invisible* `private` helpers already
+attempting the same thing in three files (`requireString`/`requireNonNilStr` in
+`CoreStringNS`, `expectSymbol` in `CoreNamespace`, `requireNs` in
+`Evaluator+Bootstrap`). Replaced with one internal `CoreArgs.swift`: `require*` payload
+extractors per `Expr` case, plus `requireArgCount(_:in:function:)` /
+`(_:atLeast:function:)` / `(_:exactly:function:)`.
+
+**`message` is an `@autoclosure`.** The dominant call shape interpolates the offending
+value (`"… got \(corePrinter.printString(x))"`); eager evaluation would format a string
+on every *successful* native call. This is the native-call hot path, so laziness there
+is load-bearing, not stylistic.
+
+**Message text stays per-call-site, deliberately.** ~12 Swift tests assert exact
+wording, and the codebase genuinely has inconsistencies (`"requires at least 2 args"`
+in `CoreHOF` vs `"requires at least 2 arguments"` elsewhere; a `", got N"` suffix on
+some "at least" guards but not others). Those were **left alone** — unifying them is a
+user-visible behavior change and does not belong in a refactor. The helpers reproduce
+only the wordings that already dominate, including the singular
+`"requires at least 1 argument"` that `-`/`/` are tested on.
+
+Two file-local helpers came out of the same pass where the shared ones don't fit:
+`requireLiveTransient` (`CoreTransient`) collapses the six-times-repeated
+unwrap-transient-then-check-`isInvalidated` prologue, and `requireRegexAndString`
+(`CoreRegex`) collapses the `(re s)` pair that `re-matches`/`re-find`/`re-matcher`/
+`re-seq` all take.
+
+Net: **−355 lines**, guard sites 164 → 92 (the remainder are structural AST pattern
+matches and non-throwing `else { return … }` forms, correctly left as-is).
+
+### Phase 2 — `Expr+Walk.swift`, one AST-rebuilding walk instead of five
+
+`expandAliasesInExpr`, `macroexpandAll`, `preExpandSyntaxQuote`, `syntaxQuoteExpand`,
+and `substituteMutableFields` each hand-rolled identical `.vector`/`.map`/`.set`/
+`.sortedMap`/`.sortedSet` rebuild arms. `Expr.mappingChildren(_:) rethrows` now owns
+them; each rewriter keeps only what it genuinely treats specially and delegates the
+rest. `Evaluator.transformSortedMap` folded in — and `Evaluator.transformMap` turned
+out to have **no callers at all** and was deleted.
+
+**`.list`/`.seq` are deliberately excluded from the helper.** Every rewriter
+special-cases them and no two the same way (skip `quote` bodies, scope `let`/`fn`
+locals, expand a macro head to fixpoint, splice `~@`). Handling them generically would
+silently hand a caller the wrong recursion. They stay the caller's job.
+
+Two behavioral notes: `mappingChildren` takes the **non-throwing (drop)** set-collision
+behavior all five rewriters already had — unlike `Evaluator.eval`, which throws
+`duplicateSetElement`; a rewrite mapping two source forms onto one value is not the
+reader duplicate that error is for. And `substituteMutableFields` **gains
+`.sortedMap`/`.sortedSet` coverage it was missing**: a mutable field named inside a
+sorted-collection literal in a deftype method body used to be left bare (⇒ runtime
+`Undefined symbol`) and is now rewritten like any other. A fix in the safe direction.
+
+### Phase 3 — localized algorithmic fixes
+
+These are **not** the deferred tree-walker architecture problem (which a bytecode VM
+subsumes) — they live in the persistent data structures and core fns and survive any
+future VM.
+
+**Indexed vector access was O(n).** `vectorElements` (`CoreSequenceVector.swift`) goes
+through `SwishPersistentVector.elements`, documented O(n) and allocating a full array.
+Five call sites used it to read *one index* or compare against `count`: `coreNth`,
+`coreContains`, `coreFind`, `lookupOptional` (backing `get`/`get-in`), and `subvec`. So
+`(nth v i)`, `(get v i)`, `(get-in …)`, `(contains? v i)` and `(find v i)` were all
+O(n)-with-an-allocation on a `.vector` — while `(v i)` through `callCollection` was
+correctly O(log₃₂ n) via the trie subscript. Same operation, two complexities. Added
+`vectorElement(_:at:)` and `vectorCount(_:)`; `vectorElements` now has exactly one
+caller (`subvec`, which genuinely needs the slice) and carries a doc warning.
+
+**`rem`/`quot` duplicated the numeric tower.** ~110 lines of hand-rolled pairwise
+`switch (args[0], args[1])` duplicating `coerceNumericPair`, with the division-by-zero
+guard spelled out ~20 times. Rewritten over the tower plus a `requireNonZeroDivisor`
+helper (~40 lines). `remQuotOperands` holds the shared prologue (float→double
+normalization + non-finite-dividend/NaN-divisor rejection); the *infinite divisor* case
+stays per-function because they genuinely disagree — `rem` answers NaN, `quot` answers
+0.0 through the ordinary float path.
+
+**This closed a fidelity gap** (approved as part of the change): the pairs
+`(bigInteger, double)`, `(double, bigInteger)`, `(bigInteger, bigDecimal)` and
+`(bigDecimal, bigInteger)` had no explicit case and fell through to an integers-only
+extractor that threw `"arguments must be integers"`. `coerceNumericPair` handles them,
+so `(rem 10N 3.0)` => `1.0` and `(quot 10N 3.0M)` => `3M`, matching Clojure. Covered by
+`CoreRemQuotTowerTests`, which also pins every previously-working branch and the
+division-by-zero throw on each coerced pair kind.
+
+**Printer materialized collections it only iterated.** `.map` printed from
+`sm.dict.swiftDictionary` — an entire second map built per print — and `.set` from
+`Set(ss.elements)`, a Swift `Set` rebuilt out of a `TreeSet` purely to map-and-sort it.
+`printMapString`/`printSetString`/`sharedKeyNamespace` are now generic over the
+sequence, so both print straight off the persistent backing.
+
+**`compareExprValue` coerced twice per numeric comparison** — `numericLessThan(x,y)`
+then `numericLessThan(y,x)`, two full `coerceNumericPair` dispatches. Replaced with one
+`numericCompare`. This is the path every sorted-map/sorted-set insert and lookup,
+`sort`, and `asSequence`'s map-key ordering takes.
+
+**`advanceSeq` was O(n²) for three cases.** `.seq`/`.array`/`.sharedVector` re-sliced
+the remainder per step (`Array(elems.dropFirst())`). The `.vector` arm had already
+solved this by converting once to a `SwishPersistentList` (O(1) `dropFirst`); the fix
+was never carried across. Now all four share it.
+
+**`currentOut()`/`currentErr()` re-resolved their Var on every write** —
+`findNs("clojure.core")!.findVar(name:)`, two lock acquisitions plus two string-keyed
+hashes per `print`/`prn`/warning — while `*ns*` and the five `*print-*` vars were
+already cached as `Var` fields at init for exactly that reason. `registerIO` now hands
+both to `Evaluator.cacheIOVars`. Same no-invalidation argument as `starNsVar`.
+
+**`resolveQualifiedVar` locked before checking whether the name was qualified.** It
+probed `qualifiedVarCache` under its `Mutex` *before* the `splitQualified` guard. Every
+cache key contains a `/`, so an unqualified name can never hit — yet every unqualified
+global reference on the eval hot path paid a lock plus a `String` hash to learn
+nothing. Guard hoisted above the probe; behavior identical.
+
+**`mapCollection` built a throwaway `TreeDictionary` and had a dead branch.** The
+`.record` arm constructed a full `TreeDictionary` from `data` (O(n log n)) just to
+project keys or values, and the `.sortedMap` arm was unreachable — both callers
+short-circuit `.sortedMap` first to preserve comparator order. Replaced the closure
+with a `MapProjection` enum so `.record` projects its stored `[Expr: Expr]` directly;
+the load-bearing invariant (one *stored* collection projected twice, never two freshly
+materialized dictionaries, or `case` would misalign `(keys pairs)` with `(vals pairs)`)
+is preserved and now stated in terms of "stored", not "TreeDictionary".
+
+### Phase 4 — local dedups and hygiene
+
+`ns-map`/`ns-publics`/`ns-refers`/`ns-interns` were four copies of "project
+`ns.mappings` to `{sym varRef}` under a filter" → one `nsMappingsMap(_:include:)`
+taking the predicate (`ns-interns` keeps its own front end: a symbol naming a
+nonexistent namespace yields `{}` there rather than throwing). The
+`pr-str`/`prn-str`/`print-str`/`println-str` quad → one `printToStringFn` factory
+parameterized by renderer and terminator. `replace`/`replace-first` shared their entire
+match-type dispatch → one `makeReplaceFunction(evaluator:name:firstOnly:)`; the regex
+branch unifies cleanly because `replace-first` is the same accumulate-prefix/append-tail
+walk over `prefix(1)` matches.
+
+Two stale things fixed: `Expr+Equatable`'s comment claimed lazy-seq equality compares
+"up to 1 000 elements for safety on infinite seqs" — `seqEqual` has **no such cap**, and
+the comment now says so (no cap was added; uncapped matches `hash`, which realizes lazy
+seqs and hangs on an infinite one exactly as Clojure does). And `Printer.strString` /
+`sourceForm` each listed `.reduced` and `.transient` arms whose bodies were identical to
+their `default` — deleted.
+
+### Found but deliberately not changed
+
+- **`(str coll)` renders nested strings unquoted** — `(str {:a "x"})` => `{:a x}`,
+  where Clojure gives `{:a "x"}` (its `str` goes through the collection's `pr`-based
+  `toString`). Pre-existing and verified unrelated to the printer change (identical
+  before and after); pinned in `CorePrinterCollectionTests` so the divergence stays
+  visible, but fixing it is a fidelity change, not a refactor.
+- **`SwishPersistentVector.==`/`hash(into:)`/`makeIterator()` all materialize via
+  `.elements`.** Genuinely reducible, but `makeIterator`'s allocation is a *documented*
+  trade (an O(n) leaf walk beating an O(n log n) index+subscript walk) and changing it
+  needs its own measurement. Left as a follow-up rather than changed blind.
+- The existing CLAUDE.md deferrals (`fn`-literal re-analysis caching, REPL paste O(n²),
+  `subvec` structure sharing, symbol interning / `Environment` allocation) — each needs
+  a real design change, not a refactor.

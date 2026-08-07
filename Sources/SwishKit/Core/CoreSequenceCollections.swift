@@ -18,10 +18,7 @@ func registerSequenceCollections(into evaluator: Evaluator) {
     evaluator.register(name: "into-array", arity: .variadic,
         doc: "Returns an array with components set to the values in aseq. An optional leading type argument is accepted for source compatibility but not enforced — Swish arrays are untyped.",
         arglists: [["aseq"], ["type", "aseq"]]) { args in
-        guard args.count == 1 || args.count == 2 else {
-            throw EvaluatorError.invalidArgument(function: "into-array",
-                message: "requires 1 or 2 arguments, got \(args.count)")
-        }
+        try requireArgCount(args, in: 1...2, function: "into-array")
         let aseq = args.count == 2 ? args[1] : args[0]
         return .array(SwishArray(try seqOf(aseq, function: "into-array")))
     }
@@ -181,9 +178,8 @@ private func coreContains(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
         return .boolean(try sss.contains(key, evaluator.makeComparator(sss.comparator)))
 
     case .vector, .sharedVector:
-        let elements = vectorElements(args[0]) ?? []
         guard case .integer(let idx) = key else { return .boolean(false) }
-        return .boolean(idx >= 0 && idx < elements.count)
+        return .boolean(idx >= 0 && idx < (vectorCount(args[0]) ?? 0))
 
     case .array(let sa):
         guard case .integer(let idx) = key else {
@@ -213,11 +209,7 @@ private func coreContains(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr
 }
 
 private func coreNth(_ args: [Expr]) throws -> Expr {
-    guard args.count >= 2
-    else {
-        throw EvaluatorError.invalidArgument(function: "nth",
-                                             message: "requires at least 2 arguments")
-    }
+    try requireArgCount(args, atLeast: 2, function: "nth")
     guard case .integer(let idx) = args[1]
     else {
         throw EvaluatorError.invalidArgument(function: "nth", message: "index must be an integer")
@@ -233,9 +225,8 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
         return notFound ?? .nil
 
     case .vector, .sharedVector:
-        let elements = vectorElements(args[0]) ?? []
-        guard idx >= 0 && idx < elements.count else { return try outOfBounds() }
-        return elements[idx]
+        guard let element = vectorElement(args[0], at: idx) else { return try outOfBounds() }
+        return element
 
     case .lazySeq:
         var current: Expr = args[0]

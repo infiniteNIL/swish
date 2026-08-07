@@ -369,78 +369,69 @@ private func numericDivide(_ a: Expr, _ b: Expr) throws -> Expr {
     }
 }
 
-private func extractIntLike(_ expr: Expr, function name: String) throws -> (BigInt, Bool) {
-    switch expr {
-    case .integer(let n):    return (BigInt(n), false)
-    case .bigInteger(let n): return (n, true)
-    default:
-        throw EvaluatorError.invalidArgument(function: name, message: "arguments must be integers")
+private func requireNonZeroDivisor(_ divisorIsZero: Bool, function: String) throws {
+    guard !divisorIsZero else {
+        throw EvaluatorError.invalidArgument(function: function, message: divisionByZero)
     }
 }
 
-/// Guards shared by `rem`/`quot`: `args[0]` must not be a non-finite double, and if
-/// `args[1]` is a double it must not be NaN. (`args[1]` being infinite is handled
-/// separately by each caller, since `rem`/`quot` disagree on what that should return.)
-private func requireRemQuotOperandsFinite(_ args: [Expr], function: String) throws {
-    if case .double(let a) = args[0], a.isInfinite || a.isNaN {
+/// The shared `rem`/`quot` operand prologue: normalize `.float` to `.double` (so the
+/// numeric tower sees one float type), then reject the operands neither has an exact
+/// answer for — a non-finite dividend, or a NaN divisor.
+///
+/// An *infinite divisor* is deliberately left to the caller: `rem` answers NaN, while
+/// `quot` answers 0.0 through the ordinary float path, so they genuinely disagree.
+private func remQuotOperands(_ args: [Expr], function: String) throws -> (Expr, Expr) {
+    var a = args[0]
+    var b = args[1]
+    if case .float(let f) = a {
+        a = .double(Double(f))
+    }
+    if case .float(let f) = b {
+        b = .double(Double(f))
+    }
+    if case .double(let x) = a, x.isInfinite || x.isNaN {
         throw EvaluatorError.invalidArgument(function: function,
             message: "No exact numeric value for Infinity or NaN")
     }
-    if case .double(let b) = args[1], b.isNaN {
+    if case .double(let y) = b, y.isNaN {
         throw EvaluatorError.invalidArgument(function: function,
             message: "No exact numeric value for NaN")
     }
+    return (a, b)
 }
 
+/// `rem` over the shared numeric tower. This used to hand-roll its own ~15-case pairwise
+/// `switch (args[0], args[1])`, duplicating `coerceNumericPair` and spelling the
+/// division-by-zero guard out once per branch. Routing through the tower also closed a
+/// gap: the pairs it had no explicit case for — bigInteger×double and
+/// bigInteger×bigDecimal — used to fall through to an integers-only extractor and throw
+/// "arguments must be integers", where Clojure returns a value (`(rem 10N 3.0)` => 1.0).
 private func coreRem(_ args: [Expr]) throws -> Expr {
-    if case .float(let x) = args[0] { return try coreRem([.double(Double(x)), args[1]]) }
-    if case .float(let y) = args[1] { return try coreRem([args[0], .double(Double(y))]) }
-    try requireRemQuotOperandsFinite(args, function: "rem")
-    if case .double(let b) = args[1], b.isInfinite { return .double(.nan) }
-    switch (args[0], args[1]) {
-    case (.double(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .double(a.truncatingRemainder(dividingBy: b))
-    case (.double(let a), .integer(let b)):
-        let fb = Double(b)
-        guard fb != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .double(a.truncatingRemainder(dividingBy: fb))
-    case (.integer(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .double(Double(a).truncatingRemainder(dividingBy: b))
-    case (.bigDecimal(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .bigDecimal(a.remainder(dividingBy: b))
-    case (.bigDecimal(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .bigDecimal(a.remainder(dividingBy: BigDecimal(integerValue: BigInt(b), scale: 0)))
-    case (.integer(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .bigDecimal(BigDecimal(integerValue: BigInt(a), scale: 0).remainder(dividingBy: b))
-    case (.bigDecimal(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .double((Double(a.description) ?? 0.0).truncatingRemainder(dividingBy: b))
-    case (.double(let a), .bigDecimal(let b)):
-        let bd = Double(b.description) ?? 0.0
-        guard bd != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-        return .double(a.truncatingRemainder(dividingBy: bd))
-    case (.ratio(let ra), .ratio(let rb)):
-        return try ratioRem(ra, rb)
-    case (.ratio(let ra), .integer(let b)):
-        return try ratioRem(ra, Ratio(b, 1))
-    case (.integer(let a), .ratio(let rb)):
-        return try ratioRem(Ratio(a, 1), rb)
-    case (.ratio(let ra), .bigInteger(let b)):
-        return try ratioRem(ra, Ratio(b, BigInt(1)))
-    case (.bigInteger(let a), .ratio(let rb)):
-        return try ratioRem(Ratio(a, BigInt(1)), rb)
-    default:
-        break
+    let (a, b) = try remQuotOperands(args, function: "rem")
+    if case .double(let divisor) = b, divisor.isInfinite {
+        return .double(.nan)
     }
-    let (a, aBig) = try extractIntLike(args[0], function: "rem")
-    let (b, bBig) = try extractIntLike(args[1], function: "rem")
-    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "rem", message: divisionByZero) }
-    return (aBig || bBig) ? .bigInteger(a % b) : .integer(Int(a % b))
+    switch try coerceNumericPair(a, b, function: "rem") {
+    case .ints(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "rem")
+        return .integer(x % y)
+
+    case .floats(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "rem")
+        return .double(x.truncatingRemainder(dividingBy: y))
+
+    case .ratios(let x, let y):
+        return try ratioRem(x, y)
+
+    case .bigInts(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "rem")
+        return .bigInteger(x % y)
+
+    case .bigDecimals(let x, let y):
+        try requireNonZeroDivisor(y.isZero, function: "rem")
+        return .bigDecimal(x.remainder(dividingBy: y))
+    }
 }
 
 private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
@@ -456,57 +447,33 @@ private func ratioRem(_ ra: Ratio, _ rb: Ratio) throws -> Expr {
     return r.denominator == 1 ? .bigInteger(r.numerator) : .ratio(r)
 }
 
+/// `quot` over the shared numeric tower — the `rem` rewrite's twin (see there for the
+/// duplication removed and the bigInteger×double / bigInteger×bigDecimal gap closed).
+/// Unlike `rem`, an infinite divisor needs no special case: it falls through the
+/// ordinary float path to 0.0, which is what Clojure returns.
 private func coreQuot(_ args: [Expr]) throws -> Expr {
-    if case .float(let x) = args[0] { return try coreQuot([.double(Double(x)), args[1]]) }
-    if case .float(let y) = args[1] { return try coreQuot([args[0], .double(Double(y))]) }
-    try requireRemQuotOperandsFinite(args, function: "quot")
-    switch (args[0], args[1]) {
-    // Double wins over all — (a/b) truncated toward zero
-    case (.double(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .double((a / b).rounded(.towardZero))
-    case (.double(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .double((a / Double(b)).rounded(.towardZero))
-    case (.integer(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .double((Double(a) / b).rounded(.towardZero))
-    case (.double(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .double((a / (Double(b.description) ?? 0)).rounded(.towardZero))
-    case (.bigDecimal(let a), .double(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .double(((Double(a.description) ?? 0) / b).rounded(.towardZero))
-    // BigDecimal — (a - rem(a,b)) / b gives exact integral quotient
-    case (.bigDecimal(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        return .bigDecimal((a - a.remainder(dividingBy: b)) / b)
-    case (.bigDecimal(let a), .integer(let b)):
-        guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        let bd = BigDecimal(integerValue: BigInt(b), scale: 0)
-        return .bigDecimal((a - a.remainder(dividingBy: bd)) / bd)
-    case (.integer(let a), .bigDecimal(let b)):
-        guard !b.isZero else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-        let ad = BigDecimal(integerValue: BigInt(a), scale: 0)
-        return .bigDecimal((ad - ad.remainder(dividingBy: b)) / b)
-    // Ratio — truncate(ra/rb) via BigInt division → bigInteger
-    case (.ratio(let ra), .ratio(let rb)):
-        return try ratioQuot(ra, rb)
-    case (.ratio(let ra), .integer(let b)):
-        return try ratioQuot(ra, Ratio(b, 1))
-    case (.integer(let a), .ratio(let rb)):
-        return try ratioQuot(Ratio(a, 1), rb)
-    case (.ratio(let ra), .bigInteger(let b)):
-        return try ratioQuot(ra, Ratio(b, BigInt(1)))
-    case (.bigInteger(let a), .ratio(let rb)):
-        return try ratioQuot(Ratio(a, BigInt(1)), rb)
-    default:
-        break
+    let (a, b) = try remQuotOperands(args, function: "quot")
+    switch try coerceNumericPair(a, b, function: "quot") {
+    case .ints(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "quot")
+        return .integer(x / y)
+
+    case .floats(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "quot")
+        return .double((x / y).rounded(.towardZero))
+
+    case .ratios(let x, let y):
+        return try ratioQuot(x, y)
+
+    case .bigInts(let x, let y):
+        try requireNonZeroDivisor(y == 0, function: "quot")
+        return .bigInteger(x / y)
+
+    case .bigDecimals(let x, let y):
+        // (a - rem(a,b)) / b gives the exact integral quotient without rounding.
+        try requireNonZeroDivisor(y.isZero, function: "quot")
+        return .bigDecimal((x - x.remainder(dividingBy: y)) / y)
     }
-    let (a, aBig) = try extractIntLike(args[0], function: "quot")
-    let (b, bBig) = try extractIntLike(args[1], function: "quot")
-    guard b != 0 else { throw EvaluatorError.invalidArgument(function: "quot", message: divisionByZero) }
-    return (aBig || bBig) ? .bigInteger(a / b) : .integer(Int(a / b))
 }
 
 private func ratioQuot(_ ra: Ratio, _ rb: Ratio) throws -> Expr {

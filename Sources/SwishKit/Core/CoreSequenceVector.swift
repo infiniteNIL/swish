@@ -113,10 +113,7 @@ func registerSequenceVector(into evaluator: Evaluator) {
     evaluator.register(name: "subvec", arity: .variadic,
         doc: "Returns a persistent vector of the items in vector from start (inclusive) to end (exclusive). If end is not supplied, defaults to (count vector).",
         arglists: [["v", "start"], ["v", "start", "end"]]) { args in
-        guard args.count == 2 || args.count == 3 else {
-            throw EvaluatorError.invalidArgument(function: "subvec",
-                message: "requires 2 or 3 arguments, got \(args.count)")
-        }
+        try requireArgCount(args, in: 2...3, function: "subvec")
         guard let elements = vectorElements(args[0]) else {
             throw EvaluatorError.invalidArgument(function: "subvec",
                 message: "\(corePrinter.printString(args[0])) is not a vector")
@@ -149,12 +146,51 @@ func registerSequenceVector(into evaluator: Evaluator) {
 // MARK: - Implementations
 
 /// Extracts the backing `[Expr]` from either vector representation, discarding
-/// metadata — shared by every native function that needs "give me the elements,
-/// whichever vector case this is" without caring which one it got.
+/// metadata — shared by every native function that genuinely needs *all* the elements
+/// (`subvec`'s slice), whichever vector case it got.
+///
+/// **For a single index or just the count, use `vectorElement(_:at:)` / `vectorCount(_:)`
+/// instead.** For a `.vector` this goes through `SwishPersistentVector.elements`, which
+/// is O(n) and allocates a fresh array — so reaching for it to read one slot silently
+/// turns an O(log₃₂ n) trie lookup into an O(n) copy.
 func vectorElements(_ expr: Expr) -> [Expr]? {
     switch expr {
     case .vector(let elems, _): return elems.elements
     case .sharedVector(let sa, _): return sa.elements
+    default: return nil
+    }
+}
+
+/// The element at `index` in either vector representation, or `nil` if `expr` is not a
+/// vector or `index` is out of range. O(log₃₂ n) for `.vector` (the trie subscript,
+/// no `elements` materialization) and O(1) for `.sharedVector`.
+///
+/// This exists because `nth`/`get`/`get-in`/`contains?`/`find` all used to route indexed
+/// reads through `vectorElements`, making each of them O(n)-with-an-allocation on a
+/// `.vector` — while calling the vector as a function (`(v i)`, `callCollection`) was
+/// correctly O(log₃₂ n). Same operation, two complexities; this is the fast one.
+func vectorElement(_ expr: Expr, at index: Int) -> Expr? {
+    switch expr {
+    case .vector(let elems, _):
+        guard index >= 0, index < elems.count else { return nil }
+        return elems[index]
+
+    case .sharedVector(let sa, _):
+        let elems = sa.elements
+        guard index >= 0, index < elems.count else { return nil }
+        return elems[index]
+
+    default:
+        return nil
+    }
+}
+
+/// The element count of either vector representation without materializing it, or `nil`
+/// if `expr` is not a vector. O(1) for `.vector`.
+func vectorCount(_ expr: Expr) -> Int? {
+    switch expr {
+    case .vector(let elems, _): return elems.count
+    case .sharedVector(let sa, _): return sa.elements.count
     default: return nil
     }
 }

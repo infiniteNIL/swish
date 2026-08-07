@@ -1,3 +1,5 @@
+private let firstMustBeAVar = "first argument must be a var"
+
 // MARK: - Registration
 
 func registerVar(into evaluator: Evaluator) {
@@ -13,9 +15,7 @@ func registerVar(into evaluator: Evaluator) {
     evaluator.register(name: "var-has-root?", arity: .fixed(1),
         doc: "Internal. Returns true if v has a root value (mirrors real Clojure's Var.hasRoot()). Backs defonce.",
         arglists: [["v"]]) { args in
-        guard case .varRef(let v) = args[0] else {
-            throw EvaluatorError.invalidArgument(function: "var-has-root?", message: "first argument must be a var")
-        }
+        let v = try requireVarRef(args[0], function: "var-has-root?", message: firstMustBeAVar)
         return .boolean(v.isBound)
     }
     evaluator.register(name: "find-var", arity: .fixed(1),
@@ -35,12 +35,8 @@ private func coreAlterVarRoot(_ evaluator: Evaluator, _ args: [Expr]) throws -> 
             function: "alter-var-root",
             message: "requires at least 2 arguments, got \(args.count)")
     }
-    guard case .varRef(let v) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "alter-var-root",
-            message: "first argument must be a var reference, got \(corePrinter.printString(args[0]))")
-    }
+    let v = try requireVarRef(args[0], function: "alter-var-root",
+        message: "first argument must be a var reference, got \(corePrinter.printString(args[0]))")
     while true {
         guard let old = v.value
         else {
@@ -55,10 +51,8 @@ private func coreAlterVarRoot(_ evaluator: Evaluator, _ args: [Expr]) throws -> 
 }
 
 private func coreFindVar(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .symbol(let qualified, _) = args[0] else {
-        throw EvaluatorError.invalidArgument(
-            function: "find-var", message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
-    }
+    let qualified = try requireSymbol(args[0], function: "find-var",
+        message: "argument must be a symbol, got \(corePrinter.printString(args[0]))")
     // Must be namespace-qualified — split on the first "/" (a leading "/" means an
     // empty namespace, which is not qualified). Matches Clojure's Var.find.
     guard let slash = qualified.firstIndex(of: "/"), slash != qualified.startIndex else {
@@ -81,10 +75,8 @@ private func coreFindVar(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 private func coreThreadBound(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let frames = evaluator.bindingFrames
     for arg in args {
-        guard case .varRef(let v) = arg else {
-            throw EvaluatorError.invalidArgument(
-                function: "thread-bound?", message: "argument must be a var, got \(corePrinter.printString(arg))")
-        }
+        let v = try requireVarRef(arg, function: "thread-bound?",
+            message: "argument must be a var, got \(corePrinter.printString(arg))")
         let id = ObjectIdentifier(v)
         if !frames.contains(where: { $0[id] != nil }) {
             return .boolean(false)
@@ -94,12 +86,8 @@ private func coreThreadBound(_ evaluator: Evaluator, _ args: [Expr]) throws -> E
 }
 
 private func coreVarGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .varRef(let v) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "var-get",
-            message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
-    }
+    let v = try requireVarRef(args[0], function: "var-get",
+        message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
     guard let val = evaluator.dynamicValue(of: v)
     else {
         throw EvaluatorError.unboundVar("\(v.namespace.name)/\(v.name)")
@@ -108,12 +96,8 @@ private func coreVarGet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 }
 
 private func coreVarSet(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
-    guard case .varRef(let v) = args[0]
-    else {
-        throw EvaluatorError.invalidArgument(
-            function: "var-set",
-            message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
-    }
+    let v = try requireVarRef(args[0], function: "var-set",
+        message: "first argument must be a var, got \(corePrinter.printString(args[0]))")
     let id = ObjectIdentifier(v)
     var frames = evaluator.bindingFrames
     for i in stride(from: frames.count - 1, through: 0, by: -1) {

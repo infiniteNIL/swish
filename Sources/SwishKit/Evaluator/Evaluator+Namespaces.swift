@@ -117,10 +117,15 @@ extension Evaluator {
     /// reuses the existing Var object for an already-home mapping, and `Namespace.refer`
     /// never replaces a home var (its `checkReplacement` keeps it).
     func resolveQualifiedVar(name: String) throws -> Var? {
+        // Split first, cache second. Every cache key contains a "/", so an unqualified
+        // name can never hit — and unqualified is the overwhelmingly common case on the
+        // eval hot path (every bare global reference lands here). Probing the cache
+        // first cost all of them a `Mutex` acquisition plus a `String` hash to learn
+        // nothing.
+        guard let (nsAlias, shortName) = splitQualified(name) else { return nil }
         if let cached = qualifiedVarCache.withLock({ $0[name] }) {
             return cached
         }
-        guard let (nsAlias, shortName) = splitQualified(name) else { return nil }
 
         let ns: Namespace
         let viaLiteralName: Bool

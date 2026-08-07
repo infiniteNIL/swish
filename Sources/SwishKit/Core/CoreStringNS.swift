@@ -1,3 +1,6 @@
+// Shared verbatim by the two-string predicates (starts-with?/ends-with?/includes?).
+private let secondMustBeAString = "second argument must be a string"
+
 // MARK: - Registration
 
 func registerClojureStringNatives(into evaluator: Evaluator) {
@@ -67,7 +70,7 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "Returns s with its characters reversed.",
             arglists: [["s"]])
 
-        ns.register(name: "replace", value: makeReplaceFunction(evaluator: evaluator),
+        ns.register(name: "replace", value: makeReplaceFunction(evaluator: evaluator, name: "replace", firstOnly: false),
             doc: "Replaces all instances of match with replacement in s. " +
                  "match/replacement can be: string/string, char/char, " +
                  "pattern/string, or pattern/function.",
@@ -87,7 +90,7 @@ func registerClojureStringNatives(into evaluator: Evaluator) {
             doc: "Splits s on \\n or \\r\\n. Trailing empty lines are not returned.",
             arglists: [["s"]])
 
-        ns.register(name: "replace-first", value: makeReplaceFirstFunction(evaluator: evaluator),
+        ns.register(name: "replace-first", value: makeReplaceFunction(evaluator: evaluator, name: "replace-first", firstOnly: true),
             doc: "Replaces the first instance of match with replacement in s. " +
                  "match/replacement can be: string/string, char/char, " +
                  "pattern/string, or pattern/function.",
@@ -118,140 +121,79 @@ private func makeEscapeFunction(evaluator: Evaluator) -> Expr {
     }
 }
 
-// MARK: - Shared argument helpers
+// `requireString`/`requireNonNilStr` used to live here as file-private helpers; they
+// are now the shared versions in `CoreArgs.swift` (same signatures, same default
+// messages), so every call below is unchanged.
 
-private func requireNonNilStr(_ arg: Expr, function: String) throws -> String {
-    if case .nil = arg {
-        throw EvaluatorError.invalidArgument(function: function,
-            message: "argument must not be nil")
-    }
-    return corePrinter.strString(arg)
-}
+// MARK: - replace / replace-first (need evaluator capture)
 
-private func requireString(_ arg: Expr, function: String) throws -> String {
-    guard case .string(let s) = arg else {
-        throw EvaluatorError.invalidArgument(function: function,
-            message: "argument must be a string")
-    }
-    return s
-}
-
-// MARK: - replace (needs evaluator capture)
-
-private func makeReplaceFunction(evaluator: Evaluator) -> Expr {
-    return Expr.nativeFunction(name: "replace", arity: .fixed(3)) { [evaluator] args in
-        let s = try requireNonNilStr(args[0], function: "replace")
+/// Builds `replace` or `replace-first`. The two accept exactly the same match/replacement
+/// type combinations (string/string, char/char, regex/string-template, regex/fn) and
+/// report the same errors; `firstOnly` is the whole difference between them.
+private func makeReplaceFunction(evaluator: Evaluator, name: String, firstOnly: Bool) -> Expr {
+    Expr.nativeFunction(name: name, arity: .fixed(3)) { [evaluator] args in
+        let s = try requireNonNilStr(args[0], function: name)
         switch args[1] {
         case .string(let match):
-            guard case .string(let repl) = args[2] else {
-                throw EvaluatorError.invalidArgument(function: "replace",
-                    message: "string match requires string replacement")
-            }
-            if match.isEmpty {
-                var result = repl
-                for ch in s {
-                    result.append(ch)
-                    result += repl
-                }
-                return .string(result)
-            }
-            return .string(s.replacingOccurrences(of: match, with: repl))
+            let repl = try requireString(args[2], function: name,
+                message: "string match requires string replacement")
+            return .string(replacingLiteral(match, with: repl, in: s, firstOnly: firstOnly))
 
         case .character(let match):
-            guard case .character(let repl) = args[2] else {
-                throw EvaluatorError.invalidArgument(function: "replace",
-                    message: "char match requires char replacement")
-            }
-            return .string(s.replacingOccurrences(of: String(match), with: String(repl)))
+            let repl = try requireCharacter(args[2], function: name,
+                message: "char match requires char replacement")
+            return .string(replacingLiteral(String(match), with: String(repl), in: s, firstOnly: firstOnly))
 
         case .regex(let re):
-            switch args[2] {
-            case .string(let replTemplate):
-                var result = ""
-                var lastEnd = s.startIndex
-                for match in s.matches(of: re.regex) {
-                    result += s[lastEnd..<match.range.lowerBound]
+            // `replace-first` is the same accumulate-prefix/append-tail walk over at most
+            // one match: with zero matches the loop body never runs and the tail append
+            // reproduces `s` unchanged, exactly as the separate implementation did.
+            let matches = firstOnly ? Array(s.matches(of: re.regex).prefix(1)) : Array(s.matches(of: re.regex))
+            var result = ""
+            var lastEnd = s.startIndex
+            for match in matches {
+                result += s[lastEnd..<match.range.lowerBound]
+                if case .string(let replTemplate) = args[2] {
                     result += expandReplacementTemplate(replTemplate, output: match.output)
-                    lastEnd = match.range.upperBound
                 }
-                result += s[lastEnd...]
-                return .string(result)
-
-            default:
-                let f = args[2]
-                var result = ""
-                var lastEnd = s.startIndex
-                for match in s.matches(of: re.regex) {
-                    result += s[lastEnd..<match.range.lowerBound]
+                else {
                     let matchStr = String(s[match.range])
-                    guard case .string(let repl) = try evaluator.call(f, args: [.string(matchStr)]) else {
-                        throw EvaluatorError.invalidArgument(function: "replace",
-                            message: "replacement function must return a string")
-                    }
-                    result += repl
-                    lastEnd = match.range.upperBound
-                }
-                result += s[lastEnd...]
-                return .string(result)
-            }
-
-        default:
-            throw EvaluatorError.invalidArgument(function: "replace",
-                message: "match must be a string, character, or regex")
-        }
-    }
-}
-
-/// `replace-first`: like `makeReplaceFunction` but replaces only the first match.
-/// Same match/replacement type combinations (string/string, char/char, regex/string,
-/// regex/fn); the regex branches stop after the first match.
-private func makeReplaceFirstFunction(evaluator: Evaluator) -> Expr {
-    return Expr.nativeFunction(name: "replace-first", arity: .fixed(3)) { [evaluator] args in
-        let s = try requireNonNilStr(args[0], function: "replace-first")
-        switch args[1] {
-        case .string(let match):
-            guard case .string(let repl) = args[2] else {
-                throw EvaluatorError.invalidArgument(function: "replace-first",
-                    message: "string match requires string replacement")
-            }
-            // Empty match inserts the replacement at the front (matching Clojure).
-            if match.isEmpty {
-                return .string(repl + s)
-            }
-            guard let range = s.range(of: match) else { return .string(s) }
-            return .string(s.replacingCharacters(in: range, with: repl))
-
-        case .character(let match):
-            guard case .character(let repl) = args[2] else {
-                throw EvaluatorError.invalidArgument(function: "replace-first",
-                    message: "char match requires char replacement")
-            }
-            guard let range = s.range(of: String(match)) else { return .string(s) }
-            return .string(s.replacingCharacters(in: range, with: String(repl)))
-
-        case .regex(let re):
-            guard let match = s.firstMatch(of: re.regex) else { return .string(s) }
-            var result = String(s[s.startIndex..<match.range.lowerBound])
-            switch args[2] {
-            case .string(let replTemplate):
-                result += expandReplacementTemplate(replTemplate, output: match.output)
-
-            default:
-                let matchStr = String(s[match.range])
-                guard case .string(let repl) = try evaluator.call(args[2], args: [.string(matchStr)]) else {
-                    throw EvaluatorError.invalidArgument(function: "replace-first",
+                    let replacement = try evaluator.call(args[2], args: [.string(matchStr)])
+                    result += try requireString(replacement, function: name,
                         message: "replacement function must return a string")
                 }
-                result += repl
+                lastEnd = match.range.upperBound
             }
-            result += s[match.range.upperBound...]
+            result += s[lastEnd...]
             return .string(result)
 
         default:
-            throw EvaluatorError.invalidArgument(function: "replace-first",
+            throw EvaluatorError.invalidArgument(function: name,
                 message: "match must be a string, character, or regex")
         }
     }
+}
+
+/// Literal (non-regex) substitution shared by the string- and char-match branches.
+/// An empty `match` is Clojure's special case: `replace` interleaves the replacement
+/// around every character, `replace-first` just prepends it.
+private func replacingLiteral(_ match: String, with repl: String, in s: String, firstOnly: Bool) -> String {
+    guard !match.isEmpty else {
+        if firstOnly {
+            return repl + s
+        }
+        var result = repl
+        for ch in s {
+            result.append(ch)
+            result += repl
+        }
+        return result
+    }
+    guard firstOnly else {
+        return s.replacingOccurrences(of: match, with: repl)
+    }
+    guard let range = s.range(of: match) else { return s }
+    return s.replacingCharacters(in: range, with: repl)
 }
 
 /// `re-quote-replacement`: escapes `\` and `$` in a replacement string so it's treated
@@ -325,29 +267,12 @@ private func expandReplacementTemplate(_ template: String, output: AnyRegexOutpu
 // MARK: - Implementations
 
 private let coreSplit = Expr.nativeFunction(name: "split", arity: .variadic) { args in
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(
-            function: "split",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "split")
     let s = try requireString(args[0], function: "split")
-    guard case .regex(let re) = args[1] else {
-        throw EvaluatorError.invalidArgument(
-            function: "split",
-            message: "second argument must be a regex")
-    }
-    let limit: Int
-    if args.count == 3 {
-        guard case .integer(let n) = args[2] else {
-            throw EvaluatorError.invalidArgument(
-                function: "split",
-                message: "limit must be an integer")
-        }
-        limit = n
-    }
-    else {
-        limit = 0
-    }
+    let re = try requireRegex(args[1], function: "split", message: "second argument must be a regex")
+    let limit = args.count == 3
+        ? try requireInteger(args[2], function: "split", message: "limit must be an integer")
+        : 0
     let parts = splitImpl(s, regex: re, limit: limit)
     return .vector(SwishPersistentVector(parts.map { .string(String($0)) }), metadata: nil)
 }
@@ -416,25 +341,19 @@ private let coreCapitalize = Expr.nativeFunction(name: "capitalize", arity: .fix
 
 private let coreStartsWith = Expr.nativeFunction(name: "starts-with?", arity: .fixed(2)) { args in
     let s = try requireNonNilStr(args[0], function: "starts-with?")
-    guard case .string(let substr) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "starts-with?", message: "second argument must be a string")
-    }
+    let substr = try requireString(args[1], function: "starts-with?", message: secondMustBeAString)
     return .boolean(s.hasPrefix(substr))
 }
 
 private let coreEndsWith = Expr.nativeFunction(name: "ends-with?", arity: .fixed(2)) { args in
     let s = try requireNonNilStr(args[0], function: "ends-with?")
-    guard case .string(let substr) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "ends-with?", message: "second argument must be a string")
-    }
+    let substr = try requireString(args[1], function: "ends-with?", message: secondMustBeAString)
     return .boolean(s.hasSuffix(substr))
 }
 
 private let coreIncludes = Expr.nativeFunction(name: "includes?", arity: .fixed(2)) { args in
     let s = try requireString(args[0], function: "includes?")
-    guard case .string(let substr) = args[1] else {
-        throw EvaluatorError.invalidArgument(function: "includes?", message: "second argument must be a string")
-    }
+    let substr = try requireString(args[1], function: "includes?", message: secondMustBeAString)
     return .boolean(substr.isEmpty || s.contains(substr))
 }
 
@@ -455,18 +374,11 @@ private func stringSearchValue(_ arg: Expr, function: String) throws -> String {
 }
 
 private func stringSearchFromIndex(_ arg: Expr, function: String) throws -> Int {
-    guard case .integer(let from) = arg else {
-        throw EvaluatorError.invalidArgument(function: function,
-            message: "from-index must be an integer")
-    }
-    return Int(from)
+    try requireInteger(arg, function: function, message: "from-index must be an integer")
 }
 
 private let coreIndexOf = Expr.nativeFunction(name: "index-of", arity: .variadic) { args in
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(function: "index-of",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "index-of")
     let s = try requireString(args[0], function: "index-of")
     let needle = try stringSearchValue(args[1], function: "index-of")
     let count = s.count
@@ -486,10 +398,7 @@ private let coreIndexOf = Expr.nativeFunction(name: "index-of", arity: .variadic
 }
 
 private let coreLastIndexOf = Expr.nativeFunction(name: "last-index-of", arity: .variadic) { args in
-    guard args.count == 2 || args.count == 3 else {
-        throw EvaluatorError.invalidArgument(function: "last-index-of",
-            message: "requires 2 or 3 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 2...3, function: "last-index-of")
     let s = try requireString(args[0], function: "last-index-of")
     let needle = try stringSearchValue(args[1], function: "last-index-of")
     let count = s.count
@@ -532,17 +441,12 @@ private let coreBlank = Expr.nativeFunction(name: "blank?", arity: .fixed(1)) { 
 }
 
 private let coreStringReverse = Expr.nativeFunction(name: "reverse", arity: .fixed(1)) { args in
-    guard case .string(let s) = args[0] else {
-        throw EvaluatorError.invalidArgument(function: "reverse", message: "argument must be a string")
-    }
+    let s = try requireString(args[0], function: "reverse")
     return .string(String(s.reversed()))
 }
 
 private let coreJoin = Expr.nativeFunction(name: "join", arity: .variadic) { args in
-    guard args.count == 1 || args.count == 2 else {
-        throw EvaluatorError.invalidArgument(function: "join",
-            message: "requires 1 or 2 arguments, got \(args.count)")
-    }
+    try requireArgCount(args, in: 1...2, function: "join")
     let sep = args.count == 2 ? corePrinter.strString(args[0]) : ""
     let collArg = args.count == 2 ? args[1] : args[0]
     guard let elements = try asSequence(collArg) else {

@@ -76,28 +76,14 @@ extension Evaluator {
             }
             return .list(SwishPersistentList(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
 
-        case .vector(let elements, let meta):
-            return .vector(SwishPersistentVector(elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: meta)
-
-        case .map(let sm):
-            var result: [Expr: Expr] = [:]
-            for (k, v) in sm.dict {
-                result[preExpandSyntaxQuote(k, gensyms: &gensyms)] = preExpandSyntaxQuote(v, gensyms: &gensyms)
-            }
-            return .map(result, metadata: sm.metadata)
-
-        case .sortedMap(let ssm):
-            return transformSortedMap(ssm) { preExpandSyntaxQuote($0, gensyms: &gensyms) }
-
-        case .set(let ss):
-            return .set(Set(ss.elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) }), metadata: ss.metadata)
-
-        case .sortedSet(let sss):
-            return .sortedSet(sss.elements.map { preExpandSyntaxQuote($0, gensyms: &gensyms) },
-                              comparator: sss.comparator, metadata: sss.metadata)
-
         default:
-            return expr
+            // `gensyms` is `inout`, so the recursion can't be handed to
+            // `mappingChildren` as an escaping-shaped closure directly; a local
+            // copy threaded back out keeps the accumulated mapping.
+            var local = gensyms
+            let result = expr.mappingChildren { preExpandSyntaxQuote($0, gensyms: &local) }
+            gensyms = local
+            return result
         }
     }
 }
