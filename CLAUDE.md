@@ -146,7 +146,7 @@ A later **standard-library-completion pass** filled the rest of `clojure.set` (`
 
 - **`& {:keys […]}` trailing-keyword-arg destructuring (Clojure 1.11 named-args-as-map) is implemented** — `(defn f [& {:keys [a] :or {a 1}}] a)` called as `(f :a 5)` binds `a` to `5`. The fix is a **seq→map coercion in `destructureMapPattern` (`Evaluator+Destructuring.swift`)**, matching real Clojure's `destructure`: every map-destructure value is first evaluated to a `raw` temp, then coerced — `(if (seq? raw) (if (next raw) (apply hash-map raw) (if (seq raw) (first raw) {})) raw)` — before the `(get …)` bindings read from it. This makes `&`-rest kwargs work (the rest is a seq, now coerced to a map), and equally `(let [{:keys [a]} '(:a 9)] a)` → `9` and the same for `loop`, since all destructuring routes through this one function. `seq?` is false for maps/vectors/nil, so real-map and nil destructures are unchanged (verified). Uses `apply hash-map` where real Clojure uses `createAsIfByAssoc` — last-wins on duplicate keys rather than throwing, an acceptable simplification.
 
-- Typed array ctors share `int-array`/`object-array`'s untyped `SwishArray` (no element validation), differing only in default fill.
+- Typed array ctors share `int-array`/`object-array`'s `SwishArray`, but each **coerces its elements to the array's element type at construction** (`makeArray`'s `coerce`, `CoreSequenceArray.swift`), reusing the existing `coreInt`/`coreToFloat`/`coreToSingleFloat`/… conversions — so `(float-array (range 3))` really holds floats and `(byte-array [200])` throws on range, both matching Clojure. What's still missing is an element-type **tag**: `SwishArray` doesn't record what it holds, so `aset` can't validate a later write and `bytes?` stays unimplemented (see below). `into-array` keeps its documented no-validation simplification.
 
 A **namespace-introspection pass** added the missing `clojure.core` namespace reflection/loading fns on existing machinery (no new `Expr` case): native reads (`CoreNamespace.swift`) `ns-map`/`ns-publics`/`ns-refers`/`ns-aliases` project `Namespace.mappings`/`aliases` (home var ⇔ `v.namespace === ns`; `ns-publics` also drops `:private`); `ns-imports` returns `{}` (no host classes); `ns-unalias` calls a new `Namespace.removeAlias` (no `qualifiedVarCache` concern — aliases are never cached); and pure `core.clj` `requiring-resolve` + `use`. Deliberate points:
 
@@ -162,9 +162,9 @@ A **missing-function completeness batch** ported 14 more audited fns: `core.clj`
 
 - **`find-keyword` behaves like `keyword` (never `nil` for a valid name)** — Swish keywords are value types, not interned in a table, so "already interned?" is unanswerable; it returns the keyword for any valid name. Divergence from Clojure (which returns `nil` for a never-interned name); benign, and interning was rejected as a large hot-path change whose only payoff is this one fn (Swish value keywords already give `identical?`-equality for free).
 
-- **`split-lines` is implemented directly, not via the regex `split`** — Swift treats `\r\n` as a single grapheme cluster that a `\r?\n` regex won't match, so it normalizes `\r\n`→`\n` (leaving a lone `\r` intact, per `#"\r?\n"`) then splits on `\n`, dropping trailing empties.
+- **`split-lines` is implemented directly, not via the regex `split`** — Swift treats `\r\n` as a single grapheme cluster that a `\r?\n` regex won't match, so it normalizes `\r\n`→`\n` (leaving a lone `\r` intact, per `#"\r?\n"`) then splits on `\n`. Its **two trailing-empty rules are separate and must stay that way**: *every* trailing empty is dropped, possibly leaving nothing (`"\n"` => `[]`), but empty input returns `[""]` because a pattern that never matches yields the original string. Trimming with a "stop at one element" floor conflates them and wrongly gives `[""]` for an all-newline string.
 
-- **`bytes?` and `read+string` are deliberately unimplemented.** `bytes?` — Swish's typed-array ctors deliberately share one untyped `SwishArray` (no element-type tag), so a byte-array is indistinguishable from an object-array; any predicate is wrong for some reachable input, and a loud `Undefined symbol` beats a silently-wrong answer. `read+string` — its purpose is capturing exact consumed source, which needs per-form reader position tracking the parser doesn't expose (a `pr-str` re-print defeats the point).
+- **`bytes?` and `read+string` are deliberately unimplemented.** `bytes?` — `SwishArray` carries no element-type tag (the ctors coerce their elements but don't record the type), so a byte-array is indistinguishable from an object-array; any predicate is wrong for some reachable input, and a loud `Undefined symbol` beats a silently-wrong answer. `read+string` — its purpose is capturing exact consumed source, which needs per-form reader position tracking the parser doesn't expose (a `pr-str` re-print defeats the point).
 
 A later **namespace-fidelity pass** made `refer` match Clojure, added `*err*`, moved the auto-refer into the `ns` form, and implemented `ns-unmap`/`remove-ns`/`refer-clojure`:
 
@@ -245,6 +245,23 @@ Syntax-quotes inside syntax-quotes (`` `` ``~x``) do not increment depth — `~`
 ### `case` dispatches via a linear equality chain, not a JVM jump table
 
 Clojure's `case` compiles to a `tableswitch`/`lookupswitch` (O(1)); Swish has no bytecode compiler, so `case` (`core.clj`, ported from the real source) keeps every portable part verbatim but replaces the dispatch-code-generation step with a `cond`-chain of `(= ge 'test)` checks — semantically identical (verified against `case.cljc`, including the numeric-tower rules), just O(n). **Anti-pattern (learned here):** `expandAliases` must treat `case`'s test-constants as literal data, not code — but a broader "treat *any* macro call as opaque" fix was tried and reverted because it broke `cond` (most macros' args *are* code). Only `quote`-like macros (currently just `case`) get the skip; see NOTES.md.
+
+### `nth` — accepted sources, including the regex matcher
+
+`nth` (`coreNth`, `CoreSequenceCollections.swift`) takes what Clojure's does: Indexed and
+sequential things (vector, list, seq, lazy-seq, string, array, `nil`, transient) **plus a
+regex matcher**, and rejects unordered collections.
+
+- **A `.matcher` indexes its *current* match** — index 0 is the whole match, 1…n the
+  capture groups, the same shape `re-groups` returns. It reads `SwishMatcher.last`
+  directly (a `.vector` when the pattern has groups, a bare `.string` when it doesn't),
+  so no current match (before any `re-find`, or once exhausted) is an out-of-bounds miss.
+  **Confined to `nth` on purpose:** a matcher is not seqable in Clojure either, so
+  `asSequence` still rejects it and `seq`/`first`/`count` keep throwing.
+- **`.map`/`.sortedMap`/`.set`/`.sortedSet`/`.record` throw**, even with a not-found
+  argument. Swish's `asSequence` handles all of them, so without an explicit rejection
+  `nth` quietly returned an element. It is the *collection* that's rejected — `(nth (seq
+  m) 0)` and `(nth (vec m) 0)` still work.
 
 ### `subvec` copies its slice instead of sharing structure
 

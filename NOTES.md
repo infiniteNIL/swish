@@ -1208,3 +1208,73 @@ The last two are the no-regression checks. `mapv` goes through `asSequence` →
 expected and desired result there. First measurements were setup-dominated (building the
 vectors swamped the operation under test) and had to be tightened before they said
 anything; the numbers above are from the isolated versions.
+
+## jank test-suite sync 8f62023 → afdcbf1, and the four gaps it exposed
+
+`jank-test-suite/` is a git subtree; its history records the upstream commit, so "are we
+behind?" is answerable exactly rather than by eyeballing file dates. Local was
+`jank-lang/clojure-test-suite` @ `8f62023`, upstream `main` was `afdcbf1` — 7 commits,
+7 files. The local subtree was pristine (verified file-by-file before pulling), so
+`git subtree pull --squash` applied cleanly.
+
+**Checking the update before making it.** The 7 new files were staged in a temp tree and
+shadowed over the subtree through the runner's ordered
+`--sourcepath "$SUPPORT_DIR:$CTS_DIR/test"`. That answered "what will break?" with zero
+repo changes — worth remembering as the cheap way to evaluate a suite bump.
+
+`char`/`when`/`next`/`rest` passed as-is (next and rest roughly tripled their assertion
+counts). `nth` and the new `string_test/split_lines` did not, and `reduce` was being
+hidden by an overlay.
+
+### Retiring the `reduce` overlay
+
+`support/clojure/core_test/reduce.cljc` existed for one stated reason: upstream's `interop`
+map had no `:swish`/`:default` branch, producing a malformed map literal. **The upstream
+rewrite deletes that map entirely**, so the overlay's justification disappeared — it was
+retired because upstream changed, not because Swish did. Worth noting that it had been
+silently shadowing the real test; unshadowing it revealed the typed-array gap below.
+14 overlay files remain.
+
+### The four gaps
+
+**`split-lines` conflated two trailing-empty rules.** Java's `split` discards *every*
+trailing empty, possibly leaving nothing (`"\n"` => `[]`), but returns `[""]` for empty
+input because a pattern that never matches yields the original string. Swish trimmed with
+a `while parts.count > 1` floor, which approximated the second rule at the cost of the
+first, so any all-newline string came back `[""]`. Split into an explicit empty-input case
+plus an unfloored trim.
+
+**`nth` on a regex matcher** was unsupported — `.matcher` isn't seqable, so `coreNth`'s
+`seqOf` fallback threw "don't know how to create seq from #<Matcher>". `SwishMatcher.last`
+already holds exactly the `[whole g1 g2 …]` shape needed (`regexMatchResult` builds it for
+`re-groups`), so the new case just reads it. Kept narrow to `nth`: `asSequence` still
+rejects matchers, because Java's aren't seqable either and widening it would quietly make
+`seq`/`first`/`map` start working on them.
+
+**`nth` on a map or set** returned an element instead of throwing, because `asSequence`
+handles both and `coreNth` fell through to it. Now an explicit throwing case — for the
+*collection* only; `(nth (seq m) 0)` still works, which is the boundary the upstream test
+pins.
+
+**Typed array ctors didn't coerce their elements**, so `(float-array (range 50))` held
+integers and `(reduce + …)` summed to `1225` rather than `1225.0`. `makeArray` already took
+a per-type `defaultFill`; it now takes a peer `coerce` and applies it at the three points
+elements enter. The conversions are the *existing* `coreInt`/`coreToFloat`/
+`coreToSingleFloat`/`coreLong`/`coreShort`/`coreByte`/`coreToChar`/`coreBoolean` (made
+internal), which already implement Clojure's conversion and its range behavior — so
+`(byte-array [200])` now throws for free rather than needing a restatement.
+
+**Scope line held:** this coerces at *construction*. `SwishArray` still has no element-type
+tag, so `aset` remains unchecked and `bytes?` stays unimplemented; a test pins the
+unchecked `aset` so the boundary is visible rather than assumed. CLAUDE.md's typed-array
+entry was narrowed from "no element validation" to "coerces, but carries no tag".
+
+### Result
+
+249 namespaces (248 + `split_lines`), 247 tests, 6859 assertions (up from 6725),
+**0 SKIPs, 0 failures, 0 errors**. Swift 3593 → 3621.
+
+On counting skips: `when-var-exists` prints an explicit `SKIP - <var>` line, so they are
+greppable. Two things in the output look like skips and are not — the zero-test namespaces
+`portability` and `number-range` are helpers, and the `deftest`-count-vs-tests-run gap is
+`taps.cljc` defining two same-named `deftest`s in `:cljs`/`:default` reader branches.

@@ -258,6 +258,31 @@ private func coreNth(_ args: [Expr]) throws -> Expr {
         if args.count >= 3 { delegated.append(args[2]) }
         return try coreNth(delegated)
 
+    // Clojure's `nth` indexes a Matcher's *current* match: index 0 is the whole match
+    // and 1…n are its capture groups, exactly what `re-groups` returns. `SwishMatcher`
+    // already stores that shape in `last` (a `.vector` when the pattern has groups, a
+    // bare `.string` when it doesn't — see `regexMatchResult`), so this reads it rather
+    // than re-deriving anything. Deliberately confined to `nth`: a Matcher is not
+    // seqable in Clojure either, so `asSequence` still rejects it and `seq`/`first`/
+    // `map` keep throwing.
+    case .matcher(let m):
+        guard let current = m.last else { return try outOfBounds() }
+        if case .vector = current {
+            guard let group = vectorElement(current, at: idx) else { return try outOfBounds() }
+            return group
+        }
+        // No capture groups: the whole match is the only addressable index.
+        guard idx == 0 else { return try outOfBounds() }
+        return current
+
+    // Clojure's `nth` takes Indexed or sequential things only, so an unordered
+    // collection throws — even though Swish's `asSequence` would happily produce
+    // entries/elements for one. `(nth (seq m) 0)` still works: it is the *collection*
+    // that is rejected here, never the seq you get from calling `seq` on it.
+    case .map, .sortedMap, .set, .sortedSet, .record:
+        throw EvaluatorError.invalidArgument(function: "nth",
+            message: "nth not supported on this type: \(corePrinter.printString(args[0]))")
+
     default:
         let elements = try seqOf(args[0], function: "nth")
         guard idx >= 0 && idx < elements.count else { return try outOfBounds() }

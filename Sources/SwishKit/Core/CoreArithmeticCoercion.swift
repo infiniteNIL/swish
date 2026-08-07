@@ -60,7 +60,7 @@ func registerArithmeticCoercion(into evaluator: Evaluator) {
 
 // MARK: - Implementations
 
-private func coreToChar(_ args: [Expr]) throws -> Expr {
+func coreToChar(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .character:
         return args[0]
@@ -79,7 +79,7 @@ private func coreToChar(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreToFloat(_ args: [Expr]) throws -> Expr {
+func coreToFloat(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .double:
         return args[0]
@@ -106,7 +106,7 @@ private func coreToFloat(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
+func coreToSingleFloat(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .float:
         return args[0]
@@ -202,7 +202,7 @@ private func coerceToRangedInteger(_ args: [Expr], function: String, typeLabel: 
     }
 }
 
-private func coreInt(_ args: [Expr]) throws -> Expr {
+func coreInt(_ args: [Expr]) throws -> Expr {
     // `int` uniquely also accepts characters (their Unicode scalar value) — byte/short don't.
     if case .character(let c) = args[0] {
         guard c.unicodeScalars.count == 1, let scalar = c.unicodeScalars.first else {
@@ -214,7 +214,7 @@ private func coreInt(_ args: [Expr]) throws -> Expr {
     return try coerceToRangedInteger(args, function: "int", typeLabel: "integer", min: Int(Int32.min), max: Int(Int32.max))
 }
 
-private func coreByte(_ args: [Expr]) throws -> Expr {
+func coreByte(_ args: [Expr]) throws -> Expr {
     try coerceToRangedInteger(args, function: "byte", typeLabel: "byte", min: -128, max: 127)
 }
 
@@ -229,7 +229,7 @@ func coreNum(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreLong(_ args: [Expr]) throws -> Expr {
+func coreLong(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .integer:
         return args[0]
@@ -274,7 +274,7 @@ private func coreLong(_ args: [Expr]) throws -> Expr {
     }
 }
 
-private func coreShort(_ args: [Expr]) throws -> Expr {
+func coreShort(_ args: [Expr]) throws -> Expr {
     try coerceToRangedInteger(args, function: "short", typeLabel: "short", min: Int(Int16.min), max: Int(Int16.max))
 }
 
@@ -386,7 +386,7 @@ private func rationalizeBigDecimal(_ bd: BigDecimal) -> Expr {
     return ratio.denominator == 1 ? .bigInteger(ratio.numerator) : .ratio(ratio)
 }
 
-private func coreBoolean(_ args: [Expr]) throws -> Expr {
+func coreBoolean(_ args: [Expr]) throws -> Expr {
     switch args[0] {
     case .nil, .boolean(false):
         return .boolean(false)

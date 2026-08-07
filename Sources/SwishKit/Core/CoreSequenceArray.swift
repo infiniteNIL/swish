@@ -37,52 +37,62 @@ func registerSequenceArray(into evaluator: Evaluator) {
     evaluator.register(name: "int-array", arity: .variadic,
         doc: "Creates an array of ints. Single arg: size (fills 0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "int-array", defaultFill: .integer(0))
+        try makeArray(args, function: "int-array", defaultFill: .integer(0),
+                      coerce: elementCoercion(coreInt))
     }
     evaluator.register(name: "object-array", arity: .variadic,
         doc: "Creates an array of objects. Single arg: size (fills nil) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
         try makeArray(args, function: "object-array", defaultFill: .nil)
     }
-    // Typed array constructors. Swish's `SwishArray` is untyped (a plain `[Expr]`
-    // wrapper), so these differ only in the default fill value; no element-type
-    // validation, matching `int-array`/`object-array` and the documented
-    // `into-array` simplification. `(char-array "abc")` coerces the string to chars
-    // via `asSequence`.
+    // Typed array constructors. `SwishArray` carries no element-type *tag*, but each
+    // ctor does coerce what it is given to its element type at construction, so
+    // `(float-array (range 3))` holds floats and `(byte-array [200])` throws on range —
+    // matching Clojure. What the missing tag still costs: `aset` can't validate a later
+    // write, and `bytes?` stays unimplemented because a byte array is indistinguishable
+    // from an object array. `into-array` keeps its documented no-validation
+    // simplification. `(char-array "abc")` coerces the string to chars via `asSequence`.
     evaluator.register(name: "char-array", arity: .variadic,
         doc: "Creates an array of chars. Single arg: size (fills \\u0000) or seq/string. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "char-array", defaultFill: .character(Character(UnicodeScalar(0))))
+        try makeArray(args, function: "char-array", defaultFill: .character(Character(UnicodeScalar(0))),
+                      coerce: elementCoercion(coreToChar))
     }
     evaluator.register(name: "double-array", arity: .variadic,
         doc: "Creates an array of doubles. Single arg: size (fills 0.0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "double-array", defaultFill: .double(0.0))
+        try makeArray(args, function: "double-array", defaultFill: .double(0.0),
+                      coerce: elementCoercion(coreToFloat))
     }
     evaluator.register(name: "float-array", arity: .variadic,
         doc: "Creates an array of floats. Single arg: size (fills 0.0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "float-array", defaultFill: .float(0.0))
+        try makeArray(args, function: "float-array", defaultFill: .float(0.0),
+                      coerce: elementCoercion(coreToSingleFloat))
     }
     evaluator.register(name: "long-array", arity: .variadic,
         doc: "Creates an array of longs. Single arg: size (fills 0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "long-array", defaultFill: .integer(0))
+        try makeArray(args, function: "long-array", defaultFill: .integer(0),
+                      coerce: elementCoercion(coreLong))
     }
     evaluator.register(name: "short-array", arity: .variadic,
         doc: "Creates an array of shorts. Single arg: size (fills 0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "short-array", defaultFill: .integer(0))
+        try makeArray(args, function: "short-array", defaultFill: .integer(0),
+                      coerce: elementCoercion(coreShort))
     }
     evaluator.register(name: "byte-array", arity: .variadic,
         doc: "Creates an array of bytes. Single arg: size (fills 0) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "byte-array", defaultFill: .integer(0))
+        try makeArray(args, function: "byte-array", defaultFill: .integer(0),
+                      coerce: elementCoercion(coreByte))
     }
     evaluator.register(name: "boolean-array", arity: .variadic,
         doc: "Creates an array of booleans. Single arg: size (fills false) or seq. Two args: size + init val.",
         arglists: [["size-or-seq"], ["size", "init"]]) { args in
-        try makeArray(args, function: "boolean-array", defaultFill: .boolean(false))
+        try makeArray(args, function: "boolean-array", defaultFill: .boolean(false),
+                      coerce: elementCoercion(coreBoolean))
     }
 }
 
@@ -98,7 +108,17 @@ func registerSequenceArray(into evaluator: Evaluator) {
 /// the default. `SwishArray` is untyped, so seqability stands in for the element-type
 /// test: a number isn't seqable, so `(int-array 3 7)` still fills; a collection is, so
 /// `(int-array 3 [7 8])` gives `[7 8 0]`.
-private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) throws -> Expr {
+///
+/// `coerce` converts each supplied element to the array's element type, so
+/// `(float-array (range 3))` really holds floats rather than the integers `range`
+/// produced — without it, `(reduce + (float-array …))` came back an integer. It also
+/// inherits each coercion's range check, so `(byte-array [200])` throws as it does in
+/// Clojure. `defaultFill` is already of the element type and needs no coercion.
+///
+/// This is construction-time only: `SwishArray` still carries no element *tag*, so
+/// `aset` can't validate a later write and `bytes?` stays unimplemented.
+private func makeArray(_ args: [Expr], function: String, defaultFill: Expr,
+                       coerce: (Expr) throws -> Expr = { $0 }) throws -> Expr {
     switch args[0] {
     case .integer(let n):
         guard n >= 0 else {
@@ -109,13 +129,20 @@ private func makeArray(_ args: [Expr], function: String, defaultFill: Expr) thro
             return .array(SwishArray(Array(repeating: defaultFill, count: n)))
         }
         guard let initSeq = try asSequence(args[1]) else {
-            return .array(SwishArray(Array(repeating: args[1], count: n)))
+            return .array(SwishArray(Array(repeating: try coerce(args[1]), count: n)))
         }
-        var elements = Array(initSeq.prefix(n))
+        var elements = try initSeq.prefix(n).map(coerce)
         elements.append(contentsOf: Array(repeating: defaultFill, count: n - elements.count))
         return .array(SwishArray(elements))
 
     default:
-        return .array(SwishArray(try asSequence(args[0]) ?? []))
+        return .array(SwishArray(try (asSequence(args[0]) ?? []).map(coerce)))
     }
+}
+
+/// Adapts a one-argument coercion native (`coreInt`, `coreToFloat`, …) to the
+/// element-wise shape `makeArray` wants. These already implement Clojure's conversion
+/// *and* its range behavior, so the array ctors reuse them rather than restating either.
+private func elementCoercion(_ convert: @escaping ([Expr]) throws -> Expr) -> (Expr) throws -> Expr {
+    { try convert([$0]) }
 }

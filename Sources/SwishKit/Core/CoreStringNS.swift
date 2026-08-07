@@ -217,11 +217,21 @@ private let coreReQuoteReplacement = Expr.nativeFunction(name: "re-quote-replace
 /// `splitImpl` because Swift treats `\r\n` as a single grapheme cluster that a
 /// `\r?\n` regex won't match — so we normalize `\r\n` → `\n` (a lone `\r` is left
 /// intact, i.e. not a line boundary, exactly as `\r?\n` requires) then split on `\n`.
+///
+/// The two trailing-empty rules are separate, and conflating them was a bug. Java's
+/// `split` (which Clojure's `split-lines` delegates to) discards *every* trailing empty
+/// — possibly leaving nothing, so `"\n"` is `[]` — but returns `[""]` for empty input,
+/// because a pattern that never matches yields the original string. Trimming with a
+/// `count > 1` floor approximated the second rule at the cost of the first, so an
+/// all-newline string wrongly came back as `[""]`.
 private let coreSplitLines = Expr.nativeFunction(name: "split-lines", arity: .fixed(1)) { args in
     let s = try requireString(args[0], function: "split-lines")
+    guard !s.isEmpty else {
+        return .vector(SwishPersistentVector([.string("")]), metadata: nil)
+    }
     let normalized = s.replacingOccurrences(of: "\r\n", with: "\n")
     var parts = normalized.split(separator: "\n", omittingEmptySubsequences: false).map { String($0) }
-    while parts.count > 1, parts.last == "" {
+    while parts.last == "" {
         parts.removeLast()
     }
     return .vector(SwishPersistentVector(parts.map { .string($0) }), metadata: nil)
