@@ -25,7 +25,7 @@ struct SwishCLI: ParsableCommand {
             }
             let interpreter = Swish(sourcePaths: sourcePaths)
             do {
-                try interpreter.run(filename: file)
+                try interpreter.load(filename: file)
             }
             catch {
                 fputs("error: \(interpreter.describeError(error))\n", stderr)

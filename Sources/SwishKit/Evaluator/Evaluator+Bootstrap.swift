@@ -63,7 +63,7 @@ extension Evaluator {
         guard let ns = findNs(name) else {
             throw EvaluatorError.namespaceNotFound(name)
         }
-        loadedLibs.withLock { $0.insert(name) }
+        _ = loadedLibs.withLock { $0.insert(name) }
         postLoadNatives(for: name)
         return ns
     }
