@@ -1,6 +1,22 @@
-// swift-tools-version: 6.2
+// swift-tools-version: 6.4
 
 import PackageDescription
+
+/// Xcode's "Approachable Concurrency" (`SWIFT_APPROACHABLE_CONCURRENCY`) minus the three
+/// features Swift 6 language mode already implies — `DisableOutwardActorInference`,
+/// `GlobalActorIsolatedTypesUsability`, and `InferSendableFromCaptures`. Listing those
+/// emits "already enabled as of the Swift 6 language mode" warnings.
+///
+/// `defaultIsolation(nil)` is explicit on purpose. It is a *separate* setting from
+/// approachable concurrency (Xcode turns it on only in the App template), and SwishKit
+/// must never inherit a `MainActor` default: the evaluator is driven from background GCD
+/// queues (agents, futures, STM commits), so `-default-isolation=MainActor` fails the
+/// build outright.
+let approachableConcurrency: [SwiftSetting] = [
+    .defaultIsolation(nil),
+    .enableUpcomingFeature("InferIsolatedConformances"),
+    .enableUpcomingFeature("NonisolatedNonsendingByDefault")
+]
 
 let package = Package(
     name: "Swish",
@@ -39,7 +55,8 @@ let package = Package(
             ],
             resources: [
                 .copy("Resources/clojure")
-            ]
+            ],
+            swiftSettings: approachableConcurrency
         ),
         .executableTarget(
             name: "swish",
@@ -47,11 +64,13 @@ let package = Package(
                 "SwishKit",
                 .product(name: "CommandLineKit", package: "swift-commandlinekit"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser")
-            ]
+            ],
+            swiftSettings: approachableConcurrency
         ),
         .testTarget(
             name: "SwishKitTests",
-            dependencies: ["SwishKit"]
+            dependencies: ["SwishKit"],
+            swiftSettings: approachableConcurrency
         )
     ]
 )
