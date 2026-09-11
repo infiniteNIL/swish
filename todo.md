@@ -1,15 +1,16 @@
 # Todo
 
-- [ ] Embedding API
-      - Evaluator.eval(string:) — evaluate Swish source from Swift (already
-        exists, exposed?)
-      - Evaluator.call(name:args:) — call a Swish function by name from Swift
-      - Swift→Swish value conversion — Int, String, Bool, [Any], [String: Any]
-      ↔ Expr
-      - Error type — a public SwishError that Swift catch blocks can use
-      - Callback registration — the existing evaluator.register(name:arity:body:) is the right foundation; needs to be
-        a public API with better ergonomics
-- [ ] Swift interop
+- [x] Embedding API — `Swish` is the whole public surface (Evaluator is now internal)
+      - [x] Swish.eval / load — evaluate Swish source from Swift
+      - [x] Swish.call(_:_:) — call a Swish function by name, with marshalling
+      - [x] Swift↔Swish value conversion — SwishRepresentable / SwishDecodable
+      - [x] Error type — `SwishError` umbrella protocol (not a wrapper enum)
+      - [x] Callback registration — Swish.register(_:as:) takes an unmodified
+            Swift function; parameter packs derive the arity
+      - [x] Opaque host values — `Expr.foreign` + `SwishOpaque`
+      - [ ] async Swift functions (needs a future/promise bridge)
+      - [ ] @SwishExport macro (needs a swift-syntax plugin target)
+- [ ] Swift interop (ObjC runtime dispatch — the `.` special form)
 
 - [x] updated jank suite again (still passing)
 - [x] Can we make any of the builtins just a Clojure function

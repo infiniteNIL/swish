@@ -9,6 +9,11 @@ public enum Arity: Equatable, Hashable, Sendable {
     case fixed(Int)    // exactly N arguments
     case atLeastOne    // 1 or more arguments
     case variadic      // zero or more arguments
+
+    /// Between `range.lowerBound` and `range.upperBound` arguments, inclusive.
+    /// Used by host registrations whose trailing parameters are `Optional` and
+    /// may therefore be omitted at the call site.
+    case range(ClosedRange<Int>)
 }
 
 /// A single arity clause for a multi-arity function or macro.
@@ -171,6 +176,12 @@ public indirect enum Expr: Sendable {
     /// A non-nil box also flips this instance to **identity** `=`/hash (Clojure's
     /// deftype default). `nil` for every ordinary deftype and for `reify` instances.
     case deftype(typeName: String, fields: [String], data: [Expr: Expr], mutableStorage: MutableFieldStore?, metadata: [Expr: Expr]?)
+
+    /// An opaque host (Swift) value, bridged in by the embedding API. Swish can
+    /// hold one, store it in collections, and hand it back to a registered Swift
+    /// function, but has no way to look inside it. Compares and hashes by
+    /// identity — see `ForeignObject`.
+    case foreign(ForeignObject)
 }
 
 // MARK: - Convenience constructors

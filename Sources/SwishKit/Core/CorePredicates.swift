@@ -105,6 +105,14 @@ func registerPredicates(into evaluator: Evaluator) {
             return .boolean(false)
         }
     }
+    evaluator.register(name: "foreign?", arity: .fixed(1),
+        doc: "Returns true if x is an opaque host (Swift) value bridged in by the embedding API.",
+        arglists: [["x"]]) { args in
+        if case .foreign = args[0] {
+            return .boolean(true)
+        }
+        return .boolean(false)
+    }
     evaluator.register(name: "name", arity: .fixed(1),
         doc: "Returns the name String of a string, symbol or keyword.",
         arglists: [["x"]]) { args in

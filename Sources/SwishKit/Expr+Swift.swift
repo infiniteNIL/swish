@@ -29,6 +29,12 @@ public extension Expr {
         case let .vector(v, _):
             v.elements
 
+        // Realizing a lazy seq can throw (the thunk runs user code); this
+        // accessor can't, so a failure reads as "not convertible". Never call
+        // this on a known-infinite seq.
+        case .lazySeq:
+            (try? SwishKit.asSequence(self)) ?? nil
+
         default:
             nil
         }
@@ -191,8 +197,12 @@ public extension Expr {
         }
     }
     
-    /// Returns a Sequence for a Clojure seq or lazy seq
-    /// - Returns: a sequence or nil if the Expr is not a seq or lazy seq
+    /// Returns a Sequence over the elements of any sequential Swish value.
+    ///
+    /// A lazy seq is iterated lazily, one element realized at a time; every
+    /// other supported shape (seq, list, vector, array) is already in memory and
+    /// is handed back as-is.
+    /// - Returns: a sequence, or nil if the Expr isn't sequential
     func asSequence() -> (any Sequence<Expr>)? {
         switch self {
         case let .lazySeq(seq):
@@ -202,9 +212,8 @@ public extension Expr {
             s
 
         default:
-            nil
+            asArray()
         }
-
     }
 
     static func toRegex(_ expr: Expr) -> String? {
@@ -273,6 +282,17 @@ public extension Expr {
         default:
             nil
         }
+    }
+
+    /// Get the host value carried by a foreign (opaque Swift) value.
+    ///
+    /// The counterpart of `SwishOpaque` — useful when you're holding a raw
+    /// `Expr` rather than letting the bridge convert it for you.
+    /// - Returns: the wrapped value, or nil if this isn't a foreign value of
+    ///   type `T`
+    func asForeign<T>(_ type: T.Type = T.self) -> T? {
+        guard case let .foreign(object) = self else { return nil }
+        return object.unwrap(as: T.self)
     }
 
     static func toUUID(_ expr: Expr) -> UUID? {

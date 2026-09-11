@@ -4,10 +4,27 @@ import Synchronization
 public final class Namespace: @unchecked Sendable {
     public let name: String
 
+    /// The `:refer-clojure` filters this namespace was created with, recorded by
+    /// `referClojureCore`. Nil until clojure.core has been referred in.
+    struct CoreReferral {
+        var only: Set<String>?
+        var exclude: Set<String>
+
+        /// Whether a var named `name` is admitted by this namespace's filters.
+        func admits(_ name: String) -> Bool {
+            if exclude.contains(name) {
+                return false
+            }
+            guard let only else { return true }
+            return only.contains(name)
+        }
+    }
+
     private struct State {
         var mappings: [String: Var] = [:]
         var aliases: [String: Namespace] = [:]
         var metadata: [Expr: Expr]? = nil
+        var coreReferral: CoreReferral? = nil
     }
     private let state = Mutex(State())
 
@@ -17,12 +34,22 @@ public final class Namespace: @unchecked Sendable {
     public var mappings: [String: Var] { state.withLock { $0.mappings } }
     /// Snapshot of the current aliases, same rationale as `mappings`.
     public var aliases: [String: Namespace] { state.withLock { $0.aliases } }
-    public var metadata: [Expr: Expr]? {
+    public internal(set) var metadata: [Expr: Expr]? {
         get { state.withLock { $0.metadata } }
         set { state.withLock { $0.metadata = newValue } }
     }
 
-    public init(name: String) {
+    /// The `:refer-clojure` filters in force for this namespace, or nil if
+    /// clojure.core was never referred into it (`in-ns`/`create-ns` produce such
+    /// bare namespaces). Read by `Evaluator.register` to decide whether a
+    /// newly-interned core var should be back-filled here — see `recordCoreReferral`.
+    var coreReferral: CoreReferral? { state.withLock { $0.coreReferral } }
+
+    func recordCoreReferral(only: Set<String>?, exclude: Set<String>) {
+        state.withLock { $0.coreReferral = CoreReferral(only: only, exclude: exclude) }
+    }
+
+    init(name: String) {
         self.name = name
     }
 
@@ -30,7 +57,7 @@ public final class Namespace: @unchecked Sendable {
     /// If a home Var already exists, updates its value (if provided) and returns it.
     /// A home Var is one whose namespace is this namespace.
     @discardableResult
-    public func intern(name: String, value: Expr? = nil) -> Var {
+    func intern(name: String, value: Expr? = nil) -> Var {
         // The find-or-create decision must be one atomic step: two concurrent
         // interns of the same not-yet-existing name could otherwise both see
         // "absent," both create a Var, and the loser's insert would be lost.
@@ -61,7 +88,7 @@ public final class Namespace: @unchecked Sendable {
     /// - existing is a **referred** var (or absent) → set the mapping; if it replaced
     ///   an existing referred var, return the `WARNING … being replaced by` message.
     @discardableResult
-    public func refer(_ v: Var) -> String? {
+    func refer(_ v: Var) -> String? {
         state.withLock { s -> String? in
             let existing = s.mappings[v.name]
             if existing === v {
@@ -89,7 +116,7 @@ public final class Namespace: @unchecked Sendable {
     /// `ns-unmap`. Unlike `removeAlias`, unmapping a **home** var can leave a stale
     /// `Evaluator.qualifiedVarCache` entry, so the caller must invalidate the
     /// `"<ns>/<name>"` key.
-    public func unmap(name: String) {
+    func unmap(name: String) {
         state.withLock { $0.mappings[name] = nil }
     }
 
@@ -99,7 +126,7 @@ public final class Namespace: @unchecked Sendable {
 
     /// Maps `name` to `ns` as a local alias. Idempotent for the same namespace.
     /// Throws if a different namespace already occupies that alias.
-    public func alias(name: String, ns: Namespace) throws {
+    func alias(name: String, ns: Namespace) throws {
         try state.withLock { s in
             if let existing = s.aliases[name], existing !== ns {
                 throw NamespaceError.aliasConflict(
@@ -118,7 +145,7 @@ public final class Namespace: @unchecked Sendable {
     /// Removes the alias `name` if present (idempotent otherwise). Safe with no
     /// cache concern: aliases are never entered into `Evaluator.qualifiedVarCache`
     /// (only literal-namespace home-var resolutions are), so nothing to invalidate.
-    public func removeAlias(name: String) {
+    func removeAlias(name: String) {
         state.withLock { $0.aliases[name] = nil }
     }
 }

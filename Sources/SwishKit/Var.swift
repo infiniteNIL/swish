@@ -24,11 +24,11 @@ public final class Var: @unchecked Sendable {
 
     private let state: Mutex<State>
 
-    public var value: Expr? {
+    public internal(set) var value: Expr? {
         get { state.withLock { $0.value } }
         set { state.withLock { $0.value = newValue } }
     }
-    public var metadata: [Expr: Expr]? {
+    public internal(set) var metadata: [Expr: Expr]? {
         get { state.withLock { $0.metadata } }
         set { state.withLock { $0.metadata = newValue } }
     }
@@ -52,7 +52,7 @@ public final class Var: @unchecked Sendable {
         state.withLock { ($0.isDynamic, $0.value) }
     }
 
-    public init(name: String, namespace: Namespace, value: Expr? = nil) {
+    init(name: String, namespace: Namespace, value: Expr? = nil) {
         self.name = name
         self.namespace = namespace
         state = Mutex(State(value: value))

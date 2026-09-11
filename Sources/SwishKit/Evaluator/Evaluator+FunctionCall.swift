@@ -52,7 +52,7 @@ extension Evaluator {
 
     /// Calls an already-evaluated callee with already-evaluated args. Used by HOFs and meta functions.
     /// Does NOT re-evaluate args — use callFunction for unevaluated args.
-    public func call(_ callee: Expr, args: [Expr]) throws -> Expr {
+    func call(_ callee: Expr, args: [Expr]) throws -> Expr {
         switch callee {
         case .nativeFunction(let name, let arity, let body):
             return try callNativeFunction(name: name, arity: arity, body: body, args: args)
@@ -98,6 +98,9 @@ extension Evaluator {
         if case .atLeastOne = arity, args.isEmpty {
             throw EvaluatorError.arityMismatch(name: name, expected: arity, got: 0)
         }
+        if case .range(let bounds) = arity, !bounds.contains(args.count) {
+            throw EvaluatorError.arityMismatch(name: name, expected: arity, got: args.count)
+        }
         return try body(args)
     }
 
@@ -133,7 +136,7 @@ extension Evaluator {
     /// Calls callee with pre-evaluated args and a pre-built lazy rest binding.
     /// `rest` is bound directly to the `& rest` parameter without wrapping in a list.
     /// Used by `apply` when the spread argument is a lazy seq that must not be forced.
-    public func call(_ callee: Expr, args: [Expr], rest: Expr) throws -> Expr {
+    func call(_ callee: Expr, args: [Expr], rest: Expr) throws -> Expr {
         switch callee {
         case .function(let f):
             return try callUserFunction(name: f.name, params: f.params, body: f.body,
@@ -152,7 +155,7 @@ extension Evaluator {
     }
 
     /// Expands a macro call one step. Returns nil if the form is not a macro call.
-    public func macroexpand1(_ expr: Expr) throws -> Expr? {
+    func macroexpand1(_ expr: Expr) throws -> Expr? {
         guard case .list(let elements, _) = expr,
               !elements.isEmpty,
               case .symbol(let name, _) = elements[0]

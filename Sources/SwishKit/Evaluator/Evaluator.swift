@@ -6,7 +6,12 @@ struct RecurSignal: Error {
 }
 
 /// Evaluator for Swish expressions
-public class Evaluator {
+/// The Swish interpreter.
+///
+/// Deliberately internal: hosts drive Swish through the `Swish` façade, which is
+/// the entire supported public surface. Keeping the evaluator out of reach means
+/// its var tables, environments, and bootstrap order stay implementation detail.
+class Evaluator {
     let namespacesState = Mutex<[String: Namespace]>([:])
 
     /// Snapshot of all registered namespaces. Dictionaries are value types
@@ -153,7 +158,7 @@ public class Evaluator {
     /// no `findVar`/closure allocation for it. `nil` if the helper isn't defined yet.
     private(set) var printMethodHook: ((Expr) -> String?)?
 
-    public init(sourcePaths: [String] = []) {
+    init(sourcePaths: [String] = []) {
         self.sourcePaths = sourcePaths
         // 1. Create clojure.core first — register() interns into it
         let coreNs = Namespace(name: "clojure.core")
@@ -210,7 +215,7 @@ public class Evaluator {
     }
 
     /// Evaluates a Swish expression
-    public func eval(_ expr: Expr) throws -> Expr {
+    func eval(_ expr: Expr) throws -> Expr {
         do {
             return try eval(expr, in: Environment())
         } catch is RecurSignal {
@@ -225,7 +230,7 @@ public class Evaluator {
              .function, .macro, .multiArityFunction, .multiArityMacro,
              .nativeFunction, .varRef, .namespace, .atom, .transient, .lazySeq, .reduced, .delay, .regex,
              .matcher, .reader, .writer, .record, .deftype, .inst, .uuid, .mapEntry, .array, .sharedVector,
-             .agent, .future, .promise, .ref:
+             .agent, .future, .promise, .ref, .foreign:
             return expr
 
         case .seq(let elements):

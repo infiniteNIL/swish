@@ -18,7 +18,7 @@ public class Environment: @unchecked Sendable {
     private var bindings: [String: Expr] = [:]
     private let parent: Environment?
 
-    public init(parent: Environment? = nil) {
+    init(parent: Environment? = nil) {
         self.parent = parent
     }
 
@@ -26,7 +26,7 @@ public class Environment: @unchecked Sendable {
         bindings[name] ?? parent?.get(name)
     }
 
-    public func set(_ name: String, _ value: Expr) {
+    func set(_ name: String, _ value: Expr) {
         bindings[name] = value
     }
 

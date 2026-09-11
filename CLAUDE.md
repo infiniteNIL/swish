@@ -358,6 +358,134 @@ The tree-walker costs ~300–475µs per element for lazy-seq chains (`filter`/`r
 
 `hash`/`hash-ordered-coll`/`hash-unordered-coll`/`mix-collection-hash` (`CoreHash.swift`) are a **standalone verbatim port of Clojure's Murmur3-based `hasheq`** (`Murmur3.java`/`Util.java`/`Numbers.java`), *not* a wrapper over `Expr.hash(into:)`. They must be — Swift's `Hasher` is **seeded randomly per process**, so its values are unstable across runs and don't match Clojure; `swishHasheq` uses 32-bit wrapping arithmetic with Java `>>>`/`rotateLeft` semantics to return Clojure-matching, run-stable ints. Faithful (value-tested against known Clojure outputs, e.g. `(hash []) = -2017569654`, `(hash [1 2 3]) = 736442005`) for numbers, strings (via Java `String.hashCode` over UTF-16 units), chars, keywords/symbols, and ordered/unordered collections (lazy seqs are realized, matching Clojure — infinite seqs hang, as they do there). **Documented approximations:** `bigDecimal` (Swish's BigDecimal package has no Java-`BigDecimal.hashCode`; uses `31*hasheq(unscaled)+scale`, the inflated-form shape); `record` (field-map hash combined with the type name); and **opaque/reference values** — functions, atoms, refs, vars, regex, deftype-with-mutable-fields, etc. — which Clojure hashes by *non-deterministic identity*, so no deterministic value can match; these return a stable per-kind fallback so `hash` never crashes. `hasheq` is separate from `Expr.hash(into:)` (the Swift-`Hasher` path that backs internal `TreeDictionary`/`TreeSet` membership); the two need not agree.
 
+## Embedding API — `Swish` is the only public door
+
+Host apps drive Swish through the **`Swish` façade and `Expr` alone**. `Evaluator`
+is `internal` (`Evaluator.swift`) and `Swish.evaluator` is not public — deliberately,
+so var tables, environments, and bootstrap order stay implementation detail. When a
+host needs a new capability, **add a method to `Swish`**, don't widen `Evaluator`.
+Everything lives in `Sources/SwishKit/Interop/`.
+
+`Namespace`, `Var`, and `Environment` remain public *types* only because public
+`Expr` cases carry them (`.namespace`, `.varRef`, `SwishFunction.capturedEnv`) — a
+public enum case cannot have an internal payload. Their **mutating** API
+(`intern`/`refer`/`unmap`/`alias`/`removeAlias`, the `value`/`metadata` setters, both
+`init`s) is internal, so reaching one via `(find-ns 'user)` gets you a read-only handle.
+
+### Value bridging — `SwishRepresentable` / `SwishDecodable`
+
+`SwishConvertible` (both halves) is what makes an *unmodified* Swift function
+registrable. Conformances ship for the scalars, `BigInt`/`BigDecimal`/`Ratio`,
+`Date`/`UUID`, `Optional`, `Array`/`Set`/`Dictionary`, and **`Expr` itself** (the
+identity conformance — the escape hatch for a parameter with no Swift equivalent).
+Decoding reuses the `Expr+Swift.swift` accessors where their semantics are right.
+
+Two deliberate asymmetries at the boundary:
+- **Integer parameters are strict**, unlike `Expr.asInt()`, which truncates a
+  `.ratio` by integer division. Handing `(/ 1 2)` to a Swift `Int` is a loud
+  argument error, not a silent `0`. A `.bigInteger` converts when it fits.
+- **Floating-point parameters widen** across the numeric tower, so `(area 5)` calls
+  a `(Double) -> Double`. That matches how Clojure treats numbers.
+
+`String(swishValue:)` is narrower than `asString()` — it accepts a Swish string
+only, not symbols and keywords; take an `Expr` parameter for those.
+
+**`Expr.description` is the value's *type name*, not its content** (protocol dispatch
+depends on this — see `dispatchTypeName`/`builtinAncestors`), so `print(expr)` in host
+code gives `string`, not the string. `Swish.printString(_:)` (`pr-str`) and
+`Swish.toString(_:)` (`str`) are the renderers.
+
+### Registration — parameter packs, and why there is no box
+
+`Swish.register(_:as:in:doc:parameters:)` takes the Swift function as-is and derives
+its arity from the parameter pack. Three constraints found by compiling, not guessing:
+
+- **A pack-typed function cannot be stored in a generic box.** The usual
+  `@unchecked Sendable` wrapper produces *"cannot fully abstract a value of variadic
+  function type … try wrapping it in a struct"*, and routing the call through a
+  stored property (`box.value(repeat …)`) **crashes SILGen** in Swift 6.4. The
+  non-Sendable closure is therefore captured with **`nonisolated(unsafe) let fn = fn`**
+  and called directly. Don't reintroduce a box.
+- **Pack expansion into an array literal is rejected** ("can only appear inside a
+  function argument list, tuple element, or as the expression of a for-in loop"), so
+  `parameterShape` inspects the pack with **for-in pack iteration**.
+- Generic parameters need **`SendableMetatype`** constraints, or every registration
+  warns under `#SendableMetatypes`.
+
+Arguments are marshalled by **`ArgumentCursor`**, a class rather than an `inout`
+index because it is advanced from inside a pack expansion; Swift's left-to-right
+argument evaluation is what keeps it in parameter order.
+
+**Threading contract:** a registered function runs *synchronously on whatever thread
+evaluates the calling form*. Swish drives agents, futures, and STM commits on
+background queues, so an actor-isolated method is only safe if the host confines
+evaluation to that actor's thread. This is the price of accepting non-`@Sendable`
+closures, which is what lets `swish.register(viewModel.method, as: "…")` compile.
+
+### Registration order is order-independent by design
+
+`referClojureCore` copies core's mappings at `ns`-form time and `resolveVar` has no
+core fallback, so a host registering *after* loading its Swish source would otherwise
+find the name unresolvable — the shape the demo app actually has. `Namespace` now
+records its `:refer-clojure` filters (`CoreReferral`), and `Evaluator.register`
+**back-fills** a newly-interned core var into every namespace those filters admit
+(`backFillReferral`). Costs nothing at bootstrap, where clojure.core is the only
+namespace. Clojure-faithful in the negatives, all pinned by tests: an `:exclude`d name
+is not back-filled, a namespace's own `def` still wins, and an `in-ns` bare namespace
+stays bare. A `refer` conflict message is **discarded** here rather than written to
+`*err*` — back-filling is a fix-up the host never asked about.
+
+### `Arity.range` — optional trailing parameters
+
+A trailing run of `Optional` parameters may be omitted at the call site, which needed
+a min/max `Arity` couldn't express. `Arity.range(ClosedRange<Int>)` is consumed at
+exactly two sites: `callNativeFunction` and `EvaluatorError.description`. Omitted
+arguments decode from the `.nil` that `ArgumentCursor` yields past the end of the
+argument list, so `Optional`'s own conformance handles them — no special case.
+
+### `Expr.foreign` — opaque host values
+
+`case foreign(ForeignObject)` carries a Swift value Swish has no representation for.
+Host opt-in is one line — `extension User: SwishOpaque {}` — and the default
+implementations box and unbox it. This is the additive foreign-object case the
+Protocols entry anticipated; it is *not* ObjC class-hierarchy dispatch.
+
+- **Identity `=` and hash.** The payload is `Any`, so there is no general way to
+  compare or hash it; identity is the one always-correct answer, and it matches
+  mutable-field `deftype`. Two boxes of an equal value are therefore *not* `=`.
+- **`type` returns the Swift type name** (`:User`), via `Expr.description`;
+  `builtinAncestors` gives it `Object`, so `(extend-type Object …)` catches it.
+- **Prints as `#object[User 0x…]`**, modeled on Clojure. The address is included
+  because identity is what distinguishes two handles.
+- **`hash` uses the opaque per-kind fallback** (`javaStringHashCode(description)`),
+  joining the documented family of identity-hashed values.
+
+### Errors — `SwishError` is a protocol, not a wrapper
+
+An early enum that wrapped each underlying error was **reverted**: it compiled, but
+it destroyed the caller's ability to see *which* error occurred, and broke 65 existing
+tests that reasonably asserted on `EvaluatorError`/`ParserError`/`LexerError`.
+`SwishError` is instead an umbrella **protocol** that `LexerError`, `ParserError`,
+`EvaluatorError`, `NamespaceError`, `SwishException`, `SwishConversionError`, and
+`SwishLoadError` conform to. Hosts write `catch let error as any SwishError`; the
+concrete type still matches. `SwishException` became public for this (it carries a
+thrown Swish value). Note `#expect(throws:)` needs a concrete type, so tests use the
+`expectSwishError` helper.
+
+The other direction: an error thrown *out of* a registered Swift function is wrapped
+as an `ExceptionInfo` by `Evaluator.hostException`, so Swish can
+`(catch ExceptionInfo e (ex-message e))` and read `(ex-data e)`'s `:swift-error`,
+`:swift-error-type`, `:function`. Built by **calling** core's `ex-info` rather than
+constructing the record, so the type name stays whatever `core.clj` defines. Errors
+that are already Swish-level (`SwishException`, `EvaluatorError` — including
+`ArgumentCursor`'s conversion failure) pass through untouched.
+
+### Still deferred
+
+`async` Swift functions (natives are synchronous — would need a future/promise
+bridge), an `@SwishExport` macro (needs a swift-syntax plugin target), and ObjC
+runtime dispatch (the `.` special form).
+
 ## Deferred Performance/Architecture Items
 
 Deferred because each needs a real design change, not a mechanical fix. Re-verify against current source before acting — this is a map, not a guarantee. (Items that were on this list and are now **done** — `cons`/`conj`-on-list O(1) via `SwishPersistentList`, `Environment` per-level `Mutex` removed, `evalList` fast-path + `evalSpecialForm` extraction, global-symbol `qualifiedVarCache`, the `currentNs()` double-lookup (now a cached `*ns*` Var), and the per-call thread-local storage swap off `Thread.current.threadDictionary` — are written up in NOTES.md; several carry load-bearing invariants repeated below.)

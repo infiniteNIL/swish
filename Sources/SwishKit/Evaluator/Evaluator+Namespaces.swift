@@ -2,7 +2,7 @@ extension Evaluator {
 
     // MARK: - Namespace registry
 
-    public func findNs(_ name: String) -> Namespace? {
+    func findNs(_ name: String) -> Namespace? {
         namespacesState.withLock { $0[name] }
     }
 
@@ -10,7 +10,7 @@ extension Evaluator {
     /// absent — matching Clojure, where `in-ns`/`create-ns` produce namespaces with
     /// clojure.core *not* referred. The default core refer is applied by the `ns`
     /// form (`evalNs` → `referClojureCore`) and by init for the `user` ns, never here.
-    public func findOrCreateNs(_ name: String) -> Namespace {
+    func findOrCreateNs(_ name: String) -> Namespace {
         namespacesState.withLock { s -> Namespace in
             if let existing = s[name] {
                 return existing
@@ -27,6 +27,11 @@ extension Evaluator {
     /// directive (nil `only` = refer all). clojure.core itself is skipped.
     func referClojureCore(into ns: Namespace, only: Set<String>? = nil, exclude: Set<String> = []) {
         guard ns.name != "clojure.core", let core = findNs("clojure.core") else { return }
+        // Recorded so a *later* `register` can back-fill the new var into this
+        // namespace — the refer below is a point-in-time copy of core's mappings,
+        // and a host that registers after loading its Swish source would otherwise
+        // find the name unresolvable. See `register(name:in:...)`.
+        ns.recordCoreReferral(only: only, exclude: exclude)
         for (name, v) in core.mappings {
             if exclude.contains(name) {
                 continue
@@ -62,7 +67,7 @@ extension Evaluator {
         return ns
     }
 
-    public var currentNamespaceName: String {
+    var currentNamespaceName: String {
         currentNs().name
     }
 
@@ -150,15 +155,24 @@ extension Evaluator {
 
     // MARK: - Native function registration
 
-    /// Registers a native Swift function in the clojure.core namespace.
-    public func register(
+    /// Registers a native Swift function, by default in the clojure.core namespace.
+    ///
+    /// Passing `namespace` targets another namespace instead, creating it if
+    /// absent — host registrations that should not sit in core go there, and are
+    /// called qualified (`(app/thing …)`).
+    func register(
         name: String,
         arity: Arity,
+        in namespace: String? = nil,
         doc: String? = nil,
         arglists: [[String]]? = nil,
         body: @escaping @Sendable ([Expr]) throws -> Expr
     ) {
-        let v = findNs("clojure.core")!.intern(name: name, value: .nativeFunction(name: name, arity: arity, body: body))
+        let target = namespace.map { findOrCreateNs($0) } ?? findNs("clojure.core")!
+        let v = target.intern(name: name, value: .nativeFunction(name: name, arity: arity, body: body))
+        if target.name == "clojure.core" {
+            backFillReferral(of: v, named: name)
+        }
         var meta: [Expr: Expr] = [:]
         if let doc { meta[.keyword("doc")] = .string(doc) }
         if let arglists {
@@ -167,5 +181,31 @@ extension Evaluator {
             }), metadata: nil)
         }
         if !meta.isEmpty { v.metadata = meta }
+    }
+
+    /// Refers a freshly-interned clojure.core var into every namespace that has
+    /// already referred core in.
+    ///
+    /// `referClojureCore` copies core's mappings at `ns`-form time, and
+    /// `resolveVar` has no core fallback, so without this a host function
+    /// registered after its Swish source was loaded would be invisible as a bare
+    /// name. Costs nothing during bootstrap, where clojure.core is the only
+    /// namespace and this loop is empty.
+    ///
+    /// A conflict message from `refer` is deliberately discarded rather than
+    /// written to `*err*`: `refer` already declines to replace a namespace's own
+    /// interned var, which is the behavior we want (a namespace that defined its
+    /// own `get-vowels` keeps it), and back-filling is a background fix-up the
+    /// host never asked about.
+    func backFillReferral(of v: Var, named name: String) {
+        for ns in namespacesState.withLock({ Array($0.values) }) {
+            guard ns.name != "clojure.core",
+                  let referral = ns.coreReferral,
+                  referral.admits(name)
+            else {
+                continue
+            }
+            _ = ns.refer(v)
+        }
     }
 }

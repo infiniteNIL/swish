@@ -30,6 +30,9 @@ public enum EvaluatorError: Error, Equatable, CustomStringConvertible {
 
             case .variadic:
                 return "Wrong number of arguments to '\(name)': got \(got)."
+
+            case .range(let bounds):
+                return "Wrong number of arguments to '\(name)': expected \(bounds.lowerBound) to \(bounds.upperBound), got \(got)."
             }
 
         case .invalidArgument(let function, let message):

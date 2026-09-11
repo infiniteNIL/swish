@@ -223,6 +223,9 @@ extension Expr: Equatable {
         case (.matcher(let a), .matcher(let b)):
             return a === b
 
+        case (.foreign(let a), .foreign(let b)):
+            return a === b
+
         case (.reader(let a), .reader(let b)):
             return a === b
 

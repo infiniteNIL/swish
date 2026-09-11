@@ -258,6 +258,12 @@ public struct Printer {
         case .deftype(let typeName, let fields, let data, let box, _):
             userTypePrinter?(expr) ?? printDeftype(typeName: typeName, fields: fields, data: data, mutableStorage: box, depth: depth)
 
+        // Modeled on Clojure's `#object[java.lang.Object 0x1b6d3586 …]`. The
+        // address is included because foreign values are identity-equal, so two
+        // handles of the same type need to be distinguishable in output.
+        case .foreign(let object):
+            "#object[\(object.typeName) 0x\(String(UInt(bitPattern: ObjectIdentifier(object)), radix: 16))]"
+
         default:
             fatalError("unreachable: collection and lazySeq cases are handled by formatCollection/formatLazySeq above")
         }

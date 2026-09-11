@@ -126,6 +126,9 @@ extension Expr: CustomStringConvertible {
 
         case .array:
             return "array"
+
+        case .foreign(let object):
+            return object.typeName
         }
     }
 }

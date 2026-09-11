@@ -42,19 +42,19 @@ public struct Swish: @unchecked Sendable {
     /// passed to the initializer
     ///
     /// - Parameter filename: Path to the file to run
-    /// - Throws if error reading file or file not found
+    /// - Throws: `SwishError` if the file can't be found or read, or if
+    ///   evaluating it fails.
     public func load(filename: String) throws {
         do {
             // TODO: What if filename includes path? Then we need to just use it, and not search for it.
             guard let path = findFile(filename) else {
-                throw CocoaError(.fileNoSuchFile)
+                throw SwishLoadError.fileNotFound(filename, searched: sourcePaths)
             }
 
             let source = try String(contentsOfFile: path, encoding: .utf8)
             _ = try eval(source)
         }
         catch {
-            print("Unable to load file \(filename): \(error)")
             throw error
         }
     }
@@ -108,6 +108,12 @@ public struct Swish: @unchecked Sendable {
         set { evaluator.interruptionCheck = newValue }
     }
 
+    /// Evaluates Swish source and returns the value of its last form.
+    ///
+    /// - Throws: one of the `SwishError` types — a `LexerError` or
+    ///   `ParserError` from reading, an `EvaluatorError` or `NamespaceError`
+    ///   from evaluating, or a `SwishException` carrying a value the Swish code
+    ///   threw. Catch `any SwishError` to handle them uniformly.
     public func eval(_ source: String) throws -> Expr {
         let exprs = try Reader.readString(source)
         guard !exprs.isEmpty else { throw ParserError.unexpectedEOF }
@@ -116,6 +122,16 @@ public struct Swish: @unchecked Sendable {
             result = try evaluator.eval(expr)
         }
         return result
+    }
+
+    /// Renders a value the way `pr-str` does — readably, so strings are quoted.
+    public func printString(_ expr: Expr) -> String {
+        evaluator.makePrinter().printString(expr)
+    }
+
+    /// Renders a value the way `str` does — a bare string stays bare.
+    public func toString(_ expr: Expr) -> String {
+        evaluator.makePrinter().strString(expr)
     }
 
     /// Returns a human-readable description of a caught evaluation error, for

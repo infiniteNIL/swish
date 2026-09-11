@@ -1278,3 +1278,121 @@ On counting skips: `when-var-exists` prints an explicit `SKIP - <var>` line, so 
 greppable. Two things in the output look like skips and are not — the zero-test namespaces
 `portability` and `number-range` are helpers, and the `deftest`-count-vs-tests-run gap is
 `taps.cljc` defining two same-named `deftest`s in `:cljs`/`:default` reader branches.
+
+## Embedding API — registering Swift functions callable from Swish
+
+The interop story was one-directional: `Swish.eval`/`load` drove Swish from Swift and
+`Expr+Swift.swift` pulled data out, but nothing let a host expose *its* functions.
+`Swish Roadmap.md` Tier 3 called this "the current frontier."
+
+The target was concrete. The demo app at `/Users/rod/Desktop/Dev/SwishEmbed` already
+contained the aspirational call site in `ReceiveCallsViewModel.swift`:
+
+```swift
+try swish.load(filename: "receive-calls.swish")
+swish.register(getVowels, as: "get-vowels")          // did not compile
+private func getVowels(_ name: String) -> [Character] { … }
+```
+
+Goal: make *that line* work against an **unmodified** Swift function — no `[Expr]`
+wrapper, no hand-built return values. Three things stood in the way, and each turned
+out to be more interesting than expected.
+
+### 1. There was no Swift→Expr conversion at all
+
+`Expr+Swift.swift` was purely `Expr` → Swift. Every return value in the codebase was
+hand-built (`.vector(SwishPersistentVector(…), metadata: nil)`). So the bridge needed
+a whole new direction: `SwishRepresentable` (encode) and `SwishDecodable` (decode),
+with the decode half reusing the existing accessors where their semantics were right.
+
+Two places it *didn't* reuse them, both deliberate. `Expr.asInt()` truncates a
+`.ratio` by integer division, so `(f (/ 1 2))` into a Swift `Int` would silently pass
+`0` — at an FFI boundary that should be a loud error, so `Int(swishValue:)` accepts
+`.integer` and in-range `.bigInteger` only. And `asString()` also unwraps symbols and
+keywords, which is right for an accessor and wrong for a `String` *parameter*.
+
+Two pre-existing gaps also had to close, or the demo still fails: `asArray()` didn't
+accept `.lazySeq`, and `asSequence()` accepted *only* `.lazySeq`/`.seq`. Since
+`[Character]` encodes to a `.vector`, the demo's `swish.eval(…).asSequence()` would
+have returned `nil`. `asSequence()` now falls back to `asArray()` for eager shapes and
+keeps the lazy wrapper for lazy seqs.
+
+### 2. Parameter packs: three findings, all from the compiler
+
+The typed `register` derives arity from a parameter pack. A throwaway prototype in a
+scratch file — before touching the real sources — paid for itself three times over.
+
+**Array-literal pack expansion is rejected.** `[repeat (each A).self]` gives *"value
+pack expansion can only appear inside a function argument list, tuple element, or as
+the expression of a for-in loop"*. `parameterShape` uses for-in pack iteration instead.
+
+**A pack-typed function cannot be stored in a generic box.** The plan called for the
+usual `UncheckedBox<T>: @unchecked Sendable` to carry the non-Sendable closure into
+the `@Sendable` native body. Calling through it — `box.value(repeat cursor.next(…))` —
+**crashed SILGen** in Swift 6.4 (`visitPackExpansionExpr` → `emitDynamicPackLoop`).
+Splitting the statement didn't help. An isolation matrix (direct call / non-escaping
+closure / escaping `@Sendable` closure / through a box) showed only the box variant
+failing, and hoisting `box.value` into a local produced the *real* diagnostic the
+crash was hiding: **"cannot fully abstract a value of variadic function type … try
+wrapping it in a struct."** The box was never viable. `nonisolated(unsafe) let fn = fn`
+captures the closure directly, is simpler, allocates nothing, and compiles — so
+`UncheckedBox` was dropped from the design entirely.
+
+**`SendableMetatype` constraints are required**, or every registration warns under
+`#SendableMetatypes` about capturing non-Sendable metatypes.
+
+`ArgumentCursor` is a class, not an `inout` index, because it's advanced from inside a
+pack expansion where `inout` isn't usable; Swift's left-to-right argument evaluation
+is what keeps it in parameter order.
+
+The prototype also confirmed the thing that actually mattered: registering
+`viewModel.greet` — a method on a non-Sendable `@Observable` class — compiles and
+runs. That is only possible because `register` takes a plain escaping closure. The
+cost is a documented threading contract, not a silent one.
+
+### 3. Registration order silently broke the demo
+
+`referClojureCore` *copies* core's mappings when the `(ns …)` form runs, and
+`resolveVar` has no clojure.core fallback. The demo calls `load` **then** `register`,
+so `get-vowels` would have been interned into core after `receive-calls` had already
+snapshotted it — `Undefined symbol`. Telling hosts "register first" is a fragile rule
+that fails silently, so `Namespace` now records its `:refer-clojure` filters and
+`Evaluator.register` back-fills new core vars into every namespace those filters
+admit. Free at bootstrap (core is the only namespace then), and the Clojure-faithful
+negatives are pinned by tests: `:exclude`d names aren't back-filled, a namespace's own
+`def` wins, `in-ns` namespaces stay bare.
+
+### The `SwishError` enum that got reverted
+
+The approved plan had `SwishError` as an enum wrapping each underlying error, thrown
+from `Swish.eval`/`load`/`call`. It built, and the full suite then reported **65
+failures** — all one cause: tests reasonably asserting
+`#expect(throws: EvaluatorError.undefinedSymbol("x"))` now got an opaque wrapper.
+That wasn't the tests being wrong; the wrapper genuinely destroyed information every
+caller wanted. Rewritten as an umbrella **protocol** that the existing error types
+conform to: hosts still get one `catch let error as any SwishError`, the concrete type
+survives, and the 65 tests needed no changes. `SwishException` became public to carry
+a thrown Swish value. The one place `#expect(throws:)` can't express a protocol is
+covered by an `expectSwishError` helper.
+
+### Sealing the evaluator
+
+The roadmap proposed making `Swish.evaluator` public. The opposite happened: hosts
+must go through the façade, so `Evaluator` became `internal` and `Namespace`/`Var`/
+`Environment` kept their public *types* (public `Expr` cases carry them) but lost
+their mutating API. Verified free: the `swish` executable only ever used `Printer`,
+`Reader`, and `EvaluatorError`, and all 227 test files use `@testable`.
+
+Proof is a scratch SwiftPM package depending on the local path with a plain
+`import SwishKit`, containing the demo's view model verbatim. It runs, and a probe file
+confirms `Evaluator` is "cannot find in scope", `Namespace.init` and `Swish.evaluator`
+"inaccessible due to 'internal' protection level".
+
+### Result
+
+3670 Swift tests pass (49 new across five interop suites). The demo's line compiles
+unchanged, in either order relative to `load`.
+
+One wart worth knowing: `Expr.description` is the value's *type name*, not its
+content — protocol dispatch depends on that — so `print(expr)` in host code prints
+`string`. `Swish.printString(_:)`/`toString(_:)` are the renderers.

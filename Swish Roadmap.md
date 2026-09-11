@@ -129,20 +129,28 @@ large fraction of `clojure.core`) — not a good enough result to justify buildi
 
 ## Tier 3 — Embedding API (the "for Swift" part, short-term)
 
-**Status: this is the current frontier.** `SwishKit.swift`'s public `Swish` struct
-today only exposes `run(filename:)`, `eval(_:) -> Expr`, `currentNamespaceName`, and
-`interruptionCheck` — none of the items below exist yet, and `evaluator: Evaluator`
-isn't even `public`, so client Swift code can't reach `.register(...)` directly
-either. Matches `todo.md`'s active "Embedding API" item.
+**Status: ✅ done.** `Swish` is now the entire public surface — and deliberately so:
+rather than exposing `evaluator` as suggested below, `Evaluator` was made **internal**
+and every host capability added as a `Swish` method. See CLAUDE.md's "Embedding API"
+section and NOTES.md's implementation write-up.
 
 Before deep ObjC/Swift interop, Swish needs a clean embedding API so Swift code can use it.
 
-### What's needed:
-- ✅ `Evaluator.eval(string:)` — evaluate Swish source from Swift (confirmed: `Swish.eval(_:) -> Expr` in `SwishKit.swift`)
-- `Evaluator.call(name:args:)` — call a Swish function by name from Swift
-- Swift→Swish value conversion — `Int`, `String`, `Bool`, `[Any]`, `[String: Any]` ↔ `Expr`
-- Error type — a public `SwishError` that Swift catch blocks can use
-- Callback registration — the existing `evaluator.register(name:arity:body:)` is the right foundation; needs to be a public API with better ergonomics
+### What was built:
+- ✅ `Swish.eval(_:)` / `load(filename:)` — evaluate Swish source from Swift
+- ✅ `Swish.call(_:_:)` — call a Swish function by name, arguments and result marshalled
+- ✅ Swift↔Swish value conversion — `SwishRepresentable`/`SwishDecodable`, covering the
+  scalars, `BigInt`/`BigDecimal`/`Ratio`, `Date`/`UUID`, `Optional`, `Array`/`Set`/
+  `Dictionary`, and `Expr` itself
+- ✅ Error type — `SwishError`, an umbrella **protocol** the existing error types conform
+  to (a wrapper enum was tried and reverted: it hid which error you got)
+- ✅ Callback registration — `Swish.register(_:as:)` takes an **unmodified** Swift
+  function; parameter packs derive the arity, trailing `Optional`s are optional args
+- ✅ Opaque host values — `Expr.foreign` + a one-line `SwishOpaque` conformance, so your
+  own types pass through Swish untouched
+
+Deferred: `async` functions (natives are synchronous), an `@SwishExport` macro
+(swift-syntax plugin target).
 
 ### ObjC runtime bridge (medium-term)
 The Objective-C runtime is available on all Apple platforms. Most UIKit/Foundation/AppKit types are `NSObject` subclasses with ObjC-compatible methods.
@@ -230,7 +238,7 @@ Mode 1 is feasible; Mode 2 is a research project. Start with Mode 1.
 4. ✅ **Missing map operations (dissoc, assoc-in, get-in, update, update-in, keys, vals)**
 5. ✅ **Atoms** — mutable state
 6. ✅ **Sequence utilities** (nth, take, drop, sort, etc.)
-7. **Embedding API cleanup** (public Swift interface to Swish) — ← current frontier, not started
+7. ✅ **Embedding API** (public Swift interface to Swish) — done; `Swish` façade, `Evaluator` sealed
 8. ✅ **clojure.string + clojure.set**
 9. **Bytecode interpreter** (architectural rework) — not started
 10. **ObjC/Swift interop** (. special form) — not started
