@@ -33,7 +33,6 @@ final class Repl {
     private var inputCount = 1
     private var results: [Int: Expr] = [:]
     private let lineReader: LineReader?
-    private var inputCancelled = false
 
     init(sourcePaths: [String] = []) {
         swish = Swish(sourcePaths: sourcePaths)
@@ -47,20 +46,28 @@ final class Repl {
 
         while true {
             let prompt = "\(swish.currentNamespaceName)(\(inputCount))> "
-            guard var input = readline(prompt: prompt) else {
-                if inputCancelled {
-                    inputCancelled = false
-                    continue
-                }
+            // Ctrl-C at an idle prompt exits, the same as end of input. *During* an
+            // evaluation it interrupts instead — that's the SIGINT handler below.
+            guard case .line(let firstLine) = readline(prompt: prompt) else {
                 teardownCursor()
                 return
             }
 
-            input = readMultilineInput(initial: input, mainPrompt: prompt)
-            if inputCancelled {
-                inputCancelled = false
+            let input: String
+            switch readMultilineInput(initial: firstLine, mainPrompt: prompt) {
+            case .line(let complete):
+                input = complete
+
+            case .interrupted:
+                // Abandons a partly-typed form rather than quitting outright; the next
+                // Ctrl-C, now at an empty main prompt, exits.
                 continue
+
+            case .endOfInput:
+                teardownCursor()
+                return
             }
+
             let trimmed = input.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { continue }
             lineReader?.addHistory(input)
@@ -102,38 +109,63 @@ final class Repl {
 
     // MARK: - I/O
 
-    private func readline(prompt: String) -> String? {
-        if let ln = lineReader {
-            do {
-                return try ln.readLine(prompt: prompt, strippingNewline: true)
-            }
-            catch LineReaderError.CTRLC {
-                print("^C")
-                inputCancelled = true
-                return nil
-            }
-            catch {
-                return nil
-            }
-        }
-        else {
+    /// Why a line read ended, so the main prompt and a continuation prompt can treat a
+    /// cancelled read differently.
+    private enum LineResult {
+        case line(String)
+
+        /// Ctrl-C. CommandLineKit clears `ISIG` in raw mode, so this arrives as a thrown
+        /// error rather than a signal — which is why it's handled here and not by the
+        /// `SIGINT` handler that covers a running evaluation.
+        case interrupted
+
+        /// End of input, or a reader failure. Also the non-TTY path: `LineReader.init?`
+        /// returns nil when stdin isn't a terminal, and `Swift.readLine()` returns nil
+        /// at EOF.
+        case endOfInput
+    }
+
+    private func readline(prompt: String) -> LineResult {
+        guard let lineReader else {
             print(prompt, terminator: "")
-            return Swift.readLine()
+            guard let line = Swift.readLine() else { return .endOfInput }
+            return .line(line)
+        }
+
+        do {
+            return .line(try lineReader.readLine(prompt: prompt, strippingNewline: true))
+        }
+        catch LineReaderError.CTRLC {
+            print("^C")
+            return .interrupted
+        }
+        catch {
+            return .endOfInput
         }
     }
 
-    private func readMultilineInput(initial: String, mainPrompt: String) -> String {
+    private func readMultilineInput(initial: String, mainPrompt: String) -> LineResult {
         var input = initial
         while true {
             let contType = continuationNeeded(input)
-            if contType == .none && !isIncompleteByParsing(input) { break }
+            if contType == .none && !isIncompleteByParsing(input) {
+                return .line(input)
+            }
             let additional = computeIndent(input, mainPromptLen: mainPrompt.count)
             let continuationPrompt = String(repeating: " ", count: mainPrompt.count - 2) + ". "
                 + String(repeating: " ", count: additional)
-            guard let continuation = readline(prompt: continuationPrompt) else { break }
-            input += "\n" + continuation
+            switch readline(prompt: continuationPrompt) {
+            case .line(let continuation):
+                input += "\n" + continuation
+
+            case .interrupted:
+                return .interrupted
+
+            // Previously this returned the partial text, which could only fail to parse.
+            case .endOfInput:
+                return .endOfInput
+            }
         }
-        return input
     }
 
     /// Returns true when the pre-scan says depth is balanced but parsing still needs more input —

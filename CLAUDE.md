@@ -637,3 +637,28 @@ Deferred because each needs a real design change, not a mechanical fix. Re-verif
 ## REPL Commands
 
 REPL commands are preceded by `/` (e.g., `/quit`, `/q`). This distinguishes them from Swish expressions.
+
+### Ctrl-C, and why Ctrl-D still doesn't quit
+
+**Ctrl-C means two things depending on when it arrives** (`Repl.swift`). During an
+evaluation it interrupts the running form — the terminal is back in canonical mode by
+then, so it's a real `SIGINT`, caught by the handler that drives `interruptionCheck`. At a
+prompt it's *not* a signal at all: CommandLineKit clears `ISIG` in raw mode, so the byte
+`0x03` surfaces as a thrown `LineReaderError.CTRLC`, and that path **exits the REPL**. At
+a *continuation* prompt it instead abandons the partly-typed form and returns to the main
+prompt — a second Ctrl-C, now at an idle prompt, exits. `readline`/`readMultilineInput`
+return a `LineResult` (`.line`/`.interrupted`/`.endOfInput`) rather than sharing a mutable
+`inputCancelled` flag, so each prompt decides for itself what a cancelled read means.
+
+**Ctrl-D is deliberately unfixed, and can't be fixed without replacing the line editor.**
+CommandLineKit binds it to erase-forward and rings the bell on an empty buffer; it never
+throws `EOF` on a TTY. Nothing can be hooked from outside the package: `EditState` is
+`internal`, `ringBell` is `private`, there is no key callback, and 1.1.1 is byte-identical
+to the pinned 1.0.0 here. Handing it an intercepting pipe fails too — `LineReader.init?`
+returns nil unless `isatty(inputFile)`. **When it is implemented, the agreed rule is
+empty-line-only**: Ctrl-D on an empty line quits, and deletes the character to the right
+otherwise, matching bash/Python/Node/Clojure. Ctrl-U and Ctrl-K already kill a line, so
+nothing is lost by Ctrl-C no longer clearing one.
+
+Note this is the *interactive* path only. With piped input `LineReader.init?` returns nil,
+the REPL falls back to `Swift.readLine()`, and EOF already exits correctly.

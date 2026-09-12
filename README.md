@@ -42,6 +42,9 @@ swift run swish -sp lib:vendor    # colon-separated namespace search path
 In the REPL, `/help` lists the commands, `/quit` exits, and `/1`, `/2`, … refer back to
 earlier results. Commands match on any unique prefix, so `/q` works.
 
+Ctrl-C interrupts a running evaluation; at an idle prompt it exits. Part-way through a
+multi-line form it abandons the form and returns to the main prompt.
+
 ```
 user(1)> [1 2 3]
 => [1 2 3]
