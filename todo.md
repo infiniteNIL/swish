@@ -1,21 +1,8 @@
 # Todo
 
-- [x] Embedding API — `Swish` is the whole public surface (Evaluator is now internal)
-      - [x] Swish.eval / load — evaluate Swish source from Swift
-      - [x] Swish.call(_:_:) — call a Swish function by name, with marshalling
-      - [x] Swift↔Swish value conversion — SwishRepresentable / SwishDecodable
-      - [x] Typed eval/decode — eval(_:as:), Expr.decode, Keyword/Symbol
-      - [x] SwishCodable — Swift structs ↔ Swish maps and defrecords
-      - [x] Lazy sequences — prefix/forEach, safe on infinite seqs
-      - [x] Calling function values — call(Expr,…), function(named:)
-      - [x] Error type — `SwishError` umbrella protocol (not a wrapper enum)
-      - [x] Callback registration — Swish.register(_:as:) takes an unmodified
-            Swift function; parameter packs derive the arity
-      - [x] Opaque host values — `Expr.foreign` + `SwishOpaque`
-      - [ ] async Swift functions (needs a future/promise bridge)
-      - [ ] @SwishExport macro (needs a swift-syntax plugin target)
 - [ ] Swift interop (ObjC runtime dispatch — the `.` special form)
 
+- [x] Embedding API — `Swish` is the whole public surface (Evaluator is now internal)
 - [x] updated jank suite again (still passing)
 - [x] Can we make any of the builtins just a Clojure function
 - [x] print infrastructure: print-control vars now honored per-print (*print-length*
