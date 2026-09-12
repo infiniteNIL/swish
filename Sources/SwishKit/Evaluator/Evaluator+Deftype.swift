@@ -222,7 +222,7 @@ extension Evaluator {
 
     /// The dispatch-key string for an already-evaluated "type value" argument, as
     /// passed to `extend`/`extend-type`/`extends?`/`instance?`. `nil` dispatches
-    /// as `"nil"` (matching `Expr.nil.description`, and real Clojure's own
+    /// as `"nil"` (matching `Expr.nil.typeName`, and real Clojure's own
     /// `(extend nil Proto {...})` idiom); a `deftype`/`defrecord` bare type-var
     /// evaluates to `.keyword(qualifiedTypeName)`, and a built-in type name
     /// (`String`, `Int`, `Vector`, `Number`, ... — all bound to their dispatch

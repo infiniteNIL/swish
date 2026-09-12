@@ -330,7 +330,11 @@ private func opaqueHasheq(_ expr: Expr) -> Int32 {
         return hashCombine(mapHasheq(d.map { ($0.key, $0.value) }), javaStringHashCode(t))
 
     default:
-        return javaStringHashCode(expr.description)
+        // `typeName`, never `description`: this must stay a constant per *kind*.
+        // Rendering the value instead would make `(hash an-atom)` move when the
+        // atom mutates (corrupting any map it keys), and would force a `.delay`,
+        // deref a `.future`, and block on a `.promise` — see Printer.
+        return javaStringHashCode(expr.typeName)
     }
 }
 

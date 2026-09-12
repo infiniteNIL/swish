@@ -2,6 +2,11 @@ import Foundation
 import BigInt
 import BigDecimal
 
+// The `SwishDecodable` conformances below are the *source of truth* for every
+// conversion: `Expr`'s `as*` accessors delegate to them. They must therefore
+// pattern-match `Expr` directly and never call an `as*` accessor back, or the
+// two recurse until the stack runs out.
+
 // MARK: - Identity
 
 // `Expr` conforming to both halves is the escape hatch: a registered function
@@ -18,13 +23,31 @@ extension Expr: SwishConvertible {
 extension String: SwishConvertible {
     public var swishValue: Expr { .string(self) }
 
-    // Deliberately narrower than `asString()`, which also unwraps symbols and
-    // keywords: at the host boundary a `String` parameter should mean a Swish
-    // string, not silently accept `'foo` or `:foo`. Take an `Expr` parameter to
-    // handle those.
+    // Decodes a keyword's or symbol's name as well as a string, matching
+    // `asString()`. Keyword-keyed maps are the Clojure norm, so a strict `String`
+    // would mean `[String: Int]` could never read `{:a 1}` — or any `defrecord`,
+    // whose fields are keyword-keyed.
+    //
+    // Two consequences, both deliberate:
+    //   - A registered `(String) -> …` accepts `(f :oops)`. Take an `Expr`
+    //     parameter when a function needs to reject that.
+    //   - The round trip is lossy: a `String` always encodes back to `.string`,
+    //     so a map read as `[String: Int]` and handed back has string keys and
+    //     `(:a m)` misses. Use `Keyword` or a `SwishCodable` struct to preserve it.
     public init?(swishValue: Expr) {
-        guard case let .string(s) = swishValue else { return nil }
-        self = s
+        switch swishValue {
+        case .string(let s):
+            self = s
+
+        case .keyword(let k):
+            self = k
+
+        case .symbol(let s, _):
+            self = s
+
+        default:
+            return nil
+        }
     }
 }
 
@@ -32,7 +55,7 @@ extension Character: SwishConvertible {
     public var swishValue: Expr { .character(self) }
 
     public init?(swishValue: Expr) {
-        guard let c = swishValue.asCharacter() else { return nil }
+        guard case let .character(c) = swishValue else { return nil }
         self = c
     }
 }
@@ -43,7 +66,7 @@ extension Bool: SwishConvertible {
     public var swishValue: Expr { .boolean(self) }
 
     public init?(swishValue: Expr) {
-        guard let b = swishValue.asBool() else { return nil }
+        guard case let .boolean(b) = swishValue else { return nil }
         self = b
     }
 }
@@ -249,7 +272,7 @@ extension Date: SwishConvertible {
     public var swishValue: Expr { .inst(self) }
 
     public init?(swishValue: Expr) {
-        guard let d = swishValue.asDate() else { return nil }
+        guard case let .inst(d) = swishValue else { return nil }
         self = d
     }
 }
@@ -258,7 +281,7 @@ extension UUID: SwishConvertible {
     public var swishValue: Expr { .uuid(self) }
 
     public init?(swishValue: Expr) {
-        guard let u = swishValue.asUUID() else { return nil }
+        guard case let .uuid(u) = swishValue else { return nil }
         self = u
     }
 }
@@ -347,7 +370,10 @@ extension Dictionary: SwishDecodable where Key: SwishDecodable, Value: SwishDeco
         result.reserveCapacity(pairs.count)
         for (key, value) in pairs {
             guard let k = Key(swishValue: key), let v = Value(swishValue: value) else { return nil }
-            result[k] = v
+            // Two distinct Swish keys can converge on one Swift key — `{:a 1 "a" 2}`
+            // decoded as [String: Int], say. Silently keeping whichever came last
+            // would make the result depend on unspecified iteration order.
+            guard result.updateValue(v, forKey: k) == nil else { return nil }
         }
         self = result
     }

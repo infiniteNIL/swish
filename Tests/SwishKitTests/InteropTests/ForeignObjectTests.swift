@@ -43,7 +43,7 @@ struct ForeignObjectTests {
     func referenceSemantics() throws {
         let swish = Swish()
         let counter = Counter()
-        swish.define(counter, as: "counter")
+        try swish.define(counter, as: "counter")
         swish.register({ (c: Counter) in c.bump() }, as: "bump!")
 
         _ = try swish.eval("(bump!  counter) (bump! counter)")

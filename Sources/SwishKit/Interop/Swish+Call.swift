@@ -35,6 +35,6 @@ public extension Swish {
 
     private func callReturningExpr(_ name: String, _ args: [any SwishRepresentable]) throws -> Expr {
         let callee = try evaluator.function(named: name)
-        return try evaluator.call(callee, args: args.map(\.swishValue))
+        return try evaluator.call(callee, args: try args.map(swishValue(of:)))
     }
 }

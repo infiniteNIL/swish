@@ -1,5 +1,5 @@
 //
-//  File.swift
+//  Expr+Swift.swift
 //  Swish
 //
 //  Created by Rod Schmidt on 9/2/26.
@@ -7,11 +7,20 @@
 
 import Foundation
 
-/// Extensions to extract Swift types for Swish Exprs
+/// Convenience accessors for reading a Swish `Expr` as a Swift value.
+///
+/// These are the raw-`Expr` layer. For most host code the typed bridge is
+/// preferable — `expr.decode(Int.self)`, `try swish.eval(source, as: [Int].self)`,
+/// or `Int(swishValue: expr)` — which reports what it expected when it fails and
+/// converts nested collections for you.
 public extension Expr {
-    /// Get a Swift array from an Swish Expr.
-    /// Arrays can be made from Swish arrays, lists, vectors, ???
-    /// - Returns: a Swift String
+    /// Get a Swift array from a Swish Expr.
+    ///
+    /// Accepts arrays, lists, seqs, vectors, and lazy seqs.
+    ///
+    /// - Important: A lazy seq is realized in full. Never call this on a
+    ///   possibly-infinite seq — use `prefix(_:of:)` or `forEach(of:_:)` instead.
+    /// - Returns: the elements, or nil if this isn't a sequential value
     func asArray() -> Array<Expr>? {
         switch self {
         case let .array(a):
@@ -41,11 +50,21 @@ public extension Expr {
     }
     
     /// Get a Swift array from a Swish Expr, converting the elements.
+    ///
+    /// Fails rather than losing data: nil if any element can't be converted, so
+    /// `[1 "x" 3]` mapped through `Expr.toInt` is nil, not `[1, 3]`.
+    ///
     /// - Parameter mapElement: A function to convert each element to the Swift type you want
-    /// - Returns: A Swift array of the type you converted to.
+    /// - Returns: A Swift array of the type you converted to, or nil
     func asArray<T>(_ mapElement: (Expr) -> T?) -> Array<T>? {
         guard let a = asArray() else { return nil }
-        return a.compactMap { mapElement($0) }
+        var result: [T] = []
+        result.reserveCapacity(a.count)
+        for element in a {
+            guard let converted = mapElement(element) else { return nil }
+            result.append(converted)
+        }
+        return result
     }
 
     static func toBool(_ expr: Expr) -> Bool? {
@@ -53,12 +72,7 @@ public extension Expr {
     }
 
     func asBool() -> Bool? {
-        if case let .boolean(b) = self {
-            b
-        }
-        else {
-            nil
-        }
+        Bool(swishValue: self)
     }
 
     static func toCharacter(_ expr: Expr) -> Character? {
@@ -66,12 +80,7 @@ public extension Expr {
     }
 
     func asCharacter() -> Character? {
-        if case let .character(ch) = self {
-            ch
-        }
-        else {
-            nil
-        }
+        Character(swishValue: self)
     }
 
     static func toDate(_ expr: Expr) -> Date? {
@@ -79,12 +88,7 @@ public extension Expr {
     }
 
     func asDate() -> Date? {
-        if case let .inst(d) = self {
-            d
-        }
-        else {
-            nil
-        }
+        Date(swishValue: self)
     }
 
     /// Get a Swift dictionary from a Swish map, record, or sortedMap
@@ -105,17 +109,22 @@ public extension Expr {
         }
     }
 
-    /// Get a Swift dictionary from a Swish map, record, or sortedMap, converting the elements.
+    /// Get a Swift dictionary from a Swish map, record, or sortedMap, converting the entries.
+    ///
+    /// Fails rather than losing data: nil if any key or value can't be converted,
+    /// and nil if two distinct Swish keys converge on the same Swift key (mapping
+    /// `{:a 1 "a" 2}` through `Expr.toString` would otherwise keep one entry
+    /// chosen by unspecified iteration order).
+    ///
     /// - Parameter mapKey: A function to convert each key to the Swift type you want
     /// - Parameter mapValue: A function to convert each value to the Swift type you want.
-    /// - Returns: A Swift dictionary of the types you converted to.
+    /// - Returns: A Swift dictionary of the types you converted to, or nil
     func asDictionary<K, V>(mapKey: (Expr) -> K?, mapValue: (Expr) -> V?) -> Dictionary<K, V>? {
         guard let d = asDictionary() else { return nil }
         var result: Dictionary<K, V> = [:]
         for (k, v) in d {
-            if let key = mapKey(k), let newValue = mapValue(v) {
-                result[key] = newValue
-            }
+            guard let key = mapKey(k), let newValue = mapValue(v) else { return nil }
+            guard result.updateValue(newValue, forKey: key) == nil else { return nil }
         }
         return result
     }
@@ -124,40 +133,29 @@ public extension Expr {
         expr.asDouble()
     }
 
+    /// Also accepts integers and floats — Swish's numeric tower makes `5` a
+    /// perfectly good `Double`. (It used to accept only `.double`/`.ratio`, so
+    /// `asDouble()` on `5` was nil.)
     func asDouble() -> Double? {
-        switch self {
-        case let .double(d):
-            d
-
-        case let .ratio(r):
-            Double(r.numerator) / Double(r.denominator)
-
-        default:
-            nil
-        }
+        Double(swishValue: self)
     }
 
     static func toFloat(_ expr: Expr) -> Float? {
         expr.asFloat()
     }
 
+    /// Also accepts integers and doubles — see `asDouble()`.
     func asFloat() -> Float? {
-        switch self {
-        case let .float(f):
-            f
-
-        case let .ratio(r):
-            Float(r.numerator) / Float(r.denominator)
-
-        default:
-            nil
-        }
+        Float(swishValue: self)
     }
 
     static func toInt(_ expr: Expr) -> Int? {
         expr.asInt()
     }
 
+    /// Deliberately **not** `Int(swishValue:)`, which is strict: this truncates a
+    /// ratio by integer division, so `(/ 5 2)` reads as `2`. Use `decode(Int.self)`
+    /// or `Int(swishValue:)` when a ratio should be an error instead.
     func asInt() -> Int? {
         switch self {
         case let .integer(i):
@@ -171,32 +169,7 @@ public extension Expr {
         }
     }
 
-    private struct SwiftLazySequence: Sequence {
-        public struct Iterator: IteratorProtocol {
-            typealias Element = Expr
-            private var current: Expr?
 
-            init(box: LazySeqBox) {
-                self.current = .lazySeq(box)
-            }
-
-            public mutating func next() -> Expr? {
-                guard case let .lazySeq(box) = current else {
-                    return nil
-                }
-                let value = try? box.forceHead()
-                current = try? box.forceTail()
-                return value
-            }
-        }
-
-        let box: LazySeqBox
-
-        public func makeIterator() -> Iterator {
-            Iterator(box: box)
-        }
-    }
-    
     /// Returns a Sequence over the elements of any sequential Swish value.
     ///
     /// A lazy seq is iterated lazily, one element realized at a time; every
@@ -205,8 +178,11 @@ public extension Expr {
     /// - Returns: a sequence, or nil if the Expr isn't sequential
     func asSequence() -> (any Sequence<Expr>)? {
         switch self {
-        case let .lazySeq(seq):
-            SwiftLazySequence(box: seq)
+        // Realized one element at a time, so an infinite seq stays usable.
+        // Iteration stops on a realization error rather than reporting it — use
+        // `forEach(of:_:)` or `prefix(_:of:)` when you need to know.
+        case .lazySeq:
+            lazySequence(of: Expr.self)
 
         case let .seq(s):
             s
@@ -244,27 +220,33 @@ public extension Expr {
     }
 
     /// Get a Swift set from a Swish Expr, converting the elements.
+    ///
+    /// Fails rather than losing data: nil if any element can't be converted, and
+    /// nil if two distinct Swish elements converge on the same Swift value.
+    ///
     /// - Parameter mapElement: A function to convert each element to the Swift type you want
-    /// - Returns: A Swift set of the type you converted to.
+    /// - Returns: A Swift set of the type you converted to, or nil
     func asSet<T>(_ mapElement: (Expr) -> T?) -> Set<T>? {
         guard let s = asSet() else { return nil }
-        return Set(s.compactMap(mapElement))
+        var result: Set<T> = []
+        for element in s {
+            guard let converted = mapElement(element) else { return nil }
+            guard result.insert(converted).inserted else { return nil }
+        }
+        return result
     }
 
     static func toString(_ expr: Expr) -> String? {
         expr.asString()
     }
 
-    /// Get a Swift string from an Swish Expr.
-    /// Strings can be made from Swish strings, symbols, and keywords
-    /// - Returns: a Swift String
+    /// Get a Swift string from a Swish Expr.
+    ///
+    /// Accepts strings, symbols and keywords, flattening all three to the bare
+    /// name — `String(swishValue:)` does the same.
+    /// - Returns: a Swift String, or nil
     func asString() -> String? {
-        switch self {
-        case let .string(s):    s
-        case let .symbol(s, _): s
-        case let .keyword(s):   s
-        default:                nil
-        }
+        String(swishValue: self)
     }
     
     static func toTuple(_ expr: Expr) -> (Expr, Expr)? {
@@ -300,12 +282,7 @@ public extension Expr {
     }
 
     func asUUID() -> UUID? {
-        if case let .uuid(u) = self {
-            u
-        }
-        else {
-            nil
-        }
+        UUID(swishValue: self)
     }
 
     /* TODO

@@ -1,5 +1,14 @@
-extension Expr: CustomStringConvertible {
-    public var description: String {
+public extension Expr {
+    /// The name of this value's Swish type — `"integer"`, `"vector"`, `"lazy-seq"`,
+    /// a `defrecord`/`deftype`'s qualified type name, or a foreign value's Swift
+    /// type name.
+    ///
+    /// This is the dispatch key, not a rendering: `type`, `instance?`, `satisfies?`,
+    /// `catch` clause matching, and `hash`'s opaque-value fallback all compare
+    /// against it, so it must stay stable per *kind* and never depend on contents.
+    /// To render a value, use `Swish.printString(_:)` / `toString(_:)`, or just
+    /// interpolate it — `description` prints the value.
+    var typeName: String {
         switch self {
         case .nil:
             return "nil"
@@ -131,4 +140,19 @@ extension Expr: CustomStringConvertible {
             return object.typeName
         }
     }
+}
+
+extension Expr: CustomStringConvertible {
+    /// The value, rendered the way `pr-str` would — so interpolating an `Expr`
+    /// does the obvious thing and test failures read as values rather than as
+    /// type names.
+    ///
+    /// `printString` rather than `strString`: a top-level string stays quoted,
+    /// which is what keeps `"a"` distinguishable from `'a` in debug output.
+    /// The printer's `*print-length*` cap is what makes this terminate on an
+    /// infinite lazy seq (it realizes up to that many elements as a side effect).
+    ///
+    /// For the dispatch key — `type`, `instance?`, `catch` matching, `hash`'s
+    /// opaque fallback — use `typeName`.
+    public var description: String { corePrinter.printString(self) }
 }

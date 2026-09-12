@@ -2331,7 +2331,7 @@
 ;; Built-in type-name vars, so protocols can be extended onto Swish's built-in
 ;; types with real type names — e.g. (extend-type String P ...). Each is bound to
 ;; the dispatch keyword the runtime already produces (= the value's `type`, i.e.
-;; its Expr.description), exactly as a deftype's name-var is bound to its
+;; its Expr.typeName), exactly as a deftype's name-var is bound to its
 ;; type-identity keyword. Scalars use Swift names (their honest underlying type:
 ;; a Swish string IS a Swift String, etc.); persistent collections and
 ;; Clojure-native scalars use Swish-native names (no Swift-stdlib equivalent).

@@ -177,7 +177,7 @@ private func coreClass(_ args: [Expr]) throws -> Expr {
     if case .nil = args[0] {
         return .nil
     }
-    return .keyword(args[0].description)
+    return .keyword(args[0].typeName)
 }
 
 // MARK: - Helpers

@@ -17,10 +17,23 @@ try swish.load(filename: "app.swish")
 
 ### Calling Swish from Swift
 
+Results convert to the Swift type you ask for, from `eval` as well as `call`:
+
 ```swift
 let greeting: String = try swish.call("hello", "Swish")
-let total: Int = try swish.call("sum", [1, 2, 3])
+let numbers: [Int] = try swish.eval("(range 1 5)")
+let tally = try swish.eval("{:a 1 :b 2}", as: [String: Int].self)
 ```
+
+A function value works too — one from `eval`, or one Swish handed back:
+
+```swift
+let addTen = try swish.call("adder", 10)
+let result: Int = try swish.call(addTen, 32)      // 42
+```
+
+Use `function(named:)` to resolve once and call repeatedly, and `Expr.decode(_:)`
+when you're holding a raw value.
 
 ### Calling Swift from Swish
 
@@ -42,7 +55,7 @@ Methods work the same way, including on a view model:
 
 ```swift
 swish.register(viewModel.formatPrice, as: "format-price")
-swish.define(appVersion, as: "app-version")
+try swish.define(appVersion, as: "app-version")
 ```
 
 Order doesn't matter — registering after loading your Swish source works too.
@@ -51,6 +64,33 @@ Order doesn't matter — registering after loading your Swish source works too.
 `Array`, `Set`, `Dictionary` and `Expr` itself all convert automatically. A trailing
 `Optional` parameter may be omitted at the Swish call site. Take an `Expr` parameter
 when you want the raw Swish value.
+
+### Structs, from maps and records
+
+Conform a `Codable` type to `SwishCodable` and it converts to and from a Swish map —
+or a `defrecord`, whose fields are keyword-keyed either way.
+
+```swift
+struct Point: Codable, SwishCodable { var x: Int; var y: Int }
+
+let p: Point = try swish.eval("{:x 1 :y 2}")
+let moved: Point = try swish.call("shift", p, 10)
+```
+
+A bad field reports which one, as a `DecodingError` with a coding path.
+
+### Infinite sequences
+
+Converting a lazy seq to an array realizes it in full, so `(range)` would never
+return. Read a bounded slice instead:
+
+```swift
+let first10 = try swish.eval("(range)").prefix(10, of: Int.self)
+
+try swish.eval("(naturals)").forEach(of: Int.self) { n in
+    if n > 100 { throw Done() }
+}
+```
 
 ### Passing your own types through
 
@@ -86,7 +126,19 @@ An error thrown out of a registered Swift function becomes a catchable
        (println (ex-message e) (:swift-error-type (ex-data e)))))
 ```
 
+### Keywords
+
+A Swish keyword decodes as a Swift `String` (its name), which is what makes
+`[String: Int]` read `{:a 1 :b 2}`. When you need to *produce* a keyword, or to hand a
+map back without its keys turning into strings, use `Keyword`:
+
+```swift
+let tally: [Keyword: Int] = try swish.eval("{:a 1}")
+try swish.call("assoc", m, Keyword("status"), "ok")
+```
+
 ### Rendering values
 
-`Expr.description` is the value's *type name*, not its contents. To render a value,
-use `swish.printString(_:)` (like `pr-str`) or `swish.toString(_:)` (like `str`).
+Interpolating an `Expr` prints the value. `swish.printString(_:)` (`pr-str`) and
+`swish.toString(_:)` (`str`) give you the two Clojure renderings explicitly, and
+`Expr.typeName` gives the type.

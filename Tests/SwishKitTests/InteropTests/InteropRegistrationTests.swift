@@ -145,7 +145,7 @@ struct InteropRegistrationTests {
     @Test("An Expr parameter receives the raw Swish value untouched")
     func rawExprParameter() throws {
         let swish = Swish()
-        swish.register({ (e: Expr) in "\(e.description)" }, as: "type-name")
+        swish.register({ (e: Expr) in e.typeName }, as: "type-name")
 
         #expect(try swish.eval("(type-name :kw)") == .string("keyword"))
         #expect(try swish.eval("(type-name 'sym)") == .string("symbol"))
@@ -154,7 +154,7 @@ struct InteropRegistrationTests {
     @Test("define binds a constant")
     func definesConstant() throws {
         let swish = Swish()
-        swish.define("1.2.3", as: "app-version")
+        try swish.define("1.2.3", as: "app-version")
 
         #expect(try swish.eval("app-version") == .string("1.2.3"))
     }

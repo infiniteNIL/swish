@@ -387,13 +387,28 @@ Two deliberate asymmetries at the boundary:
 - **Floating-point parameters widen** across the numeric tower, so `(area 5)` calls
   a `(Double) -> Double`. That matches how Clojure treats numbers.
 
-`String(swishValue:)` is narrower than `asString()` — it accepts a Swish string
-only, not symbols and keywords; take an `Expr` parameter for those.
+**`String(swishValue:)` accepts a keyword's or symbol's name too**, matching
+`asString()`. It was strict for one day; keyword-keyed maps are the Clojure norm, so
+a strict `String` meant `[String: Int]` could never read `{:a 1}` — or any
+`defrecord`, whose fields are keyword-keyed. Two consequences, both deliberate: a
+registered `(String) -> …` accepts `(f :oops)` (take an `Expr` parameter to reject
+it), and the round trip is lossy — a `String` always encodes back to `.string`, so a
+map read as `[String: Int]` and handed back has string keys and `(:a m)` misses. Use
+`Keyword` or a `SwishCodable` struct when the trip matters.
 
-**`Expr.description` is the value's *type name*, not its content** (protocol dispatch
-depends on this — see `dispatchTypeName`/`builtinAncestors`), so `print(expr)` in host
-code gives `string`, not the string. `Swish.printString(_:)` (`pr-str`) and
-`Swish.toString(_:)` (`str`) are the renderers.
+**`Expr.typeName` is the dispatch key; `Expr.description` renders the value.**
+`description` used to return the type name, so `print(expr)` gave `string` — a
+`CustomStringConvertible` misuse that also made all 2686 `#expect` failures print
+`"integer"` instead of the number. The type-name switch moved to `typeName`, which
+`type`/`instance?`/`satisfies?`/`catch` matching/`builtinAncestors`/`hasheq` all use.
+
+**`CoreHash.swift`'s `opaqueHasheq` must keep using `typeName`** — this is the
+load-bearing one. Its fallback is `javaStringHashCode(expr.typeName)`, a constant per
+*kind*. Rendering the value instead would make `(hash an-atom)` move when the atom
+mutates, corrupting any map it keys; and because the printer *forces* a `.delay`,
+*derefs* a `.future` and *blocks on* a `.promise`, `(hash (promise))` would deadlock
+and `(hash (delay …))` would run the host's side effect. `CoreHashOpaqueTests` pins
+all three.
 
 ### Registration — parameter packs, and why there is no box
 
@@ -480,11 +495,120 @@ constructing the record, so the type name stays whatever `core.clj` defines. Err
 that are already Swish-level (`SwishException`, `EvaluatorError` — including
 `ArgumentCursor`'s conversion failure) pass through untouched.
 
+### Getting data out — typed decoding
+
+The outbound mirror of `register`. `Swish.eval` still returns a raw `Expr`; the typed
+overload is **`eval(_:as:)` with a defaulted label**, not a bare `eval<T>` overload —
+measured, not assumed: a bare overload resolves correctly against all ~3800 existing
+`swish.eval` call sites but costs **+37%** typecheck time across them, where the
+defaulted-label form costs +5% with identical ergonomics (`let n: Int = try
+swish.eval("(+ 1 2)")` still infers). **Keep the `= T.self` default** — dropping it
+breaks inference.
+
+`Expr.decode(_:)` is the throwing counterpart of `T(swishValue:)`; the failable init
+remains the optional-returning spelling. There is deliberately no third
+`decodeIfPresent`. `decode` **special-cases `SwishCodable`** and goes straight to
+`ExprDecoder`, because the protocol's failable `init?(swishValue:)` swallows the
+`DecodingError` — which is the whole point of the Codable bridge.
+
+`Keyword` and `Symbol` are value types for when the string/keyword distinction
+matters — producing one, or round-tripping without flattening. Both split a qualified
+name (`Expr.keyword` carries `"ns/name"` in one String). `Keyword.description` is
+`":a"` and `Symbol`'s is the bare name, matching Clojure's `str`. `Symbol` drops
+metadata in both directions. `ExpressibleByStringLiteral` on `Keyword` is verified not
+to hijack `swish.call("f", "literal")`.
+
+### `SwishCodable` — Swift structs ↔ Swish maps and records
+
+`extension Point: SwishCodable {}` is the whole opt-in, mirroring `SwishOpaque`:
+where that hands a type through untouched, this takes it apart into a keyword-keyed
+map. Real `Encoder`/`Decoder` conformances live in `ExprEncoder.swift`/
+`ExprDecoder.swift` — named for what they consume, *not* `SwishEncoder`/`SwishDecoder`,
+which sit one letter from `SwishDecodable` and mean the opposite.
+
+Four things are load-bearing:
+
+- **The dispatch order in `decodeExpr`/`encodeValue` is a recursion guard.** Every
+  `SwishCodable` is also `SwishDecodable`/`SwishRepresentable`, and its protocol
+  defaults call back into the coder. Order must be (a) `SwishCodable` → `T(from:)`,
+  (b) leaf → `T(swishValue:)`, (c) `T(from:)`. **Reversing (a) and (b) recurses
+  infinitely**, on both sides. `ExprDecoder.decode(_:from:)` routes through
+  `decodeExpr` (so a top-level `Date` converts from `#inst` rather than Codable's
+  bare `Double`), which is safe only because step (a) calls the *synthesized*
+  `T(from:)` and never `init?(swishValue:)`.
+- **`SwishLeafConvertible` is a closed allowlist, not "is it `SwishDecodable`".**
+  `Array`/`Set`/`Dictionary`/`Optional` conform conditionally, so the broad predicate
+  would route `[Int]` around `unkeyedContainer` — losing element-level `codingPath`
+  and inheriting `Array.init?(swishValue:)`'s eager realization, which hangs on an
+  infinite seq. The allowlist also keeps `Date` a `#inst` and `UUID` a `#uuid`, where
+  their own `Codable` conformances are a `Double` and a `String`.
+- **Optionality comes from `decodeNil`, not `contains`** — a `defrecord` always
+  carries every declared field, usually as `.nil`. Only `.nil` counts as nil; Swish's
+  `false`-is-falsey truthiness must not leak into Codable, and a non-optional field
+  holding `.nil` is `valueNotFound`, never a silent `0`.
+- **Encode errors are not swallowed.** `SwishRepresentable.swishValue` can't throw, so
+  `register`'s return path and `call`'s argument path go through `swishValue(of:)`,
+  which prefers `SwishCodable.swishEncodedValue()`. `define` became `throws` for the
+  same reason.
+
+Reads `.map`, `.sortedMap` and `.record`; **not `.deftype`** — it keys by keyword too
+but is deliberately non-associative, matching Clojure and `CoreMap.swift`. Encoding
+emits `.map`, never `.record` (a record needs a `defrecord`-registered type). Key
+lookup is ordered first-match keyword → string → symbol; a map can hold both `:a` and
+`"a"`. `keyStrategy` is `.keyword` (verbatim) by default, `.kebabCaseKeyword` for
+idiomatic Clojure keys.
+
+**A `SwishOpaque` handle cannot be a field of a `SwishCodable` struct** — Codable
+synthesis rejects a non-`Decodable` field at compile time and no runtime dispatch can
+rescue it. `SwishOpaqueCodable` supplies the conformance; encoding such a value
+through anything but `ExprEncoder` throws a clear error.
+
+### Lazy sequences — bounded reads, no silent truncation
+
+`[Int](swishValue:)` and `asArray()` realize a lazy seq **in full**, so decoding
+`(range)` never returns. `Expr.prefix(_:of:)` is the bounded, strict, throwing read to
+reach for; `Expr.forEach(of:_:)` streams and can't hide an error; `lazySequence(of:)`
+returns a **named** `SwishLazySequence<T>` (not `some Sequence`) precisely so its
+iterator can expose `failure` — `next()` can't throw, and stopping silently is the bug
+being fixed. A fixed bug of that exact shape: the old private iterator did
+`try? box.forceHead()`, which **flattens** `Expr??`, making a realization error
+indistinguishable from the end of the sequence.
+
+A lazy sequence runs Swish code on whatever thread consumes it — same contract as a
+registered function.
+
+### Calling function values
+
+`call` is overloaded on an `Expr` first parameter rather than gaining an `apply`:
+Clojure's `apply` splices its last argument, so `swish.apply(f, 1, 2)` would read as
+`(apply f 1 2)` and mislead. `function(named:)` resolves once for repeated calls, and
+`call(_:arguments:)` takes a pre-built list, which the variadic forms can't. Swish's
+other callables (keyword, map, vector, set) work, matching Clojure; a `.macro` value
+expands without evaluating.
+
+### `as*` accessors — the raw layer, now consistent
+
+`Expr+Swift.swift` stays as the raw-`Expr` convenience layer. **The `SwishDecodable`
+conformances are the source of truth and `as*` delegates to them** — not the other way
+around. That direction matters: those conformances used to be *written in terms of*
+`asDate()`/`asBool()`/`asCharacter()`/`asUUID()`, so delegating the accessors back to
+them produced infinite recursion (a SIGBUS the suite caught). Conformances must
+pattern-match `Expr` directly.
+
+`asArray(_:)`/`asSet(_:)`/`asDictionary(mapKey:mapValue:)` now fail fast rather than
+`compactMap`-ing elements away, and reject key/element collisions — mapping
+`{:a 1 "a" 2}` through `Expr.toString` used to keep one entry chosen by unspecified
+iteration order. Two accessors deliberately stay wider than the bridge, cross-
+referenced in comments: `asInt()` truncates a `.ratio` (so `(/ 5 2)` reads as `2`) and
+`asString()` matches the relaxed `String`.
+
 ### Still deferred
 
 `async` Swift functions (natives are synchronous — would need a future/promise
 bridge), an `@SwishExport` macro (needs a swift-syntax plugin target), and ObjC
-runtime dispatch (the `.` special form).
+runtime dispatch (the `.` special form). `Swish.call`'s arguments are existential
+varargs rather than a parameter pack, so they aren't type-checked per position the way
+`register`'s are — harmless, since every argument only needs `SwishRepresentable`.
 
 ## Deferred Performance/Architecture Items
 

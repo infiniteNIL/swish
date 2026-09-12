@@ -60,7 +60,7 @@ public extension Swish {
                            arglists: shape.arglists) { [evaluator] args in
             let cursor = ArgumentCursor(args: args, function: name)
             do {
-                return try fn(repeat cursor.next((each A).self)).swishValue
+                return try swishValue(of: fn(repeat cursor.next((each A).self)))
             }
             catch {
                 throw evaluator.hostException(error, function: name)
@@ -122,8 +122,8 @@ public extension Swish {
 
     /// Binds a constant, readable from Swish as `name`.
     @discardableResult
-    func define(_ value: some SwishRepresentable, as name: String, in namespace: String? = nil) -> Self {
-        evaluator.define(value.swishValue, as: name, in: namespace)
+    func define(_ value: some SwishRepresentable, as name: String, in namespace: String? = nil) throws -> Self {
+        evaluator.define(try swishValue(of: value), as: name, in: namespace)
         return self
     }
 }

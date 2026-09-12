@@ -4,6 +4,10 @@
       - [x] Swish.eval / load — evaluate Swish source from Swift
       - [x] Swish.call(_:_:) — call a Swish function by name, with marshalling
       - [x] Swift↔Swish value conversion — SwishRepresentable / SwishDecodable
+      - [x] Typed eval/decode — eval(_:as:), Expr.decode, Keyword/Symbol
+      - [x] SwishCodable — Swift structs ↔ Swish maps and defrecords
+      - [x] Lazy sequences — prefix/forEach, safe on infinite seqs
+      - [x] Calling function values — call(Expr,…), function(named:)
       - [x] Error type — `SwishError` umbrella protocol (not a wrapper enum)
       - [x] Callback registration — Swish.register(_:as:) takes an unmodified
             Swift function; parameter packs derive the arity

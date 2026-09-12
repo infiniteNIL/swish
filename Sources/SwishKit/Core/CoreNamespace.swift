@@ -109,9 +109,9 @@ private func coreRequire(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr 
 
 private func coreAlias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let aliasName = try requireSymbol(args[0], function: "alias",
-        message: "first argument must be a symbol, got \(args[0])")
+        message: "first argument must be a symbol, got \(corePrinter.printString(args[0]))")
     let nsName = try requireSymbol(args[1], function: "alias",
-        message: "second argument must be a symbol, got \(args[1])")
+        message: "second argument must be a symbol, got \(corePrinter.printString(args[1]))")
     guard let ns = evaluator.findNs(nsName) else {
         throw EvaluatorError.namespaceNotFound(nsName)
     }
@@ -121,7 +121,7 @@ private func coreAlias(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
 
 private func coreRefer(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let nsName = try requireSymbol(args[0], function: "refer",
-        message: "first argument must be a symbol, got \(args[0])")
+        message: "first argument must be a symbol, got \(corePrinter.printString(args[0]))")
     guard let srcNs = evaluator.findNs(nsName) else {
         throw EvaluatorError.namespaceNotFound(nsName)
     }

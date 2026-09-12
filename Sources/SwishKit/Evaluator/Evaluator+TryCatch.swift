@@ -117,7 +117,7 @@ extension Evaluator {
     /// Whether a `catch` clause declaring `typeName` matches `thrownValue`, using the
     /// same type test as `instance?`: a catch-all name matches any value; otherwise
     /// the declared type symbol is resolved (eval → `dispatchTypeName`) and matched
-    /// against the thrown value's type name (`Expr.description`) via `builtinAncestors`.
+    /// against the thrown value's type name (`Expr.typeName`) via `builtinAncestors`.
     /// Anything that doesn't resolve to a dispatchable type is a **non-match**, so an
     /// undefined / JVM class name (which Swish has no type for) propagates as before —
     /// e.g. native errors, stringified to type `string`, are caught only by a catch-all
@@ -131,7 +131,7 @@ extension Evaluator {
         else {
             return false
         }
-        let valueType = thrownValue.description
+        let valueType = thrownValue.typeName
         if valueType == dispatchName {
             return true
         }

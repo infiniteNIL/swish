@@ -3,7 +3,7 @@ import Collections
 private let protocolImplsKey = Expr.keyword("impls")
 
 /// The built-in type keywords that count as numbers — the `Number` fan-out set.
-/// These match `Expr.description` for the numeric `Expr` cases.
+/// These match `Expr.typeName` for the numeric `Expr` cases.
 private let numericTypeKeywords: Set<String> = [
     "integer", "double", "float", "ratio", "bigInteger", "bigDecimal",
 ]
@@ -119,7 +119,7 @@ private func coreSatisfies(_ args: [Expr]) throws -> Expr {
         }
         return .boolean(protocols.elements.contains(.string(protoName)))
     }
-    let typeName = args[1].description
+    let typeName = args[1].typeName
     return .boolean(hasImplForTypeOrAncestor(typeName, in: impls.dict))
 }
 
@@ -152,7 +152,7 @@ private func coreExtenders(_ args: [Expr]) throws -> Expr {
 
 private func coreInstance(_ evaluator: Evaluator, _ args: [Expr]) throws -> Expr {
     let typeName = try evaluator.dispatchTypeName(for: args[0], formName: "instance?")
-    let valueType = args[1].description
+    let valueType = args[1].typeName
     if valueType == typeName { return .boolean(true) }
     return .boolean(builtinAncestors(ofTypeKeyword: valueType).contains(typeName))
 }

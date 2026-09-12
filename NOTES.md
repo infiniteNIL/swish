@@ -1396,3 +1396,108 @@ unchanged, in either order relative to `load`.
 One wart worth knowing: `Expr.description` is the value's *type name*, not its
 content — protocol dispatch depends on that — so `print(expr)` in host code prints
 `string`. `Swish.printString(_:)`/`toString(_:)` are the renderers.
+
+## Getting data out — making the Swish → Swift direction seamless
+
+Yesterday's commit made the *inbound* direction seamless. The outbound direction still
+read like this, in the demo's Call Swish tab:
+
+```swift
+swish.eval("(one-to-10)").asArray(Expr.toInt)
+swish.eval("{:a 1 :b 2}").asDictionary(mapKey: Expr.toString, mapValue: Expr.toInt)
+swish.eval("(range 10)").asSequence()   // then a loop calling asInt() per element
+```
+
+The goal was for it to read like the inbound side, where the host writes nothing. A
+design review (compiled against the built module, not guessed) found four things that
+would otherwise have shipped as bugs; they drove the ordering.
+
+### The deadlock that wasn't obvious
+
+`Expr.description` returned the *type name* — `print(expr)` printed `string`. Fixing
+that looks like a five-call-site change, and four of them are.
+
+The fifth is `CoreHash.swift`'s `opaqueHasheq`, whose fallback is
+`javaStringHashCode(expr.description)`, documented as "a stable per-kind constant."
+Had `description` started rendering values:
+
+- `(hash an-atom)` becomes content-dependent, so an atom used as a map key relocates
+  when it mutates — silent map corruption.
+- Worse, the printer *forces* a `.delay`, *derefs* a `.future` and *blocks on* a
+  `.promise`. `(hash (promise))` would have deadlocked, and `(hash (delay …))` would
+  have run the host's side effect.
+
+So the change went in three separately-revertable steps: add `Expr.typeName` and
+migrate every dispatch site (behavior-preserving — full suite green), add
+`CoreHashOpaqueTests` pinning atom-hash stability, promise-hash termination and
+delay non-forcing, and only then flip `description`. The jank suite held at its exact
+baseline, which is the check that matters since `description` fed `type` and `hasheq`.
+
+Two smaller things fell out of the same audit: four error messages
+(`CoreHOF.swift:43`, `CoreNamespace.swift:112,114,124`) interpolated a bare `Expr`, so
+they printed `got string` rather than the value; and `asDictionary(mapKey:mapValue:)`
+collapsed colliding keys last-writer-wins over an unspecified iteration order.
+
+### `eval(_:as:)` — measured, not assumed
+
+The plan called for a bare `eval<T>` overload relying on return-type inference, the way
+`call` already does. The worry was the ~3800 existing `swish.eval` call sites, 290 of
+them discarding.
+
+They're fine — the review compiled every syntactic family. But it also *measured*: the
+bare overload costs **+37%** typecheck time across those sites, where
+`eval(_:as: T.Type = T.self)` costs **+5%** with identical ergonomics. Dropping the
+default breaks inference. So the label stays, and the default stays.
+
+### Two recursions, one caught by design and one by the suite
+
+**The one the review predicted:** every `SwishCodable` is also `SwishDecodable`, and
+its protocol default calls back into `ExprDecoder`. If the leaf branch ran before the
+`SwishCodable` branch, a struct would bounce between the two until the stack ran out.
+The same mirror exists on the encode side, which the original plan didn't mention.
+Both dispatch chains now carry a comment saying the order is load-bearing.
+
+The review also caught that "is `T` `SwishDecodable`?" is too broad a predicate for the
+leaf branch — `Array`/`Set`/`Dictionary`/`Optional` conform conditionally, so `[Int]`
+would skip `unkeyedContainer` and inherit the eager-realization hang. Hence the closed
+`SwishLeafConvertible` allowlist, which also earns its keep by keeping `Date` an
+`#inst` (its own `Codable` conformance is a bare `Double`).
+
+**The one nobody predicted** came from the `as*` cleanup, and the test suite found it
+as a SIGBUS. Delegating `asDate()` to `Date(swishValue:)` looked like pure tidying —
+except `Date.init?(swishValue:)` was *implemented in terms of* `asDate()`. Four
+conformances had that shape. The fix is a stated direction of dependency: the
+conformances are the source of truth and pattern-match `Expr` directly; `as*`
+delegates to them, never the reverse.
+
+A third, subtler one was a *missing* special case rather than an extra: `Expr.decode`
+funnels through `T(swishValue:)`, whose `SwishCodable` default swallows the
+`DecodingError` to satisfy a failable init — throwing away the field-level diagnosis
+that is the entire point of the Codable bridge. `decode` now routes `SwishCodable`
+straight to `ExprDecoder`.
+
+### Keywords: the user's call, against the review's advice
+
+The review argued for keeping `String(swishValue:)` strict and making hosts use a
+`Keyword` type. The counter-argument won: `asString()` has *always* flattened
+string/symbol/keyword, the demo's own dictionary row relied on it, and keyword-keyed
+maps are the Clojure norm — a strict `String` means `[String: Int]` can never read
+`{:a 1}`, or any `defrecord`. So `String` decoding relaxed, and `Keyword`/`Symbol`
+remain for the cases where the distinction matters: producing a keyword, and
+round-tripping without flattening. The lossy round trip is documented rather than
+hidden.
+
+### The demo
+
+`SwishEmbed` had to move from its remote package reference to a local path one to see
+any of this. Running it immediately found a bug no unit test would have: the new
+`call-swish.swish` used `#{"hello" "goodbye" "hello"}`, and a set *literal* with a
+duplicate is a read error in Clojure — which aborted the whole file load, leaving every
+row "Undefined symbol". The original demo used the `set` *function*, which dedupes.
+
+### Result
+
+3718 Swift tests (47 new across four suites), 0 warnings; jank unchanged at 249
+namespaces / 6859 assertions / 0 failures. Every Call Swish row renders a real value,
+including a `defrecord` decoded into a Swift struct, a bounded read of `(range)`, and a
+Swish-returned closure called from Swift.

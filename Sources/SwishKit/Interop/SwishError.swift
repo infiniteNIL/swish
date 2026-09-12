@@ -44,6 +44,11 @@ public struct SwishConversionError: SwishError {
     /// The value that could not be converted.
     public let value: Expr
 
+    public init(expected: String, value: Expr) {
+        self.expected = expected
+        self.value = value
+    }
+
     public var description: String {
         "Cannot convert \(corePrinter.printString(value)) to \(expected)."
     }
