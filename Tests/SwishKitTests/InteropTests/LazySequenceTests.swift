@@ -67,6 +67,37 @@ struct LazySequenceTests {
         }
     }
 
+    @Test("lazySequence covers eager collections, not just lazy seqs")
+    func lazySequenceCoversEagerCollections() throws {
+        let swish = Swish()
+
+        // A vector, list or seq has nothing to realize; yielding nothing for one
+        // would be exactly the silent emptiness this type exists to avoid.
+        for source in ["[1 2 3]", "'(1 2 3)", "(seq [1 2 3])", "(range 1 4)", "(map inc [0 1 2])"] {
+            let elements = Array(try swish.eval(source).lazySequence(of: Int.self))
+            #expect(elements == [1, 2, 3], "failed for \(source)")
+        }
+    }
+
+    @Test("A non-sequential value reports a failure rather than looking empty")
+    func nonSequentialReportsFailure() throws {
+        let swish = Swish()
+
+        var iterator = try swish.eval("42").lazySequence(of: Int.self).makeIterator()
+        #expect(iterator.next() == nil)
+        #expect(iterator.failure is SwishConversionError)
+    }
+
+    @Test("An undecodable element in an eager collection stops and records why")
+    func eagerBadElementRecordsFailure() throws {
+        let swish = Swish()
+
+        var iterator = try swish.eval(#"[1 "two" 3]"#).lazySequence(of: Int.self).makeIterator()
+        #expect(iterator.next() == 1)
+        #expect(iterator.next() == nil)
+        #expect(iterator.failure is SwishConversionError)
+    }
+
     @Test("lazySequence supports for-in and reports why it stopped")
     func lazySequenceReportsFailure() throws {
         let swish = Swish()
@@ -81,8 +112,10 @@ struct LazySequenceTests {
 
         // A bad element stops iteration and records why, instead of looking like
         // the end of the sequence.
-        var bad = try swish.eval(#"[1 "two" 3]"#).lazySequence(of: Int.self).makeIterator()
+        var bad = try swish.eval(#"(map identity [1 "two" 3])"#).lazySequence(of: Int.self).makeIterator()
+        #expect(bad.next() == 1)
         #expect(bad.next() == nil)
+        #expect(bad.failure is SwishConversionError)
     }
 
     @Test("A lazy seq that ends normally leaves no failure")

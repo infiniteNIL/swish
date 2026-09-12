@@ -103,9 +103,14 @@ public struct Swish: @unchecked Sendable {
         evaluator.currentNamespaceName
     }
 
+    /// Polled during evaluation; return true to interrupt it.
+    ///
+    /// `nonmutating` because it writes through to the evaluator, which is a
+    /// class — without it, a host holding `let swish = Swish()` (which is the
+    /// normal shape) couldn't set this at all.
     public var interruptionCheck: (() -> Bool)? {
         get { evaluator.interruptionCheck }
-        set { evaluator.interruptionCheck = newValue }
+        nonmutating set { evaluator.interruptionCheck = newValue }
     }
 
     /// Evaluates Swish source and returns the value of its last form.

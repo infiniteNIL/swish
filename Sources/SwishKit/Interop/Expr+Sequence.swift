@@ -12,19 +12,44 @@ import Foundation
 ///   that produced it.
 public struct SwishLazySequence<T: SwishDecodable>: Sequence {
     public struct Iterator: IteratorProtocol {
+        /// The cursor for a lazy seq, realized one element at a time.
         private var current: Expr?
+
+        /// The already-realized elements of an eager collection. A vector, list
+        /// or seq has nothing to realize, and yielding nothing for one would be
+        /// the silent emptiness this type exists to avoid.
+        private var eager: Array<Expr>.Iterator?
 
         /// Why iteration stopped early, or nil if the sequence ran to its end.
         ///
-        /// A `SwishConversionError` when an element wasn't a `T`, or whatever
-        /// realizing the next element threw.
+        /// A `SwishConversionError` when an element wasn't a `T` or the value
+        /// wasn't sequential at all, or whatever realizing an element threw.
         public private(set) var failure: (any Error)?
 
         init(start: Expr) {
-            current = start
+            if case .lazySeq = start {
+                current = start
+                return
+            }
+            do {
+                guard let elements = try SwishKit.asSequence(start) else {
+                    failure = SwishConversionError(expected: "a sequence", value: start)
+                    return
+                }
+                eager = elements.makeIterator()
+            }
+            catch {
+                failure = error
+            }
         }
 
         public mutating func next() -> T? {
+            if var elements = eager {
+                let element = elements.next()
+                eager = elements
+                guard let element else { return nil }
+                return decoded(element)
+            }
             guard let box = nextBox() else { return nil }
             do {
                 guard let head = try box.forceHead() else {
@@ -32,18 +57,24 @@ public struct SwishLazySequence<T: SwishDecodable>: Sequence {
                     return nil
                 }
                 current = try box.forceTail()
-                guard let value = T(swishValue: head) else {
-                    failure = SwishConversionError(expected: "\(T.self)", value: head)
-                    current = nil
-                    return nil
-                }
-                return value
+                return decoded(head)
             }
             catch {
                 failure = error
                 current = nil
                 return nil
             }
+        }
+
+        /// Converts an element, ending iteration and recording why if it can't.
+        private mutating func decoded(_ expr: Expr) -> T? {
+            guard let value = T(swishValue: expr) else {
+                failure = SwishConversionError(expected: "\(T.self)", value: expr)
+                current = nil
+                eager = nil
+                return nil
+            }
+            return value
         }
 
         private mutating func nextBox() -> LazySeqBox? {
@@ -63,10 +94,12 @@ public struct SwishLazySequence<T: SwishDecodable>: Sequence {
 }
 
 public extension Expr {
-    /// Iterates this value lazily, decoding each element.
+    /// Iterates this value, decoding each element.
     ///
-    /// Safe on an infinite seq as long as the loop stops; check the iterator's
-    /// `failure` afterwards, or prefer `forEach(of:_:)`.
+    /// A lazy seq is realized one element at a time, so this is safe on an
+    /// infinite one as long as the loop stops; eager collections (vector, list,
+    /// seq, …) are iterated directly. Check the iterator's `failure` afterwards,
+    /// or prefer `forEach(of:_:)`, which throws instead.
     func lazySequence<T: SwishDecodable>(of type: T.Type = T.self) -> SwishLazySequence<T> {
         SwishLazySequence(start: self)
     }
